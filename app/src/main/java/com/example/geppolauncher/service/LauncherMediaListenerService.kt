@@ -1,0 +1,7 @@
+package com.example.geppolauncher.service
+
+import android.service.notification.NotificationListenerService
+
+class LauncherMediaListenerService : NotificationListenerService() {
+    // MediaSessionManager.getActiveSessions 用の通知リスナーサービス
+}
