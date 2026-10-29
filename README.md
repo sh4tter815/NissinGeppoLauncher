@@ -6,7 +6,6 @@
   <img src="images/screenshot_3.jpg" width="200" alt="フォルダ・編集画面">
 </p>
 
-[![Build APK](https://github.com/USERNAME/NisshinGeppoLauncher/actions/workflows/build-apk.yml/badge.svg)](https://github.com/USERNAME/NisshinGeppoLauncher/actions/workflows/build-apk.yml)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0%2B-blue.svg)](https://kotlinlang.org)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-UI-brightgreen.svg)](https://developer.android.com/jetpack/compose)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
