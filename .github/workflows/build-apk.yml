@@ -3,12 +3,15 @@ name: Build and Release Debug APK
 on:
   push:
     branches: [ "main", "master" ]  # mainまたはmasterにプッシュしたときに自動で動く！
-    # ※もし「手動でボタンを押したときだけ動かしたい」なら、下の行のコメントアウトを外してね
-    # workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    # ★ここから追加：Releasesを書き換える権限をあたえる！
+    permissions:
+      contents: write
+    # ★ここまで
 
     steps:
       - name: Checkout code
@@ -40,10 +43,10 @@ jobs:
       - name: Release Debug APK to GitHub
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: debug-build-${{ github.run_number }}  # 自動で「debug-build-数字」というタグを作ってリリースしてくれるよ！
+          tag_name: debug-build-${{ github.run_number }}
           name: Debug Build #${{ github.run_number }}
           files: app/build/outputs/apk/debug/app-debug.apk
           draft: false
-          prerelease: true  # プレリリース（テスト版）として公開する設定
+          prerelease: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
