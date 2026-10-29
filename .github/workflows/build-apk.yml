@@ -2,7 +2,9 @@ name: Build APK
 
 on:
   push:
-    branches: [ "main", "master" ]  # mainまたはmasterブランチにプッシュしたときに自動で動く
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
 
 jobs:
   build:
@@ -12,26 +14,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 1. Java（JDK）のセットアップ
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-      # 2. Android SDKなどのビルド環境を整えてAPKを作る
-            # 2. 実行権限をあたえる
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-            # 3. Android SDKなどのビルド環境を整えてAPKを作る
       - name: Build APK with Gradle
-        run: ./gradlew assembleDebug  # デバッグ用APKを作る場合（リリース用は assembleRelease）
+        run: ./gradlew assembleDebug
 
-      # 3. 作ったAPKファイルをGitHubからダウンロードできるように保存する
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: geppocl-apk
+          name: release-apk
           path: app/build/outputs/apk/debug/app-debug.apk
