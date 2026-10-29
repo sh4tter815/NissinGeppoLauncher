@@ -1,8 +1,9 @@
 name: Build and Release Debug APK
 
 on:
-  push:
-    branches: [ "main", "master" ]  # mainまたはmasterにプッシュしたときに自動で動く！
+  workflow_dispatch:
+  #push:
+    #branches: [ "main", "master" ]  # mainまたはmasterにプッシュしたときに自動で動く！
 
 jobs:
   build:
