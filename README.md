@@ -1,9 +1,9 @@
 # 🌅 日進月歩ランチャー (Nisshin Geppo Launcher)
 
 <p align="center">
-  <img src="images/screenshot_1.jpg" width="280" alt="ホーム画面">
-  <img src="images/screenshot_2.jpg" width="280" alt="アプリ一覧・検索">
-  <img src="images/screenshot_3.jpg" width="280" alt="フォルダ・編集画面">
+  <img src="images/screenshot_1.jpg" width="200" alt="ホーム画面">
+  <img src="images/screenshot_2.jpg" width="200" alt="アプリ一覧・検索">
+  <img src="images/screenshot_3.jpg" width="200" alt="フォルダ・編集画面">
 </p>
 
 [![Build APK](https://github.com/USERNAME/NisshinGeppoLauncher/actions/workflows/build-apk.yml/badge.svg)](https://github.com/USERNAME/NisshinGeppoLauncher/actions/workflows/build-apk.yml)
