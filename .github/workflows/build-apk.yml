@@ -19,11 +19,11 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      # 2. Android SDKのセットアップ（ライセンス同意を追加！）
+      # 2. Android SDKのセットアップ（パラメータ名を修正！）
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          accept-license: true
+          accept-android-sdk-licenses: true
 
       # 3. gradlewに実行権限をあたえる
       - name: Grant execute permission for gradlew
