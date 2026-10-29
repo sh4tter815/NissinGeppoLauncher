@@ -1,8 +1,10 @@
-name: Build APK
+name: Build and Release Debug APK
 
 on:
   push:
-    branches: [ "main", "master" ]  # mainまたはmasterブランチにプッシュしたときに自動で動く
+    branches: [ "main", "master" ]  # mainまたはmasterにプッシュしたときに自動で動く！
+    # ※もし「手動でボタンを押したときだけ動かしたい」なら、下の行のコメントアウトを外してね
+    # workflow_dispatch:
 
 jobs:
   build:
@@ -19,7 +21,7 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      # 2. Android SDKのセットアップ（パッケージの間にスペースを空けたよ！）
+      # 2. Android SDKのセットアップ
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
@@ -30,13 +32,18 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      # 4. Android SDKなどのビルド環境を整えてAPKを作る
-      - name: Build APK with Gradle
-        run: ./gradlew assembleDebug  # デバッグ用APKを作る場合
+      # 4. デバッグ版APKをビルドする
+      - name: Build Debug APK with Gradle
+        run: ./gradlew assembleDebug
 
-      # 5. 作ったAPKファイルをGitHubからダウンロードできるように保存する
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      # 5. GitHubの「Releases」に自動でデバッグAPKをアップロードする
+      - name: Release Debug APK to GitHub
+        uses: softprops/action-gh-release@v2
         with:
-          name: geppocl-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          tag_name: debug-build-${{ github.run_number }}  # 自動で「debug-build-数字」というタグを作ってリリースしてくれるよ！
+          name: Debug Build #${{ github.run_number }}
+          files: app/build/outputs/apk/debug/app-debug.apk
+          draft: false
+          prerelease: true  # プレリリース（テスト版）として公開する設定
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
