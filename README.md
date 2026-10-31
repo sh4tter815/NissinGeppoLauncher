@@ -27,7 +27,7 @@
 
 本アプリのAPKファイルは、GitHubの **Releases** ページから簡単にダウンロードしてインストールいただけます。
 
-1. [Releases ページ](https://github.com/USERNAME/NisshinGeppoLauncher/releases)へアクセスします。
+1. [Releases ページ](https://github.com/sh4tter815/NisshinGeppoLauncher/releases)へアクセスします。
 2. 最新のリリースから `app-release.apk`（またはデバッグ用APK）をダウンロードします。
 3. Android端末でAPKファイルを開き、インストールを実行してください。
    *(※「提供元不明のアプリ」のインストール許可が必要な場合があります)*
