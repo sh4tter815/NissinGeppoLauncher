@@ -1,28 +1,23 @@
 name: Build and Release Debug APK
 
-
 on:
   workflow_dispatch:
   push:
     branches: [ "master" ]
-
 
 jobs:
   build:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[release]')
     runs-on: ubuntu-latest
 
-
     # ★ここから追加：Releasesを書き換える権限をあたえる！
     permissions:
       contents: write
     # ★ここまで
 
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
 
       # 1. Java（JDK）のセットアップ
       - name: Set up JDK 17
@@ -31,7 +26,6 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-
       # 2. Android SDKのセットアップ
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -39,16 +33,13 @@ jobs:
           accept-android-sdk-licenses: true
           packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
 
-
       # 3. gradlewに実行権限をあたえる
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-
       # 4. デバッグ版APKをビルドする
       - name: Build Debug APK with Gradle
         run: ./gradlew assembleDebug
-
 
       # 5. GitHubの「Releases」に自動でデバッグAPKをアップロードする
       - name: Release Debug APK to GitHub
