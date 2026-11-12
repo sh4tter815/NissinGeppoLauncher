@@ -1,4 +1,4 @@
-name: Build and Release Debug APK
+name: Build and Release Debug APK (auto version bump enabled)
 
 on:
   workflow_dispatch:
