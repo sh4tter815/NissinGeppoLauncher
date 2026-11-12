@@ -17,6 +17,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -62,6 +63,8 @@ fun PeekPageDial(
 
     val animatableRotation = remember { Animatable(-currentPage * stepAngle) }
     var rawRotationAngle by remember { mutableFloatStateOf(-currentPage * stepAngle) }
+    // 診断用: タッチが届いているかを可視化する（ホーム画面だけ反応しない問題の切り分け）
+    var debugDown by remember { mutableStateOf(false) }
 
     val minRotation = -((totalPages - 1) * stepAngle)
     val maxRotation = 0f
@@ -112,6 +115,7 @@ fun PeekPageDial(
                     awaitPointerEventScope {
                         while (true) {
                             val down = awaitFirstDown(requireUnconsumed = false)
+                            debugDown = true
 
                             // フレームワーク標準の drag() は、他の円盤にイベントを消費されると
                             // 開始前にキャンセルされてしまう（ホーム画面のお気に入り円盤との競合）。
@@ -185,6 +189,7 @@ fun PeekPageDial(
                                     onPageSelected(nearestIndex)
                                 }
                             }
+                            debugDown = false
                         }
                     }
                 }
@@ -193,7 +198,7 @@ fun PeekPageDial(
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val center = Offset(discCenterXDp.dp.toPx(), discCenterYDp.dp.toPx())
                 drawCircle(
-                    color = Color.White.copy(alpha = 0.85f),
+                    color = if (debugDown) Color.Red.copy(alpha = 0.95f) else Color.White.copy(alpha = 0.85f),
                     radius = discRadiusDp.dp.toPx(),
                     center = center,
                     style = Stroke(width = 1.5f)
