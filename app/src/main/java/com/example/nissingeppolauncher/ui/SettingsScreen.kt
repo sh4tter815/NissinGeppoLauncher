@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.nissingeppolauncher.data.AppRepository
+import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 import kotlin.math.roundToInt
@@ -214,7 +215,8 @@ fun FontSelectionSection(
 fun SettingsScreen(
     repo: AppRepository,
     onBack: () -> Unit = {},
-    onChanged: () -> Unit = {}
+    onChanged: () -> Unit = {},
+    onAppsUpdated: () -> Unit = {}
 ) {
     val context = LocalContext.current
     var accentHex by remember { mutableStateOf(repo.prefManager.getAccentColorHex()) }
@@ -232,6 +234,9 @@ fun SettingsScreen(
     var isReverseScroll by remember { mutableStateOf(repo.prefManager.isReverseScroll()) }
     var usePasscodeForHidden by remember { mutableStateOf(repo.prefManager.isUsePasscodeForHidden()) }
     var currentFontChoice by remember { mutableStateOf(repo.prefManager.getFontChoice()) }
+    var appsUpdateStatus by remember { mutableStateOf("") }
+    var isUpdatingApps by remember { mutableStateOf(false) }
+    val settingsScope = rememberCoroutineScope()
 
     val switchColors = SwitchDefaults.colors(
         checkedThumbColor = currentAccentColor,
@@ -355,6 +360,7 @@ fun SettingsScreen(
                         text = when (selectedCategory) {
                             "behavior" -> "動作設定"
                             "appearance" -> "外観設定"
+                            "apps" -> "アプリ一覧"
                             "security" -> "セキュリティ"
                             "tutorial" -> "チュートリアル"
                             else -> "環境設定"
@@ -369,6 +375,7 @@ fun SettingsScreen(
             val categories = listOf(
                 Triple("behavior", "動作", "ダイヤルのスクロール方向や操作感の設定"),
                 Triple("appearance", "外観", "壁紙、配色、フォントなどの見た目のカスタマイズ"),
+                Triple("apps", "アプリ一覧", "アプリ一覧データの差分更新（追加・削除されたアプリの反映）"),
                 Triple("security", "セキュリティ", "非表示アプリ用のパスコード(PIN)設定"),
                 Triple("tutorial", "チュートリアル", "ガイドや使い方の再表示設定")
             )
@@ -452,6 +459,44 @@ fun SettingsScreen(
                                                 },
                                                 colors = switchColors
                                             )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                                                "apps" -> {
+                            item {
+                                Surface(
+                                    color = Color(0x99101728),
+                                    shape = RoundedCornerShape(20.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(20.dp),
+                                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                                    ) {
+                                        Text("アプリデータの更新", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Normal)
+                                        Text("追加・削除・更新されたアプリをチェックして、一覧に反映します（差分更新）。通常は起動時とアプリのインストール時に自動でチェックされるため、手動更新が要るのは表示が古いと感じたときなどです。", color = Color.Gray, fontSize = 12.sp)
+                                        Button(
+                                            onClick = {
+                                                if (!isUpdatingApps) {
+                                                    isUpdatingApps = true
+                                                    appsUpdateStatus = "更新中…"
+                                                    settingsScope.launch {
+                                                        val apps = repo.getInstalledApps(forceRefresh = true)
+                                                        appsUpdateStatus = "更新しました（全 ${apps.size} 件）"
+                                                        isUpdatingApps = false
+                                                        onAppsUpdated()
+                                                    }
+                                                }
+                                            },
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F293D)),
+                                            elevation = null
+                                        ) {
+                                            Text("アプリ一覧を更新", color = Color.White, fontWeight = FontWeight.Light)
+                                        }
+                                        if (appsUpdateStatus.isNotEmpty()) {
+                                            Text(appsUpdateStatus, color = Color.Gray, fontSize = 13.sp)
                                         }
                                     }
                                 }

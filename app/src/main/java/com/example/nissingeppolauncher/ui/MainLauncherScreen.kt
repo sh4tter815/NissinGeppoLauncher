@@ -187,6 +187,35 @@ fun MainLauncherScreen() {
     LaunchedEffect(Unit) {
         refreshApps()
     }
+    // アプリのインストール・アンインストール・更新を検知して一覧を自動で最新化する
+    DisposableEffect(Unit) {
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(receiverContext: android.content.Context?, intent: android.content.Intent?) {
+                AppRepository.invalidateCache()
+                refreshApps()
+            }
+        }
+        val filter = android.content.IntentFilter().apply {
+            addAction(android.content.Intent.ACTION_PACKAGE_ADDED)
+            addAction(android.content.Intent.ACTION_PACKAGE_REMOVED)
+            addAction(android.content.Intent.ACTION_PACKAGE_CHANGED)
+            addAction(android.content.Intent.ACTION_EXTERNAL_APPLICATIONS_AVAILABLE)
+            addAction(android.content.Intent.ACTION_EXTERNAL_APPLICATIONS_UNAVAILABLE)
+            addDataScheme("package")
+        }
+        androidx.core.content.ContextCompat.registerReceiver(
+            context,
+            receiver,
+            filter,
+            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        onDispose {
+            try {
+                context.unregisterReceiver(receiver)
+            } catch (_: Exception) {
+            }
+        }
+    }
 
     // --- 左右の円の固定絶対座標配置 ---
     val disc1RadiusDp = 165f
@@ -321,6 +350,9 @@ fun MainLauncherScreen() {
                                 customFontPath = repo.prefManager.getCustomFontPath()
                                 useCustomFont = repo.prefManager.isUseCustomFont()
                                 fontChoice = repo.prefManager.getFontChoice()
+                            },
+                            onAppsUpdated = {
+                                refreshApps()
                             }
                         )
                     }
