@@ -5,7 +5,6 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,7 +26,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.changedToUpOrCanceled
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -115,20 +114,32 @@ fun PeekPageDial(
                         while (true) {
                             val down = awaitFirstDown(requireUnconsumed = false)
 
-                            var currentPos = down.position
+                            // フレームワーク標準の drag() は、他の円盤にイベントを消費されると
+                            // 開始前にキャンセルされてしまう（ホーム画面のお気に入り円盤との競合）。
+                            // 消費状態に依存しない自前のループで座標を追い、競合しても回るようにする。
+                            var lastPos = down.position
                             var totalDx = 0f
                             var totalDy = 0f
                             var isDragStarted = false
                             var lastDeltaAngle = 0f
                             var lastTime = System.currentTimeMillis()
+                            var pointerUp = false
 
-                            drag(down.id) { change: PointerInputChange ->
-                                val prevPos = currentPos
-                                currentPos = change.position
-                                val currentTime = System.currentTimeMillis()
+                            while (!pointerUp) {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull { it.id == down.id }
+                                if (change == null) {
+                                    pointerUp = true
+                                    break
+                                }
+                                if (change.changedToUpOrCanceled()) {
+                                    pointerUp = true
+                                    break
+                                }
 
-                                val dx = currentPos.x - prevPos.x
-                                val dy = currentPos.y - prevPos.y
+                                val dx = change.position.x - lastPos.x
+                                val dy = change.position.y - lastPos.y
+                                lastPos = change.position
                                 totalDx += dx
                                 totalDy += dy
 
@@ -144,6 +155,7 @@ fun PeekPageDial(
                                     // フォルダ円盤と同じ換算（指の移動量 → 角度、ゲイン1.2）
                                     val deltaAngle = (dx / radiusPx) * (180f / PI.toFloat()) * 1.2f
 
+                                    val currentTime = System.currentTimeMillis()
                                     val dt = (currentTime - lastTime).coerceAtLeast(1)
                                     lastDeltaAngle = deltaAngle / dt * 16f
                                     lastTime = currentTime
