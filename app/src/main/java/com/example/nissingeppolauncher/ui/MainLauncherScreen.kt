@@ -42,8 +42,10 @@ import androidx.compose.ui.zIndex
 import com.example.nissingeppolauncher.data.AppInfo
 import com.example.nissingeppolauncher.data.AppRepository
 import com.example.nissingeppolauncher.ui.components.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import kotlin.math.*
@@ -70,7 +72,50 @@ fun MainLauncherScreen() {
     var currentLauncherPage by remember { mutableIntStateOf(1) }
 
     var accentHex by remember { mutableStateOf(repo.prefManager.getAccentColorHex()) }
-    val accentColor = remember(accentHex) { parseHexColor(accentHex) }
+    val manualAccentColor = remember(accentHex) { parseHexColor(accentHex) }
+
+    // アートワーク連動カラー: 設定でONのとき、再生中セッションのアートワークから
+    // アクセント色（前景）と背景色を抽出してテーマカラーにする
+    var matchArtwork by remember { mutableStateOf(repo.prefManager.isMatchArtworkColor()) }
+    var sessionAlbumArt by remember { mutableStateOf<Bitmap?>(null) }
+    var artworkAccent by remember { mutableStateOf<Color?>(null) }
+    var artworkBackground by remember { mutableStateOf<Color?>(null) }
+
+    // 再生中セッションのアートワークを定期取得する（ホームの音楽ウィジェットと同じ方式）
+    LaunchedEffect(matchArtwork) {
+        if (!matchArtwork) {
+            sessionAlbumArt = null
+            return@LaunchedEffect
+        }
+        val mediaSessionManager = context.getSystemService(android.content.Context.MEDIA_SESSION_SERVICE) as? android.media.session.MediaSessionManager
+        val listenerComponent = android.content.ComponentName(context, com.example.nissingeppolauncher.service.LauncherMediaListenerService::class.java)
+        while (true) {
+            sessionAlbumArt = try {
+                val controllers = mediaSessionManager?.getActiveSessions(listenerComponent)
+                val activeController = controllers?.firstOrNull {
+                    it.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING
+                } ?: controllers?.firstOrNull()
+                val metadata = activeController?.metadata
+                metadata?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART)
+                    ?: metadata?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ART)
+            } catch (e: Exception) {
+                null
+            }
+            delay(1500)
+        }
+    }
+    LaunchedEffect(sessionAlbumArt, matchArtwork) {
+        val art = sessionAlbumArt
+        if (matchArtwork && art != null) {
+            val (fg, bg) = withContext(Dispatchers.Default) { extractArtworkColors(art) }
+            artworkAccent = fg
+            artworkBackground = bg
+        } else {
+            artworkAccent = null
+            artworkBackground = null
+        }
+    }
+    val accentColor = if (matchArtwork) artworkAccent ?: manualAccentColor else manualAccentColor
 
     var showWelcomeTutorial by remember { mutableStateOf(false) }
     var showIndexTutorial by remember { mutableStateOf(false) }
@@ -79,6 +124,7 @@ fun MainLauncherScreen() {
     // ページが切り替わるたびにアクセントカラー等を自動再読込
     LaunchedEffect(currentLauncherPage) {
         accentHex = repo.prefManager.getAccentColorHex()
+        matchArtwork = repo.prefManager.isMatchArtworkColor()
         if (currentLauncherPage == 1) {
             if (!repo.prefManager.isFirstWelcomeTutorialShown()) {
                 showWelcomeTutorial = true
@@ -326,7 +372,9 @@ fun MainLauncherScreen() {
             WallpaperBackground(
                 customPath = customBackgroundPath,
                 updateKey = backgroundUpdateKey,
-                isHome = (currentLauncherPage == 1)
+                isHome = (currentLauncherPage == 1),
+                currentAlbumArt = if (matchArtwork) sessionAlbumArt else null,
+                dynamicBackground = if (matchArtwork) artworkBackground else null
             )
 
             // --- メインコンテンツ描画 (0: 設定, 1: ホーム, 2: アプリ一覧, 3: フォルダ) ---
@@ -1204,4 +1252,103 @@ fun MainLauncherScreen() {
         }
     }
 }
+}
+
+/**
+ * アートワークからテーマカラーを抽出する（追加ライブラリなしの簡易実装）。
+ * 戻り値: (アクセント色=前景, 背景色)
+ * アクセントは「画素数 × 平均彩度」が最大の色相グループの平均色、
+ * 背景は暗い画素の平均色（なければ全体平均を暗く落とす）。
+ */
+private fun extractArtworkColors(bitmap: Bitmap): Pair<Color, Color> {
+    val size = 48
+    val scaled = if (bitmap.width == size && bitmap.height == size) bitmap
+        else Bitmap.createScaledBitmap(bitmap, size, size, true)
+    val bucketCount = 12
+    val counts = IntArray(bucketCount)
+    val satSums = FloatArray(bucketCount)
+    val rSums = LongArray(bucketCount)
+    val gSums = LongArray(bucketCount)
+    val bSums = LongArray(bucketCount)
+    val hsv = FloatArray(3)
+    var darkCount = 0
+    var darkR = 0L; var darkG = 0L; var darkB = 0L
+    var totalR = 0L; var totalG = 0L; var totalB = 0L
+    val totalPx = size * size
+    for (y in 0 until size) {
+        for (x in 0 until size) {
+            val px = scaled.getPixel(x, y)
+            val r = android.graphics.Color.red(px)
+            val g = android.graphics.Color.green(px)
+            val b = android.graphics.Color.blue(px)
+            totalR += r; totalG += g; totalB += b
+            android.graphics.Color.RGBToHSV(r, g, b, hsv)
+            if (hsv[1] > 0.15f && hsv[2] > 0.15f) {
+                val bucket = (hsv[0] / 30f).toInt().coerceIn(0, bucketCount - 1)
+                counts[bucket]++
+                satSums[bucket] += hsv[1]
+                rSums[bucket] += r; gSums[bucket] += g; bSums[bucket] += b
+            }
+            val lum = (0.299f * r + 0.587f * g + 0.114f * b) / 255f
+            if (lum < 0.35f) {
+                darkCount++; darkR += r; darkG += g; darkB += b
+            }
+        }
+    }
+    if (scaled !== bitmap) scaled.recycle()
+
+    var bestBucket = -1
+    var bestScore = -1f
+    for (i in 0 until bucketCount) {
+        if (counts[i] == 0) continue
+        val score = counts[i] * (satSums[i] / counts[i])
+        if (score > bestScore) {
+            bestScore = score
+            bestBucket = i
+        }
+    }
+    var accent = if (bestBucket >= 0) {
+        Color(
+            red = (rSums[bestBucket] / counts[bestBucket]).toInt(),
+            green = (gSums[bestBucket] / counts[bestBucket]).toInt(),
+            blue = (bSums[bestBucket] / counts[bestBucket]).toInt()
+        )
+    } else {
+        // 無彩色寄りのアートワークでは全体の平均色を使う
+        Color(
+            red = (totalR / totalPx).toInt(),
+            green = (totalG / totalPx).toInt(),
+            blue = (totalB / totalPx).toInt()
+        )
+    }
+    // 暗すぎるアクセントは白と混ぜて視認性を上げる
+    val accentLum = 0.299f * accent.red + 0.587f * accent.green + 0.114f * accent.blue
+    if (accentLum < 0.22f) {
+        accent = Color(
+            red = accent.red + (1f - accent.red) * 0.35f,
+            green = accent.green + (1f - accent.green) * 0.35f,
+            blue = accent.blue + (1f - accent.blue) * 0.35f
+        )
+    }
+
+    var background = if (darkCount > 0) {
+        Color(
+            red = (darkR / darkCount).toInt(),
+            green = (darkG / darkCount).toInt(),
+            blue = (darkB / darkCount).toInt()
+        )
+    } else {
+        Color(
+            red = (totalR / totalPx).toInt(),
+            green = (totalG / totalPx).toInt(),
+            blue = (totalB / totalPx).toInt()
+        )
+    }
+    // 背景が明るすぎる場合は文字が読める明るさまで落とす
+    val bgLum = 0.299f * background.red + 0.587f * background.green + 0.114f * background.blue
+    if (bgLum > 0.16f) {
+        val f = 0.16f / bgLum
+        background = Color(red = background.red * f, green = background.green * f, blue = background.blue * f)
+    }
+    return accent to background
 }
