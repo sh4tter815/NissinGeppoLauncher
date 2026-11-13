@@ -1,7 +1,9 @@
 package com.example.nissingeppolauncher.ui.components
 
+import android.view.HapticFeedbackConstants
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -12,13 +14,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -26,12 +28,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
+import androidx.compose.ui.unit.sp
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
@@ -40,10 +41,15 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /**
- * 画面下からチラ見えする円形ページダイヤル。
- * フォルダ選択の円盤（RotatableAppDisc）と同じ流儀: 塗りなし・白い輪郭線の円、
- * アイコンは円周の内側に配置し、一番上（真上）に来たページが選択状態。
- * 横ドラッグで回転し、離すと慣性つきで一番近いページにスナップする。
+ * 画面下からチラ見えする円形ページダイヤル。（音楽版と共通の操作感）
+ * フォルダ選択の円盤と同じ流儀: 塗りなし・白い輪郭線の円、アイコンは円周の内側に配置し、
+ * 一番上（真上）に来たページが選択状態。円盤の上には現在のページ名を小さく表示する
+ * （押して円が拡大しても、位置が連動して常に円の外側に保たれる）。
+ * 操作はスワイプ式: 指を少し動かすと1ページ分だけ進み／戻り、その間の回転は
+ * アニメーションだけで補間する（指に追従する自由回転はしない）。
+ * 右スワイプで前のページ、左スワイプで次のページ。
+ * 指を離さなくても、アイコンが切り替わった時点でページも切り替わる。
+ * 設定の「スクロール方向の反転」がONのときは向きが逆になる（他の円盤と共通）。
  */
 @Composable
 fun PeekPageDial(
@@ -52,37 +58,50 @@ fun PeekPageDial(
     accentColor: Color = Color(0xFFE53935),
     modifier: Modifier = Modifier
 ) {
-    val density = LocalDensity.current
-    val haptic = LocalHapticFeedback.current
-    val coroutineScope = rememberCoroutineScope()
+    val view = LocalView.current
+    // すべてのスクロールに共通の反転オプション（リスト円盤と同じ設定を読む）
+    val context = LocalContext.current
+    val prefManager = remember { com.example.nissingeppolauncher.data.AppPreferenceManager(context) }
+    val isReverseScroll = prefManager.isReverseScroll()
 
+    // 押している間はフォルダ選択の円盤（MechanicalDisc）と同じく1.30倍に拡大し、指で隠れないようにする
+    var isPressed by remember { mutableStateOf(false) }
+    val expandScale by animateFloatAsState(
+        targetValue = if (isPressed) 1.30f else 1.0f,
+        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+        label = "DialExpandScale"
+    )
+
+    // ページは4つ: 0=設定, 1=ホーム, 2=アプリ一覧, 3=フォルダ
     val totalPages = 4
+    val pageLabels = listOf("設定", "ホーム", "アプリ一覧", "フォルダ")
     val stepAngle = 24f
     val discRadiusDp = 165f
     val baseCenterAngle = -90f // 真上
 
+    // ダイヤルが向かっているページ。回転はこの値へのアニメーションだけで行う
+    var targetPage by remember { mutableIntStateOf(currentPage) }
     val animatableRotation = remember { Animatable(-currentPage * stepAngle) }
-    var rawRotationAngle by remember { mutableFloatStateOf(-currentPage * stepAngle) }
-    // pointerInput内のループは再コンポーズで再起動しないため、currentPage引数を直接使うと
-    // 初回表示時の値（起動時のホーム=1）に固定されてしまう。rememberUpdatedStateで最新値を参照する。
+    // pointerInput内のループは再コンポーズで再起動しないため、最新値の参照用
     val latestCurrentPage = rememberUpdatedState(currentPage)
 
-    val minRotation = -((totalPages - 1) * stepAngle)
-    val maxRotation = 0f
-
-    // ページが外部から切り替わったとき（他UIからの遷移など）にダイヤルを追従させる。
-    // ドラッグで切り替えた場合は rawRotationAngle が既に目標角度なので何も起きない（＝バネ戻り防止）。
+    // ページが外部から切り替わったとき（他UIからの遷移など）はダイヤルも追従させる
     LaunchedEffect(currentPage) {
-        val targetAngle = -currentPage * stepAngle
-        if (rawRotationAngle != targetAngle) {
-            rawRotationAngle = targetAngle
-            coroutineScope.launch {
-                animatableRotation.animateTo(
-                    targetValue = targetAngle,
-                    animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing)
-                )
-            }
+        if (!isPressed) {
+            targetPage = currentPage
         }
+    }
+
+    // 目標ページが変わるたびに、回転アニメーションでその位置まで補間移動し、
+    // 指を離さなくてもその時点でページも切り替える
+    LaunchedEffect(targetPage) {
+        if (targetPage != latestCurrentPage.value) {
+            onPageSelected(targetPage)
+        }
+        animatableRotation.animateTo(
+            targetValue = -targetPage * stepAngle,
+            animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)
+        )
     }
 
     val currentRotation = animatableRotation.value
@@ -90,16 +109,6 @@ fun PeekPageDial(
     val selectedIndex = remember(currentRotation) {
         (-currentRotation / stepAngle).roundToInt().coerceIn(0, totalPages - 1)
     }
-
-    var lastHapticIndex by remember { mutableIntStateOf(-1) }
-    LaunchedEffect(selectedIndex) {
-        if (selectedIndex != lastHapticIndex && lastHapticIndex != -1) {
-            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-        }
-        lastHapticIndex = selectedIndex
-    }
-
-    val radiusPx = with(density) { discRadiusDp.dp.toPx() }
 
     BoxWithConstraints(
         modifier = modifier
@@ -112,20 +121,20 @@ fun PeekPageDial(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .pointerInput(discRadiusDp) {
+                .pointerInput(Unit) {
                     awaitPointerEventScope {
                         while (true) {
                             val down = awaitFirstDown(requireUnconsumed = false)
+                            isPressed = true
 
                             // フレームワーク標準の drag() は、他の円盤にイベントを消費されると
                             // 開始前にキャンセルされてしまう（ホーム画面のお気に入り円盤との競合）。
-                            // 消費状態に依存しない自前のループで座標を追い、競合しても回るようにする。
+                            // 消費状態に依存しない自前のループで座標を追い、競合しても動くようにする。
                             var lastPos = down.position
-                            var totalDx = 0f
-                            var totalDy = 0f
-                            var isDragStarted = false
-                            var lastDeltaAngle = 0f
-                            var lastTime = System.currentTimeMillis()
+                            // スワイプのステップ判定用: 指の横移動がこのpx数たまるごとに1ページ進む／戻る
+                            val stepThresholdPx = 28f
+                            var accumulatedDx = 0f
+                            var didSwipe = false
                             var pointerUp = false
 
                             while (!pointerUp) {
@@ -141,53 +150,47 @@ fun PeekPageDial(
                                 }
 
                                 val dx = change.position.x - lastPos.x
-                                val dy = change.position.y - lastPos.y
                                 lastPos = change.position
-                                totalDx += dx
-                                totalDy += dy
+                                accumulatedDx += dx
 
-                                if (!isDragStarted) {
-                                    if (abs(totalDx) > 6f && abs(totalDx) >= abs(totalDy)) {
-                                        isDragStarted = true
+                                // 右スワイプで前のページ、左スワイプで次のページへ
+                                // （共通の反転オプションがONのときは逆になる）。
+                                // 回転そのものは LaunchedEffect(targetPage) のアニメーションが行う
+                                val stepForRight = if (isReverseScroll) 1 else -1
+                                var stepped = false
+                                while (accumulatedDx >= stepThresholdPx) {
+                                    accumulatedDx -= stepThresholdPx
+                                    val next = targetPage + stepForRight
+                                    if (next in 0 until totalPages) {
+                                        targetPage = next
+                                        stepped = true
                                     }
                                 }
-
-                                if (isDragStarted) {
-                                    change.consume()
-
-                                    // フォルダ円盤と同じ換算（指の移動量 → 角度、ゲイン1.2）
-                                    val deltaAngle = (dx / radiusPx) * (180f / PI.toFloat()) * 1.2f
-
-                                    val currentTime = System.currentTimeMillis()
-                                    val dt = (currentTime - lastTime).coerceAtLeast(1)
-                                    lastDeltaAngle = deltaAngle / dt * 16f
-                                    lastTime = currentTime
-
-                                    val targetAngle = (rawRotationAngle + deltaAngle)
-                                        .coerceIn(minRotation - 20f, maxRotation + 20f)
-                                    rawRotationAngle = targetAngle
-                                    coroutineScope.launch {
-                                        animatableRotation.snapTo(targetAngle)
+                                while (accumulatedDx <= -stepThresholdPx) {
+                                    accumulatedDx += stepThresholdPx
+                                    val next = targetPage - stepForRight
+                                    if (next in 0 until totalPages) {
+                                        targetPage = next
+                                        stepped = true
                                     }
+                                }
+                                if (stepped) {
+                                    didSwipe = true
+                                    change.consume()
+                                    // フォルダ／インデックス円盤のパネルと同じ軽いクリック感
+                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                                 }
                             }
 
-                            if (isDragStarted) {
-                                val inertiaTarget = rawRotationAngle + lastDeltaAngle * 6f
-                                val nearestIndex = (-inertiaTarget / stepAngle).roundToInt()
-                                    .coerceIn(0, totalPages - 1)
-                                val finalSnapAngle = -nearestIndex * stepAngle
+                            isPressed = false
 
-                                rawRotationAngle = finalSnapAngle
-                                coroutineScope.launch {
-                                    animatableRotation.animateTo(
-                                        targetValue = finalSnapAngle,
-                                        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
-                                    )
-                                }
-                                if (nearestIndex != latestCurrentPage.value) {
-                                    onPageSelected(nearestIndex)
-                                }
+                            // ページ切替は通常はステップした時点で済んでいるが、
+                            // 速すぎて反映が間に合わなかった場合の保険として離した時点でも確認する
+                            if (didSwipe && targetPage != latestCurrentPage.value) {
+                                onPageSelected(targetPage)
+                            } else if (!didSwipe) {
+                                // スワイプしなかった（タップ等）場合は現在位置に戻す
+                                targetPage = latestCurrentPage.value
                             }
                         }
                     }
@@ -198,13 +201,13 @@ fun PeekPageDial(
                 val center = Offset(discCenterXDp.dp.toPx(), discCenterYDp.dp.toPx())
                 drawCircle(
                     color = Color.White.copy(alpha = 0.85f),
-                    radius = discRadiusDp.dp.toPx(),
+                    radius = (discRadiusDp * expandScale).dp.toPx(),
                     center = center,
                     style = Stroke(width = 1.5f)
                 )
             }
 
-            val innerIconRadiusDp = discRadiusDp - 18f
+            val innerIconRadiusDp = (discRadiusDp - 18f) * expandScale
 
             for (index in 0 until totalPages) {
                 val itemAngle = baseCenterAngle + (index * stepAngle) + currentRotation
@@ -231,14 +234,26 @@ fun PeekPageDial(
                         contentAlignment = Alignment.Center
                     ) {
                         when (index) {
-                            0 -> WhiteGearIcon(size = 22.dp, color = iconColor)
-                            1 -> WhiteHomeIcon(size = 22.dp, color = iconColor)
-                            2 -> WhiteHamburgerIcon(size = 22.dp, color = iconColor)
-                            3 -> WhiteFolderIcon(size = 22.dp, color = iconColor)
+                            0 -> WhiteGearIcon(size = (22f * expandScale).dp, color = iconColor)
+                            1 -> WhiteHomeIcon(size = (22f * expandScale).dp, color = iconColor)
+                            2 -> WhiteHamburgerIcon(size = (22f * expandScale).dp, color = iconColor)
+                            3 -> WhiteFolderIcon(size = (22f * expandScale).dp, color = iconColor)
                         }
                     }
                 }
             }
+
+            // 現在のページ名を円の外側に小さく表示。
+            // 押して円が拡大したときも内側に入らないよう、円の大きさに合わせて位置も一緒に動かす
+            val labelOffsetYDp = (discCenterYDp - discRadiusDp * expandScale) - 18f
+            Text(
+                text = pageLabels[targetPage],
+                color = Color.White.copy(alpha = 0.9f),
+                fontSize = 11.sp,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = labelOffsetYDp.dp)
+            )
         }
     }
 }
