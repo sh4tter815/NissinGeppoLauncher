@@ -64,16 +64,30 @@ fun WallpaperBackground(
         }
     }
 
+    // ぼかし背景用の静止画を曲ごとに1回だけ作る。
+    // 全画面レイヤーへの blur はアニメーションのたびに再計算されて重いので、
+    // 小さく縮小→拡大した「ぼかし済み」画像を通常描画する（見た目はほぼ同じで激軽）
+    val blurredArtImage = remember(currentAlbumArt) {
+        val art = currentAlbumArt ?: return@remember null
+        try {
+            val scale = 96f / maxOf(art.width, art.height).coerceAtLeast(1)
+            val sw = (art.width * scale).toInt().coerceAtLeast(1)
+            val sh = (art.height * scale).toInt().coerceAtLeast(1)
+            val small = Bitmap.createScaledBitmap(art, sw, sh, true)
+            Bitmap.createScaledBitmap(small, sw * 6, sh * 6, true).asImageBitmap()
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     Box(modifier = modifier.fillMaxSize()) {
         if (currentAlbumArt != null) {
             // アートワーク連動: 再生中のアートワークをぼかして背景にし、抽出色で染める
             Image(
-                bitmap = currentAlbumArt.asImageBitmap(),
+                bitmap = blurredArtImage ?: currentAlbumArt.asImageBitmap(),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .blur(radius = 64.dp)
+                modifier = Modifier.fillMaxSize()
             )
             Box(
                 modifier = Modifier
