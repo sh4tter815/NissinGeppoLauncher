@@ -219,7 +219,9 @@ fun SettingsScreen(
     repo: AppRepository,
     onBack: () -> Unit = {},
     onChanged: () -> Unit = {},
-    onAppsUpdated: () -> Unit = {}
+    onAppsUpdated: () -> Unit = {},
+    // 画面側で算出された現在のアクセント色（アートワーク連動時はその抽出色）
+    accentColor: Color = Color(0xFFE53935)
 ) {
     val context = LocalContext.current
     var accentHex by remember { mutableStateOf(repo.prefManager.getAccentColorHex()) }
@@ -228,7 +230,9 @@ fun SettingsScreen(
     var artworkBgStyle by remember { mutableStateOf(repo.prefManager.getArtworkBackgroundStyle()) }
     var homeDiscLayout by remember { mutableStateOf(repo.prefManager.getHomeDiscLayout()) }
     var dateDisplayMode by remember { mutableStateOf(repo.prefManager.getDateDisplayMode()) }
-    val currentAccentColor = parseHexColor(accentHex)
+    // 配色をアートワークに合わせるONのときは、画面側で算出されたアートワーク由来の
+    // アクセント色（accentColor引数）を設定UIの色にも使う。OFFのときは手動色
+    val currentAccentColor = if (matchArtwork) accentColor else parseHexColor(accentHex)
 
     var iconSize by remember { mutableFloatStateOf(repo.prefManager.getAppDiscIconSizeDp()) }
     var textSize by remember { mutableFloatStateOf(repo.prefManager.getAppDiscTextSizeSp()) }
@@ -722,7 +726,7 @@ fun SettingsScreen(
                                                                 Box(
                                                                     modifier = Modifier
                                                                         .clip(RoundedCornerShape(50))
-                                                                        .background(if (selectedChip) Color(0xFF2B3B5C) else Color(0xFF1B2438))
+                                                                        .background(if (selectedChip) currentAccentColor else Color(0xFF1B2438))
                                                                         .clickable {
                                                                             artworkBgStyle = value
                                                                             repo.prefManager.setArtworkBackgroundStyle(value)
