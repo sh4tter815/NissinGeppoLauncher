@@ -25,6 +25,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -131,7 +132,7 @@ fun PeekPageDial(
                             // 開始前にキャンセルされてしまう（ホーム画面のお気に入り円盤との競合）。
                             // 消費状態に依存しない自前のループで座標を追い、競合しても動くようにする。
                             var lastPos = down.position
-                            // スワイプのステップ判定用: 指の横移動がこのpx数たまるごとに1ページ進む／戻る
+                            // スワイプのステップ判定: 指の横移動がこのpx数たまるごとに1ページ進む／戻る
                             val stepThresholdPx = 28f
                             var accumulatedDx = 0f
                             var didSwipe = false
@@ -233,6 +234,18 @@ fun PeekPageDial(
                             .size(44.dp),
                         contentAlignment = Alignment.Center
                     ) {
+                        // 選択中アイコンの後ろに、ぼかした同色アイコンを重ねてグローさせる
+                        // （アクセント色に関係なく常時。音楽アプリと同じ方式）
+                        if (isSelected) {
+                            Box(modifier = Modifier.blur(7.dp), contentAlignment = Alignment.Center) {
+                                when (index) {
+                                    0 -> WhiteGearIcon(size = (22f * expandScale).dp, color = iconColor)
+                                    1 -> WhiteHomeIcon(size = (22f * expandScale).dp, color = iconColor)
+                                    2 -> WhiteHamburgerIcon(size = (22f * expandScale).dp, color = iconColor)
+                                    3 -> WhiteFolderIcon(size = (22f * expandScale).dp, color = iconColor)
+                                }
+                            }
+                        }
                         when (index) {
                             0 -> WhiteGearIcon(size = (22f * expandScale).dp, color = iconColor)
                             1 -> WhiteHomeIcon(size = (22f * expandScale).dp, color = iconColor)
