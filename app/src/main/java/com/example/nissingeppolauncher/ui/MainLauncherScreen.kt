@@ -139,6 +139,11 @@ fun MainLauncherScreen() {
         if (syncedLyricLines.isEmpty()) return@LaunchedEffect
         val mediaSessionManager = context.getSystemService(android.content.Context.MEDIA_SESSION_SERVICE) as? android.media.session.MediaSessionManager
         val listenerComponent = android.content.ComponentName(context, com.example.nissingeppolauncher.service.LauncherMediaListenerService::class.java)
+        // Spotify などはセッションの再生位置の更新が粗く、位置が止まって見えることがある。
+        // そのため「最後に信じられた位置＋経過時間」で自前でも位置を進め、
+        // セッション側の位置と大きく（3秒超）ズレたらそちらに合わせ直す（シーク追随）
+        var anchorPosMs = -1L
+        var anchorTimeMs = 0L
         while (true) {
             try {
                 val controllers = mediaSessionManager?.getActiveSessions(listenerComponent)
@@ -147,10 +152,22 @@ fun MainLauncherScreen() {
                 } ?: controllers?.firstOrNull()
                 val ps = activeController?.playbackState
                 if (ps != null) {
-                    val posMs = if (ps.state == android.media.session.PlaybackState.STATE_PLAYING) {
-                        ps.position + ((android.os.SystemClock.elapsedRealtime() - ps.lastPositionUpdateTime) * ps.playbackSpeed).toLong()
+                    val nowMs = android.os.SystemClock.elapsedRealtime()
+                    val playing = ps.state == android.media.session.PlaybackState.STATE_PLAYING
+                    val reportedMs = if (playing) {
+                        ps.position + ((nowMs - ps.lastPositionUpdateTime) * ps.playbackSpeed).toLong()
                     } else {
                         ps.position
+                    }
+                    if (anchorPosMs < 0L || !playing) {
+                        anchorPosMs = reportedMs
+                        anchorTimeMs = nowMs
+                    }
+                    var posMs = if (playing) anchorPosMs + (nowMs - anchorTimeMs) else anchorPosMs
+                    if (playing && kotlin.math.abs(reportedMs - posMs) > 3000) {
+                        anchorPosMs = reportedMs
+                        anchorTimeMs = nowMs
+                        posMs = reportedMs
                     }
                     currentLyricLine = syncedLyricLines.lastOrNull { it.timeMs <= posMs }?.text ?: ""
                 }
