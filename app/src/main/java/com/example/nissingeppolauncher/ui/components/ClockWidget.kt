@@ -2,6 +2,8 @@ package com.example.nissingeppolauncher.ui.components
 
 import android.content.Intent
 import android.provider.AlarmClock
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -157,20 +159,27 @@ fun ClockWidget(
                 }
             }
 
-            // 同期歌詞の現在行 (時計の下に表示)
+            // 同期歌詞の現在行 (時計の下に表示)。行の切り替わりは音楽アプリと同じ
+            // 350msのクロスフェードでつなぐ
             if (showLyrics) {
-                Text(
-                    text = lyricsLine,
-                    color = Color.White,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    style = lyricsStyle,
+                Crossfade(
+                    targetState = lyricsLine,
+                    animationSpec = tween(durationMillis = 350),
+                    label = "LyricsCrossfade",
                     modifier = Modifier
                         .padding(top = 16.dp)
                         .widthIn(max = 250.dp)
-                )
+                ) { line ->
+                    Text(
+                        text = line,
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = lyricsStyle
+                    )
+                }
             }
         } else {
             // 時刻ブロック (タップで時計アプリ起動)
@@ -211,20 +220,26 @@ fun ClockWidget(
                     ) { openCalendar() }
             )
 
-            // 同期歌詞の現在行 (日付の下に表示)
+            // 同期歌詞の現在行 (日付の下に表示)。行の切り替わりは350msのクロスフェード
             if (showLyrics) {
-                Text(
-                    text = lyricsLine,
-                    color = Color.White,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    style = lyricsStyle,
+                Crossfade(
+                    targetState = lyricsLine,
+                    animationSpec = tween(durationMillis = 350),
+                    label = "LyricsCrossfade",
                     modifier = Modifier
                         .padding(top = 10.dp)
                         .widthIn(max = 250.dp)
-                )
+                ) { line ->
+                    Text(
+                        text = line,
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = lyricsStyle
+                    )
+                }
             }
         }
     }
