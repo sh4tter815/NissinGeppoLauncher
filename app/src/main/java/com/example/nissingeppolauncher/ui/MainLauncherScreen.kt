@@ -41,6 +41,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.example.nissingeppolauncher.data.AppInfo
 import com.example.nissingeppolauncher.data.AppRepository
+import com.example.nissingeppolauncher.data.LyricLine
+import com.example.nissingeppolauncher.data.LyricsManager
 import com.example.nissingeppolauncher.ui.components.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -82,6 +84,81 @@ fun MainLauncherScreen() {
     var sessionAlbumArt by remember { mutableStateOf<Bitmap?>(null) }
     var artworkAccent by remember { mutableStateOf<Color?>(null) }
     var artworkBackground by remember { mutableStateOf<Color?>(null) }
+
+    // ホームの時計下に出す同期歌詞（再生中セッションの曲情報に追随する）
+    var sessionTrackTitle by remember { mutableStateOf("") }
+    var sessionTrackArtist by remember { mutableStateOf("") }
+    var sessionTrackAlbum by remember { mutableStateOf("") }
+    var sessionDurationMs by remember { mutableLongStateOf(0L) }
+    var syncedLyricLines by remember { mutableStateOf<List<LyricLine>>(emptyList()) }
+    var currentLyricLine by remember { mutableStateOf("") }
+
+    // 再生中セッションの曲情報を定期取得する（歌詞の照合用）
+    LaunchedEffect(Unit) {
+        val mediaSessionManager = context.getSystemService(android.content.Context.MEDIA_SESSION_SERVICE) as? android.media.session.MediaSessionManager
+        val listenerComponent = android.content.ComponentName(context, com.example.nissingeppolauncher.service.LauncherMediaListenerService::class.java)
+        while (true) {
+            try {
+                val controllers = mediaSessionManager?.getActiveSessions(listenerComponent)
+                val activeController = controllers?.firstOrNull {
+                    it.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING
+                } ?: controllers?.firstOrNull()
+                val metadata = activeController?.metadata
+                sessionTrackTitle = metadata?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE) ?: ""
+                sessionTrackArtist = metadata?.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST) ?: ""
+                sessionTrackAlbum = metadata?.getString(android.media.MediaMetadata.METADATA_KEY_ALBUM) ?: ""
+                sessionDurationMs = metadata?.getLong(android.media.MediaMetadata.METADATA_KEY_DURATION) ?: 0L
+            } catch (e: Exception) {
+                sessionTrackTitle = ""
+                sessionTrackArtist = ""
+                sessionTrackAlbum = ""
+                sessionDurationMs = 0L
+            }
+            delay(1500)
+        }
+    }
+
+    // 曲が変わったら同期歌詞を取り直す
+    LaunchedEffect(sessionTrackTitle, sessionTrackArtist) {
+        if (sessionTrackTitle.isBlank()) {
+            syncedLyricLines = emptyList()
+            currentLyricLine = ""
+            return@LaunchedEffect
+        }
+        delay(600)
+        val lines = LyricsManager.getSyncedLyrics(
+            context, sessionTrackTitle, sessionTrackArtist, sessionTrackAlbum, sessionDurationMs, null
+        )
+        syncedLyricLines = lines ?: emptyList()
+        if (lines == null) currentLyricLine = ""
+    }
+
+    // 再生位置に合わせて現在の歌詞行を更新する
+    LaunchedEffect(syncedLyricLines) {
+        if (syncedLyricLines.isEmpty()) return@LaunchedEffect
+        val mediaSessionManager = context.getSystemService(android.content.Context.MEDIA_SESSION_SERVICE) as? android.media.session.MediaSessionManager
+        val listenerComponent = android.content.ComponentName(context, com.example.nissingeppolauncher.service.LauncherMediaListenerService::class.java)
+        while (true) {
+            try {
+                val controllers = mediaSessionManager?.getActiveSessions(listenerComponent)
+                val activeController = controllers?.firstOrNull {
+                    it.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING
+                } ?: controllers?.firstOrNull()
+                val ps = activeController?.playbackState
+                if (ps != null) {
+                    val posMs = if (ps.state == android.media.session.PlaybackState.STATE_PLAYING) {
+                        ps.position + ((android.os.SystemClock.elapsedRealtime() - ps.lastPositionUpdateTime) * ps.playbackSpeed).toLong()
+                    } else {
+                        ps.position
+                    }
+                    currentLyricLine = syncedLyricLines.lastOrNull { it.timeMs <= posMs }?.text ?: ""
+                }
+            } catch (e: Exception) {
+                // セッションが取れないときは表示を維持する
+            }
+            delay(300)
+        }
+    }
 
     // 再生中セッションのアートワークを定期取得する（ホームの音楽ウィジェットと同じ方式）
     LaunchedEffect(matchArtwork) {
@@ -416,7 +493,8 @@ fun MainLauncherScreen() {
                     ClockWidget(
                         modifier = Modifier
                             .padding(start = 28.dp, top = topPaddingDp + 48.dp)
-                            .zIndex(10f)
+                            .zIndex(10f),
+                        lyricsLine = currentLyricLine
                     )
 
                     RotatableAppDisc(
