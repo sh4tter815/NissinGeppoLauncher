@@ -36,7 +36,9 @@ fun ClockWidget(
     modifier: Modifier = Modifier,
     lyricsLine: String = "",
     // 日付の表示方式: "sideways"=常時横倒し / "under"=常時時計の下 / "auto"=歌詞の有無で切替
-    dateMode: String = "auto"
+    dateMode: String = "auto",
+    // 歌詞行のグロー色（アクセントカラー）
+    glowColor: Color = Color.White
 ) {
     val context = LocalContext.current
     var currentTime by remember { mutableStateOf(Date()) }
@@ -93,6 +95,15 @@ fun ClockWidget(
         "under" -> false
         else -> showLyrics
     }
+
+    // 歌詞行のグロー（アクセントカラーで発光させる）
+    val lyricsStyle = LocalTextStyle.current.copy(
+        shadow = Shadow(
+            color = glowColor.copy(alpha = 0.9f),
+            offset = Offset(0f, 0f),
+            blurRadius = 16f
+        )
+    )
 
     Column(modifier = modifier) {
         if (sideways) {
@@ -155,13 +166,7 @@ fun ClockWidget(
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    style = LocalTextStyle.current.copy(
-                        shadow = Shadow(
-                            color = Color.Black.copy(alpha = 0.6f),
-                            offset = Offset(0f, 0f),
-                            blurRadius = 8f
-                        )
-                    ),
+                    style = lyricsStyle,
                     modifier = Modifier
                         .padding(top = 16.dp)
                         .widthIn(max = 250.dp)
@@ -215,13 +220,7 @@ fun ClockWidget(
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    style = LocalTextStyle.current.copy(
-                        shadow = Shadow(
-                            color = Color.Black.copy(alpha = 0.6f),
-                            offset = Offset(0f, 0f),
-                            blurRadius = 8f
-                        )
-                    ),
+                    style = lyricsStyle,
                     modifier = Modifier
                         .padding(top = 10.dp)
                         .widthIn(max = 250.dp)
