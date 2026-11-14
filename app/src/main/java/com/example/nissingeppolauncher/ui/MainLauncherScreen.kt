@@ -218,15 +218,17 @@ fun MainLauncherScreen() {
         val bg = artworkBackground
         if (extracted != null && bg != null && contrastRatio(extracted, bg) < 2.8f) {
             // 音楽アプリと同じ調整: コントラストが低い場合は同じ色味のまま白へ寄せて明るくする
-            var blended = extracted
+            val fg: Color = extracted
+            val bgNN: Color = bg
+            var blended = fg
             var t = 0f
-            while (contrastRatio(blended, bg) < 3.0f && t < 0.5f) {
+            while (contrastRatio(blended, bgNN) < 3.0f && t < 0.5f) {
                 t += 0.1f
                 blended = Color(
-                    red = extracted.red + (1f - extracted.red) * t,
-                    green = extracted.green + (1f - extracted.green) * t,
-                    blue = extracted.blue + (1f - extracted.blue) * t,
-                    alpha = extracted.alpha
+                    red = fg.red + (1f - fg.red) * t,
+                    green = fg.green + (1f - fg.green) * t,
+                    blue = fg.blue + (1f - fg.blue) * t,
+                    alpha = fg.alpha
                 )
             }
             blended
