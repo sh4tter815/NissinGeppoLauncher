@@ -77,6 +77,8 @@ fun MainLauncherScreen() {
     // アートワーク連動カラー: 設定でONのとき、再生中セッションのアートワークから
     // アクセント色（前景）と背景色を抽出してテーマカラーにする
     var matchArtwork by remember { mutableStateOf(repo.prefManager.isMatchArtworkColor()) }
+    var blurArtworkBg by remember { mutableStateOf(repo.prefManager.isBlurArtworkBackground()) }
+    var homeDiscLayout by remember { mutableStateOf(repo.prefManager.getHomeDiscLayout()) }
     var sessionAlbumArt by remember { mutableStateOf<Bitmap?>(null) }
     var artworkAccent by remember { mutableStateOf<Color?>(null) }
     var artworkBackground by remember { mutableStateOf<Color?>(null) }
@@ -125,6 +127,8 @@ fun MainLauncherScreen() {
     LaunchedEffect(currentLauncherPage) {
         accentHex = repo.prefManager.getAccentColorHex()
         matchArtwork = repo.prefManager.isMatchArtworkColor()
+        blurArtworkBg = repo.prefManager.isBlurArtworkBackground()
+        homeDiscLayout = repo.prefManager.getHomeDiscLayout()
         if (currentLauncherPage == 1) {
             if (!repo.prefManager.isFirstWelcomeTutorialShown()) {
                 showWelcomeTutorial = true
@@ -264,12 +268,14 @@ fun MainLauncherScreen() {
     }
 
     // --- 左右の円の固定絶対座標配置 ---
-    val disc1RadiusDp = 165f
-    val disc1CenterX = -80f
+    // ホーム画面では設定により「アートワーク側（左円）を大きく」レイアウトを選べる
+    val isBigDiscLayout = homeDiscLayout == "artwork" && currentLauncherPage == 1
+    val disc1RadiusDp = if (isBigDiscLayout) 205f else 165f
+    val disc1CenterX = if (isBigDiscLayout) -25f else -80f
     val disc1CenterY = screenHeightDp * 0.50f
 
-    val disc2RadiusDp = 165f
-    val disc2CenterX = screenWidthDp + 80f
+    val disc2RadiusDp = if (isBigDiscLayout) 140f else 165f
+    val disc2CenterX = if (isBigDiscLayout) screenWidthDp + 60f else screenWidthDp + 80f
     val disc2CenterY = screenHeightDp * 0.50f
 
     // --- 左側（索引ダイヤル）の状態管理 ---
@@ -373,7 +379,7 @@ fun MainLauncherScreen() {
                 customPath = customBackgroundPath,
                 updateKey = backgroundUpdateKey,
                 isHome = (currentLauncherPage == 1),
-                currentAlbumArt = if (matchArtwork) sessionAlbumArt else null,
+                currentAlbumArt = if (matchArtwork || blurArtworkBg) sessionAlbumArt else null,
                 dynamicBackground = if (matchArtwork) artworkBackground else null
             )
 
@@ -425,6 +431,7 @@ fun MainLauncherScreen() {
                         selectedIndexChar = null,
                         isRightDisc = true,
                         showIndices = false,
+                        showLabels = homeDiscLayout != "artwork", // アートワーク大きめレイアウトではお気に入り名を隠す
                         isLoopable = false, // ホームお気に入りはループしない
                         accentColor = accentColor,
                         onAppClick = { onAppClick(it.packageName) },
