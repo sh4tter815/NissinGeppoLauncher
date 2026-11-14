@@ -80,6 +80,7 @@ fun MainLauncherScreen() {
     // アクセント色（前景）と背景色を抽出してテーマカラーにする
     var matchArtwork by remember { mutableStateOf(repo.prefManager.isMatchArtworkColor()) }
     var blurArtworkBg by remember { mutableStateOf(repo.prefManager.isBlurArtworkBackground()) }
+    var artworkBgStyle by remember { mutableStateOf(repo.prefManager.getArtworkBackgroundStyle()) }
     var homeDiscLayout by remember { mutableStateOf(repo.prefManager.getHomeDiscLayout()) }
     var dateDisplayMode by remember { mutableStateOf(repo.prefManager.getDateDisplayMode()) }
     var sessionAlbumArt by remember { mutableStateOf<Bitmap?>(null) }
@@ -223,6 +224,7 @@ fun MainLauncherScreen() {
         accentHex = repo.prefManager.getAccentColorHex()
         matchArtwork = repo.prefManager.isMatchArtworkColor()
         blurArtworkBg = repo.prefManager.isBlurArtworkBackground()
+        artworkBgStyle = repo.prefManager.getArtworkBackgroundStyle()
         homeDiscLayout = repo.prefManager.getHomeDiscLayout()
         dateDisplayMode = repo.prefManager.getDateDisplayMode()
         if (currentLauncherPage == 1) {
@@ -477,7 +479,8 @@ fun MainLauncherScreen() {
                 updateKey = backgroundUpdateKey,
                 isHome = (currentLauncherPage == 1),
                 currentAlbumArt = if (matchArtwork || blurArtworkBg) sessionAlbumArt else null,
-                dynamicBackground = if (matchArtwork || blurArtworkBg) artworkBackground else null
+                dynamicBackground = if (matchArtwork || blurArtworkBg) artworkBackground else null,
+                artworkBackgroundStyle = artworkBgStyle
             )
 
             // --- メインコンテンツ描画 (0: 設定, 1: ホーム, 2: アプリ一覧, 3: フォルダ) ---
