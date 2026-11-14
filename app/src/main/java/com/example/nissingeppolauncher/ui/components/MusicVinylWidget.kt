@@ -284,37 +284,24 @@ fun MusicVinylWidget(
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize()
                     )
-                } else {
-                    // フォールバックのスタイリッシュなレーベル
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        val center = Offset(size.width / 2f, size.height / 2f)
-                        drawCircle(
-                            brush = Brush.radialGradient(
-                                colors = listOf(accentColor, accentColor.copy(alpha = 0.6f)),
-                                center = center,
-                                radius = size.width / 2f
-                            ),
-                            radius = size.width / 2f,
-                            center = center
+
+                    // センターホール（スピンドル穴）: アートワークがあるときだけ
+                    Box(
+                        modifier = Modifier
+                            .size(18.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF0B101D)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(Color.White)
                         )
                     }
                 }
-
-                // センターホール（スピンドル穴）
-                Box(
-                    modifier = Modifier
-                        .size(18.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF0B101D)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(6.dp)
-                            .clip(CircleShape)
-                            .background(Color.White)
-                    )
-                }
+                // アートワークが無い（再生していない）ときは色を塗らず、センターホールも出さない
             }
         }
     }
