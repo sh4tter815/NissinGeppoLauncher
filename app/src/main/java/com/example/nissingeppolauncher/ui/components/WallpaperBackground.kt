@@ -19,6 +19,77 @@ import androidx.core.graphics.drawable.toBitmap
 import com.example.nissingeppolauncher.data.AppPreferenceManager
 import java.io.File
 
+/**
+ * 小さいビットマップ専用の分離型ボックスブラー。
+ * 横→縦の順にスライディングウィンドウで平均化し、iterations 回繰り返すことで
+ * ガウスぼかしに近い滑らかな結果になる。端はクランプ（端ピクセルの複製）で処理する。
+ */
+private fun boxBlurBitmap(source: Bitmap, radius: Int, iterations: Int): Bitmap {
+    val w = source.width
+    val h = source.height
+    if (radius <= 0 || w == 0 || h == 0) return source
+    var src = IntArray(w * h)
+    source.getPixels(src, 0, w, 0, 0, w, h)
+    var dst = IntArray(w * h)
+    val count = radius * 2 + 1
+
+    repeat(iterations) {
+        // 横方向
+        for (y in 0 until h) {
+            val row = y * w
+            var accA = 0
+            var accR = 0
+            var accG = 0
+            var accB = 0
+            for (i in -radius..radius) {
+                val p = src[row + i.coerceIn(0, w - 1)]
+                accA += (p ushr 24) and 0xFF
+                accR += (p ushr 16) and 0xFF
+                accG += (p ushr 8) and 0xFF
+                accB += p and 0xFF
+            }
+            for (x in 0 until w) {
+                dst[row + x] = ((accA / count) shl 24) or ((accR / count) shl 16) or
+                    ((accG / count) shl 8) or (accB / count)
+                val leave = src[row + (x - radius).coerceIn(0, w - 1)]
+                val enter = src[row + (x + radius + 1).coerceIn(0, w - 1)]
+                accA += ((enter ushr 24) and 0xFF) - ((leave ushr 24) and 0xFF)
+                accR += ((enter ushr 16) and 0xFF) - ((leave ushr 16) and 0xFF)
+                accG += ((enter ushr 8) and 0xFF) - ((leave ushr 8) and 0xFF)
+                accB += (enter and 0xFF) - (leave and 0xFF)
+            }
+        }
+        // 縦方向（dst → src）
+        for (x in 0 until w) {
+            var accA = 0
+            var accR = 0
+            var accG = 0
+            var accB = 0
+            for (i in -radius..radius) {
+                val p = dst[i.coerceIn(0, h - 1) * w + x]
+                accA += (p ushr 24) and 0xFF
+                accR += (p ushr 16) and 0xFF
+                accG += (p ushr 8) and 0xFF
+                accB += p and 0xFF
+            }
+            for (y in 0 until h) {
+                src[y * w + x] = ((accA / count) shl 24) or ((accR / count) shl 16) or
+                    ((accG / count) shl 8) or (accB / count)
+                val leave = dst[(y - radius).coerceIn(0, h - 1) * w + x]
+                val enter = dst[(y + radius + 1).coerceIn(0, h - 1) * w + x]
+                accA += ((enter ushr 24) and 0xFF) - ((leave ushr 24) and 0xFF)
+                accR += ((enter ushr 16) and 0xFF) - ((leave ushr 16) and 0xFF)
+                accG += ((enter ushr 8) and 0xFF) - ((leave ushr 8) and 0xFF)
+                accB += (enter and 0xFF) - (leave and 0xFF)
+            }
+        }
+    }
+
+    val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+    out.setPixels(src, 0, w, 0, 0, w, h)
+    return out
+}
+
 @Composable
 fun WallpaperBackground(
     modifier: Modifier = Modifier,
@@ -66,15 +137,17 @@ fun WallpaperBackground(
 
     // ぼかし背景用の静止画を曲ごとに1回だけ作る。
     // 全画面レイヤーへの blur はアニメーションのたびに再計算されて重いので、
-    // 小さく縮小→拡大した「ぼかし済み」画像を通常描画する（見た目はほぼ同じで激軽）
+    // 小さい画像のうちに本物のぼかし（ボックスブラー3回）をかけてから拡大して通常描画する。
+    // 縮小→拡大だけだとぼかしが弱く粗さが見えるが、この方式なら強く滑らかで、計算は曲ごとに1回だけ。
     val blurredArtImage = remember(currentAlbumArt) {
         val art = currentAlbumArt ?: return@remember null
         try {
-            val scale = 96f / maxOf(art.width, art.height).coerceAtLeast(1)
+            val scale = (120f / maxOf(art.width, art.height).coerceAtLeast(1)).coerceAtMost(1f)
             val sw = (art.width * scale).toInt().coerceAtLeast(1)
             val sh = (art.height * scale).toInt().coerceAtLeast(1)
             val small = Bitmap.createScaledBitmap(art, sw, sh, true)
-            Bitmap.createScaledBitmap(small, sw * 6, sh * 6, true).asImageBitmap()
+            val blurred = boxBlurBitmap(small, radius = 18, iterations = 3)
+            Bitmap.createScaledBitmap(blurred, sw * 4, sh * 4, true).asImageBitmap()
         } catch (_: Exception) {
             null
         }
