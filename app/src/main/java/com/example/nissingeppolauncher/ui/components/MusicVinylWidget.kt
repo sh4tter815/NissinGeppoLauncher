@@ -326,15 +326,24 @@ fun MusicVinylWidget(
     val customFontPath = remember(prefManager.getCustomFontPath(), prefManager.isUseCustomFont()) {
         if (prefManager.isUseCustomFont()) prefManager.getCustomFontPath() else null
     }
-    val customTypeface = remember(customFontPath) {
-        if (!customFontPath.isNullOrBlank()) {
-            try {
-                val file = java.io.File(customFontPath)
-                if (file.exists()) android.graphics.Typeface.createFromFile(file) else null
-            } catch (_: Exception) {
-                null
+    val fontChoice = prefManager.getFontChoice()
+    // 円周テキストのフォントはアプリ全体のフォント設定（parseFontFamily）と揃える。
+    // 以前はカスタムフォントファイルしか見ておらず、同梱フォント（receipt）選択時にデフォルト固定になっていた
+    val customTypeface = remember(customFontPath, fontChoice) {
+        try {
+            when (fontChoice) {
+                "receipt" -> androidx.core.content.res.ResourcesCompat.getFont(
+                    context,
+                    com.example.nissingeppolauncher.R.font.receipt_font
+                )
+                else -> if (!customFontPath.isNullOrBlank()) {
+                    val file = java.io.File(customFontPath)
+                    if (file.exists()) android.graphics.Typeface.createFromFile(file) else null
+                } else null
             }
-        } else null
+        } catch (_: Exception) {
+            null
+        }
     }
 
     Box(
