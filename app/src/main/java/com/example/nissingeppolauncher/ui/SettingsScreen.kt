@@ -695,8 +695,8 @@ fun SettingsScreen(
                                                         verticalAlignment = Alignment.CenterVertically
                                                     ) {
                                                         Column(modifier = Modifier.weight(1f)) {
-                                                            Text("アートワークを背景に表示", color = Color.White, fontSize = 14.sp)
-                                                            Text("音楽の再生中、アートワークをぼかして背景にします", color = Color.Gray, fontSize = 12.sp)
+                                                            Text("背景をアートワークの色で塗る", color = Color.White, fontSize = 14.sp)
+                                                            Text("音楽の再生中、背景をアートワークから抽出した色で単色に塗ります", color = Color.Gray, fontSize = 12.sp)
                                                         }
                                                         Switch(
                                                             checked = blurArtworkBg,
