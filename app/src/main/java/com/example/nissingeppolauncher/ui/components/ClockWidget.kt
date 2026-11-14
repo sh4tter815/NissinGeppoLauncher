@@ -55,6 +55,19 @@ fun ClockWidget(
     val minuteText = minuteFormat.format(currentTime)
     val dateText = dateFormat.format(currentTime)
 
+    val openClock = {
+        try {
+            val intent = Intent(AlarmClock.ACTION_SHOW_ALARMS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
+        } catch (_: Exception) {
+            try {
+                val intent = context.packageManager.getLaunchIntentForPackage("com.google.android.deskclock")
+                    ?: context.packageManager.getLaunchIntentForPackage("com.android.deskclock")
+                if (intent != null) context.startActivity(intent)
+            } catch (_: Exception) {}
+        }
+    }
+
     val openCalendar = {
         try {
             val intent = Intent(Intent.ACTION_VIEW).apply {
@@ -71,26 +84,20 @@ fun ClockWidget(
         }
     }
 
+    // 歌詞が出ているかどうかで日付の置き場所を切り替える:
+    // 歌詞あり → 日付は時刻の右に横倒し、歌詞は時計の下
+    // 歌詞なし → 日付は元の位置（時計の下・横書き）
+    val showLyrics = lyricsLine.isNotBlank()
+
     Column(modifier = modifier) {
-        Row {
+        if (!showLyrics) {
             // 時刻ブロック (タップで時計アプリ起動)
             Column(
                 modifier = Modifier
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
-                    ) {
-                        try {
-                            val intent = Intent(AlarmClock.ACTION_SHOW_ALARMS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            context.startActivity(intent)
-                        } catch (_: Exception) {
-                            try {
-                                val intent = context.packageManager.getLaunchIntentForPackage("com.google.android.deskclock")
-                                    ?: context.packageManager.getLaunchIntentForPackage("com.android.deskclock")
-                                if (intent != null) context.startActivity(intent)
-                            } catch (_: Exception) {}
-                        }
-                    }
+                    ) { openClock() }
             ) {
                 Text(
                     text = hourText,
@@ -108,33 +115,71 @@ fun ClockWidget(
                 )
             }
 
-            // 日付ブロック (時刻の右に横倒しで表示。タップでカレンダーアプリ起動)
-            Box(
+            // 日付ブロック (元の位置。タップでカレンダーアプリ起動)
+            Text(
+                text = dateText,
+                color = Color.White.copy(alpha = 0.75f),
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Medium,
                 modifier = Modifier
-                    .padding(start = 12.dp, top = 2.dp)
-                    .width(20.dp)
-                    .height(108.dp)
+                    .padding(top = 16.dp)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
-                    ) { openCalendar() },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = dateText,
-                    color = Color.White.copy(alpha = 0.75f),
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
+                    ) { openCalendar() }
+            )
+        } else {
+            Row {
+                // 時刻ブロック (タップで時計アプリ起動)
+                Column(
                     modifier = Modifier
-                        .wrapContentSize(unbounded = true)
-                        .graphicsLayer { rotationZ = 90f }
-                )
-            }
-        }
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { openClock() }
+                ) {
+                    Text(
+                        text = hourText,
+                        color = Color.White,
+                        fontSize = 54.sp,
+                        fontWeight = FontWeight.Bold,
+                        lineHeight = 54.sp
+                    )
+                    Text(
+                        text = minuteText,
+                        color = Color.White,
+                        fontSize = 54.sp,
+                        fontWeight = FontWeight.Bold,
+                        lineHeight = 54.sp
+                    )
+                }
 
-        // 同期歌詞の現在行 (旧・日付の位置に表示。再生していないとき・歌詞がないときは出さない)
-        if (lyricsLine.isNotBlank()) {
+                // 日付ブロック (時刻の右に横倒しで表示。タップでカレンダーアプリ起動)
+                Box(
+                    modifier = Modifier
+                        .padding(start = 12.dp, top = 2.dp)
+                        .width(20.dp)
+                        .height(108.dp)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { openCalendar() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = dateText,
+                        color = Color.White.copy(alpha = 0.75f),
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        modifier = Modifier
+                            .wrapContentSize(unbounded = true)
+                            .graphicsLayer { rotationZ = 90f }
+                    )
+                }
+            }
+
+            // 同期歌詞の現在行 (時計の下に表示)
             Text(
                 text = lyricsLine,
                 color = Color.White,
