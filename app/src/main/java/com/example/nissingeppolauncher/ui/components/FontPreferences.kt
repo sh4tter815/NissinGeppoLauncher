@@ -8,6 +8,7 @@ import com.example.nissingeppolauncher.R
 import java.io.File
 
 val LocalLauncherFontFamily = compositionLocalOf<FontFamily> { FontFamily.Default }
+
 val LocalLauncherFontWeight = compositionLocalOf { FontWeight.Light }
 
 fun loadCustomFontFamily(path: String?): FontFamily? {
@@ -27,9 +28,12 @@ fun loadCustomFontFamily(path: String?): FontFamily? {
 
 val ReceiptFontFamily = FontFamily(Font(R.font.receipt_font))
 
+val DenkiChipFontFamily = FontFamily(Font(R.font.denkichip_font))
+
 fun parseFontFamily(fontChoice: String, customPath: String?): FontFamily {
     return when (fontChoice) {
         "receipt" -> ReceiptFontFamily
+        "denkichip" -> DenkiChipFontFamily
         "custom" -> loadCustomFontFamily(customPath) ?: FontFamily.Default
         else -> {
             if (!customPath.isNullOrBlank()) {
