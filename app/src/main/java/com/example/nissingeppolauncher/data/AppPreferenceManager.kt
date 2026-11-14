@@ -198,6 +198,10 @@ class AppPreferenceManager(private val context: Context) {
     fun isBlurArtworkBackground(): Boolean = prefs.getBoolean("blur_artwork_background", false)
     fun setBlurArtworkBackground(enabled: Boolean) = prefs.edit().putBoolean("blur_artwork_background", enabled).apply()
 
+    /** アートワーク背景の見せ方: "solid"（単色）/ "blur"（ぼかし画像） */
+    fun getArtworkBackgroundStyle(): String = prefs.getString("artwork_background_style", "solid") ?: "solid"
+    fun setArtworkBackgroundStyle(style: String) = prefs.edit().putString("artwork_background_style", style).apply()
+
     fun getHomeDiscLayout(): String = prefs.getString("home_disc_layout", "classic") ?: "classic"
     fun setHomeDiscLayout(layout: String) { prefs.edit().putString("home_disc_layout", layout).apply() }
 
