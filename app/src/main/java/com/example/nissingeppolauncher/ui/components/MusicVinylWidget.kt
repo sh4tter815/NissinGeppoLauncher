@@ -341,6 +341,10 @@ fun MusicVinylWidget(
                     context,
                     com.example.nissingeppolauncher.R.font.receipt_font
                 )
+                "denkichip" -> androidx.core.content.res.ResourcesCompat.getFont(
+                    context,
+                    com.example.nissingeppolauncher.R.font.denkichip_font
+                )
                 else -> if (!customFontPath.isNullOrBlank()) {
                     val file = java.io.File(customFontPath)
                     if (file.exists()) android.graphics.Typeface.createFromFile(file) else null
