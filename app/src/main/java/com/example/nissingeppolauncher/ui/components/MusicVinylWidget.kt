@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.media.AudioManager
 import android.media.MediaMetadata
+import android.media.session.MediaController
 import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import android.graphics.Bitmap
@@ -59,6 +60,7 @@ fun MusicVinylWidget(
     var trackArtist by remember { mutableStateOf("") }
     var trackAlbum by remember { mutableStateOf("") }
     var activePackageName by remember { mutableStateOf<String?>(null) }
+    var sessionController by remember { mutableStateOf<MediaController?>(null) }
     var showPermissionDialog by remember { mutableStateOf(false) }
 
     val mediaSessionManager = remember { context.getSystemService(Context.MEDIA_SESSION_SERVICE) as? MediaSessionManager }
@@ -80,6 +82,7 @@ fun MusicVinylWidget(
                         isPlaying = activeController.playbackState?.state == PlaybackState.STATE_PLAYING
                         val controllerPkg = activeController.packageName
                         activePackageName = if (controllerPkg != context.packageName) controllerPkg else null
+                        sessionController = activeController
                         val metadata = activeController.metadata
                         val bitmap = metadata?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
                             ?: metadata?.getBitmap(MediaMetadata.METADATA_KEY_ART)
@@ -91,6 +94,7 @@ fun MusicVinylWidget(
                         isPlaying = audioManager?.isMusicActive == true
                         albumArtBitmap = null
                         activePackageName = null
+                        sessionController = null
                         trackTitle = ""
                         trackArtist = ""
                         trackAlbum = ""
@@ -99,6 +103,7 @@ fun MusicVinylWidget(
                     isPlaying = audioManager?.isMusicActive == true
                     albumArtBitmap = null
                     activePackageName = null
+                    sessionController = null
                     trackTitle = ""
                     trackArtist = ""
                     trackAlbum = ""
@@ -107,6 +112,7 @@ fun MusicVinylWidget(
                 isPlaying = audioManager?.isMusicActive == true
                 albumArtBitmap = null
                 activePackageName = null
+                sessionController = null
                 trackTitle = ""
                 trackArtist = ""
                 trackAlbum = ""
@@ -185,10 +191,11 @@ fun MusicVinylWidget(
 
                         fun launchTaskIntent(intent: Intent): Boolean {
                             return try {
+                                // 既存のタスクを前面に出すだけにして、新規セッション（別タスク）を
+                                // 作らない。MULTIPLE_TASK / NEW_DOCUMENT は付けない
                                 intent.addFlags(
                                     Intent.FLAG_ACTIVITY_NEW_TASK or
-                                            Intent.FLAG_ACTIVITY_MULTIPLE_TASK or
-                                            Intent.FLAG_ACTIVITY_NEW_DOCUMENT
+                                            Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
                                 )
                                 appContext.startActivity(intent)
                                 true
@@ -197,16 +204,30 @@ fun MusicVinylWidget(
                             }
                         }
 
-                        // 1. アクティブな音楽アプリを優先起動
-                        val activePkg = activePackageName
-                        if (!activePkg.isNullOrBlank() && activePkg != context.packageName) {
-                            val launchIntent = context.packageManager.getLaunchIntentForPackage(activePkg)
-                            if (launchIntent != null) {
-                                launched = launchTaskIntent(launchIntent)
+                        // 1. 再生中セッション自身が指定する画面を最優先で開く
+                        //    （そのアプリの再生画面が、起動済みセッションのまま前面に出る）
+                        val sessionActivity = sessionController?.sessionActivity
+                        if (sessionActivity != null) {
+                            launched = try {
+                                sessionActivity.send()
+                                true
+                            } catch (_: Exception) {
+                                false
                             }
                         }
 
-                        // 2. メディアプレーヤー標準/カテゴリインテント
+                        // 2. アクティブな音楽アプリを優先起動（既存タスクを前面へ）
+                        if (!launched) {
+                            val activePkg = activePackageName
+                            if (!activePkg.isNullOrBlank() && activePkg != context.packageName) {
+                                val launchIntent = context.packageManager.getLaunchIntentForPackage(activePkg)
+                                if (launchIntent != null) {
+                                    launched = launchTaskIntent(launchIntent)
+                                }
+                            }
+                        }
+
+                        // 3. メディアプレーヤー標準/カテゴリインテント
                         if (!launched) {
                             try {
                                 val musicCategoryIntent = Intent(Intent.ACTION_MAIN).apply {
@@ -227,7 +248,7 @@ fun MusicVinylWidget(
                             } catch (_: Exception) {}
                         }
 
-                        // 3. 主要音楽アプリの起動試行
+                        // 4. 主要音楽アプリの起動試行
                         if (!launched) {
                             val musicPackages = listOf(
                                 "com.spotify.music",
