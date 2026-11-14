@@ -66,7 +66,7 @@ fun WallpaperBackground(
         }
     }
 
-    // ぼかし背景は曲ごとに1回だけ作る静止画（48pxまで縮小→強いボックスブラーを2回→
+    // ぼかし背景は曲ごとに1回だけ作る静止画（256pxまで縮小→強いボックスブラーを3回→
     // 画面サイズへバイリニアで引き伸ばし）。毎フレームの再計算はないので軽い
     val blurredArtImage = remember(currentAlbumArt) {
         currentAlbumArt?.let { makeBlurredBackground(it).asImageBitmap() }
@@ -81,11 +81,11 @@ fun WallpaperBackground(
                     filterQuality = androidx.compose.ui.graphics.FilterQuality.High
                 )
             }
-            // 読みやすさのための暗幕
+            // 音楽アプリと同じく、抽出した背景色を55%で重ねて色味を残す
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.35f))
+                    .background((dynamicBackground ?: Color(0xFF0B101D)).copy(alpha = 0.55f))
             )
         } else if (currentAlbumArt != null) {
             // アートワーク連動: 抽出した背景色で単色に塗る
@@ -166,10 +166,11 @@ private fun boxBlurBitmap(src: Bitmap, radius: Int): Bitmap {
 
 /** アートワークからぼかし背景用の小さな静止画を作る */
 private fun makeBlurredBackground(source: Bitmap): Bitmap {
-    val targetW = 48
+    val targetW = 256
     val targetH = maxOf(1, (source.height * (targetW.toFloat() / source.width)).toInt())
     var small = Bitmap.createScaledBitmap(source, targetW, targetH, true)
-    small = boxBlurBitmap(small, 10)
-    small = boxBlurBitmap(small, 10)
+    small = boxBlurBitmap(small, 26)
+    small = boxBlurBitmap(small, 26)
+    small = boxBlurBitmap(small, 26)
     return small
 }
