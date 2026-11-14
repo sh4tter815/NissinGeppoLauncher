@@ -195,6 +195,12 @@ class AppPreferenceManager(private val context: Context) {
     fun isMatchArtworkColor(): Boolean = prefs.getBoolean("match_artwork_color", false)
     fun setMatchArtworkColor(enabled: Boolean) = prefs.edit().putBoolean("match_artwork_color", enabled).apply()
 
+    fun isBlurArtworkBackground(): Boolean = prefs.getBoolean("blur_artwork_background", false)
+    fun setBlurArtworkBackground(enabled: Boolean) = prefs.edit().putBoolean("blur_artwork_background", enabled).apply()
+
+    fun getHomeDiscLayout(): String = prefs.getString("home_disc_layout", "classic") ?: "classic"
+    fun setHomeDiscLayout(layout: String) { prefs.edit().putString("home_disc_layout", layout).apply() }
+
     // ホーム画面背景の不透明度 (暗さ)
     fun getHomeWallpaperAlpha(): Float = prefs.getFloat("home_wallpaper_alpha", 0.35f)
     fun setHomeWallpaperAlpha(alpha: Float) = prefs.edit().putFloat("home_wallpaper_alpha", alpha).apply()
