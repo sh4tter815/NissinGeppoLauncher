@@ -201,6 +201,10 @@ class AppPreferenceManager(private val context: Context) {
     fun getHomeDiscLayout(): String = prefs.getString("home_disc_layout", "classic") ?: "classic"
     fun setHomeDiscLayout(layout: String) { prefs.edit().putString("home_disc_layout", layout).apply() }
 
+    // ホーム時計の日付の表示方式: "sideways"=常時横倒し（時刻の右） / "under"=常時時計の下 / "auto"=歌詞の有無で切替
+    fun getDateDisplayMode(): String = prefs.getString("date_display_mode", "auto") ?: "auto"
+    fun setDateDisplayMode(mode: String) { prefs.edit().putString("date_display_mode", mode).apply() }
+
     // ホーム画面背景の不透明度 (暗さ)
     fun getHomeWallpaperAlpha(): Float = prefs.getFloat("home_wallpaper_alpha", 0.35f)
     fun setHomeWallpaperAlpha(alpha: Float) = prefs.edit().putFloat("home_wallpaper_alpha", alpha).apply()
