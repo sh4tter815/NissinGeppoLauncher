@@ -204,25 +204,30 @@ fun MusicVinylWidget(
                             }
                         }
 
-                        // 1. 再生中セッション自身が指定する画面を最優先で開く
-                        //    （そのアプリの再生画面が、起動済みセッションのまま前面に出る）
-                        val sessionActivity = sessionController?.sessionActivity
-                        if (sessionActivity != null) {
-                            launched = try {
-                                sessionActivity.send()
-                                true
-                            } catch (_: Exception) {
-                                false
-                            }
-                        }
-
-                        // 2. アクティブな音楽アプリを優先起動（既存タスクを前面へ）
+                        // 1. アクティブな音楽アプリを通常起動で開く（既存タスクを前面へ）。
+                        //    media3 系アプリはセッションアクティビティの PendingIntent が
+                        //    実質効かない場合があり、送信が成功扱いでも画面が開かないことが
+                        //    あるため、確実なパッケージ起動を先に試す
                         if (!launched) {
                             val activePkg = activePackageName
                             if (!activePkg.isNullOrBlank() && activePkg != context.packageName) {
                                 val launchIntent = context.packageManager.getLaunchIntentForPackage(activePkg)
                                 if (launchIntent != null) {
                                     launched = launchTaskIntent(launchIntent)
+                                }
+                            }
+                        }
+
+                        // 2. セッション自身が指定する画面を開く
+                        //    （パッケージ起動が使えない場合のフォールバック）
+                        if (!launched) {
+                            val sessionActivity = sessionController?.sessionActivity
+                            if (sessionActivity != null) {
+                                launched = try {
+                                    sessionActivity.send()
+                                    true
+                                } catch (_: Exception) {
+                                    false
                                 }
                             }
                         }
