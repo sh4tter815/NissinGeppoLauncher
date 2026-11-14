@@ -225,6 +225,7 @@ fun SettingsScreen(
     var matchArtwork by remember { mutableStateOf(repo.prefManager.isMatchArtworkColor()) }
     var blurArtworkBg by remember { mutableStateOf(repo.prefManager.isBlurArtworkBackground()) }
     var homeDiscLayout by remember { mutableStateOf(repo.prefManager.getHomeDiscLayout()) }
+    var dateDisplayMode by remember { mutableStateOf(repo.prefManager.getDateDisplayMode()) }
     val currentAccentColor = parseHexColor(accentHex)
 
     var iconSize by remember { mutableFloatStateOf(repo.prefManager.getAppDiscIconSizeDp()) }
@@ -587,6 +588,57 @@ fun SettingsScreen(
                                         }
                                         Text(
                                             "「アートワーク大きめ」では、再生アートワークの円が大きくなり、右の円のお気に入りアプリ名は非表示になります",
+                                            color = Color.Gray,
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                }
+                            }
+                            item {
+                                Surface(
+                                    color = Color(0x99101728),
+                                    shape = RoundedCornerShape(20.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(20.dp),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Text("日付の表示", color = Color.White, fontSize = 15.sp)
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            listOf(
+                                                "sideways" to "常時縦",
+                                                "under" to "常時横",
+                                                "auto" to "切り替え"
+                                            ).forEach { (modeId, label) ->
+                                                val isSelected = dateDisplayMode == modeId
+                                                Box(
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .height(40.dp)
+                                                        .clip(RoundedCornerShape(12.dp))
+                                                        .background(if (isSelected) currentAccentColor else Color(0xFF1F293D))
+                                                        .clickable {
+                                                            dateDisplayMode = modeId
+                                                            repo.prefManager.setDateDisplayMode(modeId)
+                                                            onChanged()
+                                                        },
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text(
+                                                        text = label,
+                                                        color = Color.White,
+                                                        fontSize = 13.sp,
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        Text(
+                                            "「常時縦」は日付を時刻の右に横倒しで、「常時横」は時計の下に表示します。「切り替え」は歌詞が出ている間だけ横倒しになります",
                                             color = Color.Gray,
                                             fontSize = 12.sp
                                         )
