@@ -81,6 +81,7 @@ fun MainLauncherScreen() {
     var matchArtwork by remember { mutableStateOf(repo.prefManager.isMatchArtworkColor()) }
     var blurArtworkBg by remember { mutableStateOf(repo.prefManager.isBlurArtworkBackground()) }
     var homeDiscLayout by remember { mutableStateOf(repo.prefManager.getHomeDiscLayout()) }
+    var dateDisplayMode by remember { mutableStateOf(repo.prefManager.getDateDisplayMode()) }
     var sessionAlbumArt by remember { mutableStateOf<Bitmap?>(null) }
     var artworkAccent by remember { mutableStateOf<Color?>(null) }
     var artworkBackground by remember { mutableStateOf<Color?>(null) }
@@ -206,6 +207,7 @@ fun MainLauncherScreen() {
         matchArtwork = repo.prefManager.isMatchArtworkColor()
         blurArtworkBg = repo.prefManager.isBlurArtworkBackground()
         homeDiscLayout = repo.prefManager.getHomeDiscLayout()
+        dateDisplayMode = repo.prefManager.getDateDisplayMode()
         if (currentLauncherPage == 1) {
             if (!repo.prefManager.isFirstWelcomeTutorialShown()) {
                 showWelcomeTutorial = true
@@ -494,7 +496,8 @@ fun MainLauncherScreen() {
                         modifier = Modifier
                             .padding(start = 28.dp, top = topPaddingDp + 48.dp)
                             .zIndex(10f),
-                        lyricsLine = currentLyricLine
+                        lyricsLine = currentLyricLine,
+                        dateMode = dateDisplayMode
                     )
 
                     RotatableAppDisc(
