@@ -27,7 +27,9 @@ fun WallpaperBackground(
     isHome: Boolean = false,
     currentAlbumArt: Bitmap? = null,
     // アートワーク連動カラーON時に、アートワークから抽出した背景色でオーバーレイを染める
-    dynamicBackground: Color? = null
+    dynamicBackground: Color? = null,
+    // アートワーク背景の見せ方: "solid"（単色）/ "blur"（ぼかし画像）
+    artworkBackgroundStyle: String = "solid"
 ) {
     val context = LocalContext.current
     val prefManager = remember { AppPreferenceManager(context) }
@@ -64,10 +66,29 @@ fun WallpaperBackground(
         }
     }
 
+    // ぼかし背景は曲ごとに1回だけ作る静止画（48pxまで縮小→強いボックスブラーを2回→
+    // 画面サイズへバイリニアで引き伸ばし）。毎フレームの再計算はないので軽い
+    val blurredArtImage = remember(currentAlbumArt) {
+        currentAlbumArt?.let { makeBlurredBackground(it).asImageBitmap() }
+    }
+
     Box(modifier = modifier.fillMaxSize()) {
-        if (currentAlbumArt != null) {
-            // アートワーク連動: ぼかし画像は使わず、アートワークから抽出した背景色で単色に塗る
-            // （画像を敷かないので軽く、粗さも出ない）
+        if (currentAlbumArt != null && artworkBackgroundStyle == "blur" && blurredArtImage != null) {
+            androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+                drawImage(
+                    image = blurredArtImage,
+                    dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()),
+                    filterQuality = androidx.compose.ui.graphics.FilterQuality.High
+                )
+            }
+            // 読みやすさのための暗幕
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.35f))
+            )
+        } else if (currentAlbumArt != null) {
+            // アートワーク連動: 抽出した背景色で単色に塗る
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -95,4 +116,60 @@ fun WallpaperBackground(
             )
         }
     }
+}
+
+private fun boxBlurBitmap(src: Bitmap, radius: Int): Bitmap {
+    val w = src.width
+    val h = src.height
+    if (w <= 0 || h <= 0 || radius <= 0) return src
+    val pixels = IntArray(w * h)
+    src.getPixels(pixels, 0, w, 0, 0, w, h)
+    val tmp = IntArray(w * h)
+    val div = 2 * radius + 1
+    fun a(p: Int) = android.graphics.Color.alpha(p)
+    fun r(p: Int) = android.graphics.Color.red(p)
+    fun g(p: Int) = android.graphics.Color.green(p)
+    fun b(p: Int) = android.graphics.Color.blue(p)
+    // 横方向
+    for (y in 0 until h) {
+        var sa = 0; var sr = 0; var sg = 0; var sb = 0
+        val row = y * w
+        for (i in -radius..radius) {
+            val p = pixels[row + i.coerceIn(0, w - 1)]
+            sa += a(p); sr += r(p); sg += g(p); sb += b(p)
+        }
+        for (x in 0 until w) {
+            tmp[row + x] = android.graphics.Color.argb(sa / div, sr / div, sg / div, sb / div)
+            val po = pixels[row + (x - radius).coerceIn(0, w - 1)]
+            val pi = pixels[row + (x + radius + 1).coerceIn(0, w - 1)]
+            sa += a(pi) - a(po); sr += r(pi) - r(po); sg += g(pi) - g(po); sb += b(pi) - b(po)
+        }
+    }
+    // 縦方向
+    for (x in 0 until w) {
+        var sa = 0; var sr = 0; var sg = 0; var sb = 0
+        for (i in -radius..radius) {
+            val p = tmp[i.coerceIn(0, h - 1) * w + x]
+            sa += a(p); sr += r(p); sg += g(p); sb += b(p)
+        }
+        for (y in 0 until h) {
+            pixels[y * w + x] = android.graphics.Color.argb(sa / div, sr / div, sg / div, sb / div)
+            val po = tmp[(y - radius).coerceIn(0, h - 1) * w + x]
+            val pi = tmp[(y + radius + 1).coerceIn(0, h - 1) * w + x]
+            sa += a(pi) - a(po); sr += r(pi) - r(po); sg += g(pi) - g(po); sb += b(pi) - b(po)
+        }
+    }
+    val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+    out.setPixels(pixels, 0, w, 0, 0, w, h)
+    return out
+}
+
+/** アートワークからぼかし背景用の小さな静止画を作る */
+private fun makeBlurredBackground(source: Bitmap): Bitmap {
+    val targetW = 48
+    val targetH = maxOf(1, (source.height * (targetW.toFloat() / source.width)).toInt())
+    var small = Bitmap.createScaledBitmap(source, targetW, targetH, true)
+    small = boxBlurBitmap(small, 10)
+    small = boxBlurBitmap(small, 10)
+    return small
 }
