@@ -325,7 +325,8 @@ fun RotatableAppDisc(
                             accentColor = accentColor,
                             selectedPackages = selectedPackages,
                             onAppClick = onAppClick,
-                            onLongClick = onLongClick
+                            onLongClick = onLongClick,
+                            showLabels = showLabels
                         )
                     }
                 }
@@ -357,7 +358,8 @@ fun RotatableAppDisc(
                             accentColor = accentColor,
                             selectedPackages = selectedPackages,
                             onAppClick = onAppClick,
-                            onLongClick = onLongClick
+                            onLongClick = onLongClick,
+                            showLabels = showLabels
                         )
                     }
                 }
@@ -383,7 +385,8 @@ private fun RenderDiscItem(
     accentColor: Color,
     selectedPackages: Set<String>?,
     onAppClick: (AppInfo) -> Unit,
-    onLongClick: (AppInfo) -> Unit
+    onLongClick: (AppInfo) -> Unit,
+    showLabels: Boolean = true
 ) {
     when (discItem) {
         is DiscItem.IndexEntry -> {
