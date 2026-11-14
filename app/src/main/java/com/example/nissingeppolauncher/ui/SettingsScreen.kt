@@ -224,6 +224,7 @@ fun SettingsScreen(
     var accentHex by remember { mutableStateOf(repo.prefManager.getAccentColorHex()) }
     var matchArtwork by remember { mutableStateOf(repo.prefManager.isMatchArtworkColor()) }
     var blurArtworkBg by remember { mutableStateOf(repo.prefManager.isBlurArtworkBackground()) }
+    var artworkBgStyle by remember { mutableStateOf(repo.prefManager.getArtworkBackgroundStyle()) }
     var homeDiscLayout by remember { mutableStateOf(repo.prefManager.getHomeDiscLayout()) }
     var dateDisplayMode by remember { mutableStateOf(repo.prefManager.getDateDisplayMode()) }
     val currentAccentColor = parseHexColor(accentHex)
@@ -695,8 +696,8 @@ fun SettingsScreen(
                                                         verticalAlignment = Alignment.CenterVertically
                                                     ) {
                                                         Column(modifier = Modifier.weight(1f)) {
-                                                            Text("背景をアートワークの色で塗る", color = Color.White, fontSize = 14.sp)
-                                                            Text("音楽の再生中、背景をアートワークから抽出した色で単色に塗ります", color = Color.Gray, fontSize = 12.sp)
+                                                            Text("再生中はアートワーク背景を使う", color = Color.White, fontSize = 14.sp)
+                                                            Text("音楽の再生中、壁紙の代わりにアートワーク由来の背景を表示します", color = Color.Gray, fontSize = 12.sp)
                                                         }
                                                         Switch(
                                                             checked = blurArtworkBg,
@@ -707,6 +708,31 @@ fun SettingsScreen(
                                                             },
                                                             colors = switchColors
                                                         )
+                                                    }
+                                                    if (blurArtworkBg) {
+                                                        Row(
+                                                            modifier = Modifier.fillMaxWidth(),
+                                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
+                                                            Text("見せ方", color = Color.Gray, fontSize = 12.sp)
+                                                            listOf("solid" to "単色", "blur" to "ぼかし").forEach { (value, label) ->
+                                                                val selectedChip = artworkBgStyle == value
+                                                                Box(
+                                                                    modifier = Modifier
+                                                                        .clip(RoundedCornerShape(50))
+                                                                        .background(if (selectedChip) Color(0xFF2B3B5C) else Color(0xFF1B2438))
+                                                                        .clickable {
+                                                                            artworkBgStyle = value
+                                                                            repo.prefManager.setArtworkBackgroundStyle(value)
+                                                                            onChanged()
+                                                                        }
+                                                                        .padding(horizontal = 14.dp, vertical = 7.dp)
+                                                                ) {
+                                                                    Text(label, color = if (selectedChip) Color.White else Color.Gray, fontSize = 12.sp)
+                                                                }
+                                                            }
+                                                        }
                                                     }
                                                     Row(
                                                         modifier = Modifier.fillMaxWidth(),
