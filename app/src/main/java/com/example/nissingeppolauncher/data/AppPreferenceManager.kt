@@ -202,6 +202,8 @@ class AppPreferenceManager(private val context: Context) {
     fun getArtworkBackgroundStyle(): String = prefs.getString("artwork_background_style", "solid") ?: "solid"
     fun setArtworkBackgroundStyle(style: String) = prefs.edit().putString("artwork_background_style", style).apply()
 
+    fun isLiquidBackgroundEnabled(): Boolean = prefs.getBoolean("liquid_background", true)
+    fun setLiquidBackgroundEnabled(enabled: Boolean) { prefs.edit().putBoolean("liquid_background", enabled).apply() }
     fun getHomeDiscLayout(): String = prefs.getString("home_disc_layout", "classic") ?: "classic"
     fun setHomeDiscLayout(layout: String) { prefs.edit().putString("home_disc_layout", layout).apply() }
 
