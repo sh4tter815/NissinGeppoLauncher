@@ -55,6 +55,7 @@ fun RotatableAppDisc(
     selectedIndexChar: String? = null,
     isRightDisc: Boolean = true,
     showIndices: Boolean = true,
+    showLabels: Boolean = true,
     isLoopable: Boolean = false, // 全アプリ一覧のみ true (循環ループ)。お気に入り・検索・フォルダアプリは false (ループなし)
     selectedPackages: Set<String>? = null,
     onAppClick: (AppInfo) -> Unit,
@@ -440,7 +441,7 @@ private fun RenderDiscItem(
             val textColor = if (isChecked) accentColor else Color.White.copy(alpha = 0.9f * textAlpha)
             val textWeight = if (isChecked) FontWeight.Bold else FontWeight.Medium
 
-            if (isRightDisc) {
+            if (showLabels && isRightDisc) {
                 Box(
                     modifier = Modifier
                         .offset(x = (appXDp - 240f).dp, y = (appYDp - 22f).dp)
@@ -474,7 +475,7 @@ private fun RenderDiscItem(
                         )
                     }
                 }
-            } else {
+            } else if (showLabels) {
                 Box(
                     modifier = Modifier
                         .offset(x = appXDp.dp, y = (appYDp - 22f).dp)
