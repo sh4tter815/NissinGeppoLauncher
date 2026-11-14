@@ -162,8 +162,8 @@ fun MainLauncherScreen() {
     }
 
     // 再生中セッションのアートワークを定期取得する（ホームの音楽ウィジェットと同じ方式）
-    LaunchedEffect(matchArtwork) {
-        if (!matchArtwork) {
+    LaunchedEffect(matchArtwork, blurArtworkBg) {
+        if (!matchArtwork && !blurArtworkBg) {
             sessionAlbumArt = null
             return@LaunchedEffect
         }
@@ -184,9 +184,9 @@ fun MainLauncherScreen() {
             delay(1500)
         }
     }
-    LaunchedEffect(sessionAlbumArt, matchArtwork) {
+    LaunchedEffect(sessionAlbumArt, matchArtwork, blurArtworkBg) {
         val art = sessionAlbumArt
-        if (matchArtwork && art != null) {
+        if ((matchArtwork || blurArtworkBg) && art != null) {
             val (fg, bg) = withContext(Dispatchers.Default) { extractArtworkColors(art) }
             artworkAccent = fg
             artworkBackground = bg
@@ -460,7 +460,7 @@ fun MainLauncherScreen() {
                 updateKey = backgroundUpdateKey,
                 isHome = (currentLauncherPage == 1),
                 currentAlbumArt = if (matchArtwork || blurArtworkBg) sessionAlbumArt else null,
-                dynamicBackground = if (matchArtwork) artworkBackground else null
+                dynamicBackground = if (matchArtwork || blurArtworkBg) artworkBackground else null
             )
 
             // --- メインコンテンツ描画 (0: 設定, 1: ホーム, 2: アプリ一覧, 3: フォルダ) ---
