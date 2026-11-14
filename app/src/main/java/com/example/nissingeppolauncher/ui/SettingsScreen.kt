@@ -227,6 +227,7 @@ fun SettingsScreen(
     var accentHex by remember { mutableStateOf(repo.prefManager.getAccentColorHex()) }
     var matchArtwork by remember { mutableStateOf(repo.prefManager.isMatchArtworkColor()) }
     var blurArtworkBg by remember { mutableStateOf(repo.prefManager.isBlurArtworkBackground()) }
+    var liquidBackground by remember { mutableStateOf(repo.prefManager.isLiquidBackgroundEnabled()) }
     var artworkBgStyle by remember { mutableStateOf(repo.prefManager.getArtworkBackgroundStyle()) }
     var homeDiscLayout by remember { mutableStateOf(repo.prefManager.getHomeDiscLayout()) }
     var dateDisplayMode by remember { mutableStateOf(repo.prefManager.getDateDisplayMode()) }
@@ -739,6 +740,24 @@ fun SettingsScreen(
                                                                 }
                                                             }
                                                         }
+                                                    }
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Column(modifier = Modifier.weight(1f)) {
+                                                            Text("液体グラデーション背景", color = Color.White, fontSize = 14.sp)
+                                                            Text("壁紙がないときや再生中のアートワーク背景の上で、グラデーションがゆっくり動きます", color = Color.Gray, fontSize = 12.sp)
+                                                        }
+                                                        Switch(
+                                                            checked = liquidBackground,
+                                                            onCheckedChange = {
+                                                                liquidBackground = it
+                                                                repo.prefManager.setLiquidBackgroundEnabled(it)
+                                                                onChanged()
+                                                            },
+                                                            colors = switchColors
+                                                        )
                                                     }
                                                     Row(
                                                         modifier = Modifier.fillMaxWidth(),
