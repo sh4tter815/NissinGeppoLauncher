@@ -89,6 +89,7 @@ fun MainLauncherScreen() {
 
     // ホームの時計下に出す同期歌詞（再生中セッションの曲情報に追随する）
     var sessionTrackTitle by remember { mutableStateOf("") }
+    var sessionIsPlaying by remember { mutableStateOf(false) }
     var sessionTrackArtist by remember { mutableStateOf("") }
     var sessionTrackAlbum by remember { mutableStateOf("") }
     var sessionDurationMs by remember { mutableLongStateOf(0L) }
@@ -110,11 +111,13 @@ fun MainLauncherScreen() {
                 sessionTrackArtist = metadata?.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST) ?: ""
                 sessionTrackAlbum = metadata?.getString(android.media.MediaMetadata.METADATA_KEY_ALBUM) ?: ""
                 sessionDurationMs = metadata?.getLong(android.media.MediaMetadata.METADATA_KEY_DURATION) ?: 0L
+                sessionIsPlaying = activeController?.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING
             } catch (e: Exception) {
                 sessionTrackTitle = ""
                 sessionTrackArtist = ""
                 sessionTrackAlbum = ""
                 sessionDurationMs = 0L
+                sessionIsPlaying = false
             }
             delay(1500)
         }
@@ -392,7 +395,8 @@ fun MainLauncherScreen() {
     // --- 左右の円の固定絶対座標配置 ---
     // ホーム画面では設定により「アートワーク側（左円）を大きく」レイアウトを選べる
     // 大きめレイアウトの寸法は音楽プレーヤーのホーム画面に合わせる（左円: 半径165・中心X=15）
-    val isBigDiscLayout = homeDiscLayout == "artwork" && currentLauncherPage == 1
+    // レイアウト設定「自動」: 再生中だけ大きめレイアウトに切り替える（日付表示の自動と同じ考え方）
+    val isBigDiscLayout = (homeDiscLayout == "artwork" || (homeDiscLayout == "auto" && sessionIsPlaying)) && currentLauncherPage == 1
     val disc1RadiusDp = 165f
     val disc1CenterX = if (isBigDiscLayout) 15f else -80f
     val disc1CenterY = screenHeightDp * 0.50f
@@ -559,7 +563,7 @@ fun MainLauncherScreen() {
                         selectedIndexChar = null,
                         isRightDisc = true,
                         showIndices = false,
-                        showLabels = homeDiscLayout != "artwork", // アートワーク大きめレイアウトではお気に入り名を隠す
+                        showLabels = !isBigDiscLayout, // アートワーク大きめレイアウトではお気に入り名を隠す
                         isLoopable = false, // ホームお気に入りはループしない
                         accentColor = accentColor,
                         onAppClick = { onAppClick(it.packageName) },

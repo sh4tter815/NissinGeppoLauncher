@@ -567,7 +567,8 @@ fun SettingsScreen(
                                         ) {
                                             listOf(
                                                 "classic" to "従来（均等）",
-                                                "artwork" to "アートワーク大きめ"
+                                                "artwork" to "アートワーク大きめ",
+                                                "auto" to "自動"
                                             ).forEach { (layoutId, label) ->
                                                 val isSelected = homeDiscLayout == layoutId
                                                 Box(
@@ -593,7 +594,7 @@ fun SettingsScreen(
                                             }
                                         }
                                         Text(
-                                            "「アートワーク大きめ」では、再生アートワークの円が大きくなり、右の円のお気に入りアプリ名は非表示になります",
+                                            "「アートワーク大きめ」では、再生アートワークの円が大きくなり、右の円のお気に入りアプリ名は非表示になります。「自動」では、音楽の再生中だけ大きめレイアウトに切り替わります",
                                             color = Color.Gray,
                                             fontSize = 12.sp
                                         )
