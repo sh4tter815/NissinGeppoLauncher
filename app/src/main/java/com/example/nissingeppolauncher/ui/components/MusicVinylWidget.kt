@@ -284,24 +284,9 @@ fun MusicVinylWidget(
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize()
                     )
-
-                    // センターホール（スピンドル穴）: アートワークがあるときだけ
-                    Box(
-                        modifier = Modifier
-                            .size(18.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF0B101D)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(Color.White)
-                        )
-                    }
                 }
-                // アートワークが無い（再生していない）ときは色を塗らず、センターホールも出さない
+                // アートワークが無い（再生していない）ときは色を塗らない。
+                // センターホール（中心の点）は再生中・停止中ともに出さない
             }
         }
     }
