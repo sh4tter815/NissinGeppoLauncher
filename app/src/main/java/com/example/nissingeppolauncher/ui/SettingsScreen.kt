@@ -223,6 +223,8 @@ fun SettingsScreen(
     val context = LocalContext.current
     var accentHex by remember { mutableStateOf(repo.prefManager.getAccentColorHex()) }
     var matchArtwork by remember { mutableStateOf(repo.prefManager.isMatchArtworkColor()) }
+    var blurArtworkBg by remember { mutableStateOf(repo.prefManager.isBlurArtworkBackground()) }
+    var homeDiscLayout by remember { mutableStateOf(repo.prefManager.getHomeDiscLayout()) }
     val currentAccentColor = parseHexColor(accentHex)
 
     var iconSize by remember { mutableFloatStateOf(repo.prefManager.getAppDiscIconSizeDp()) }
@@ -542,6 +544,56 @@ fun SettingsScreen(
                                 }
                             }
                             item {
+                                Surface(
+                                    color = Color(0x99101728),
+                                    shape = RoundedCornerShape(20.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(20.dp),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Text("ホーム画面の円の大きさ", color = Color.White, fontSize = 15.sp)
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            listOf(
+                                                "classic" to "従来（均等）",
+                                                "artwork" to "アートワーク大きめ"
+                                            ).forEach { (layoutId, label) ->
+                                                val isSelected = homeDiscLayout == layoutId
+                                                Box(
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .height(40.dp)
+                                                        .clip(RoundedCornerShape(12.dp))
+                                                        .background(if (isSelected) currentAccentColor else Color(0xFF1F293D))
+                                                        .clickable {
+                                                            homeDiscLayout = layoutId
+                                                            repo.prefManager.setHomeDiscLayout(layoutId)
+                                                            onChanged()
+                                                        },
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text(
+                                                        text = label,
+                                                        color = Color.White,
+                                                        fontSize = 13.sp,
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        Text(
+                                            "「アートワーク大きめ」では、再生アートワークの円が大きくなり、右の円のお気に入りアプリ名は非表示になります",
+                                            color = Color.Gray,
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                }
+                            }
+                            item {
                                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                                     // 外観サブタブ選択
                                     Row(
@@ -586,6 +638,24 @@ fun SettingsScreen(
                                                     verticalArrangement = Arrangement.spacedBy(20.dp)
                                                 ) {
                                                     Text("壁紙画像", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Normal)
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Column(modifier = Modifier.weight(1f)) {
+                                                            Text("アートワークを背景に表示", color = Color.White, fontSize = 14.sp)
+                                                            Text("音楽の再生中、アートワークをぼかして背景にします", color = Color.Gray, fontSize = 12.sp)
+                                                        }
+                                                        Switch(
+                                                            checked = blurArtworkBg,
+                                                            onCheckedChange = {
+                                                                blurArtworkBg = it
+                                                                repo.prefManager.setBlurArtworkBackground(it)
+                                                                onChanged()
+                                                            },
+                                                            colors = switchColors
+                                                        )
+                                                    }
                                                     Row(
                                                         modifier = Modifier.fillMaxWidth(),
                                                         horizontalArrangement = Arrangement.spacedBy(12.dp),
