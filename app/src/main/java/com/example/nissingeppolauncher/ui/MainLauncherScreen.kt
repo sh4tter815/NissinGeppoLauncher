@@ -213,7 +213,29 @@ fun MainLauncherScreen() {
             artworkBackground = null
         }
     }
-    val accentColor = if (matchArtwork) artworkAccent ?: manualAccentColor else manualAccentColor
+    val accentColor = if (matchArtwork) {
+        val extracted = artworkAccent
+        val bg = artworkBackground
+        if (extracted != null && bg != null && contrastRatio(extracted, bg) < 2.8f) {
+            // 音楽アプリと同じ調整: コントラストが低い場合は同じ色味のまま白へ寄せて明るくする
+            var blended = extracted
+            var t = 0f
+            while (contrastRatio(blended, bg) < 3.0f && t < 0.5f) {
+                t += 0.1f
+                blended = Color(
+                    red = extracted.red + (1f - extracted.red) * t,
+                    green = extracted.green + (1f - extracted.green) * t,
+                    blue = extracted.blue + (1f - extracted.blue) * t,
+                    alpha = extracted.alpha
+                )
+            }
+            blended
+        } else {
+            extracted ?: manualAccentColor
+        }
+    } else {
+        manualAccentColor
+    }
 
     var showWelcomeTutorial by remember { mutableStateOf(false) }
     var showIndexTutorial by remember { mutableStateOf(false) }
@@ -507,7 +529,8 @@ fun MainLauncherScreen() {
                             },
                             onAppsUpdated = {
                                 refreshApps()
-                            }
+                            },
+                            accentColor = accentColor
                         )
                     }
                 1 -> {
@@ -517,7 +540,8 @@ fun MainLauncherScreen() {
                             .padding(start = 28.dp, top = topPaddingDp + 48.dp)
                             .zIndex(10f),
                         lyricsLine = currentLyricLine,
-                        dateMode = dateDisplayMode
+                        dateMode = dateDisplayMode,
+                        glowColor = accentColor
                     )
 
                     RotatableAppDisc(
@@ -1369,6 +1393,17 @@ fun MainLauncherScreen() {
  * アクセントは「画素数 × 平均彩度」が最大の色相グループの平均色、
  * 背景は暗い画素の平均色（なければ全体平均を暗く落とす）。
  */
+/** 相対輝度ベースのコントラスト比（WCAG方式、1.0〜21.0）。音楽アプリと同一実装 */
+private fun contrastRatio(a: Color, b: Color): Float {
+    fun luminance(c: Color): Float {
+        fun lin(v: Float): Float = if (v <= 0.03928f) v / 12.92f else ((v + 0.055f) / 1.055f).pow(2.4f)
+        return 0.2126f * lin(c.red) + 0.7152f * lin(c.green) + 0.0722f * lin(c.blue)
+    }
+    val l1 = luminance(a)
+    val l2 = luminance(b)
+    return (max(l1, l2) + 0.05f) / (min(l1, l2) + 0.05f)
+}
+
 private fun extractArtworkColors(bitmap: Bitmap): Pair<Color, Color> {
     val size = 48
     val scaled = if (bitmap.width == size && bitmap.height == size) bitmap
