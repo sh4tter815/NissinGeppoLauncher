@@ -81,6 +81,7 @@ fun MainLauncherScreen() {
     var matchArtwork by remember { mutableStateOf(repo.prefManager.isMatchArtworkColor()) }
     var blurArtworkBg by remember { mutableStateOf(repo.prefManager.isBlurArtworkBackground()) }
     var artworkBgStyle by remember { mutableStateOf(repo.prefManager.getArtworkBackgroundStyle()) }
+    var liquidBackground by remember { mutableStateOf(repo.prefManager.isLiquidBackgroundEnabled()) }
     var homeDiscLayout by remember { mutableStateOf(repo.prefManager.getHomeDiscLayout()) }
     var dateDisplayMode by remember { mutableStateOf(repo.prefManager.getDateDisplayMode()) }
     var sessionAlbumArt by remember { mutableStateOf<Bitmap?>(null) }
@@ -253,6 +254,7 @@ fun MainLauncherScreen() {
         blurArtworkBg = repo.prefManager.isBlurArtworkBackground()
         artworkBgStyle = repo.prefManager.getArtworkBackgroundStyle()
         homeDiscLayout = repo.prefManager.getHomeDiscLayout()
+        liquidBackground = repo.prefManager.isLiquidBackgroundEnabled()
         dateDisplayMode = repo.prefManager.getDateDisplayMode()
         if (currentLauncherPage == 1) {
             if (!repo.prefManager.isFirstWelcomeTutorialShown()) {
@@ -508,7 +510,8 @@ fun MainLauncherScreen() {
                 isHome = (currentLauncherPage == 1),
                 currentAlbumArt = if (matchArtwork || blurArtworkBg) sessionAlbumArt else null,
                 dynamicBackground = if (matchArtwork || blurArtworkBg) artworkBackground else null,
-                artworkBackgroundStyle = artworkBgStyle
+                artworkBackgroundStyle = artworkBgStyle,
+                liquidEnabled = liquidBackground
             )
 
             // --- メインコンテンツ描画 (0: 設定, 1: ホーム, 2: アプリ一覧, 3: フォルダ) ---
