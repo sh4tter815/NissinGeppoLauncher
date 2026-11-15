@@ -30,10 +30,13 @@ val ReceiptFontFamily = FontFamily(Font(R.font.receipt_font))
 
 val DenkiChipFontFamily = FontFamily(Font(R.font.denkichip_font))
 
+val TsukuhouFontFamily = FontFamily(Font(R.font.tsukuhou_font))
+
 fun parseFontFamily(fontChoice: String, customPath: String?): FontFamily {
     return when (fontChoice) {
         "receipt" -> ReceiptFontFamily
         "denkichip" -> DenkiChipFontFamily
+        "tsukuhou" -> TsukuhouFontFamily
         "custom" -> loadCustomFontFamily(customPath) ?: FontFamily.Default
         else -> {
             if (!customPath.isNullOrBlank()) {
