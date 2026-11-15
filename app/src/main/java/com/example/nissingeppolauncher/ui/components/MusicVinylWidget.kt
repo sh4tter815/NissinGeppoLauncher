@@ -380,13 +380,18 @@ fun MusicVinylWidget(
                 textSize = 11.sp.toPx()
                 isAntiAlias = true
                 letterSpacing = 0.15f
-                textAlign = android.graphics.Paint.Align.CENTER
+                textAlign = android.graphics.Paint.Align.LEFT
                 setShadowLayer(4f, 0f, 0f, android.graphics.Color.BLACK)
                 if (customTypeface != null) {
                     typeface = customTypeface
                 }
             }
-            drawContext.canvas.nativeCanvas.drawTextOnPath(displayInfo, textPath, 0f, 0f, paint)
+            // 文字列の中心が円の右下（約35°）に来るよう、弧の長さと文字幅から開始位置を決める
+            val arcLen = (Math.PI * pathRadius).toFloat()
+            val textW = paint.measureText(displayInfo)
+            val centerPos = (35f - textStartAngle) / 180f * arcLen
+            val hOff = (centerPos - textW / 2f).coerceIn(0f, maxOf(0f, arcLen - textW))
+            drawContext.canvas.nativeCanvas.drawTextOnPath(displayInfo, textPath, hOff, 0f, paint)
         }
     }
 }
