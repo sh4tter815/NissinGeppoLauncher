@@ -177,6 +177,7 @@ fun MainLauncherScreen() {
     }
     var lyricsRefreshTick by remember { mutableIntStateOf(0) }
     var showLyricSearch by remember { mutableStateOf(false) }
+    var lyricsSource by remember { mutableStateOf("") }
     // 歌詞の対訳（洋楽向け）: 歌詞ブラウズ内のボタンでON/OFFする
     var lyricTranslations by remember { mutableStateOf<List<String>?>(null) }
     var translationEnabled by remember { mutableStateOf(false) }
@@ -238,6 +239,7 @@ fun MainLauncherScreen() {
     LaunchedEffect(sessionTrackTitle, sessionTrackArtist, lyricsRefreshTick) {
         // 曲が変わったら前の歌詞を即リセットして、読み込み表示にする（音楽アプリと同じ挙動）
         syncedLyricLines = emptyList()
+        lyricsSource = ""
         currentLyricLine = ""
         if (sessionTrackTitle.isBlank()) {
             lyricsLoading = false
@@ -249,6 +251,7 @@ fun MainLauncherScreen() {
             context, sessionTrackTitle, sessionTrackArtist, sessionTrackAlbum, sessionDurationMs, null
         )
         syncedLyricLines = lines ?: emptyList()
+        lyricsSource = if (lines != null) LyricsManager.lastFetchSource else ""
         if (lines == null) currentLyricLine = ""
         lyricOffsetMs = repo.prefManager.getLyricOffsetMs(sessionTrackTitle, sessionTrackArtist)
         lyricsLoading = false
@@ -1668,8 +1671,10 @@ fun MainLauncherScreen() {
                 currentTitle = sessionTrackTitle,
                 currentArtist = sessionTrackArtist,
                 currentAlbum = sessionTrackAlbum,
-                onApply = { applied ->
+                currentLines = syncedLyricLines,
+                onApply = { applied, source ->
                     syncedLyricLines = applied
+                    lyricsSource = source
                 },
                 onDismiss = { showLyricSearch = false }
             )
@@ -1697,6 +1702,14 @@ fun MainLauncherScreen() {
 
         // 歌詞ブラウズ（全文表示）: ドラッグでステップスクロール、同期モードでは再生に追従
         if (isLyricsBrowsing && syncedLyricLines.isNotEmpty()) {
+            if (lyricsSource.isNotBlank()) {
+                Text(
+                    text = "歌詞ソース: $lyricsSource",
+                    color = Color.White.copy(alpha = 0.45f),
+                    fontSize = 10.sp,
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 14.dp).zIndex(91f)
+                )
+            }
             Box(modifier = Modifier.fillMaxSize().zIndex(90f)) {
                 val lines = syncedLyricLines
                 val virtualPos = lyricsBrowseStartIndex + lyricsScrollAnim.value
