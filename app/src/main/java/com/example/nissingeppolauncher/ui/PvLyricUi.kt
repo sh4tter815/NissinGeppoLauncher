@@ -1081,7 +1081,7 @@ fun PvLyricUnit(
         }
     }
     // 色名の文字を、その色で左上から右下へ斜めに塗っていく
-    val colorHit = if (!exiting) COLOR_WORDS.firstOrNull { (word, _) ->
+    val colorHit = if (!exiting) (if (chunkColor != null) unitText to chunkColor else null) ?: COLOR_WORDS.firstOrNull { (word, _) ->
         if (word.all { it.code < 128 }) {
             // 英語の色名は単語単位で照合する（hundred の中の red などを拾わない）
             Regex("""(?i)(?<![A-Za-z])${Regex.escape(word)}(?![A-Za-z])""").containsMatchIn(unitText)
@@ -1094,7 +1094,7 @@ fun PvLyricUnit(
         } else {
             unitText.contains(word)
         }
-    } ?: (if (chunkColor != null) unitText to chunkColor else null) else null
+    } else null
     val wipeT = remember { Animatable(0f) }
     if (colorHit != null) {
         LaunchedEffect(staggerIndex) {
