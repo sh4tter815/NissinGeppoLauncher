@@ -818,7 +818,7 @@ fun MainLauncherScreen() {
                             .padding(start = 28.dp, top = topPaddingDp + 48.dp)
                             .zIndex(10f),
                         lyricsLine = if (lyricsDisplayMode == "line") currentLyricLine else "",
-                        dateMode = dateDisplayMode,
+                        dateMode = if (lyricsDisplayMode == "video" && syncedLyricLines.isNotEmpty()) "sideways" else dateDisplayMode,
                         glowColor = accentColor
                     )
 
