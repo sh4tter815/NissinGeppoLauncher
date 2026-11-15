@@ -254,6 +254,19 @@ fun SettingsScreen(
 
     // システム環境設定風 2段階ナビゲーション ("behavior", "appearance", "security", "tutorial")
     var selectedCategory by remember { mutableStateOf<String?>(null) }
+    var updateChecking by remember { mutableStateOf(false) }
+    var updateMessage by remember { mutableStateOf<String?>(null) }
+    var updateInfo by remember { mutableStateOf<com.example.nissingeppolauncher.data.UpdateChecker.LatestRelease?>(null) }
+    var showUpdateDialog by remember { mutableStateOf(false) }
+    if (showUpdateDialog && updateInfo != null) {
+        UpdateDialog(
+            info = updateInfo!!,
+            onDismiss = {
+                showUpdateDialog = false
+                com.example.nissingeppolauncher.data.UpdateChecker.markDismissed(context, updateInfo!!.buildNumber)
+            }
+        )
+    }
     // 外観内のサブタブ ("wallpaper", "color", "font")
     var appearanceSubTab by remember { mutableStateOf("wallpaper") }
 
@@ -423,6 +436,63 @@ fun SettingsScreen(
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         text = subtitle,
+                                        color = Color.Gray,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Light
+                                    )
+                                }
+                                Text(
+                                    text = "›",
+                                    color = Color.Gray,
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Light
+                                )
+                            }
+                        }
+                    }
+                    // アップデート確認（カテゴリ外の単独行）
+                    item {
+                        Surface(
+                            color = Color(0x99101728),
+                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = !updateChecking) {
+                                    updateMessage = null
+                                    updateChecking = true
+                                    settingsScope.launch {
+                                        val info = com.example.nissingeppolauncher.data.UpdateChecker.fetchLatest(context)
+                                        updateChecking = false
+                                        if (info?.isNewer == true) {
+                                            updateInfo = info
+                                            showUpdateDialog = true
+                                        } else if (info == null) {
+                                            updateMessage = "確認に失敗しました"
+                                        } else {
+                                            updateMessage = "新しいビルドはありませんでした（最新: #${info.buildNumber}）"
+                                        }
+                                    }
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(20.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        text = "アップデートを確認",
+                                        color = Color.White,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Normal
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = when {
+                                            updateChecking -> "確認中…"
+                                            updateMessage != null -> updateMessage!!
+                                            else -> "GitHubの最新ビルドを確認します"
+                                        },
                                         color = Color.Gray,
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Light

@@ -87,6 +87,7 @@ import androidx.compose.ui.zIndex
 import com.example.nissingeppolauncher.data.AppInfo
 import com.example.nissingeppolauncher.data.AppRepository
 import com.example.nissingeppolauncher.data.LyricLine
+import com.example.nissingeppolauncher.data.UpdateChecker
 import com.example.nissingeppolauncher.data.LyricsManager
 import com.example.nissingeppolauncher.ui.components.*
 import kotlinx.coroutines.Dispatchers
@@ -148,6 +149,17 @@ fun MainLauncherScreen() {
     var lyricsBold by remember { mutableStateOf(repo.prefManager.isLyricsBold()) }
     var isLyricsBrowsing by remember { mutableStateOf(false) }
     var pvFullscreen by remember { mutableStateOf(false) }
+
+    // アプリ内アップデート: 起動時に新ビルドを確認する（6時間に1回まで）
+    var updateInfo by remember { mutableStateOf<UpdateChecker.LatestRelease?>(null) }
+    var showUpdateDialog by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        val info = UpdateChecker.checkIfDue(context)
+        if (info != null) {
+            updateInfo = info
+            showUpdateDialog = true
+        }
+    }
     val pvActivity = LocalContext.current as? android.app.Activity
     LaunchedEffect(pvFullscreen) {
         pvActivity?.requestedOrientation = if (pvFullscreen) {
@@ -1570,6 +1582,17 @@ fun MainLauncherScreen() {
                     lyricsSource = source
                 },
                 onDismiss = { showLyricSearch = false }
+            )
+        }
+
+        // アップデート通知ダイアログ
+        if (showUpdateDialog && updateInfo != null) {
+            UpdateDialog(
+                info = updateInfo!!,
+                onDismiss = {
+                    showUpdateDialog = false
+                    UpdateChecker.markDismissed(context, updateInfo!!.buildNumber)
+                }
             )
         }
 
