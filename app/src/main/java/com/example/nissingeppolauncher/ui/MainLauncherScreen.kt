@@ -532,6 +532,13 @@ fun MainLauncherScreen() {
         label = "LyricsDiscDrop"
     )
 
+    // 歌詞表示中は円周テキストを下半分に寄せて、上の歌詞と被らないようにする
+    val lyricsTextAngle by animateFloatAsState(
+        targetValue = if ((lyricsDisplayMode == "video" || lyricsDisplayMode == "multi") && syncedLyricLines.isNotEmpty()) 0f else -90f,
+        animationSpec = tween(durationMillis = 350),
+        label = "lyricsTextAngle"
+    )
+
     // --- 左側（索引ダイヤル）の状態管理 ---
     val leftRotationAnim = remember { Animatable(0f) }
     val leftRotation = leftRotationAnim.value
@@ -835,7 +842,8 @@ fun MainLauncherScreen() {
                             onAppsUpdated = {
                                 refreshApps()
                             },
-                            accentColor = accentColor
+                            accentColor = accentColor,
+                            textStartAngle = lyricsTextAngle
                         )
                     }
                 1 -> {
