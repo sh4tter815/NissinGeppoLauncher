@@ -8,6 +8,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -34,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.nissingeppolauncher.data.AppRepository
+import com.example.nissingeppolauncher.ui.components.parseFontFamily
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
@@ -234,6 +236,9 @@ fun SettingsScreen(
     var isReverseScroll by remember { mutableStateOf(repo.prefManager.isReverseScroll()) }
     var usePasscodeForHidden by remember { mutableStateOf(repo.prefManager.isUsePasscodeForHidden()) }
     var currentFontChoice by remember { mutableStateOf(repo.prefManager.getFontChoice()) }
+    var lyricsDisplayMode by remember { mutableStateOf(repo.prefManager.getLyricsDisplayMode()) }
+    var lyricsPvFont by remember { mutableStateOf(repo.prefManager.getLyricsPvFont()) }
+    var lyricsBold by remember { mutableStateOf(repo.prefManager.isLyricsBold()) }
         var pageSwitchStyle by remember { mutableStateOf(repo.prefManager.getPageSwitchStyle()) }
     var appsUpdateStatus by remember { mutableStateOf("") }
     var isUpdatingApps by remember { mutableStateOf(false) }
@@ -363,6 +368,7 @@ fun SettingsScreen(
                         text = when (selectedCategory) {
                             "behavior" -> "動作設定"
                             "appearance" -> "外観設定"
+                            "lyrics" -> "歌詞設定"
                             "apps" -> "アプリ一覧"
                             "security" -> "セキュリティ"
                             "tutorial" -> "チュートリアル"
@@ -378,6 +384,7 @@ fun SettingsScreen(
             val categories = listOf(
                 Triple("behavior", "動作", "ダイヤルのスクロール方向や操作感の設定"),
                 Triple("appearance", "外観", "壁紙、配色、フォントなどの見た目のカスタマイズ"),
+                Triple("lyrics", "歌詞", "表示モード、フォント、太さの設定"),
                 Triple("apps", "アプリ一覧", "アプリ一覧データの差分更新（追加・削除されたアプリの反映）"),
                 Triple("security", "セキュリティ", "非表示アプリ用のパスコード(PIN)設定"),
                 Triple("tutorial", "チュートリアル", "ガイドや使い方の再表示設定")
@@ -432,6 +439,117 @@ fun SettingsScreen(
                 } else {
                     // --- 2段階目: 各カテゴリの詳細設定 ---
                     when (selectedCategory) {
+                        "lyrics" -> {
+                            item {
+                                Surface(
+                                    color = Color(0x99101728),
+                                    shape = RoundedCornerShape(20.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(20.dp),
+                                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                                    ) {
+                                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            Text("歌詞の表示モード", color = Color.White, fontSize = 14.sp)
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                            ) {
+                                                LyricsModePreviewCard(
+                                                    mode = "line",
+                                                    label = "現在の行",
+                                                    selected = lyricsDisplayMode == "line",
+                                                    accentColor = currentAccentColor,
+                                                    modifier = Modifier.weight(1f)
+                                                ) {
+                                                    lyricsDisplayMode = "line"
+                                                    repo.prefManager.setLyricsDisplayMode("line")
+                                                    onChanged()
+                                                }
+                                                LyricsModePreviewCard(
+                                                    mode = "video",
+                                                    label = "リリックビデオ",
+                                                    selected = lyricsDisplayMode == "video",
+                                                    accentColor = currentAccentColor,
+                                                    modifier = Modifier.weight(1f)
+                                                ) {
+                                                    lyricsDisplayMode = "video"
+                                                    repo.prefManager.setLyricsDisplayMode("video")
+                                                    onChanged()
+                                                }
+                                                LyricsModePreviewCard(
+                                                    mode = "multi",
+                                                    label = "複数行",
+                                                    selected = lyricsDisplayMode == "multi",
+                                                    accentColor = currentAccentColor,
+                                                    modifier = Modifier.weight(1f)
+                                                ) {
+                                                    lyricsDisplayMode = "multi"
+                                                    repo.prefManager.setLyricsDisplayMode("multi")
+                                                    onChanged()
+                                                }
+                                            }
+                                            Text("複数行は時計の下に前・今・次の3行を表示します。リリックビデオはSpotifyなど他のアプリの再生でも使えます", color = Color.Gray, fontSize = 12.sp)
+                                        }
+                                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            Text("歌詞のフォント（全モード共通）", color = Color.White, fontSize = 14.sp)
+                                            listOf(
+                                                "default" to "システムフォント",
+                                                "receipt" to "レシートフォント (Receipt Font)",
+                                                "denkichip" to "でんきチップ (DenkiChip)",
+                                                "tsukuhou" to "築豊明朝 (Tsukuhou Mincho)",
+                                                "custom" to "カスタムフォント (.ttf/.otf)"
+                                            ).forEach { (key, label) ->
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clickable {
+                                                            lyricsPvFont = key
+                                                            repo.prefManager.setLyricsPvFont(key)
+                                                            onChanged()
+                                                        }
+                                                        .padding(vertical = 2.dp)
+                                                ) {
+                                                    RadioButton(
+                                                        selected = lyricsPvFont == key,
+                                                        onClick = null,
+                                                        colors = RadioButtonDefaults.colors(selectedColor = currentAccentColor, unselectedColor = Color.Gray)
+                                                    )
+                                                    Text(
+                                                        text = label,
+                                                        color = if (lyricsPvFont == key) currentAccentColor else Color.White.copy(alpha = 0.8f),
+                                                        fontSize = 15.sp,
+                                                        fontFamily = parseFontFamily(key, if (key == "custom") customFontPath else null)
+                                                    )
+                                                }
+                                            }
+                                            Text("「カスタムフォント」はフォント設定で選んだファイルを使います", color = Color.Gray, fontSize = 12.sp)
+                                        }
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text("歌詞を太字にする", color = Color.White, fontSize = 14.sp)
+                                                Text("デフォルトは細字。築豊明朝は細字が映えます", color = Color.Gray, fontSize = 12.sp)
+                                            }
+                                            Switch(
+                                                checked = lyricsBold,
+                                                onCheckedChange = {
+                                                    lyricsBold = it
+                                                    repo.prefManager.setLyricsBold(it)
+                                                    onChanged()
+                                                },
+                                                colors = switchColors
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         "behavior" -> {
                             item {
                                 Surface(
@@ -1126,5 +1244,85 @@ fun SettingsScreen(
                 titleContentColor = Color.White
             )
         }
+    }
+}
+
+@Composable
+private fun LyricsModePreviewCard(
+    mode: String,
+    label: String,
+    selected: Boolean,
+    accentColor: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier.clickable { onClick() }
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(0.68f)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color(0xFF0B101D))
+                .border(
+                    if (selected) 2.dp else 1.dp,
+                    if (selected) accentColor else Color.White.copy(alpha = 0.25f),
+                    RoundedCornerShape(10.dp)
+                )
+        ) {
+            when (mode) {
+                "line" -> {
+                    Column(modifier = Modifier.padding(8.dp)) {
+                        Box(Modifier.width(26.dp).height(4.dp).background(Color.White.copy(alpha = 0.85f), RoundedCornerShape(2.dp)))
+                        Spacer(Modifier.height(3.dp))
+                        Box(Modifier.width(18.dp).height(3.dp).background(Color.White.copy(alpha = 0.5f), RoundedCornerShape(2.dp)))
+                        Spacer(Modifier.height(6.dp))
+                        Box(Modifier.width(34.dp).height(3.dp).background(accentColor.copy(alpha = 0.9f), RoundedCornerShape(2.dp)))
+                    }
+                }
+                "video" -> {
+                    Text(
+                        "歌", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.align(Alignment.Center).graphicsLayer { rotationZ = -10f }
+                    )
+                    Text(
+                        "詞", color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.align(Alignment.TopEnd).padding(6.dp).graphicsLayer { rotationZ = 12f }
+                    )
+                    Text(
+                        "♪", color = accentColor, fontSize = 11.sp,
+                        modifier = Modifier.align(Alignment.BottomStart).padding(6.dp)
+                    )
+                }
+                else -> {
+                    Column(modifier = Modifier.padding(8.dp)) {
+                        Box(Modifier.width(28.dp).height(3.dp).background(Color.White.copy(alpha = 0.4f), RoundedCornerShape(2.dp)))
+                        Spacer(Modifier.height(4.dp))
+                        Box(Modifier.width(38.dp).height(5.dp).background(Color.White, RoundedCornerShape(2.dp)))
+                        Spacer(Modifier.height(4.dp))
+                        Box(Modifier.width(28.dp).height(3.dp).background(Color.White.copy(alpha = 0.4f), RoundedCornerShape(2.dp)))
+                    }
+                    Box(
+                        Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(start = 6.dp, bottom = 6.dp)
+                            .size(20.dp)
+                            .border(1.5.dp, Color.White.copy(alpha = 0.7f), CircleShape)
+                    )
+                    Box(
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 6.dp, bottom = 6.dp)
+                            .size(20.dp)
+                            .border(1.5.dp, Color.White.copy(alpha = 0.7f), CircleShape)
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(label, color = if (selected) accentColor else Color.White.copy(alpha = 0.8f), fontSize = 11.sp)
+        Text(if (selected) "●" else "○", color = if (selected) accentColor else Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
     }
 }

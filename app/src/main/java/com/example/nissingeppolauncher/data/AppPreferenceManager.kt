@@ -207,6 +207,33 @@ class AppPreferenceManager(private val context: Context) {
     fun getHomeDiscLayout(): String = prefs.getString("home_disc_layout", "classic") ?: "classic"
     fun setHomeDiscLayout(layout: String) { prefs.edit().putString("home_disc_layout", layout).apply() }
 
+    fun isLyricsPvMode(): Boolean = prefs.getBoolean("lyrics_pv_mode", false)
+    fun setLyricsPvMode(enabled: Boolean) { prefs.edit().putBoolean("lyrics_pv_mode", enabled).apply() }
+    fun getLyricsPvFont(): String = prefs.getString("lyrics_pv_font", "default") ?: "default"
+    fun setLyricsPvFont(value: String) { prefs.edit().putString("lyrics_pv_font", value).apply() }
+    fun isLyricsBold(): Boolean = prefs.getBoolean("lyrics_bold", false)
+    fun setLyricsBold(value: Boolean) { prefs.edit().putBoolean("lyrics_bold", value).apply() }
+    /** 歌詞の表示モード: "line"=現在の行のみ / "video"=リリックビデオ（文字PV） / "multi"=複数行 */
+    fun getLyricsDisplayMode(): String {
+        val saved = prefs.getString("lyrics_display_mode", null)
+        if (saved != null) return saved
+        return if (isLyricsPvMode()) "video" else "line"
+    }
+    fun setLyricsDisplayMode(value: String) { prefs.edit().putString("lyrics_display_mode", value).apply() }
+
+    /** 曲ごとの歌詞タイミング補正（ミリ秒）。キーはタイトル|アーティストのMD5 */
+    fun getLyricOffsetMs(title: String, artist: String): Long {
+        return prefs.getLong("lyric_offset_" + lyricOffsetKey(title, artist), 0L)
+    }
+    fun setLyricOffsetMs(title: String, artist: String, offsetMs: Long) {
+        prefs.edit().putLong("lyric_offset_" + lyricOffsetKey(title, artist), offsetMs).apply()
+    }
+    private fun lyricOffsetKey(title: String, artist: String): String {
+        val digest = java.security.MessageDigest.getInstance("MD5")
+            .digest("$title|$artist".toByteArray(Charsets.UTF_8))
+        return digest.joinToString("") { "%02x".format(it) }
+    }
+
     // ホーム時計の日付の表示方式: "sideways"=常時横倒し（時刻の右） / "under"=常時時計の下 / "auto"=歌詞の有無で切替
     fun getDateDisplayMode(): String = prefs.getString("date_display_mode", "auto") ?: "auto"
     fun setDateDisplayMode(mode: String) { prefs.edit().putString("date_display_mode", mode).apply() }
