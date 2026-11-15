@@ -43,7 +43,9 @@ fun WallpaperBackground(
     // アートワーク背景の見せ方: "solid"（単色）/ "blur"（ぼかし画像）
     artworkBackgroundStyle: String = "solid",
     // 液体グラデーション背景を使うか（壁紙なし時／再生中はアート背景の上に薄く）
-    liquidEnabled: Boolean = false
+    liquidEnabled: Boolean = false,
+    // 液体の基準色（アートワークから抽出した明るいアクセント色。音楽アプリと同じ見え方にする）
+    liquidAccent: Color? = null
 ) {
     val context = LocalContext.current
     val prefManager = remember { AppPreferenceManager(context) }
@@ -104,7 +106,7 @@ fun WallpaperBackground(
             )
             // 液体ONのときは、アートワーク背景の一番上に液体を薄く重ねる
             if (liquidEnabled) {
-                LiquidGradientBackground(baseColor = dynamicBackground ?: accentBase, onBlack = false, layerAlpha = 0.65f, alphaBoost = 1.35f)
+                LiquidGradientBackground(baseColor = liquidAccent ?: dynamicBackground ?: accentBase, onBlack = false, layerAlpha = 1f, alphaBoost = 1.9f)
             }
         } else if (currentAlbumArt != null) {
             // アートワーク連動: 抽出した背景色で単色に塗る
@@ -114,7 +116,7 @@ fun WallpaperBackground(
                     .background(dynamicBackground ?: Color(0xFF0B101D))
             )
             if (liquidEnabled) {
-                LiquidGradientBackground(baseColor = dynamicBackground ?: accentBase, onBlack = false, layerAlpha = 0.65f, alphaBoost = 1.35f)
+                LiquidGradientBackground(baseColor = liquidAccent ?: dynamicBackground ?: accentBase, onBlack = false, layerAlpha = 1f, alphaBoost = 1.9f)
             }
         } else if (backgroundBitmap != null) {
             Image(
@@ -131,11 +133,11 @@ fun WallpaperBackground(
             )
             // 壁紙画像を適用していても、液体ONなら画像の上に薄く液体を流す
             if (liquidEnabled) {
-                LiquidGradientBackground(baseColor = accentBase, onBlack = false, layerAlpha = 0.5f, alphaBoost = 1.2f)
+                LiquidGradientBackground(baseColor = liquidAccent ?: accentBase, onBlack = false, layerAlpha = 0.85f, alphaBoost = 1.7f)
             }
         } else if (customPath.isNullOrBlank() && liquidEnabled) {
             // 壁紙未選択＋液体ON: 黒地に液体グラデーションを流す
-            LiquidGradientBackground(baseColor = accentBase)
+            LiquidGradientBackground(baseColor = liquidAccent ?: accentBase, alphaBoost = 1.6f)
         } else {
             // 壁紙未選択なら真っ暗な黒
             val bgColor = if (customPath.isNullOrBlank()) Color.Black
