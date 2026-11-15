@@ -102,7 +102,7 @@ fun WallpaperBackground(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background((dynamicBackground ?: Color(0xFF0B101D)).copy(alpha = 0.55f))
+                    .background((dynamicBackground ?: Color(0xFF0B101D)).copy(alpha = if (liquidEnabled) 0.68f else 0.55f))
             )
             // 液体ONのときは、アートワーク背景の一番上に液体を薄く重ねる
             if (liquidEnabled) {
@@ -129,7 +129,7 @@ fun WallpaperBackground(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0xFF0B101D).copy(alpha = homeAlpha))
+                    .background(Color(0xFF0B101D).copy(alpha = if (liquidEnabled) maxOf(homeAlpha, 0.62f) else homeAlpha))
             )
             // 壁紙画像を適用していても、液体ONなら画像の上に薄く液体を流す
             if (liquidEnabled) {
