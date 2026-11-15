@@ -1681,7 +1681,7 @@ fun LyricsBrowseOverlay(
     val scrollAnim = remember { Animatable(startIndex.toFloat()) }
     val maxPos = (lines.size - 1).coerceAtLeast(0).toFloat()
     LaunchedEffect(lines.size) { scrollAnim.updateBounds(0f, maxPos) }
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize().zIndex(96f)) {
     if (source.isNotBlank()) {
         Text(
             text = "歌詞ソース: $source",

@@ -664,7 +664,8 @@ fun MainLauncherScreen() {
                 currentAlbumArt = if (matchArtwork || blurArtworkBg) sessionAlbumArt else null,
                 dynamicBackground = if (matchArtwork || blurArtworkBg) artworkBackground else null,
                 artworkBackgroundStyle = artworkBgStyle,
-                liquidEnabled = liquidBackground
+                liquidEnabled = liquidBackground,
+                liquidAccent = accentColor
             )
 
             // ===== 歌詞の読み込み中表示 =====
@@ -703,7 +704,7 @@ fun MainLauncherScreen() {
                     translations = lyricTranslations,
                     pvTopDp = topPaddingDp + 165.dp,
                     interludeTopDp = topPaddingDp + 145.dp,
-                    translationTopDp = topPaddingDp + 448.dp
+                    translationTopDp = topPaddingDp + 320.dp
                 )
             }
 
@@ -1606,7 +1607,7 @@ fun MainLauncherScreen() {
                 fontFamily = lyricsFontFamily,
                 lyricWeight = lyricWeight,
                 accentColor = accentColor,
-                accentGlow = accentGlow,
+                accentGlow = true,
                 topPaddingDp = topPaddingDp,
                 source = lyricsSource,
                 translationEnabled = translationEnabled,
