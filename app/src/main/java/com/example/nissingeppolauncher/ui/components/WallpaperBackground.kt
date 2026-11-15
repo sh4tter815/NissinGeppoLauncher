@@ -129,6 +129,10 @@ fun WallpaperBackground(
                     .fillMaxSize()
                     .background(Color(0xFF0B101D).copy(alpha = homeAlpha))
             )
+            // 壁紙画像を適用していても、液体ONなら画像の上に薄く液体を流す
+            if (liquidEnabled) {
+                LiquidGradientBackground(baseColor = accentBase, onBlack = false, layerAlpha = 0.5f, alphaBoost = 1.2f)
+            }
         } else if (customPath.isNullOrBlank() && liquidEnabled) {
             // 壁紙未選択＋液体ON: 黒地に液体グラデーションを流す
             LiquidGradientBackground(baseColor = accentBase)
