@@ -29,6 +29,8 @@ import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Lyrics
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
@@ -174,6 +176,21 @@ fun MainLauncherScreen() {
         }
     }
     var lyricsRefreshTick by remember { mutableIntStateOf(0) }
+    var showLyricSearch by remember { mutableStateOf(false) }
+    // 歌詞の対訳（洋楽向け）: 歌詞ブラウズ内のボタンでON/OFFする
+    var lyricTranslations by remember { mutableStateOf<List<String>?>(null) }
+    var translationEnabled by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        translationEnabled = repo.prefManager.isLyricTranslationEnabled()
+    }
+    LaunchedEffect(syncedLyricLines, translationEnabled) {
+        lyricTranslations = null
+        if (translationEnabled && syncedLyricLines.isNotEmpty()) {
+            lyricTranslations = LyricsManager.translateToJapanese(
+                context, sessionTrackTitle, sessionTrackArtist, sessionTrackAlbum, syncedLyricLines
+            )
+        }
+    }
     var lyricsLoading by remember { mutableStateOf(false) }
     // 再生中セッションへシークする（対応していないプレイヤーでは何も起きない）
     fun seekSessionTo(posMs: Long) {
@@ -754,6 +771,29 @@ fun MainLauncherScreen() {
                     if (pvDisplayIndex == -2) {
                         PvInterludeArt(accentColor = accentColor, modifier = Modifier.fillMaxWidth().padding(top = topPaddingDp + 145.dp).height(230.dp))
                     }
+                    // 対訳: PVの3行目として、現在の行の日本語訳を小さく出す
+                    if (translationEnabled && pvDisplayIndex >= 0) {
+                        val translation = lyricTranslations?.getOrNull(pvDisplayIndex)
+                        if (!translation.isNullOrBlank()) {
+                            Box(
+                                modifier = Modifier.fillMaxWidth().padding(top = topPaddingDp + 448.dp, start = 32.dp, end = 32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = translation,
+                                    color = Color.White.copy(alpha = 0.85f),
+                                    fontSize = 13.sp,
+                                    fontFamily = lyricsFontFamily,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                    style = LocalTextStyle.current.copy(
+                                        shadow = Shadow(color = accentColor.copy(alpha = 0.6f), blurRadius = 10f)
+                                    )
+                                )
+                            }
+                        }
+                    }
                     pvCurrent?.let { (_, curText) ->
                         val ambKind = when {
                             curText.contains("桜") -> 2
@@ -842,8 +882,7 @@ fun MainLauncherScreen() {
                             onAppsUpdated = {
                                 refreshApps()
                             },
-                            accentColor = accentColor,
-                            textStartAngle = lyricsTextAngle
+                            accentColor = accentColor
                         )
                     }
                 1 -> {
@@ -892,7 +931,8 @@ fun MainLauncherScreen() {
                             discCenterXDp = animatedDisc1CenterX,
                             discCenterYDp = disc1CenterY + lyricsDiscDrop,
                             discRadiusDp = disc1RadiusDp,
-                            accentColor = accentColor
+                            accentColor = accentColor,
+                            textStartAngle = lyricsTextAngle
                         )
                     }
                 }
@@ -1572,8 +1612,8 @@ fun MainLauncherScreen() {
             }
         }
 
-        // 歌詞ボタン: 時計と同じ高さ、画面右側。タップで歌詞全文表示、長押しで歌詞を再取得
-        if (currentLauncherPage == 1 && !isLyricsBrowsing && !pvFullscreen && syncedLyricLines.isNotEmpty()) {
+        // 歌詞ボタン: 時計と同じ高さ、画面右側。タップで歌詞全文表示（歌詞が無いときはタグ検索）、長押しで歌詞を再取得
+        if (currentLauncherPage == 1 && !isLyricsBrowsing && !pvFullscreen && sessionTrackTitle.isNotBlank()) {
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -1583,6 +1623,11 @@ fun MainLauncherScreen() {
                     .pointerInput(Unit) {
                         detectTapGestures(
                             onTap = {
+                                if (syncedLyricLines.isEmpty()) {
+                                    // 歌詞が取得できていないときは、タグを指定して手動検索できるようにする
+                                    showLyricSearch = true
+                                    return@detectTapGestures
+                                }
                                 lyricsBrowseFollow = true
                                 lyricsBrowseStartIndex = syncedLyricLines.indexOfLast {
                                     it.timeMs <= sessionPositionMs + lyricOffsetMs
@@ -1615,6 +1660,19 @@ fun MainLauncherScreen() {
                     modifier = Modifier.size(24.dp)
                 )
             }
+        }
+
+        // タグ指定で歌詞を検索するダイアログ
+        if (showLyricSearch) {
+            LyricTagSearchDialog(
+                currentTitle = sessionTrackTitle,
+                currentArtist = sessionTrackArtist,
+                currentAlbum = sessionTrackAlbum,
+                onApply = { applied ->
+                    syncedLyricLines = applied
+                },
+                onDismiss = { showLyricSearch = false }
+            )
         }
 
         // フルスクリーンボタン: 歌詞ボタンの下。押すと横画面で歌詞だけの画面になる
@@ -1870,6 +1928,17 @@ fun MainLauncherScreen() {
                         ) {
                             Icon(Icons.Default.Refresh, contentDescription = "歌詞を再取得", tint = Color.White, modifier = Modifier.size(24.dp))
                         }
+                        // タグを指定して検索（間違った歌詞を掴んだとき用）
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF263238))
+                                .clickable { showLyricSearch = true },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Search, contentDescription = "タグを指定して検索", tint = Color.White, modifier = Modifier.size(24.dp))
+                        }
                         // 中央: フォーカス行へ移動（セッションへシーク）
                         Box(
                             modifier = Modifier
@@ -1898,6 +1967,20 @@ fun MainLauncherScreen() {
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(Icons.Default.Timer, contentDescription = "タイミング調整", tint = Color.White, modifier = Modifier.size(24.dp))
+                        }
+                        // 翻訳ON/OFF（洋楽の対訳をPVの下に出す）
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(if (translationEnabled) accentColor else Color(0xFF263238))
+                                .clickable {
+                                    translationEnabled = !translationEnabled
+                                    repo.prefManager.setLyricTranslationEnabled(translationEnabled)
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Translate, contentDescription = "翻訳", tint = Color.White, modifier = Modifier.size(24.dp))
                         }
                     }
                 }
