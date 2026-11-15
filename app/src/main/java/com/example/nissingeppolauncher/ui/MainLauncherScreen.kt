@@ -174,6 +174,7 @@ fun MainLauncherScreen() {
         }
     }
     var lyricsRefreshTick by remember { mutableIntStateOf(0) }
+    var lyricsLoading by remember { mutableStateOf(false) }
     // 再生中セッションへシークする（対応していないプレイヤーでは何も起きない）
     fun seekSessionTo(posMs: Long) {
         try {
@@ -218,11 +219,14 @@ fun MainLauncherScreen() {
 
     // 曲が変わったら同期歌詞を取り直す
     LaunchedEffect(sessionTrackTitle, sessionTrackArtist, lyricsRefreshTick) {
+        // 曲が変わったら前の歌詞を即リセットして、読み込み表示にする（音楽アプリと同じ挙動）
+        syncedLyricLines = emptyList()
+        currentLyricLine = ""
         if (sessionTrackTitle.isBlank()) {
-            syncedLyricLines = emptyList()
-            currentLyricLine = ""
+            lyricsLoading = false
             return@LaunchedEffect
         }
+        lyricsLoading = true
         delay(600)
         val lines = LyricsManager.getSyncedLyrics(
             context, sessionTrackTitle, sessionTrackArtist, sessionTrackAlbum, sessionDurationMs, null
@@ -230,6 +234,7 @@ fun MainLauncherScreen() {
         syncedLyricLines = lines ?: emptyList()
         if (lines == null) currentLyricLine = ""
         lyricOffsetMs = repo.prefManager.getLyricOffsetMs(sessionTrackTitle, sessionTrackArtist)
+        lyricsLoading = false
     }
 
     // 再生位置に合わせて現在の歌詞行を更新する
@@ -637,8 +642,30 @@ fun MainLauncherScreen() {
                 liquidEnabled = liquidBackground
             )
 
+            // ===== 歌詞の読み込み中表示 =====
+            if (lyricsLoading && currentLauncherPage == 1) {
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = topPaddingDp + 185.dp)
+                        .zIndex(58f),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    CircularProgressIndicator(color = currentAccentColor, modifier = Modifier.size(22.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "取得中…",
+                        color = Color.White.copy(alpha = 0.75f),
+                        fontSize = 12.sp,
+                        style = LocalTextStyle.current.copy(
+                            shadow = Shadow(color = currentAccentColor.copy(alpha = 0.55f), blurRadius = 12f)
+                        )
+                    )
+                }
+            }
+
             // リリックビデオ（文字PV）: 再生中セッション（Spotify等も含む）の歌詞を大きく散らして表示する
-            if (lyricsDisplayMode == "video" && currentLauncherPage == 1 && syncedLyricLines.isNotEmpty()) {
+            if (lyricsDisplayMode == "video" && currentLauncherPage == 1 && !isLyricsBrowsing && syncedLyricLines.isNotEmpty()) {
                 val pvLines = syncedLyricLines
                 val pvPos = sessionPositionMs + lyricOffsetMs
                 val pvIndex = pvLines.indexOfLast { it.timeMs <= pvPos }
@@ -735,7 +762,7 @@ fun MainLauncherScreen() {
             }
 
             // 複数行モード: 時計の下に前・今・次の3行を表示（今の行が大きめ）
-            if (lyricsDisplayMode == "multi" && currentLauncherPage == 1 && syncedLyricLines.isNotEmpty()) {
+            if (lyricsDisplayMode == "multi" && currentLauncherPage == 1 && !isLyricsBrowsing && syncedLyricLines.isNotEmpty()) {
                 val multiLines = syncedLyricLines
                 val mPos = sessionPositionMs + lyricOffsetMs
                 val mRaw = multiLines.indexOfLast { it.timeMs <= mPos }
@@ -816,14 +843,17 @@ fun MainLauncherScreen() {
                     ClockWidget(
                         modifier = Modifier
                             .padding(start = 28.dp, top = topPaddingDp + 48.dp)
-                            .zIndex(10f),
+                            .zIndex(10f)
+                            .graphicsLayer { alpha = if (isLyricsBrowsing) 0f else 1f },
                         lyricsLine = if (lyricsDisplayMode == "line") currentLyricLine else "",
                         dateMode = if (lyricsDisplayMode == "video" && syncedLyricLines.isNotEmpty()) "sideways" else dateDisplayMode,
                         glowColor = accentColor
                     )
 
                     RotatableAppDisc(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer { alpha = if (isLyricsBrowsing) 0f else 1f },
                         apps = favoriteApps,
                         discCenterXDp = animatedDisc2CenterX,
                         discCenterYDp = disc2CenterY + lyricsDiscDrop,
@@ -847,6 +877,7 @@ fun MainLauncherScreen() {
                         modifier = Modifier
                             .fillMaxSize()
                             .zIndex(50f)
+                            .graphicsLayer { alpha = if (isLyricsBrowsing) 0f else 1f }
                     ) {
                         MusicVinylWidget(
                             modifier = Modifier.fillMaxSize(),
