@@ -104,7 +104,7 @@ fun WallpaperBackground(
             )
             // 液体ONのときは、アートワーク背景の一番上に液体を薄く重ねる
             if (liquidEnabled) {
-                LiquidGradientBackground(baseColor = dynamicBackground ?: accentBase, onBlack = false, layerAlpha = 0.5f)
+                LiquidGradientBackground(baseColor = dynamicBackground ?: accentBase, onBlack = false, layerAlpha = 0.65f, alphaBoost = 1.35f)
             }
         } else if (currentAlbumArt != null) {
             // アートワーク連動: 抽出した背景色で単色に塗る
@@ -114,7 +114,7 @@ fun WallpaperBackground(
                     .background(dynamicBackground ?: Color(0xFF0B101D))
             )
             if (liquidEnabled) {
-                LiquidGradientBackground(baseColor = dynamicBackground ?: accentBase, onBlack = false, layerAlpha = 0.5f)
+                LiquidGradientBackground(baseColor = dynamicBackground ?: accentBase, onBlack = false, layerAlpha = 0.65f, alphaBoost = 1.35f)
             }
         } else if (backgroundBitmap != null) {
             Image(
@@ -152,7 +152,7 @@ fun WallpaperBackground(
  * パレットは基準色から色相をずらして作る。
  */
 @Composable
-private fun LiquidGradientBackground(baseColor: Color, onBlack: Boolean = true, layerAlpha: Float = 1f) {
+private fun LiquidGradientBackground(baseColor: Color, onBlack: Boolean = true, layerAlpha: Float = 1f, alphaBoost: Float = 1f) {
     val transition = rememberInfiniteTransition(label = "liquid")
     val t1 by transition.animateFloat(
         initialValue = 0f, targetValue = 1f,
@@ -191,19 +191,19 @@ private fun LiquidGradientBackground(baseColor: Color, onBlack: Boolean = true, 
                     modifier = Modifier
                         .offset(x = w * (-0.25f + 0.55f * t1), y = h * (-0.15f + 0.35f * t2))
                         .size(w * 0.95f)
-                        .background(Brush.radialGradient(listOf(c1.copy(alpha = 0.55f), Color.Transparent)))
+                        .background(Brush.radialGradient(listOf(c1.copy(alpha = (0.55f * alphaBoost).coerceAtMost(1f)), Color.Transparent)))
                 )
                 Box(
                     modifier = Modifier
                         .offset(x = w * (0.35f - 0.50f * t3), y = h * (0.30f - 0.35f * t1))
                         .size(w * 0.85f)
-                        .background(Brush.radialGradient(listOf(c2.copy(alpha = 0.45f), Color.Transparent)))
+                        .background(Brush.radialGradient(listOf(c2.copy(alpha = (0.45f * alphaBoost).coerceAtMost(1f)), Color.Transparent)))
                 )
                 Box(
                     modifier = Modifier
                         .offset(x = w * (-0.10f + 0.45f * t4), y = h * (0.55f - 0.40f * t3))
                         .size(w * 1.05f)
-                        .background(Brush.radialGradient(listOf(c3.copy(alpha = 0.50f), Color.Transparent)))
+                        .background(Brush.radialGradient(listOf(c3.copy(alpha = (0.50f * alphaBoost).coerceAtMost(1f)), Color.Transparent)))
                 )
             }
         }
