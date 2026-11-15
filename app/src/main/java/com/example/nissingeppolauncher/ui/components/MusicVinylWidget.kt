@@ -50,7 +50,8 @@ fun MusicVinylWidget(
     discCenterXDp: Float,
     discCenterYDp: Float,
     discRadiusDp: Float = 165f,
-    accentColor: Color = Color(0xFFE53935)
+    accentColor: Color = Color(0xFFE53935),
+    textStartAngle: Float = -90f
 ) {
     val context = LocalContext.current
     val prefManager = remember { AppPreferenceManager(context) }
@@ -370,7 +371,7 @@ fun MusicVinylWidget(
                     centerY - pathRadius,
                     centerX + pathRadius,
                     centerY + pathRadius,
-                    -90f,
+                    textStartAngle,
                     180f
                 )
             }
