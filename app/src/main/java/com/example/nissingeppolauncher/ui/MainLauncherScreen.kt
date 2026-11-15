@@ -174,7 +174,20 @@ fun MainLauncherScreen() {
                         anchorTimeMs = nowMs
                         posMs = reportedMs
                     }
-                    currentLyricLine = syncedLyricLines.lastOrNull { it.timeMs <= posMs }?.text ?: ""
+                    // 間奏（次の行まで間が空いている区間）では歌詞の代わりに音符マークを出す
+                    val curIdx = syncedLyricLines.indexOfLast { it.timeMs <= posMs }
+                    val curLine = syncedLyricLines.getOrNull(curIdx)
+                    val nextLine = syncedLyricLines.getOrNull(curIdx + 1)
+                    val inInterlude = when {
+                        curLine == null -> nextLine != null && (nextLine.timeMs - posMs) > 3000
+                        nextLine == null -> (posMs - curLine.timeMs) > 8000
+                        else -> (nextLine.timeMs - posMs) > 4000 && (posMs - curLine.timeMs) > 3000
+                    }
+                    currentLyricLine = when {
+                        inInterlude -> "♪"
+                        curLine != null -> curLine.text
+                        else -> ""
+                    }
                 }
             } catch (e: Exception) {
                 // セッションが取れないときは表示を維持する
