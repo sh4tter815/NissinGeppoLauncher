@@ -124,6 +124,8 @@ val ASSOC_COLOR_WORDS: List<Pair<String, Color>> = listOf(
     "涙" to Color(0xFF7FD4F2), "空" to Color(0xFF7FD4F2), "凍" to Color(0xFF7FD4F2), "氷" to Color(0xFF7FD4F2), "想い" to Color(0xFFFF8FBF),
     "炎" to Color(0xFFFF9A3D), "熱" to Color(0xFFFF9A3D), "火" to Color(0xFFFF9A3D),
     "砂" to Color(0xFFFFC94D), "汚" to Color(0xFFA9744F), "希望" to Color(0xFFFFE14D),
+    "死" to Color(0xFFFF4545), "地獄" to Color(0xFFFF4545), "行方不明" to Color(0xFFFF4545), "不明" to Color(0xFFFF4545), "不安" to Color(0xFFFF4545), "危険" to Color(0xFFFF4545), "怖" to Color(0xFFFF4545), "恐" to Color(0xFFFF4545),
+    "無事" to Color(0xFF4CD964), "安心" to Color(0xFF4CD964), "安全" to Color(0xFF4CD964), "大丈夫" to Color(0xFF4CD964),
     "love" to Color(0xFFFF8FBF), "heart" to Color(0xFFFF8FBF), "blood" to Color(0xFFFF4545),
     "night" to Color(0xFF2B4C9B), "moon" to Color(0xFFFFC94D), "star" to Color(0xFFFFC94D),
     "sea" to Color(0xFF3D7BFF), "hate" to Color(0xFF3D7BFF), "sad" to Color(0xFF3D7BFF),
