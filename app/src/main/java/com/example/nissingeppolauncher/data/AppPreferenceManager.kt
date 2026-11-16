@@ -200,6 +200,20 @@ class AppPreferenceManager(private val context: Context) {
 
     /** アートワーク背景の見せ方: "solid"（単色）/ "blur"（ぼかし画像） */
     fun getArtworkBackgroundStyle(): String = prefs.getString("artwork_background_style", "solid") ?: "solid"
+
+    // 背景モード: "wallpaper"（設定した壁紙画像）/ "artwork_solid"（アートワーク単色）/ "artwork_blur"（アートワークぼかし）
+    // 未設定のときは旧設定（再生中はアートワーク背景を使う＋見せ方）から引き継ぐ
+    fun getBackgroundMode(): String {
+        val saved = prefs.getString("background_mode", null)
+        if (saved != null) return saved
+        return if (isBlurArtworkBackground()) {
+            if (getArtworkBackgroundStyle() == "blur") "artwork_blur" else "artwork_solid"
+        } else {
+            "wallpaper"
+        }
+    }
+
+    fun setBackgroundMode(mode: String) = prefs.edit().putString("background_mode", mode).apply()
     fun setArtworkBackgroundStyle(style: String) = prefs.edit().putString("artwork_background_style", style).apply()
 
     fun isLiquidBackgroundEnabled(): Boolean = prefs.getBoolean("liquid_background", true)
