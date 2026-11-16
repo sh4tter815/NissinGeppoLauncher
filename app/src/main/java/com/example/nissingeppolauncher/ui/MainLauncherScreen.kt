@@ -149,6 +149,7 @@ fun MainLauncherScreen() {
     var lyricsDisplayMode by remember { mutableStateOf(repo.prefManager.getLyricsDisplayMode()) }
     var lyricsPvFont by remember { mutableStateOf(repo.prefManager.getLyricsPvFont()) }
     var lyricsBold by remember { mutableStateOf(repo.prefManager.isLyricsBold()) }
+    var pvPartsEntry by remember { mutableStateOf(repo.prefManager.isPvPartsEntryEnabled()) }
     var isLyricsBrowsing by remember { mutableStateOf(false) }
     var pvFullscreen by remember { mutableStateOf(false) }
 
@@ -721,7 +722,8 @@ fun MainLauncherScreen() {
                     translations = lyricTranslations,
                     pvTopDp = topPaddingDp + 165.dp,
                     interludeTopDp = topPaddingDp + 145.dp,
-                    translationTopDp = topPaddingDp + 320.dp
+                    translationTopDp = topPaddingDp + 320.dp,
+                    partsEntry = pvPartsEntry
                 )
             }
 
@@ -1654,6 +1656,7 @@ fun MainLauncherScreen() {
                 title = sessionTrackTitle,
                 artist = sessionTrackArtist,
                 album = sessionTrackAlbum,
+                partsEntry = pvPartsEntry,
                 onClose = { pvFullscreen = false }
             )
         }
