@@ -11,6 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.CubicBezierEasing
@@ -154,7 +155,7 @@ fun MainLauncherScreen() {
     var pvFlashColor by remember { mutableStateOf<Color?>(null) }
     LaunchedEffect(pvFlashColor) {
         if (pvFlashColor != null) {
-            delay(1800)
+            delay(2400)
             pvFlashColor = null
         }
     }
@@ -399,7 +400,12 @@ fun MainLauncherScreen() {
     } else {
         manualAccentColor
     }
-    val effectiveAccent = pvFlashColor ?: accentColor
+    // 色の切り替わりはチカチカしないよう、800msかけてなめらかに寄せる
+    val effectiveAccent by animateColorAsState(
+        targetValue = pvFlashColor ?: accentColor,
+        animationSpec = tween(durationMillis = 800),
+        label = "accentFlash"
+    )
 
     var showWelcomeTutorial by remember { mutableStateOf(false) }
     var showIndexTutorial by remember { mutableStateOf(false) }
