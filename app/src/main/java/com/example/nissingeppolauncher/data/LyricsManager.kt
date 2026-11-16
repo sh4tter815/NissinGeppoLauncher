@@ -1059,10 +1059,16 @@ object LyricsManager {
     fun clearLyricsOverride(context: Context, title: String, artist: String, album: String) {
         try { cacheFile(context, title, artist, album).delete() } catch (e: Exception) { }
         try { instrumentalFile(context, title, artist, album).delete() } catch (e: Exception) { }
-        try { File(cacheFile(context, title, artist, album).absolutePath + ".ja2").delete() } catch (e: Exception) { }
+        try { File(cacheFile(context, title, artist, album).absolutePath + ".ja3").delete() } catch (e: Exception) { }
     }
 
     /** 歌詞の各行を日本語へ翻訳する（日本語を含む行は空文字＝訳なし）。結果はキャッシュする */
+    // 冒頭のクレジット行（作詞・作曲など）は人名が誤訳されるので翻訳対象にしない
+    private fun isCreditLine(text: String): Boolean {
+        val t = text.trim()
+        return listOf("作詞", "作曲", "編曲", "作词", "编曲", "歌唱", "演唱", "ボーカル", "Vocal", "Lyrics", "Composer", "Arranger", "詞：", "曲：").any { t.contains(it) }
+    }
+
     suspend fun translateToJapanese(
         context: Context,
         title: String,
@@ -1070,7 +1076,7 @@ object LyricsManager {
         album: String,
         lines: List<LyricLine>
     ): List<String> = withContext(Dispatchers.IO) {
-        val cache = File(cacheFile(context, title, artist, album).absolutePath + ".ja2")
+        val cache = File(cacheFile(context, title, artist, album).absolutePath + ".ja3")
         if (cache.exists()) {
             try {
                 val cached = cache.readText(Charsets.UTF_8).split("\n")
@@ -1083,7 +1089,7 @@ object LyricsManager {
         val targets = lines.mapIndexedNotNull { i, l ->
             // かなを含む行は日本語として翻訳しない。漢字だけの行は中国語の
             // 可能性があるので対象にする（日本語なら訳が原文と一致して消える）
-            if (l.text.isBlank() || l.text.any { it in '\u3040'..'\u30FF' }) null else i to l.text
+            if (l.text.isBlank() || l.text.any { it in '\u3040'..'\u30FF' } || isCreditLine(l.text)) null else i to l.text
         }
         if (targets.isEmpty()) return@withContext result
         var idx = 0
