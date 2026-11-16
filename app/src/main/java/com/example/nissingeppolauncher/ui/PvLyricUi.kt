@@ -1176,14 +1176,18 @@ fun PvLyricLine(
                 val chunkPileStart = chunkPileWord?.let { chunk.indexOf(it) } ?: -1
                 // 液体っぽい単語は、文字の下端から液が垂れるエフェクトにする（蜂蜜系は黄色、どろどろは茶色、液体は水色）
                 val chunkDrip: Pair<String, Color>? = when {
+                    chunk.contains("血液") -> "血液" to Color(0xFFE53935)
                     chunk.contains("秘密") -> null
                     chunk.contains("蜂蜜") || chunk.contains("はちみつ") || chunk.contains("ハチミツ") || chunk.contains("蜜") -> "蜜" to Color(0xFFFFB300)
                     chunk.contains("どろどろ") || chunk.contains("ドロドロ") -> "どろどろ" to Color(0xFF8D6E63)
                     chunk.contains("液体") -> "液体" to Color(0xFF6EC6FF)
-                    chunk.contains("液") && !chunk.contains("血液") -> "液" to Color(0xFF6EC6FF)
+                    chunk.contains("液") -> "液" to Color(0xFF6EC6FF)
                     else -> null
                 }
                 val chunkDripStart = chunkDrip?.let { chunk.indexOf(it.first) } ?: -1
+                // バラバラ・壊れる系の単語は、設定に関係なく文字をパーツに分解したまま揺らす
+                val chunkPartsWord = listOf("バラバラ", "ばらばら", "壊れ", "割れ", "砕け", "崩れ").firstOrNull { chunk.contains(it) }
+                val chunkPartsStart = chunkPartsWord?.let { chunk.indexOf(it) } ?: -1
                 val chunkMosaicStart = chunk.indexOf("隠")
                 val chunkMosaicWordStart = chunk.indexOf("モザイク")
                 // 複数文字の色ワード（希望・想い等）は塊単位で判定し、該当する文字だけに色を渡す
@@ -1234,6 +1238,7 @@ fun PvLyricLine(
                     // 「積もる・重なる」系の文字は、同じ文字を上に重ねて表現する
                     val unitPile = chunkPileWord != null && unitStart < chunkPileStart + chunkPileWord.length && unitStart + ru.length > chunkPileStart
                     val unitDrip = if (chunkDrip != null && unitStart < chunkDripStart + chunkDrip.first.length && unitStart + ru.length > chunkDripStart) chunkDrip.second else null
+                    val unitParts = chunkPartsWord != null && unitStart < chunkPartsStart + chunkPartsWord.length && unitStart + ru.length > chunkPartsStart
                     val unitChunkColor = if (chunkColorHit != null && unitStart < chunkColorStart + chunkColorHit.first.length && unitStart + ru.length > chunkColorStart) chunkColorHit.second else null
                     PvLyricUnit(
                         bold = bold,
@@ -1261,7 +1266,8 @@ fun PvLyricLine(
                         arrowUnder = chunkArrow && ru == "行",
                         swayScale = if (bigText) 2.8f else 1f,
                         entryDelayMs = unitDelayMs,
-                        partsEntry = partsEntry
+                        partsEntry = partsEntry,
+                        wordParts = unitParts
                     )
                 }
             }
@@ -1317,7 +1323,8 @@ fun PvLyricUnit(
     chunkColor: Color? = null,
     arrowUnder: Boolean = false,
     entryDelayMs: Long = -1L,
-    partsEntry: Boolean = false
+    partsEntry: Boolean = false,
+    wordParts: Boolean = false
 ) {
     val pvEaseIn = CubicBezierEasing(0.42f, 0f, 1f, 1f)
     // 文字同期がある行では実時刻ディレイ、無い行では従来の等間隔ディレイで入場する
@@ -1428,7 +1435,7 @@ fun PvLyricUnit(
                     rotationZ = uRot * (2f - a)
                     translationY = (1f - a) * 30f
                 } else {
-                    val a = if (partsEntry) 1f else uAnim.value
+                    val a = if (partsEntry || wordParts) 1f else uAnim.value
                     val blinkF = if (effectKind == 3 && fxT.value < 1f) {
                         if (sin(fxT.value * 21.99f + uSeed * 1.3f) > -0.2f) 1f else 0.12f
                     } else 1f
@@ -1489,13 +1496,16 @@ fun PvLyricUnit(
                     )
                 }
             }
-            if (partsEntry && !exiting) {
-                // パーツ入場（オプション）: 文字を縦3スライスに分け、バラバラの方向から集まって合体させる
+            if ((partsEntry || wordParts) && !exiting) {
+                // パーツ分解: 文字を縦3スライスに分ける。
+                // 単語由来（バラバラ等）は合体させず分解したまま揺らし、設定由来は入場時だけ分解して合体させる
                 val pa = uAnim.value
                 Box {
                     for (slice in 0 until 3) {
                         val sDir = PV_ENTRY_DIRS[Math.floorMod(uSeed * 131 + 7 + slice * 3, 8)]
-                        val dist = 44f + slice * 16f
+                        val dist = if (wordParts) (44f + slice * 16f) * (1f - pa * 0.55f) else (44f + slice * 16f) * (1f - pa)
+                        val sliceSwayX = if (wordParts) sin(sway.value * 6.2832f + slice * 2.1f + uSeed) * 3f else 0f
+                        val sliceSwayY = if (wordParts) cos(sway.value * 6.2832f + slice * 1.7f + uSeed) * 2.4f else 0f
                         Text(
                             text = annotatedUnit,
                             color = Color.White.copy(alpha = if (dimmed) 0.40f else 0.92f),
@@ -1510,8 +1520,8 @@ fun PvLyricUnit(
                             ),
                             modifier = Modifier
                                 .graphicsLayer {
-                                    translationX = sDir.first * dist * (1f - pa)
-                                    translationY = sDir.second * dist * (1f - pa)
+                                    translationX = sDir.first * dist + sliceSwayX
+                                    translationY = sDir.second * dist + sliceSwayY
                                     alpha = pa
                                 }
                                 .drawWithContent {
