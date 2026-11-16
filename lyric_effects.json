@@ -1,5 +1,5 @@
 {
- "version": 1,
+ "version": 2,
  "iconWords": [
   [
    "傘",
@@ -71,11 +71,7 @@
   ],
   [
    "夢",
-   "CLOUD"
-  ],
-  [
-   "思い出",
-   "CLOUD"
+   "BUBBLE"
   ],
   [
    "夜",
@@ -333,7 +329,7 @@
   ],
   [
    "dream",
-   "CLOUD"
+   "BUBBLE"
   ],
   [
    "eye",
