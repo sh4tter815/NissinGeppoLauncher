@@ -74,6 +74,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.PathEffect
@@ -718,6 +719,40 @@ fun PvLyricLine(
     // ただし「」や（）で囲まれた部分は丸ごと1行で表示する（閉じ括弧がこの行に無い場合は通常扱い）
     val totalChars = text.count { it != ' ' && it != '　' }
     fun splitChunks(list: List<String>): List<List<String>> {
+        // 塊が1つしかない長い行（助詞で始まらない長いひらがな文など）は、文字単位で2つに割る
+        if (list.size == 1) {
+            val s = list[0]
+            if (s.length >= 6 && chunkEm(s) > 12f) {
+                val total = chunkEm(s)
+                val particles = "はがをにへとやのもでからまでよりばねよわ"
+                var bestI = -1
+                var bestD = Float.MAX_VALUE
+                var acc = 0f
+                for (i in 1 until s.length) {
+                    acc += charEm(s[i - 1]) * 1.02f
+                    if (i >= 2 && i <= s.length - 2 && (s[i - 1] in particles || s[i - 1] == ' ' || s[i - 1] == '　')) {
+                        val d = kotlin.math.abs(total / 2f - acc)
+                        if (d < bestD) { bestD = d; bestI = i }
+                    }
+                }
+                if (bestI < 0) {
+                    acc = 0f
+                    bestD = Float.MAX_VALUE
+                    for (i in 1 until s.length) {
+                        acc += charEm(s[i - 1]) * 1.02f
+                        val d = kotlin.math.abs(total / 2f - acc)
+                        if (d < bestD) { bestD = d; bestI = i }
+                    }
+                }
+                val noStart = "ーぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮ・、。，．！!？?）)】」』"
+                while (bestI > 1 && bestI < s.length && s[bestI] in noStart) bestI--
+                while (bestI < s.length - 1 && bestI > 0 && s[bestI] in noStart) bestI++
+                if (bestI in 1 until s.length) {
+                    return listOf(listOf(s.substring(0, bestI)), listOf(s.substring(bestI)))
+                }
+            }
+            return listOf(list)
+        }
         if (list.size >= 2 && list.sumOf { it.count { ch -> ch != ' ' && ch != '　' } } >= 6) {
             val totalEm = list.sumOf { chunkEm(it).toDouble() }.toFloat() + gapEm * (list.size - 1)
             var acc = 0f
@@ -2083,7 +2118,8 @@ fun LyricsPvLayer(
     pvTopDp: Dp,
     interludeTopDp: Dp,
     translationTopDp: Dp,
-    partsEntry: Boolean = false
+    partsEntry: Boolean = false,
+    onAccentFlash: (Color?) -> Unit = {}
 ) {
     val pvPos = positionMs + lyricOffsetMs
     val pvIndex = lines.indexOfLast { it.timeMs <= pvPos }
@@ -2096,6 +2132,27 @@ fun LyricsPvLayer(
         else -> (pvNextLine.timeMs - pvCurLine.timeMs) > 15000 && (pvPos - pvCurLine.timeMs) > 5000 // 行間が長い間奏だけ。次の行が近づいたら前の行に戻る、をしない
     }
     val pvDisplayIndex = if (pvInterlude) -2 else pvIndex
+    // 色名・連想色に当たった行では、その色（文字と同じ淡色）を親に知らせてアクセントを一瞬変える
+    val flashHit = remember(pvCurLine?.text, accentColor) {
+        val t = pvCurLine?.text
+        if (t == null) null else {
+            val hit = COLOR_WORDS.firstOrNull { (w, _) ->
+                if (w.all { it.code < 128 }) Regex("""(?i)(?<![A-Za-z])${Regex.escape(w)}(?![A-Za-z])""").containsMatchIn(t) else t.contains(w)
+            } ?: ASSOC_COLOR_WORDS.firstOrNull { (w, _) ->
+                if (w.all { it.code < 128 }) Regex("""(?i)(?<![A-Za-z])${Regex.escape(w)}(?![A-Za-z])""").containsMatchIn(t) else t.contains(w)
+            }
+            hit?.let { (_, base) ->
+                Color(
+                    red = (base.red * 0.55f + accentColor.red * 0.45f) * 0.55f + 0.45f,
+                    green = (base.green * 0.55f + accentColor.green * 0.45f) * 0.55f + 0.45f,
+                    blue = (base.blue * 0.55f + accentColor.blue * 0.45f) * 0.55f + 0.45f
+                )
+            }
+        }
+    }
+    LaunchedEffect(flashHit, pvIndex) {
+        if (flashHit != null) onAccentFlash(flashHit)
+    }
     if (pvIndex >= 0) {
                 // 前の行は残像にせず、文字ごとにバラバラの遅延で退場アニメーションをかけて消す
         // エフェクトは行ごとにランダム。ただし前の行と同じ種類は避ける
@@ -2135,7 +2192,7 @@ fun LyricsPvLayer(
             }
         }
         // 「暗」を含む行では背景を少し暗くし、次の行で戻す
-        val darkTarget = if (pvDisplayIndex >= 0 && lines.getOrNull(pvDisplayIndex)?.text?.contains("暗") == true) 0.32f else 0f
+        val darkTarget = if (pvDisplayIndex >= 0 && lines.getOrNull(pvDisplayIndex)?.text?.let { it.contains("暗") || it.contains("闇") } == true) 0.32f else 0f
         val darkAlpha = remember { Animatable(0f) }
         LaunchedEffect(darkTarget) {
             darkAlpha.animateTo(darkTarget, animationSpec = tween(durationMillis = 700))
@@ -2674,7 +2731,7 @@ fun LyricsFullscreenOverlay(
                     if (fsExiting != null) { delay(750); fsExiting = null }
                 }
                 // 「暗」を含む行では背景を少し暗くし、次の行で戻す
-                val fsDarkTarget = if (fsDisplayIndex >= 0 && fsLines.getOrNull(fsDisplayIndex)?.text?.contains("暗") == true) 0.32f else 0f
+                val fsDarkTarget = if (fsDisplayIndex >= 0 && fsLines.getOrNull(fsDisplayIndex)?.text?.let { it.contains("暗") || it.contains("闇") } == true) 0.32f else 0f
                 val fsDarkAlpha = remember { Animatable(0f) }
                 LaunchedEffect(fsDarkTarget) {
                     fsDarkAlpha.animateTo(fsDarkTarget, animationSpec = tween(durationMillis = 700))
