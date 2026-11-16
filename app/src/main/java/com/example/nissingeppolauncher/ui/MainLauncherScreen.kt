@@ -158,7 +158,6 @@ fun MainLauncherScreen() {
             pvFlashColor = null
         }
     }
-    val effectiveAccent = pvFlashColor ?: accentColor
     var isLyricsBrowsing by remember { mutableStateOf(false) }
     var pvFullscreen by remember { mutableStateOf(false) }
 
@@ -400,6 +399,7 @@ fun MainLauncherScreen() {
     } else {
         manualAccentColor
     }
+    val effectiveAccent = pvFlashColor ?: accentColor
 
     var showWelcomeTutorial by remember { mutableStateOf(false) }
     var showIndexTutorial by remember { mutableStateOf(false) }
