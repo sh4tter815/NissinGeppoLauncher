@@ -722,82 +722,18 @@ fun MainLauncherScreen() {
 
             // 複数行モード: 時計の下に前・今・次の3行を表示（今の行が大きめ）
             if (lyricsDisplayMode == "multi" && currentLauncherPage == 1 && !isLyricsBrowsing && syncedLyricLines.isNotEmpty()) {
-                val multiLines = syncedLyricLines
-                val mPos = sessionPositionMs + lyricOffsetMs
-                val mRaw = multiLines.indexOfLast { it.timeMs <= mPos }
-                val mCur = multiLines.getOrNull(mRaw)
-                val mNext = multiLines.getOrNull(mRaw + 1)
-                val mInterlude = when {
-                    mCur == null -> true
-                    mNext == null -> (mPos - mCur.timeMs) > 8000
-                    else -> (mNext.timeMs - mCur.timeMs) > 15000 && (mPos - mCur.timeMs) > 5000
-                }
-                Crossfade(targetState = mRaw, animationSpec = tween(250), label = "multiLyrics") { rawIdx ->
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 28.dp, end = 24.dp, top = topPaddingDp + 165.dp)
-                    ) {
-                        val prevText = multiLines.getOrNull(rawIdx - 1)?.text
-                        val curText = multiLines.getOrNull(rawIdx)?.text
-                        val nextText = multiLines.getOrNull(rawIdx + 1)?.text
-                        if (prevText != null) {
-                            Text(prevText, color = Color.White.copy(alpha = 0.45f), fontSize = fitFontSizeSp(prevText, 18f, screenWidthDp - 52f).sp, letterSpacing = 2.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = lyricsFontFamily), modifier = Modifier.padding(start = 0.dp))
-                            if (translationEnabled) {
-                                val trP = lyricTranslations?.getOrNull(rawIdx - 1)
-                                if (!trP.isNullOrBlank()) {
-                                    Text(trP, color = Color.White.copy(alpha = 0.35f), fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = lyricsFontFamily))
-                                }
-                            }
-                        } else {
-                            Spacer(Modifier.height(24.dp))
-                        }
-                        Spacer(Modifier.height(16.dp))
-                        val curLineObj = multiLines.getOrNull(rawIdx)
-                        if (!mInterlude && curLineObj != null && curLineObj.words.isNotEmpty()) {
-                            KaraokeLyricText(
-                                line = curLineObj,
-                                positionMs = sessionPositionMs + lyricOffsetMs,
-                                sungColor = accentColor,
-                                baseColor = Color.White,
-                                fontSize = fitFontSizeSp(curLineObj.text, 30f, screenWidthDp - 80f).sp,
-                                fontWeight = lyricWeight,
-                                fontFamily = lyricsFontFamily,
-                                letterSpacing = 3.sp,
-                                shadow = Shadow(color = accentColor.copy(alpha = 0.8f), blurRadius = 16f),
-                                modifier = Modifier.padding(start = 28.dp)
-                            )
-                        } else {
-                            Text(
-                                text = if (mInterlude) "♪" else (curText ?: ""),
-                                color = Color.White,
-                                fontSize = fitFontSizeSp(if (mInterlude) "♪" else (curText ?: ""), 30f, screenWidthDp - 80f).sp,
-                                fontWeight = lyricWeight,
-                                letterSpacing = 3.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                style = LocalTextStyle.current.copy(fontFamily = lyricsFontFamily, shadow = Shadow(color = accentColor.copy(alpha = 0.8f), blurRadius = 16f)),
-                                modifier = Modifier.padding(start = 28.dp)
-                            )
-                        }
-                        if (translationEnabled && !mInterlude) {
-                            val trC = lyricTranslations?.getOrNull(rawIdx)
-                            if (!trC.isNullOrBlank()) {
-                                Text(trC, color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = lyricsFontFamily), modifier = Modifier.padding(start = 28.dp, top = 4.dp))
-                            }
-                        }
-                        Spacer(Modifier.height(16.dp))
-                        if (nextText != null) {
-                            Text(nextText, color = Color.White.copy(alpha = 0.45f), fontSize = fitFontSizeSp(nextText, 18f, screenWidthDp - 108f).sp, letterSpacing = 2.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = lyricsFontFamily), modifier = Modifier.padding(start = 56.dp))
-                            if (translationEnabled) {
-                                val trN = lyricTranslations?.getOrNull(rawIdx + 1)
-                                if (!trN.isNullOrBlank()) {
-                                    Text(trN, color = Color.White.copy(alpha = 0.35f), fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = lyricsFontFamily), modifier = Modifier.padding(start = 56.dp))
-                                }
-                            }
-                        }
-                    }
-                }
+                LauncherMultiLineLyrics(
+                    lines = syncedLyricLines,
+                    positionMs = sessionPositionMs,
+                    lyricOffsetMs = lyricOffsetMs,
+                    translationEnabled = translationEnabled,
+                    translations = lyricTranslations,
+                    fontFamily = lyricsFontFamily,
+                    lyricWeight = lyricWeight,
+                    accentColor = accentColor,
+                    screenWidthDp = screenWidthDp,
+                    topPaddingDp = topPaddingDp
+                )
             }
 
             // --- メインコンテンツ描画 (0: 設定, 1: ホーム, 2: アプリ一覧, 3: フォルダ) ---
@@ -1962,4 +1898,96 @@ private fun extractArtworkColors(bitmap: Bitmap): Pair<Color, Color> {
         background = Color(red = background.red * f, green = background.green * f, blue = background.blue * f)
     }
     return accent to background
+}
+
+// 複数行モードの歌詞表示（VerifyError 回避のため MainLauncherScreen から切り出したトップレベル関数）
+@Composable
+private fun LauncherMultiLineLyrics(
+    lines: List<LyricLine>,
+    positionMs: Long,
+    lyricOffsetMs: Long,
+    translationEnabled: Boolean,
+    translations: List<String>?,
+    fontFamily: FontFamily?,
+    lyricWeight: FontWeight,
+    accentColor: Color,
+    screenWidthDp: Float,
+    topPaddingDp: Dp
+) {
+    val multiLines = lines
+    val mPos = positionMs + lyricOffsetMs
+    val mRaw = multiLines.indexOfLast { it.timeMs <= mPos }
+    val mCur = multiLines.getOrNull(mRaw)
+    val mNext = multiLines.getOrNull(mRaw + 1)
+    val mInterlude = when {
+        mCur == null -> true
+        mNext == null -> (mPos - mCur.timeMs) > 8000
+        else -> (mNext.timeMs - mCur.timeMs) > 15000 && (mPos - mCur.timeMs) > 5000
+    }
+    Crossfade(targetState = mRaw, animationSpec = tween(250), label = "multiLyrics") { rawIdx ->
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 28.dp, end = 24.dp, top = topPaddingDp + 165.dp)
+        ) {
+            val prevText = multiLines.getOrNull(rawIdx - 1)?.text
+            val curText = multiLines.getOrNull(rawIdx)?.text
+            val nextText = multiLines.getOrNull(rawIdx + 1)?.text
+            if (prevText != null) {
+                Text(prevText, color = Color.White.copy(alpha = 0.45f), fontSize = fitFontSizeSp(prevText, 18f, screenWidthDp - 52f).sp, letterSpacing = 2.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = fontFamily), modifier = Modifier.padding(start = 0.dp))
+                if (translationEnabled) {
+                    val trP = translations?.getOrNull(rawIdx - 1)
+                    if (!trP.isNullOrBlank()) {
+                        Text(trP, color = Color.White.copy(alpha = 0.35f), fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = fontFamily))
+                    }
+                }
+            } else {
+                Spacer(Modifier.height(24.dp))
+            }
+            Spacer(Modifier.height(16.dp))
+            val curLineObj = multiLines.getOrNull(rawIdx)
+            if (!mInterlude && curLineObj != null && curLineObj.words.isNotEmpty()) {
+                KaraokeLyricText(
+                    line = curLineObj,
+                    positionMs = positionMs + lyricOffsetMs,
+                    sungColor = accentColor,
+                    baseColor = Color.White,
+                    fontSize = fitFontSizeSp(curLineObj.text, 30f, screenWidthDp - 80f).sp,
+                    fontWeight = lyricWeight,
+                    fontFamily = fontFamily,
+                    letterSpacing = 3.sp,
+                    shadow = Shadow(color = accentColor.copy(alpha = 0.8f), blurRadius = 16f),
+                    modifier = Modifier.padding(start = 28.dp)
+                )
+            } else {
+                Text(
+                    text = if (mInterlude) "♪" else (curText ?: ""),
+                    color = Color.White,
+                    fontSize = fitFontSizeSp(if (mInterlude) "♪" else (curText ?: ""), 30f, screenWidthDp - 80f).sp,
+                    fontWeight = lyricWeight,
+                    letterSpacing = 3.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = LocalTextStyle.current.copy(fontFamily = fontFamily, shadow = Shadow(color = accentColor.copy(alpha = 0.8f), blurRadius = 16f)),
+                    modifier = Modifier.padding(start = 28.dp)
+                )
+            }
+            if (translationEnabled && !mInterlude) {
+                val trC = translations?.getOrNull(rawIdx)
+                if (!trC.isNullOrBlank()) {
+                    Text(trC, color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = fontFamily), modifier = Modifier.padding(start = 28.dp, top = 4.dp))
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+            if (nextText != null) {
+                Text(nextText, color = Color.White.copy(alpha = 0.45f), fontSize = fitFontSizeSp(nextText, 18f, screenWidthDp - 108f).sp, letterSpacing = 2.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = fontFamily), modifier = Modifier.padding(start = 56.dp))
+                if (translationEnabled) {
+                    val trN = translations?.getOrNull(rawIdx + 1)
+                    if (!trN.isNullOrBlank()) {
+                        Text(trN, color = Color.White.copy(alpha = 0.35f), fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = fontFamily), modifier = Modifier.padding(start = 56.dp))
+                    }
+                }
+            }
+        }
+    }
 }
