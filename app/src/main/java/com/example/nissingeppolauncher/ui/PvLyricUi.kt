@@ -2439,7 +2439,7 @@ fun LyricsBrowseOverlay(
             text = "歌詞ソース: $source",
             color = Color.White.copy(alpha = 0.45f),
             fontSize = 10.sp,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 44.dp).zIndex(91f)
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 64.dp).zIndex(91f)
         )
     }
         val virtualPos = scrollAnim.value
@@ -2629,7 +2629,7 @@ fun LyricsBrowseOverlay(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .align(Alignment.BottomCenter)
-            .padding(bottom = 76.dp)
+            .padding(bottom = 88.dp)
             .zIndex(95f)
     ) {
         if (!follow) {
@@ -2656,21 +2656,28 @@ fun LyricsBrowseOverlay(
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf(-1000L to "-1.0", -500L to "-0.5", -100L to "-0.1", 100L to "+0.1", 500L to "+0.5", 1000L to "+1.0").forEach { (delta, label) ->
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFF263238))
-                            .clickable {
-                                val newOffset = (lyricOffsetMs + delta).coerceIn(-30000L, 30000L)
-                                onOffsetChange(newOffset)
-                            }
-                            .padding(horizontal = 10.dp, vertical = 8.dp)
-                    ) {
-                        Text(label, color = Color.White, fontSize = 13.sp)
+            // リセットを中央に置き、−は左へ、＋は右へ広がる配置
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End)
+                ) {
+                    listOf(-1000L to "-1.0", -500L to "-0.5", -100L to "-0.1").forEach { (delta, label) ->
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color(0xFF263238))
+                                .clickable {
+                                    val newOffset = (lyricOffsetMs + delta).coerceIn(-30000L, 30000L)
+                                    onOffsetChange(newOffset)
+                                }
+                                .padding(horizontal = 10.dp, vertical = 8.dp)
+                        ) {
+                            Text(label, color = Color.White, fontSize = 13.sp)
+                        }
                     }
                 }
+                Spacer(modifier = Modifier.width(6.dp))
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(10.dp))
@@ -2679,6 +2686,26 @@ fun LyricsBrowseOverlay(
                         .padding(horizontal = 10.dp, vertical = 8.dp)
                 ) {
                     Text("リセット", color = Color.White, fontSize = 13.sp)
+                }
+                Spacer(modifier = Modifier.width(6.dp))
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.Start)
+                ) {
+                    listOf(100L to "+0.1", 500L to "+0.5", 1000L to "+1.0").forEach { (delta, label) ->
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color(0xFF263238))
+                                .clickable {
+                                    val newOffset = (lyricOffsetMs + delta).coerceIn(-30000L, 30000L)
+                                    onOffsetChange(newOffset)
+                                }
+                                .padding(horizontal = 10.dp, vertical = 8.dp)
+                        ) {
+                            Text(label, color = Color.White, fontSize = 13.sp)
+                        }
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(10.dp))
