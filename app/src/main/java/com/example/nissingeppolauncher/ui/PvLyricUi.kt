@@ -35,6 +35,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.gestures.drag
@@ -783,6 +785,17 @@ fun PvLyricLine(
             val noLineStart = "ーぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮ・、。，．！!？?）)】」』"
             while (best > 1 && list[best].isNotEmpty() && list[best][0] in noLineStart) best--
             while (best < list.size - 1 && list[best].isNotEmpty() && list[best][0] in noLineStart) best++
+            // 丁寧語の「お・ご」は後ろの単語と切り離さない（お別れ、ごはん等）
+            if (best in 1 until list.size) {
+                val prevChunk = list[best - 1]
+                if (prevChunk == "お" || prevChunk == "ご") {
+                    // お・ご単体の塊は、後ろの単語と同じ行へ送る
+                    if (best > 1) best--
+                } else if (prevChunk.length >= 2 && (prevChunk.endsWith("お") || prevChunk.endsWith("ご"))) {
+                    // 塊の末尾のお・ごは、後ろの単語の塊を引き上げて同じ行にする（無理なら塊ごと次の行へ）
+                    if (best < list.size - 1) best++ else if (best > 1) best--
+                }
+            }
             return listOf(list.subList(0, best), list.subList(best, list.size))
         }
         return listOf(list)
@@ -847,11 +860,17 @@ fun PvLyricLine(
     }
     flushRun()
     // 改行は最大3行まで。括弧を1行にすると3行を超える場合は、括弧ルールを無視して通常分割にする
-    val rows: List<List<String>> = when {
+    val baseRows: List<List<String>> = when {
         rowsBuilt.isEmpty() -> listOf(chunks)
         rowsBuilt.size > 3 -> splitChunks(chunks)
         else -> rowsBuilt
     }
+    // クレジット行（作詞・作曲・編曲など）は「：」の直後を改行位置にする
+    val creditWords = listOf("作詞", "作曲", "編曲", "作词", "编曲", "歌唱", "演唱", "ボーカル", "Vocal", "Lyrics", "Composer", "Arranger", "詞：", "曲：")
+    val colonChunkIdx = if (creditWords.any { text.contains(it) }) chunks.indexOfFirst { it.contains("：") || it.contains(":") } else -1
+    val rows: List<List<String>> = if (colonChunkIdx in 0 until chunks.size - 1) {
+        listOf(chunks.subList(0, colonChunkIdx + 1), chunks.subList(colonChunkIdx + 1, chunks.size))
+    } else baseRows
     fun rowEm(row: List<String>): Float = row.sumOf { chunkEm(it).toDouble() }.toFloat() + gapEm * (row.size - 1).coerceAtLeast(0)
     val longestRowEm = rows.maxOf { rowEm(it) }.coerceAtLeast(1f)
     // 行ごとの大きさを均等に: どの行も「枠いっぱいに広がるサイズ」を基本にし、短い行だけ高さ上限で止める
@@ -1478,6 +1497,11 @@ fun PvLyricUnit(
                     translationX = dir.first * 52f * (1f - a) + swx * a + if (effectKind == 4 && fxT.value < 1f) sin(fxT.value * 55f + uSeed * 2.7f) * 5f * (1f - fxT.value) else 0f
                     translationY = dir.second * 52f * (1f - a) + swy * a + if (effectKind == 7) sin(a * 6.2832f + uSeed * 0.8f) * 15f * (1f - a) else 0f
                 }
+                // 句読点の扱い: ！？は大きく傾け、。、・…は小さくする
+                when (ru) {
+                    "！", "？", "!", "?" -> { scaleX *= 1.45f; scaleY *= 1.45f; rotationZ += -12f }
+                    "。", "、", "・", "…", "‥" -> { scaleX *= 0.66f; scaleY *= 0.66f }
+                }
             }
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1777,12 +1801,21 @@ fun PvLyricUnit(
         }
         }
         if (!exiting && iconKind != null) {
-            // アイコンは大きく・薄く、文字に被せるように重ねる
+            // アイコンは大きく・薄く、文字に被せるように重ねる。
+            // レイアウト上の大きさは0にして、文字の間隔が広がらないようにする（描画だけ大きく出す）
             Canvas(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .offset(x = (uSize.value * 0.20f).dp, y = (uSize.value * 0.02f).dp)
-                    .size((uSize.value * 1.15f).dp)
+                    .layout { measurable, _ ->
+                        val iconPx = (uSize.value * 1.15f).dp.roundToPx()
+                        val placeable = measurable.measure(Constraints.fixed(iconPx, iconPx))
+                        layout(0, 0) {
+                            placeable.place(
+                                x = -iconPx / 2 + (uSize.value * 0.20f).dp.roundToPx(),
+                                y = (uSize.value * 0.02f).dp.roundToPx()
+                            )
+                        }
+                    }
                     .graphicsLayer {
                         alpha = ulAnim.value.coerceIn(0f, 1f) * 0.15f
                         rotationZ = -9f
