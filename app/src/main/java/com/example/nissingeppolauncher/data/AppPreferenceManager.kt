@@ -227,6 +227,8 @@ class AppPreferenceManager(private val context: Context) {
     fun setLyricsPvFont(value: String) { prefs.edit().putString("lyrics_pv_font", value).apply() }
     fun isLyricsBold(): Boolean = prefs.getBoolean("lyrics_bold", false)
     fun setLyricsBold(value: Boolean) { prefs.edit().putBoolean("lyrics_bold", value).apply() }
+    fun isPvPartsEntryEnabled(): Boolean = prefs.getBoolean("pv_parts_entry", false)
+    fun setPvPartsEntryEnabled(value: Boolean) { prefs.edit().putBoolean("pv_parts_entry", value).apply() }
 
     fun isLyricTranslationEnabled(): Boolean = prefs.getBoolean("lyric_translation", false)
     fun setLyricTranslationEnabled(value: Boolean) { prefs.edit().putBoolean("lyric_translation", value).apply() }
