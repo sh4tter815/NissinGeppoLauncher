@@ -150,6 +150,15 @@ fun MainLauncherScreen() {
     var lyricsPvFont by remember { mutableStateOf(repo.prefManager.getLyricsPvFont()) }
     var lyricsBold by remember { mutableStateOf(repo.prefManager.isLyricsBold()) }
     var pvPartsEntry by remember { mutableStateOf(repo.prefManager.isPvPartsEntryEnabled()) }
+    // 色塗り行でのアクセントフラッシュ（液体背景とPVのグローが一瞬その色になる）。一定時間で自動で戻る
+    var pvFlashColor by remember { mutableStateOf<Color?>(null) }
+    LaunchedEffect(pvFlashColor) {
+        if (pvFlashColor != null) {
+            delay(1800)
+            pvFlashColor = null
+        }
+    }
+    val effectiveAccent = pvFlashColor ?: accentColor
     var isLyricsBrowsing by remember { mutableStateOf(false) }
     var pvFullscreen by remember { mutableStateOf(false) }
 
@@ -683,7 +692,7 @@ fun MainLauncherScreen() {
                 dynamicBackground = if (matchArtwork || useArtworkBg) artworkBackground else null,
                 artworkBackgroundStyle = if (bgMode == "artwork_blur") "blur" else "solid",
                 liquidEnabled = liquidBackground,
-                liquidAccent = accentColor
+                liquidAccent = effectiveAccent
             )
 
             // ===== 歌詞の読み込み中表示 =====
@@ -716,14 +725,15 @@ fun MainLauncherScreen() {
                     lyricOffsetMs = lyricOffsetMs,
                     bold = lyricsBold,
                     fontFamily = lyricsFontFamily,
-                    accentColor = accentColor,
+                    accentColor = effectiveAccent,
                     screenWidthDp = screenWidthDp,
                     translationEnabled = translationEnabled,
                     translations = lyricTranslations,
                     pvTopDp = topPaddingDp + 165.dp,
                     interludeTopDp = topPaddingDp + 145.dp,
                     translationTopDp = topPaddingDp + 320.dp,
-                    partsEntry = pvPartsEntry
+                    partsEntry = pvPartsEntry,
+                    onAccentFlash = { pvFlashColor = it }
                 )
             }
 
@@ -1649,7 +1659,7 @@ fun MainLauncherScreen() {
                 bold = lyricsBold,
                 fontFamily = lyricsFontFamily,
                 lyricWeight = lyricWeight,
-                accentColor = accentColor,
+                accentColor = effectiveAccent,
                 artwork = sessionAlbumArt,
                 artworkBackground = artworkBackground,
                 liquidEnabled = liquidBackground,
