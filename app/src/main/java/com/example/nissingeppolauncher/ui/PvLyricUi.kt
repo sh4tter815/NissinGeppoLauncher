@@ -75,7 +75,8 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.graphics.layer.rememberGraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -972,36 +973,13 @@ fun PvLyricLine(
                 }
             }
         }
-        if (text.contains("波") || text.contains("海")) {
-            Canvas(modifier = Modifier.matchParentSize()) {
-                val fadeA = if (exiting) 1f - exitProgress.value else fxAnim.value
-                val W = size.width
-                val H = size.height
-                for (k in 0 until 3) {
-                    val baseY = H * (0.22f + 0.26f * k)
-                    val amp = H * 0.055f * (1f + 0.25f * k)
-                    val wl = W * (0.55f - 0.08f * k)
-                    val ph = wavePhase + k * 1.15f
-                    val path = androidx.compose.ui.graphics.Path()
-                    var x = -8f
-                    var first = true
-                    while (x <= W + 8f) {
-                        val y = baseY + kotlin.math.sin(x / wl * 6.2832f + ph) * amp
-                        if (first) {
-                            path.moveTo(x, y)
-                            first = false
-                        } else {
-                            path.lineTo(x, y)
-                        }
-                        x += 14f
-                    }
-                    drawPath(
-                        path = path,
-                        color = accentColor.copy(alpha = (0.30f - 0.06f * k) * fadeA),
-                        style = Stroke(width = 1.6.dp.toPx())
-                    )
-                }
-            }
+        if (text.contains("波") || text.contains("海") || text.contains("流")) {
+            // 流・波・海は、間奏アートと同じベジェ曲線の波を文字の後ろに敷く
+            val waveFade = if (exiting) 1f - exitProgress.value else fxAnim.value
+            PvInterludeArt(
+                accentColor = accentColor,
+                modifier = Modifier.matchParentSize().graphicsLayer { alpha = waveFade.coerceIn(0f, 1f) }
+            )
         }
         if (effKind == 1) {
             Canvas(modifier = Modifier.matchParentSize()) {
@@ -1133,6 +1111,8 @@ fun PvLyricLine(
             modifier = Modifier.fillMaxWidth()
         ) {
         var globalIndex = 0
+        var prevUnitGi = -1
+        var prevCharFactor = 1f
         var iconPlaced = false
         var negIconPlaced = false
         var inParen = startsInParen
@@ -1190,7 +1170,10 @@ fun PvLyricLine(
                     val rIdx = rowUnitIdx++
                     // 文字同士がほんの少し被るくらいに、行の中心へ向けて詰める（画面外へのはみ出しは増やさない）
                     val uXShift = ((unitsInRow - 1) / 2f - rIdx) * fitSize * 0.05f
-                    val uSeed = Math.floorMod(baseSeed * 7 + gi * 131, 997)
+                    // 長音（ー）は前の文字と1パーツとして扱い、座標・角度・揺れの種を前の文字に統一する（バラけると読みづらいため）
+                    val effGi = if (ru == "ー" && prevUnitGi >= 0) prevUnitGi else gi
+                    prevUnitGi = gi
+                    val uSeed = Math.floorMod(baseSeed * 7 + effGi * 131, 997)
                     val charFactor = when {
                         ru.length > 1 && ru.all { it in '゠'..'ヿ' } -> 1.05f // カタカナ単語
                         ru.length > 1 -> 0.98f // 英単語
@@ -1200,6 +1183,9 @@ fun PvLyricLine(
                         ru[0] in '゠'..'ヿ' -> 1.05f
                         else -> 0.98f
                     }
+                    // 長音は大きさの係数も前の文字に統一する（前の文字と段差が出ると別パーツに見えるため）
+                    val effCharFactor = if (ru == "ー" && effGi != gi) prevCharFactor else charFactor
+                    prevCharFactor = effCharFactor
                     val unitStart = chunkCharPos; chunkCharPos += ru.length
                     // 文字同期がある行では、このユニットの実時刻（行頭からの差分）で入場させる
                     var unitDelayMs = -1L
@@ -1228,11 +1214,11 @@ fun PvLyricLine(
                     PvLyricUnit(
                         bold = bold,
                         unitText = ru,
-                        uSize = (fitSize * (0.92f + (uSeed % 22) / 100f) * charFactor).coerceIn(fitSize * 0.55f, fitSize * 1.35f).sp,
+                        uSize = (fitSize * (0.92f + (uSeed % 22) / 100f) * effCharFactor).coerceIn(fitSize * 0.55f, fitSize * 1.35f).sp,
                         uRot = ((uSeed / 3) % 29 - 14).toFloat(),
                         uYOffset = ((uSeed / 5) % 17 - 8).dp,
                         uXShiftDp = uXShift,
-                        staggerIndex = gi,
+                        staggerIndex = effGi,
                         exiting = exiting,
                         exitProgressValue = if (sandLine && !fallLine) (exitProgress.value * 1.6f).coerceAtMost(1f) else exitProgress.value,
                         exitDelayMs = (uSeed % 5) * 35f + gi * 12f,
