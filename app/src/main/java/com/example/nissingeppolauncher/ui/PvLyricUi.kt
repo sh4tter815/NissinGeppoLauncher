@@ -1801,8 +1801,8 @@ fun chunkJapanese(span: String): List<String> {
             t == 2 -> cur.append(rest) // 行頭のひらがなはそのまま塊の始まり
             t == 0 -> cur.append(rest) // 句読点などは前の塊に付ける
             else -> {
-                if (t == 3 && rest.length >= 6) {
-                    // 長いカタカナ語は「前の文字＋ー・小さいカナ」を1セットとして塊に分ける
+                if (t == 3 && rest.length >= 12) {
+                    // 1行に収まらないほど長いカタカナ語だけ「前の文字＋ー・小さいカナ」を1セットとして塊に分ける
                     // （「ハッピーヘヴンリーバースデー」のような語を行で割れるようにし、ーが行頭に来ないようにするため）
                     closeChunk()
                     val unit = StringBuilder()
@@ -1821,6 +1821,10 @@ fun chunkJapanese(span: String): List<String> {
                         }
                     }
                     flushUnit()
+                } else if (t == 3 && rest.length >= 6) {
+                    // 通常のカタカナ語はまるごと1塊にして、行の途中で単語が割れないようにする
+                    closeChunk()
+                    chunks.add(rest)
                 } else {
                     // 漢字・カタカナは新しい塊の始まり
                     closeChunk()
