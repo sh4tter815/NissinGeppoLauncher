@@ -788,6 +788,7 @@ fun PvLyricLine(
     // 否定語（ない等）には打ち消し線ではなく☓アイコンを付ける（対象語の開始位置を塊ごとに探す）
     val negWords = listOf("なかった", "じゃない", "なくて", "なくな", "無い", "ない", "間違い", "誤り")
     val sandLine = text.contains("砂") || text.contains("消") || text.contains("壊") || text.contains("砕")
+    val dreamLine = text.contains("夢") || text.contains("思い出")
     val windLine = text.contains("風")
     val rippleWord = text.contains("響")
     if (exiting) {
@@ -839,6 +840,40 @@ fun PvLyricLine(
                 // 「落」の行は文字ごとにバラバラに落下する（PvLyricUnit 側で処理）
             }
     ) {
+        if (dreamLine) {
+            // 「夢・思い出」の行は、行全体をもくもくした想像の吹き出しで囲う（文字ごとの吹き出しは廃止）
+            Canvas(modifier = Modifier.matchParentSize()) {
+                val fadeA = if (exiting) 1f - exitProgress.value else 1f
+                val col = Color.White.copy(alpha = 0.55f * fadeA)
+                val W = size.width
+                val H = size.height
+                val padX = 14.dp.toPx()
+                val padY = 10.dp.toPx()
+                val bw = W + padX * 2f
+                val bh = H + padY * 2f
+                // もくもく感: 吹き出しの輪郭に沿って膨らみを並べ、外向きの弧だけを描く
+                val puffs = 16
+                for (i in 0 until puffs) {
+                    val t = i.toFloat() / puffs
+                    val ang = t * 6.2832f
+                    val cx = W / 2f + kotlin.math.cos(ang) * (bw / 2f)
+                    val cy = H / 2f + kotlin.math.sin(ang) * (bh / 2f)
+                    val r = (H * 0.17f) * (0.75f + ((i * 37 + baseSeed) % 10) / 22f)
+                    drawArc(
+                        color = col,
+                        startAngle = (ang * 57.2958f) - 55f,
+                        sweepAngle = 110f,
+                        useCenter = false,
+                        topLeft = Offset(cx - r, cy - r),
+                        size = Size(r * 2f, r * 2f),
+                        style = Stroke(width = 1.4.dp.toPx())
+                    )
+                }
+                // 想像のしっぽ: 左下に小さい丸を2つ落とす
+                drawCircle(color = col, radius = 5.dp.toPx(), center = Offset(W * 0.16f, H + padY + 13.dp.toPx()), style = Stroke(width = 1.3.dp.toPx()))
+                drawCircle(color = col, radius = 3.2.dp.toPx(), center = Offset(W * 0.10f, H + padY + 25.dp.toPx()), style = Stroke(width = 1.2.dp.toPx()))
+            }
+        }
         if (effKind == 1) {
             Canvas(modifier = Modifier.matchParentSize()) {
                 val t = rippleAnim.value
@@ -1010,13 +1045,14 @@ fun PvLyricLine(
                 // 否定語の開始位置（この塊の中に否定語があれば、その文字に☓アイコンを付ける）
                 val chunkNegStart = negWords.mapNotNull { w -> chunk.indexOf(w).takeIf { it >= 0 } }.minOrNull() ?: -1
                 val chunkGhost = chunk.contains("透明")
+                val chunkPileWord = listOf("積み重な", "降り積も", "積も", "積み", "重な", "重ね", "堆積", "累積").firstOrNull { chunk.contains(it) }
+                val chunkPileStart = chunkPileWord?.let { chunk.indexOf(it) } ?: -1
                 val chunkMosaicStart = chunk.indexOf("隠")
                 val chunkMosaicWordStart = chunk.indexOf("モザイク")
                 // 複数文字の色ワード（希望・想い等）は塊単位で判定し、該当する文字だけに色を渡す
                 val chunkColorHit = (COLOR_WORDS + ASSOC_COLOR_WORDS).firstOrNull { (w, _) -> w.length > 1 && chunk.contains(w) }
                 val chunkColorStart = chunkColorHit?.let { chunk.indexOf(it.first) } ?: -1
                 val chunkArrow = Regex("行[くきけこっか]").containsMatchIn(chunk)
-                val chunkDream = chunk.contains("夢") || chunk.contains("思い出")
                 val chunkUnits = renderUnitsOf(chunk)
                 var chunkCharPos = 0
                 var unitIdxInChunk = 0
@@ -1058,6 +1094,8 @@ fun PvLyricLine(
                     }
                     val mosaicLen = if (chunkMosaicStart >= 0) 1 else if (chunkMosaicWordStart >= 0) 3 else 0
                     val unitMosaic = mosaicStart >= 0 && unitStart < mosaicStart + mosaicLen && unitStart + ru.length > mosaicStart
+                    // 「積もる・重なる」系の文字は、同じ文字を上に重ねて表現する
+                    val unitPile = chunkPileWord != null && unitStart < chunkPileStart + chunkPileWord.length && unitStart + ru.length > chunkPileStart
                     val unitChunkColor = if (chunkColorHit != null && unitStart < chunkColorStart + chunkColorHit.first.length && unitStart + ru.length > chunkColorStart) chunkColorHit.second else null
                     PvLyricUnit(
                         bold = bold,
@@ -1077,11 +1115,11 @@ fun PvLyricLine(
                         dimmed = chunkDim,
                         ghost = chunkGhost,
                         mosaic = unitMosaic,
+                        pile = unitPile,
                         fallExit = fallLine,
                         windExit = windLine,
                         chunkColor = unitChunkColor,
                         arrowUnder = chunkArrow && ru == "行",
-                        bubble = if (!chunkDream) 0 else if (unitIdxInChunk == chunkUnits.size) 2 else 1,
                         swayScale = if (bigText) 2.8f else 1f,
                         entryDelayMs = unitDelayMs
                     )
@@ -1132,11 +1170,11 @@ fun PvLyricUnit(
     swayScale: Float = 1f,
     ghost: Boolean = false,
     mosaic: Boolean = false,
+    pile: Boolean = false,
     fallExit: Boolean = false,
     windExit: Boolean = false,
     chunkColor: Color? = null,
     arrowUnder: Boolean = false,
-    bubble: Int = 0,
     entryDelayMs: Long = -1L
 ) {
     val pvEaseIn = CubicBezierEasing(0.42f, 0f, 1f, 1f)
@@ -1294,6 +1332,21 @@ fun PvLyricUnit(
                     modifier = Modifier.offset(x = (-3.5).dp)
                 )
             }
+            if (pile) {
+                // 積もる・重なる系の文字: 同じ文字を上に何枚も重ねて、積み重なりを表現する（上ほど薄く）
+                for (layer in 2 downTo 1) {
+                    Text(
+                        text = annotatedUnit,
+                        color = Color.White.copy(alpha = (if (dimmed) 0.40f else 0.92f) * (if (layer == 1) 0.38f else 0.20f)),
+                        fontSize = uSize,
+                        fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
+                        textAlign = TextAlign.Center,
+                        overflow = TextOverflow.Visible,
+                        style = LocalTextStyle.current.copy(fontFamily = fontFamily, lineHeight = uSize * 1.02f),
+                        modifier = Modifier.offset(x = (if (layer % 2 == 0) 1.5f else -1.5f).dp, y = (-(uSize.value * 0.20f * layer)).dp)
+                    )
+                }
+            }
             Text(
                 text = annotatedUnit,
             color = Color.White.copy(alpha = if (dimmed) 0.40f else 0.92f),
@@ -1349,17 +1402,6 @@ fun PvLyricUnit(
                         drawLine(colA, Offset(x0, y), Offset(xEnd, y), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
                         drawLine(colA, Offset(xEnd, y), Offset(xEnd - 7.dp.toPx(), y - 4.5.dp.toPx()), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
                         drawLine(colA, Offset(xEnd, y), Offset(xEnd - 7.dp.toPx(), y + 4.5.dp.toPx()), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
-                    }
-                }
-            }
-            if (bubble > 0) {
-                // 空想の吹き出し: 文字を楕円で包み、最後の文字には小さい丸を2つ落とす
-                Canvas(modifier = Modifier.matchParentSize()) {
-                    val a = (if (exiting) 1f else ulAnim.value.coerceIn(0f, 1f)) * 0.55f
-                    drawOval(color = Color.White.copy(alpha = a), topLeft = Offset(-size.width * 0.08f, size.height * 0.02f), size = Size(size.width * 1.16f, size.height * 0.94f), style = Stroke(width = 1.3.dp.toPx()))
-                    if (bubble == 2) {
-                        drawCircle(color = Color.White.copy(alpha = a), radius = 3.dp.toPx(), center = Offset(size.width * 0.12f, size.height * 1.14f), style = Stroke(width = 1.2.dp.toPx()))
-                        drawCircle(color = Color.White.copy(alpha = a), radius = 2.dp.toPx(), center = Offset(0f, size.height * 1.32f), style = Stroke(width = 1.1.dp.toPx()))
                     }
                 }
             }
