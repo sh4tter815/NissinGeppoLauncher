@@ -46,7 +46,9 @@ fun ClockWidget(
     // カラオケ表示用: 文字同期つきの現在行（あれば歌詞行をテロップ表示にする）
     karaokeLine: LyricLine? = null,
     karaokePositionMs: Long = 0L,
-    karaokeSungColor: Color = Color(0xFF7FD4F2)
+    karaokeSungColor: Color = Color(0xFF7FD4F2),
+    // 対訳（翻訳ONのとき、現在行の下に小さく出す）
+    translationText: String = ""
 ) {
     val context = LocalContext.current
     var currentTime by remember { mutableStateOf(Date()) }
@@ -199,6 +201,16 @@ fun ClockWidget(
                         )
                     }
                 }
+                if (translationText.isNotBlank()) {
+                    Text(
+                        text = translationText,
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 3.dp).widthIn(max = 250.dp)
+                    )
+                }
             }
         } else {
             // 時刻ブロック (タップで時計アプリ起動)
@@ -271,6 +283,16 @@ fun ClockWidget(
                             style = lyricsStyle
                         )
                     }
+                }
+                if (translationText.isNotBlank()) {
+                    Text(
+                        text = translationText,
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 3.dp).widthIn(max = 250.dp)
+                    )
                 }
             }
         }
