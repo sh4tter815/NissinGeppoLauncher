@@ -1,5 +1,5 @@
 {
- "version": 2,
+ "version": 4,
  "iconWords": [
   [
    "傘",
@@ -46,14 +46,6 @@
    "FLOWER"
   ],
   [
-   "海",
-   "WAVES"
-  ],
-  [
-   "波",
-   "WAVES"
-  ],
-  [
    "心",
    "HEART"
   ],
@@ -68,10 +60,6 @@
   [
    "愛",
    "HEART"
-  ],
-  [
-   "夢",
-   "BUBBLE"
   ],
   [
    "夜",
@@ -326,10 +314,6 @@
   [
    "wind",
    "WIND"
-  ],
-  [
-   "dream",
-   "BUBBLE"
   ],
   [
    "eye",
