@@ -747,17 +747,33 @@ fun MainLauncherScreen() {
                             Spacer(Modifier.height(24.dp))
                         }
                         Spacer(Modifier.height(16.dp))
-                        Text(
-                            text = if (mInterlude) "♪" else (curText ?: ""),
-                            color = Color.White,
-                            fontSize = fitFontSizeSp(if (mInterlude) "♪" else (curText ?: ""), 30f, screenWidthDp - 80f).sp,
-                            fontWeight = lyricWeight,
-                            letterSpacing = 3.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            style = LocalTextStyle.current.copy(fontFamily = lyricsFontFamily, shadow = Shadow(color = accentColor.copy(alpha = 0.8f), blurRadius = 16f)),
-                            modifier = Modifier.padding(start = 28.dp)
-                        )
+                        val curLineObj = multiLines.getOrNull(rawIdx)
+                        if (!mInterlude && curLineObj != null && curLineObj.words.isNotEmpty()) {
+                            KaraokeLyricText(
+                                line = curLineObj,
+                                positionMs = sessionPositionMs + lyricOffsetMs,
+                                sungColor = accentColor,
+                                baseColor = Color.White,
+                                fontSize = fitFontSizeSp(curLineObj.text, 30f, screenWidthDp - 80f).sp,
+                                fontWeight = lyricWeight,
+                                fontFamily = lyricsFontFamily,
+                                letterSpacing = 3.sp,
+                                shadow = Shadow(color = accentColor.copy(alpha = 0.8f), blurRadius = 16f),
+                                modifier = Modifier.padding(start = 28.dp)
+                            )
+                        } else {
+                            Text(
+                                text = if (mInterlude) "♪" else (curText ?: ""),
+                                color = Color.White,
+                                fontSize = fitFontSizeSp(if (mInterlude) "♪" else (curText ?: ""), 30f, screenWidthDp - 80f).sp,
+                                fontWeight = lyricWeight,
+                                letterSpacing = 3.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                style = LocalTextStyle.current.copy(fontFamily = lyricsFontFamily, shadow = Shadow(color = accentColor.copy(alpha = 0.8f), blurRadius = 16f)),
+                                modifier = Modifier.padding(start = 28.dp)
+                            )
+                        }
                         Spacer(Modifier.height(16.dp))
                         if (nextText != null) {
                             Text(nextText, color = Color.White.copy(alpha = 0.45f), fontSize = fitFontSizeSp(nextText, 18f, screenWidthDp - 108f).sp, letterSpacing = 2.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = lyricsFontFamily), modifier = Modifier.padding(start = 56.dp))
@@ -805,6 +821,9 @@ fun MainLauncherScreen() {
                             .zIndex(10f)
                             .graphicsLayer { alpha = if (isLyricsBrowsing) 0f else 1f },
                         lyricsLine = if (lyricsDisplayMode == "line") currentLyricLine else "",
+                        karaokeLine = if (lyricsDisplayMode == "line") syncedLyricLines.lastOrNull { it.timeMs <= sessionPositionMs + lyricOffsetMs } else null,
+                        karaokePositionMs = sessionPositionMs + lyricOffsetMs,
+                        karaokeSungColor = accentColor,
                         dateMode = if (lyricsDisplayMode == "video" && syncedLyricLines.isNotEmpty()) "sideways" else dateDisplayMode,
                         glowColor = accentColor
                     )
