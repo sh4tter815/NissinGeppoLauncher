@@ -743,6 +743,12 @@ fun MainLauncherScreen() {
                         val nextText = multiLines.getOrNull(rawIdx + 1)?.text
                         if (prevText != null) {
                             Text(prevText, color = Color.White.copy(alpha = 0.45f), fontSize = fitFontSizeSp(prevText, 18f, screenWidthDp - 52f).sp, letterSpacing = 2.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = lyricsFontFamily), modifier = Modifier.padding(start = 0.dp))
+                            if (translationEnabled) {
+                                val trP = lyricTranslations?.getOrNull(rawIdx - 1)
+                                if (!trP.isNullOrBlank()) {
+                                    Text(trP, color = Color.White.copy(alpha = 0.35f), fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = lyricsFontFamily))
+                                }
+                            }
                         } else {
                             Spacer(Modifier.height(24.dp))
                         }
@@ -774,9 +780,21 @@ fun MainLauncherScreen() {
                                 modifier = Modifier.padding(start = 28.dp)
                             )
                         }
+                        if (translationEnabled && !mInterlude) {
+                            val trC = lyricTranslations?.getOrNull(rawIdx)
+                            if (!trC.isNullOrBlank()) {
+                                Text(trC, color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = lyricsFontFamily), modifier = Modifier.padding(start = 28.dp, top = 4.dp))
+                            }
+                        }
                         Spacer(Modifier.height(16.dp))
                         if (nextText != null) {
                             Text(nextText, color = Color.White.copy(alpha = 0.45f), fontSize = fitFontSizeSp(nextText, 18f, screenWidthDp - 108f).sp, letterSpacing = 2.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = lyricsFontFamily), modifier = Modifier.padding(start = 56.dp))
+                            if (translationEnabled) {
+                                val trN = lyricTranslations?.getOrNull(rawIdx + 1)
+                                if (!trN.isNullOrBlank()) {
+                                    Text(trN, color = Color.White.copy(alpha = 0.35f), fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = lyricsFontFamily), modifier = Modifier.padding(start = 56.dp))
+                                }
+                            }
                         }
                     }
                 }
@@ -821,6 +839,7 @@ fun MainLauncherScreen() {
                             .zIndex(10f)
                             .graphicsLayer { alpha = if (isLyricsBrowsing) 0f else 1f },
                         lyricsLine = if (lyricsDisplayMode == "line") currentLyricLine else "",
+                        translationText = if (lyricsDisplayMode == "line" && translationEnabled) lyricTranslations?.getOrNull(syncedLyricLines.indexOfLast { it.timeMs <= sessionPositionMs + lyricOffsetMs }) ?: "" else "",
                         karaokeLine = if (lyricsDisplayMode == "line") syncedLyricLines.lastOrNull { it.timeMs <= sessionPositionMs + lyricOffsetMs } else null,
                         karaokePositionMs = sessionPositionMs + lyricOffsetMs,
                         karaokeSungColor = accentColor,
@@ -1658,6 +1677,7 @@ fun MainLauncherScreen() {
                 topPaddingDp = topPaddingDp,
                 source = lyricsSource,
                 translationEnabled = translationEnabled,
+                translations = lyricTranslations,
                 onToggleTranslation = {
                     translationEnabled = !translationEnabled
                     repo.prefManager.setLyricTranslationEnabled(translationEnabled)
