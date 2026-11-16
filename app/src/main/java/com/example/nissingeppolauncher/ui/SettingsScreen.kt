@@ -239,6 +239,7 @@ fun SettingsScreen(
     var lyricsDisplayMode by remember { mutableStateOf(repo.prefManager.getLyricsDisplayMode()) }
     var lyricsPvFont by remember { mutableStateOf(repo.prefManager.getLyricsPvFont()) }
     var lyricsBold by remember { mutableStateOf(repo.prefManager.isLyricsBold()) }
+    var pvPartsEntry by remember { mutableStateOf(repo.prefManager.isPvPartsEntryEnabled()) }
         var pageSwitchStyle by remember { mutableStateOf(repo.prefManager.getPageSwitchStyle()) }
     var appsUpdateStatus by remember { mutableStateOf("") }
     var isUpdatingApps by remember { mutableStateOf(false) }
@@ -613,6 +614,25 @@ fun SettingsScreen(
                                                 onCheckedChange = {
                                                     lyricsBold = it
                                                     repo.prefManager.setLyricsBold(it)
+                                                    onChanged()
+                                                },
+                                                colors = switchColors
+                                            )
+                                        }
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text("文字をパーツに分けて入場させる", color = Color.White, fontSize = 14.sp)
+                                                Text("リリックビデオで、文字がスライス状のパーツになって集まります", color = Color.Gray, fontSize = 12.sp)
+                                            }
+                                            Switch(
+                                                checked = pvPartsEntry,
+                                                onCheckedChange = {
+                                                    pvPartsEntry = it
+                                                    repo.prefManager.setPvPartsEntryEnabled(it)
                                                     onChanged()
                                                 },
                                                 colors = switchColors
