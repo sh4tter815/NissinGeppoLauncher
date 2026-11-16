@@ -216,9 +216,8 @@ fun SettingsScreen(
     val context = LocalContext.current
     var accentHex by remember { mutableStateOf(repo.prefManager.getAccentColorHex()) }
     var matchArtwork by remember { mutableStateOf(repo.prefManager.isMatchArtworkColor()) }
-    var blurArtworkBg by remember { mutableStateOf(repo.prefManager.isBlurArtworkBackground()) }
+    var bgMode by remember { mutableStateOf(repo.prefManager.getBackgroundMode()) }
     var liquidBackground by remember { mutableStateOf(repo.prefManager.isLiquidBackgroundEnabled()) }
-    var artworkBgStyle by remember { mutableStateOf(repo.prefManager.getArtworkBackgroundStyle()) }
     var homeDiscLayout by remember { mutableStateOf(repo.prefManager.getHomeDiscLayout()) }
     var dateDisplayMode by remember { mutableStateOf(repo.prefManager.getDateDisplayMode()) }
     // 配色をアートワークに合わせるONのときは、画面側で算出されたアートワーク由来の
@@ -876,46 +875,29 @@ fun SettingsScreen(
                                                     verticalArrangement = Arrangement.spacedBy(20.dp)
                                                 ) {
                                                     Text("壁紙画像", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Normal)
+                                                    Column {
+                                                        Text("背景の見せ方", color = Color.White, fontSize = 14.sp)
+                                                        Text("アートワークを選ぶと、再生中は曲のアートワーク由来の背景になります", color = Color.Gray, fontSize = 12.sp)
+                                                    }
                                                     Row(
                                                         modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                                                         verticalAlignment = Alignment.CenterVertically
                                                     ) {
-                                                        Column(modifier = Modifier.weight(1f)) {
-                                                            Text("再生中はアートワーク背景を使う", color = Color.White, fontSize = 14.sp)
-                                                            Text("音楽の再生中、壁紙の代わりにアートワーク由来の背景を表示します", color = Color.Gray, fontSize = 12.sp)
-                                                        }
-                                                        Switch(
-                                                            checked = blurArtworkBg,
-                                                            onCheckedChange = {
-                                                                blurArtworkBg = it
-                                                                repo.prefManager.setBlurArtworkBackground(it)
-                                                                onChanged()
-                                                            },
-                                                            colors = switchColors
-                                                        )
-                                                    }
-                                                    if (blurArtworkBg) {
-                                                        Row(
-                                                            modifier = Modifier.fillMaxWidth(),
-                                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                            verticalAlignment = Alignment.CenterVertically
-                                                        ) {
-                                                            Text("見せ方", color = Color.Gray, fontSize = 12.sp)
-                                                            listOf("solid" to "単色", "blur" to "ぼかし").forEach { (value, label) ->
-                                                                val selectedChip = artworkBgStyle == value
-                                                                Box(
-                                                                    modifier = Modifier
-                                                                        .clip(RoundedCornerShape(50))
-                                                                        .background(if (selectedChip) currentAccentColor else Color(0xFF1B2438))
-                                                                        .clickable {
-                                                                            artworkBgStyle = value
-                                                                            repo.prefManager.setArtworkBackgroundStyle(value)
-                                                                            onChanged()
-                                                                        }
-                                                                        .padding(horizontal = 14.dp, vertical = 7.dp)
-                                                                ) {
-                                                                    Text(label, color = if (selectedChip) Color.White else Color.Gray, fontSize = 12.sp)
-                                                                }
+                                                        listOf("wallpaper" to "壁紙", "artwork_solid" to "単色", "artwork_blur" to "ぼかし").forEach { (value, label) ->
+                                                            val selectedChip = bgMode == value
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .clip(RoundedCornerShape(50))
+                                                                    .background(if (selectedChip) currentAccentColor else Color(0xFF1B2438))
+                                                                    .clickable {
+                                                                        bgMode = value
+                                                                        repo.prefManager.setBackgroundMode(value)
+                                                                        onChanged()
+                                                                    }
+                                                                    .padding(horizontal = 14.dp, vertical = 7.dp)
+                                                            ) {
+                                                                Text(label, color = if (selectedChip) Color.White else Color.Gray, fontSize = 12.sp)
                                                             }
                                                         }
                                                     }
