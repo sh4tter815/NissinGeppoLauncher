@@ -1174,6 +1174,16 @@ fun PvLyricLine(
                 val chunkGhost = chunk.contains("透明")
                 val chunkPileWord = listOf("積み重な", "降り積も", "積も", "積み", "重な", "重ね", "堆積", "累積").firstOrNull { chunk.contains(it) }
                 val chunkPileStart = chunkPileWord?.let { chunk.indexOf(it) } ?: -1
+                // 液体っぽい単語は、文字の下端から液が垂れるエフェクトにする（蜂蜜系は黄色、どろどろは茶色、液体は水色）
+                val chunkDrip: Pair<String, Color>? = when {
+                    chunk.contains("秘密") -> null
+                    chunk.contains("蜂蜜") || chunk.contains("はちみつ") || chunk.contains("ハチミツ") || chunk.contains("蜜") -> "蜜" to Color(0xFFFFB300)
+                    chunk.contains("どろどろ") || chunk.contains("ドロドロ") -> "どろどろ" to Color(0xFF8D6E63)
+                    chunk.contains("液体") -> "液体" to Color(0xFF6EC6FF)
+                    chunk.contains("液") && !chunk.contains("血液") -> "液" to Color(0xFF6EC6FF)
+                    else -> null
+                }
+                val chunkDripStart = chunkDrip?.let { chunk.indexOf(it.first) } ?: -1
                 val chunkMosaicStart = chunk.indexOf("隠")
                 val chunkMosaicWordStart = chunk.indexOf("モザイク")
                 // 複数文字の色ワード（希望・想い等）は塊単位で判定し、該当する文字だけに色を渡す
@@ -1223,6 +1233,7 @@ fun PvLyricLine(
                     val unitMosaic = mosaicStart >= 0 && unitStart < mosaicStart + mosaicLen && unitStart + ru.length > mosaicStart
                     // 「積もる・重なる」系の文字は、同じ文字を上に重ねて表現する
                     val unitPile = chunkPileWord != null && unitStart < chunkPileStart + chunkPileWord.length && unitStart + ru.length > chunkPileStart
+                    val unitDrip = if (chunkDrip != null && unitStart < chunkDripStart + chunkDrip.first.length && unitStart + ru.length > chunkDripStart) chunkDrip.second else null
                     val unitChunkColor = if (chunkColorHit != null && unitStart < chunkColorStart + chunkColorHit.first.length && unitStart + ru.length > chunkColorStart) chunkColorHit.second else null
                     PvLyricUnit(
                         bold = bold,
@@ -1243,6 +1254,7 @@ fun PvLyricLine(
                         ghost = chunkGhost,
                         mosaic = unitMosaic,
                         pile = unitPile,
+                        dripColor = unitDrip,
                         fallExit = fallLine,
                         windExit = windLine,
                         chunkColor = unitChunkColor,
@@ -1299,6 +1311,7 @@ fun PvLyricUnit(
     ghost: Boolean = false,
     mosaic: Boolean = false,
     pile: Boolean = false,
+    dripColor: Color? = null,
     fallExit: Boolean = false,
     windExit: Boolean = false,
     chunkColor: Color? = null,
@@ -1527,6 +1540,38 @@ fun PvLyricUnit(
             )
             }
 
+            if (dripColor != null) {
+                // 液体エフェクト: 文字の下端から液が垂れ、周期的に伸びて滴が落ちる（位相は既存の揺れ時計を流用）
+                val dc = dripColor
+                Canvas(modifier = Modifier.matchParentSize()) {
+                    val t = sway.value
+                    for (k in 0 until 3) {
+                        val fx = (0.22f + 0.28f * k + ((uSeed * (k + 3)) % 10) * 0.012f).coerceIn(0.08f, 0.92f)
+                        val x = size.width * fx
+                        val cyc = (t + (uSeed % 7) * 0.13f + k * 0.37f) % 1f
+                        val grow = if (cyc < 0.7f) cyc / 0.7f else 1f
+                        val len = (3f + 13f * grow * grow).dp.toPx()
+                        val wdt = 2.6.dp.toPx()
+                        val top = size.height * 0.86f
+                        drawRoundRect(
+                            color = dc.copy(alpha = 0.75f),
+                            topLeft = Offset(x - wdt / 2f, top),
+                            size = Size(wdt, len),
+                            cornerRadius = CornerRadius(wdt / 2f, wdt / 2f)
+                        )
+                        if (cyc < 0.7f) {
+                            drawCircle(color = dc.copy(alpha = 0.85f), radius = 2.3.dp.toPx(), center = Offset(x, top + len + 1.dp.toPx()))
+                        } else {
+                            val fall = (cyc - 0.7f) / 0.3f
+                            drawCircle(
+                                color = dc.copy(alpha = 0.85f * (1f - fall)),
+                                radius = 2.3.dp.toPx(),
+                                center = Offset(x, top + len + 1.dp.toPx() + fall * fall * 26.dp.toPx())
+                            )
+                        }
+                    }
+                }
+            }
             if (ghost) {
                 // 「透明」は中身を透けさせ、点線の輪郭だけで描く
                 Canvas(modifier = Modifier.matchParentSize()) {
