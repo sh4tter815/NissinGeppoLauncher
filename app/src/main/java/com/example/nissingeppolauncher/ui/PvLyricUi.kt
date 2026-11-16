@@ -2438,7 +2438,7 @@ fun LyricsBrowseOverlay(
             text = "歌詞ソース: $source",
             color = Color.White.copy(alpha = 0.45f),
             fontSize = 10.sp,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 14.dp).zIndex(91f)
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 44.dp).zIndex(91f)
         )
     }
         val virtualPos = scrollAnim.value
@@ -2628,7 +2628,7 @@ fun LyricsBrowseOverlay(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
             .align(Alignment.BottomCenter)
-            .padding(bottom = 44.dp)
+            .padding(bottom = 76.dp)
             .zIndex(95f)
     ) {
         if (!follow) {
