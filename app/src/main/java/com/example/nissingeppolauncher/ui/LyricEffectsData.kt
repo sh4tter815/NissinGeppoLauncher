@@ -18,154 +18,6 @@ object LyricEffectsData {
     private const val DATA_URL = "https://raw.githubusercontent.com/sh4tter815/NissinGeppoLauncher/master/lyric_effects.json"
     private const val CACHE_FILE = "lyric_effects.json"
 
-    @Volatile var iconWords: List<Pair<String, Int>> = DEFAULT_ICON_WORDS; private set
-    @Volatile var iconWordsEn: List<Pair<String, Int>> = DEFAULT_ICON_WORDS_EN; private set
-    @Volatile var iconExclusions: Map<String, List<String>> = DEFAULT_ICON_EXCLUSIONS; private set
-    @Volatile var colorWords: List<Pair<String, Color>> = DEFAULT_COLOR_WORDS; private set
-    @Volatile var assocColorWords: List<Pair<String, Color>> = DEFAULT_ASSOC_COLOR_WORDS; private set
-    @Volatile var katakanaEn: Map<String, String> = DEFAULT_KATAKANA_EN; private set
-    @Volatile var appliedVersion: Int = 1; private set
-    @Volatile private var appliedRaw: String = ""
-
-    private val ICON_BY_NAME: Map<String, Int> = mapOf(
-"UMBRELLA" to LyricIcon.UMBRELLA,
-        "RAIN" to LyricIcon.RAIN,
-        "SNOW" to LyricIcon.SNOW,
-        "STAR" to LyricIcon.STAR,
-        "MOON" to LyricIcon.MOON,
-        "SUN" to LyricIcon.SUN,
-        "CLOUD" to LyricIcon.CLOUD,
-        "FLOWER" to LyricIcon.FLOWER,
-        "WAVES" to LyricIcon.WAVES,
-        "HEART" to LyricIcon.HEART,
-        "KEY" to LyricIcon.KEY,
-        "NOTE" to LyricIcon.NOTE,
-        "ENVELOPE" to LyricIcon.ENVELOPE,
-        "CLOCK" to LyricIcon.CLOCK,
-        "FLAME" to LyricIcon.FLAME,
-        "DROP" to LyricIcon.DROP,
-        "RAINBOW" to LyricIcon.RAINBOW,
-        "LIGHTNING" to LyricIcon.LIGHTNING,
-        "SMILE" to LyricIcon.SMILE,
-        "FISH" to LyricIcon.FISH,
-        "MOUNTAIN" to LyricIcon.MOUNTAIN,
-        "WIND" to LyricIcon.WIND,
-        "LINE" to LyricIcon.LINE,
-        "CIRCLE" to LyricIcon.CIRCLE,
-        "GLOBE" to LyricIcon.GLOBE,
-        "BUBBLE" to LyricIcon.BUBBLE,
-        "COFFIN" to LyricIcon.COFFIN,
-        "EYE" to LyricIcon.EYE,
-        "PLUS" to LyricIcon.PLUS,
-        "MINUS" to LyricIcon.MINUS,
-        "MAP" to LyricIcon.MAP,
-        "BONE" to LyricIcon.BONE,
-        "CROSS" to LyricIcon.CROSS,
-        "BANDAGE" to LyricIcon.BANDAGE
-    )
-
-    private fun parseIconPairs(arr: JSONArray): List<Pair<String, Int>>? {
-        val out = mutableListOf<Pair<String, Int>>()
-        for (i in 0 until arr.length()) {
-            val p = arr.optJSONArray(i) ?: return null
-            val word = p.optString(0)
-            val kind = ICON_BY_NAME[p.optString(1)] ?: return null
-            if (word.isEmpty()) return null
-            out.add(word to kind)
-        }
-        return out
-    }
-
-    private fun parseColors(arr: JSONArray): List<Pair<String, Color>>? {
-        val out = mutableListOf<Pair<String, Color>>()
-        for (i in 0 until arr.length()) {
-            val p = arr.optJSONArray(i) ?: return null
-            val word = p.optString(0)
-            val hex = p.optString(1).removePrefix("#")
-            val rgb = hex.toLongOrNull(16) ?: return null
-            if (word.isEmpty() || hex.length != 6) return null
-            out.add(word to Color(0xFF000000L or rgb))
-        }
-        return out
-    }
-
-    // JSON を検証してから一括で差し替える。途中で壊れていたら何も変えず false
-    private fun applyJson(text: String): Boolean {
-        return try {
-            val root = JSONObject(text)
-            val version = root.optInt("version", -1)
-            if (version < 1) return false
-            val iw = parseIconPairs(root.getJSONArray("iconWords")) ?: return false
-            val iwe = parseIconPairs(root.getJSONArray("iconWordsEn")) ?: return false
-            val cw = parseColors(root.getJSONArray("colorWords")) ?: return false
-            val aw = parseColors(root.getJSONArray("assocColorWords")) ?: return false
-            val exclObj = root.getJSONObject("iconExclusions")
-            val excl = mutableMapOf<String, List<String>>()
-            val keys = exclObj.keys()
-            while (keys.hasNext()) {
-                val k = keys.next()
-                val a = exclObj.getJSONArray(k)
-                excl[k] = List(a.length()) { a.getString(it) }
-            }
-            val kataObj = root.getJSONObject("katakanaEn")
-            val kata = mutableMapOf<String, String>()
-            val kkeys = kataObj.keys()
-            while (kkeys.hasNext()) {
-                val k = kkeys.next()
-                kata[k] = kataObj.getString(k)
-            }
-            if (iw.isEmpty() || cw.isEmpty() || kata.isEmpty()) return false
-            iconWords = iw
-            iconWordsEn = iwe
-            iconExclusions = excl
-            colorWords = cw
-            assocColorWords = aw
-            katakanaEn = kata
-            appliedVersion = version
-            appliedRaw = text
-            true
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    suspend fun init(context: Context) {
-        withContext(Dispatchers.IO) {
-            try {
-                val f = File(context.filesDir, CACHE_FILE)
-                if (f.exists()) applyJson(f.readText())
-            } catch (e: Exception) {
-                // キャッシュが壊れていたら内蔵デフォルトのまま
-            }
-        }
-        refresh(context)
-    }
-
-    // 戻り値: 1=更新した / 0=最新だった / -1=失敗
-    suspend fun refresh(context: Context): Int {
-        val text = withContext(Dispatchers.IO) {
-            try {
-                val conn = URL(DATA_URL).openConnection() as HttpURLConnection
-                conn.connectTimeout = 8000
-                conn.readTimeout = 8000
-                conn.setRequestProperty("User-Agent", "NissinGeppoLauncher")
-                conn.inputStream.bufferedReader().use { it.readText() }
-            } catch (e: Exception) {
-                null
-            }
-        } ?: return -1
-        if (text == appliedRaw) return 0
-        if (!applyJson(text)) return -1
-        withContext(Dispatchers.IO) {
-            try {
-                File(context.filesDir, CACHE_FILE).writeText(text)
-            } catch (e: Exception) {
-                // 保存に失敗しても、今回の適用は有効
-            }
-        }
-        return 1
-    }
-
     private val DEFAULT_ICON_WORDS: List<Pair<String, Int>> = listOf(
     "傘" to LyricIcon.UMBRELLA,
     "桜" to LyricIcon.FLOWER,
@@ -473,4 +325,153 @@ object LyricEffectsData {
     "リバー" to "RIVER",
     "フォレスト" to "FOREST"
     )
+
+    @Volatile var iconWords: List<Pair<String, Int>> = DEFAULT_ICON_WORDS; private set
+    @Volatile var iconWordsEn: List<Pair<String, Int>> = DEFAULT_ICON_WORDS_EN; private set
+    @Volatile var iconExclusions: Map<String, List<String>> = DEFAULT_ICON_EXCLUSIONS; private set
+    @Volatile var colorWords: List<Pair<String, Color>> = DEFAULT_COLOR_WORDS; private set
+    @Volatile var assocColorWords: List<Pair<String, Color>> = DEFAULT_ASSOC_COLOR_WORDS; private set
+    @Volatile var katakanaEn: Map<String, String> = DEFAULT_KATAKANA_EN; private set
+    @Volatile var appliedVersion: Int = 1; private set
+    @Volatile private var appliedRaw: String = ""
+
+    private val ICON_BY_NAME: Map<String, Int> = mapOf(
+"UMBRELLA" to LyricIcon.UMBRELLA,
+        "RAIN" to LyricIcon.RAIN,
+        "SNOW" to LyricIcon.SNOW,
+        "STAR" to LyricIcon.STAR,
+        "MOON" to LyricIcon.MOON,
+        "SUN" to LyricIcon.SUN,
+        "CLOUD" to LyricIcon.CLOUD,
+        "FLOWER" to LyricIcon.FLOWER,
+        "WAVES" to LyricIcon.WAVES,
+        "HEART" to LyricIcon.HEART,
+        "KEY" to LyricIcon.KEY,
+        "NOTE" to LyricIcon.NOTE,
+        "ENVELOPE" to LyricIcon.ENVELOPE,
+        "CLOCK" to LyricIcon.CLOCK,
+        "FLAME" to LyricIcon.FLAME,
+        "DROP" to LyricIcon.DROP,
+        "RAINBOW" to LyricIcon.RAINBOW,
+        "LIGHTNING" to LyricIcon.LIGHTNING,
+        "SMILE" to LyricIcon.SMILE,
+        "FISH" to LyricIcon.FISH,
+        "MOUNTAIN" to LyricIcon.MOUNTAIN,
+        "WIND" to LyricIcon.WIND,
+        "LINE" to LyricIcon.LINE,
+        "CIRCLE" to LyricIcon.CIRCLE,
+        "GLOBE" to LyricIcon.GLOBE,
+        "BUBBLE" to LyricIcon.BUBBLE,
+        "COFFIN" to LyricIcon.COFFIN,
+        "EYE" to LyricIcon.EYE,
+        "PLUS" to LyricIcon.PLUS,
+        "MINUS" to LyricIcon.MINUS,
+        "MAP" to LyricIcon.MAP,
+        "BONE" to LyricIcon.BONE,
+        "CROSS" to LyricIcon.CROSS,
+        "BANDAGE" to LyricIcon.BANDAGE
+    )
+
+    private fun parseIconPairs(arr: JSONArray): List<Pair<String, Int>>? {
+        val out = mutableListOf<Pair<String, Int>>()
+        for (i in 0 until arr.length()) {
+            val p = arr.optJSONArray(i) ?: return null
+            val word = p.optString(0)
+            val kind = ICON_BY_NAME[p.optString(1)] ?: return null
+            if (word.isEmpty()) return null
+            out.add(word to kind)
+        }
+        return out
+    }
+
+    private fun parseColors(arr: JSONArray): List<Pair<String, Color>>? {
+        val out = mutableListOf<Pair<String, Color>>()
+        for (i in 0 until arr.length()) {
+            val p = arr.optJSONArray(i) ?: return null
+            val word = p.optString(0)
+            val hex = p.optString(1).removePrefix("#")
+            val rgb = hex.toLongOrNull(16) ?: return null
+            if (word.isEmpty() || hex.length != 6) return null
+            out.add(word to Color(0xFF000000L or rgb))
+        }
+        return out
+    }
+
+    // JSON を検証してから一括で差し替える。途中で壊れていたら何も変えず false
+    private fun applyJson(text: String): Boolean {
+        return try {
+            val root = JSONObject(text)
+            val version = root.optInt("version", -1)
+            if (version < 1) return false
+            val iw = parseIconPairs(root.getJSONArray("iconWords")) ?: return false
+            val iwe = parseIconPairs(root.getJSONArray("iconWordsEn")) ?: return false
+            val cw = parseColors(root.getJSONArray("colorWords")) ?: return false
+            val aw = parseColors(root.getJSONArray("assocColorWords")) ?: return false
+            val exclObj = root.getJSONObject("iconExclusions")
+            val excl = mutableMapOf<String, List<String>>()
+            val keys = exclObj.keys()
+            while (keys.hasNext()) {
+                val k = keys.next()
+                val a = exclObj.getJSONArray(k)
+                excl[k] = List(a.length()) { a.getString(it) }
+            }
+            val kataObj = root.getJSONObject("katakanaEn")
+            val kata = mutableMapOf<String, String>()
+            val kkeys = kataObj.keys()
+            while (kkeys.hasNext()) {
+                val k = kkeys.next()
+                kata[k] = kataObj.getString(k)
+            }
+            if (iw.isEmpty() || cw.isEmpty() || kata.isEmpty()) return false
+            iconWords = iw
+            iconWordsEn = iwe
+            iconExclusions = excl
+            colorWords = cw
+            assocColorWords = aw
+            katakanaEn = kata
+            appliedVersion = version
+            appliedRaw = text
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun init(context: Context) {
+        withContext(Dispatchers.IO) {
+            try {
+                val f = File(context.filesDir, CACHE_FILE)
+                if (f.exists()) applyJson(f.readText())
+            } catch (e: Exception) {
+                // キャッシュが壊れていたら内蔵デフォルトのまま
+            }
+        }
+        refresh(context)
+    }
+
+    // 戻り値: 1=更新した / 0=最新だった / -1=失敗
+    suspend fun refresh(context: Context): Int {
+        val text = withContext(Dispatchers.IO) {
+            try {
+                val conn = URL(DATA_URL).openConnection() as HttpURLConnection
+                conn.connectTimeout = 8000
+                conn.readTimeout = 8000
+                conn.setRequestProperty("User-Agent", "NissinGeppoLauncher")
+                conn.inputStream.bufferedReader().use { it.readText() }
+            } catch (e: Exception) {
+                null
+            }
+        } ?: return -1
+        if (text == appliedRaw) return 0
+        if (!applyJson(text)) return -1
+        withContext(Dispatchers.IO) {
+            try {
+                File(context.filesDir, CACHE_FILE).writeText(text)
+            } catch (e: Exception) {
+                // 保存に失敗しても、今回の適用は有効
+            }
+        }
+        return 1
+    }
+
 }
