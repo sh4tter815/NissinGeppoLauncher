@@ -1408,7 +1408,8 @@ fun PvLyricUnit(
         }
     }
     // 色名の文字を、その色で左上から右下へ斜めに塗っていく
-    val colorHit = if (!exiting) (if (chunkColor != null) unitText to chunkColor else null) ?: COLOR_WORDS.firstOrNull { (word, _) ->
+    // 退場中も色が消えないよう、exiting でも色ヒットは維持する
+    val colorHit = (if (chunkColor != null) unitText to chunkColor else null) ?: COLOR_WORDS.firstOrNull { (word, _) ->
         if (word.all { it.code < 128 }) {
             // 英語の色名は単語単位で照合する（hundred の中の red などを拾わない）
             Regex("""(?i)(?<![A-Za-z])${Regex.escape(word)}(?![A-Za-z])""").containsMatchIn(unitText)
@@ -1421,8 +1422,9 @@ fun PvLyricUnit(
         } else {
             unitText.contains(word)
         }
-    } else null
-    val wipeT = remember { Animatable(0f) }
+    }
+    // 退場用に別インスタンスで作られた場合は、塗りが完了した状態から始める
+    val wipeT = remember { Animatable(if (exiting) 1f else 0f) }
     if (colorHit != null) {
         LaunchedEffect(staggerIndex) {
             delay(effDelayMs + 200L)
@@ -1498,7 +1500,7 @@ fun PvLyricUnit(
                     translationY = dir.second * 52f * (1f - a) + swy * a + if (effectKind == 7) sin(a * 6.2832f + uSeed * 0.8f) * 15f * (1f - a) else 0f
                 }
                 // 句読点の扱い: ！？は大きく傾け、。、・…は小さくする
-                when (ru) {
+                when (unitText) {
                     "！", "？", "!", "?" -> { scaleX *= 1.45f; scaleY *= 1.45f; rotationZ += -12f }
                     "。", "、", "・", "…", "‥" -> { scaleX *= 0.66f; scaleY *= 0.66f }
                 }
