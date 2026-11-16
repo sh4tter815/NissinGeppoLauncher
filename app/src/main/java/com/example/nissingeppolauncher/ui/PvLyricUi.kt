@@ -1533,9 +1533,10 @@ fun PvLyricUnit(
                 Box {
                     for (slice in 0 until 3) {
                         val sDir = PV_ENTRY_DIRS[Math.floorMod(uSeed * 131 + 7 + slice * 3, 8)]
-                        val dist = if (wordParts) (44f + slice * 16f) * (1f - pa * 0.55f) else (44f + slice * 16f) * (1f - pa)
-                        val sliceSwayX = if (wordParts) sin(sway.value * 6.2832f + slice * 2.1f + uSeed) * 3f else 0f
-                        val sliceSwayY = if (wordParts) cos(sway.value * 6.2832f + slice * 1.7f + uSeed) * 2.4f else 0f
+                        // 単語由来は原型をとどめる程度の小さなズレで揺らし、設定由来（入場）は大きく散らして合体させる
+                        val dist = if (wordParts) (9f + slice * 4.5f) * (1f - pa * 0.3f) else (44f + slice * 16f) * (1f - pa)
+                        val sliceSwayX = if (wordParts) sin(sway.value * 6.2832f + slice * 2.1f + uSeed) * 1.7f else 0f
+                        val sliceSwayY = if (wordParts) cos(sway.value * 6.2832f + slice * 1.7f + uSeed) * 1.3f else 0f
                         Text(
                             text = annotatedUnit,
                             color = Color.White.copy(alpha = if (dimmed) 0.40f else 0.92f),
@@ -1776,14 +1777,14 @@ fun PvLyricUnit(
         }
         }
         if (!exiting && iconKind != null) {
-            // アイコンはその単語の右肩に小さく重ねる
+            // アイコンは大きく・薄く、文字に被せるように重ねる
             Canvas(
                 modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .offset(x = 12.dp, y = (-12).dp)
-                    .size((uSize.value * 0.55f).dp)
+                    .align(Alignment.TopCenter)
+                    .offset(x = (uSize.value * 0.20f).dp, y = (uSize.value * 0.02f).dp)
+                    .size((uSize.value * 1.15f).dp)
                     .graphicsLayer {
-                        alpha = ulAnim.value.coerceIn(0f, 1f) * 0.45f
+                        alpha = ulAnim.value.coerceIn(0f, 1f) * 0.15f
                         rotationZ = -9f
                     }
             ) {
