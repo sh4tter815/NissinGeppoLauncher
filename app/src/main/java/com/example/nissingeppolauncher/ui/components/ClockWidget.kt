@@ -28,6 +28,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.nissingeppolauncher.data.LyricLine
+import com.example.nissingeppolauncher.ui.KaraokeLyricText
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -40,7 +42,11 @@ fun ClockWidget(
     // 日付の表示方式: "sideways"=常時横倒し / "under"=常時時計の下 / "auto"=歌詞の有無で切替
     dateMode: String = "auto",
     // 歌詞行のグロー色（アクセントカラー）
-    glowColor: Color = Color.White
+    glowColor: Color = Color.White,
+    // カラオケ表示用: 文字同期つきの現在行（あれば歌詞行をテロップ表示にする）
+    karaokeLine: LyricLine? = null,
+    karaokePositionMs: Long = 0L,
+    karaokeSungColor: Color = Color(0xFF7FD4F2)
 ) {
     val context = LocalContext.current
     var currentTime by remember { mutableStateOf(Date()) }
@@ -170,15 +176,28 @@ fun ClockWidget(
                         .padding(top = 16.dp)
                         .widthIn(max = 250.dp)
                 ) { line ->
-                    Text(
-                        text = line,
-                        color = Color.White,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        style = lyricsStyle
-                    )
+                    val kLine = karaokeLine
+                    if (kLine != null && kLine.text == line && kLine.words.isNotEmpty()) {
+                        KaraokeLyricText(
+                            line = kLine,
+                            positionMs = karaokePositionMs,
+                            sungColor = karaokeSungColor,
+                            baseColor = Color.White,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium,
+                            shadow = Shadow(color = glowColor.copy(alpha = 0.9f), offset = Offset(0f, 0f), blurRadius = 16f)
+                        )
+                    } else {
+                        Text(
+                            text = line,
+                            color = Color.White,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = lyricsStyle
+                        )
+                    }
                 }
             }
         } else {
@@ -230,15 +249,28 @@ fun ClockWidget(
                         .padding(top = 10.dp)
                         .widthIn(max = 250.dp)
                 ) { line ->
-                    Text(
-                        text = line,
-                        color = Color.White,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        style = lyricsStyle
-                    )
+                    val kLine = karaokeLine
+                    if (kLine != null && kLine.text == line && kLine.words.isNotEmpty()) {
+                        KaraokeLyricText(
+                            line = kLine,
+                            positionMs = karaokePositionMs,
+                            sungColor = karaokeSungColor,
+                            baseColor = Color.White,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium,
+                            shadow = Shadow(color = glowColor.copy(alpha = 0.9f), offset = Offset(0f, 0f), blurRadius = 16f)
+                        )
+                    } else {
+                        Text(
+                            text = line,
+                            color = Color.White,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = lyricsStyle
+                        )
+                    }
                 }
             }
         }
