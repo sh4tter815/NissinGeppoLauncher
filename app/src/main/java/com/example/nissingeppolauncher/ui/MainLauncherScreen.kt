@@ -1581,6 +1581,11 @@ fun MainLauncherScreen() {
                     syncedLyricLines = applied
                     lyricsSource = source
                 },
+                onCleared = {
+                    syncedLyricLines = emptyList()
+                    lyricsSource = ""
+                    lyricsRefreshTick++
+                },
                 onDismiss = { showLyricSearch = false }
             )
         }
