@@ -74,6 +74,8 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.layer.rememberGraphicsLayer
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -1123,24 +1125,7 @@ fun PvLyricLine(
                         }
                     }
                 }
-                val fp = exitProgress.value
-                if (exiting && fp > 0f) {
-                    if (sandLine) {
-                        for (i in 0 until 240) {
-                            val h1 = ((i * 2654435761L) xor (baseSeed * 97L)) and 0x7fffffffL
-                            val sx = (h1 % 1000) / 1000f
-                            val sy = ((h1 / 1000) % 1000) / 1000f
-                            // 粒子は重力で自然に落下する（進み具合の2乗で加速し、横はほんの少し揺れるだけ）
-                            val fall = fp * fp * (0.45f + (h1 % 40) / 100f) * H
-                            val swayX = sin(fp * 5f + (h1 % 628) / 100f) * 4f * fp
-                            val px = sx * W + swayX
-                            val py = sy * H + fall
-                            val a = (1f - fp) * (0.35f + (h1 % 60) / 100f)
-                            val c = when ((h1 % 5).toInt()) { 0 -> accentColor; 1 -> Color(0xFFE8D8A8); else -> Color.White }
-                            drawCircle(color = c.copy(alpha = a.coerceIn(0f, 1f)), radius = (1.1f + (h1 % 20) / 10f).dp.toPx() * 0.55f, center = Offset(px, py))
-                        }
-                    }
-                }
+
             }
         }
         Column(
@@ -1261,7 +1246,8 @@ fun PvLyricLine(
                         pile = unitPile,
                         dripColor = unitDrip,
                         fallExit = fallLine,
-                        windExit = windLine,
+                        windExit = false,
+                        crumbleExit = if (fallLine) 0 else if (sandLine) 1 else if (windLine) 2 else 0,
                         chunkColor = unitChunkColor,
                         arrowUnder = chunkArrow && ru == "行",
                         swayScale = if (bigText) 2.8f else 1f,
@@ -1320,6 +1306,7 @@ fun PvLyricUnit(
     dripColor: Color? = null,
     fallExit: Boolean = false,
     windExit: Boolean = false,
+    crumbleExit: Int = 0,
     chunkColor: Color? = null,
     arrowUnder: Boolean = false,
     entryDelayMs: Long = -1L,
@@ -1366,6 +1353,53 @@ fun PvLyricUnit(
             delay(effDelayMs)
             ulAnim.animateTo(1f, animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing))
             ulAnim.animateTo(2f, animationSpec = tween(durationMillis = 260, easing = pvEaseIn))
+        }
+    }
+    // 粒子化して消える文字（消・砂・壊・砕=落下、風=右へ）は、描画済みの文字を画像として記録し、
+    // その形のまま粒子に分解する。取れなかった場合は通常の退場に任せる
+    val crumbleLayer = rememberGraphicsLayer()
+    var crumblePoints by remember { mutableStateOf<FloatArray?>(null) }
+    LaunchedEffect(exiting) {
+        if (exiting && crumbleExit != 0 && crumblePoints == null) {
+            try {
+                val bmp = crumbleLayer.toImageBitmap().asAndroidBitmap()
+                val w = bmp.width
+                val h = bmp.height
+                if (w > 4 && h > 4) {
+                    val px = IntArray(w * h)
+                    bmp.getPixels(px, 0, w, 0, 0, w, h)
+                    val step = maxOf(1, minOf(w, h) / 26)
+                    val pts = mutableListOf<Float>()
+                    var yy = step / 2
+                    while (yy < h) {
+                        var xx = step / 2
+                        while (xx < w) {
+                            val a = (px[yy * w + xx] ushr 24) and 0xFF
+                            if (a > 110) {
+                                pts.add(xx / w.toFloat())
+                                pts.add(yy / h.toFloat())
+                            }
+                            xx += step
+                        }
+                        yy += step
+                    }
+                    val pairCount = pts.size / 2
+                    val out = if (pairCount > 300) {
+                        val stride = pairCount / 300 + 1
+                        val o = mutableListOf<Float>()
+                        var pi = 0
+                        while (pi < pairCount) {
+                            o.add(pts[pi * 2])
+                            o.add(pts[pi * 2 + 1])
+                            pi += stride
+                        }
+                        o.toFloatArray()
+                    } else pts.toFloatArray()
+                    if (out.isNotEmpty()) crumblePoints = out
+                }
+            } catch (e: Exception) {
+                // 記録が取れなければ通常の退場に任せる
+            }
         }
     }
     // 色名の文字を、その色で左上から右下へ斜めに塗っていく
@@ -1425,6 +1459,10 @@ fun PvLyricUnit(
                     val ws = 1f - wd * 0.15f
                     scaleX = ws
                     scaleY = ws
+                } else if (exiting && crumbleExit != 0) {
+                    // 粒子化して消える文字は、崩れる表現は粒子側が担当するので本体は姿勢だけ保つ
+                    alpha = if (ghost) 0.38f else 1f
+                    rotationZ = uRot
                 } else if (exiting) {
                     val localX = ((exitProgressValue * 720f - exitDelayMs) / 320f).coerceIn(0f, 1f)
                     val a = 1f - pvEaseIn.transform(localX)
@@ -1458,6 +1496,12 @@ fun PvLyricUnit(
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box {
+        Box(
+            modifier = Modifier.drawWithContent {
+                crumbleLayer.record { this@drawWithContent.drawContent() }
+                if (crumblePoints == null) drawLayer(crumbleLayer)
+            }
+        ) {
             if (!exiting && effectKind == 4 && fxT.value < 1f) {
                 val flick = (0.35f + 0.3f * sin(fxT.value * 47f + uSeed * 3.1f)).coerceIn(0.1f, 0.65f)
                 Text(
@@ -1686,6 +1730,34 @@ fun PvLyricUnit(
                     }
                 }
             }
+        }
+        if (exiting && crumbleExit != 0 && crumblePoints != null) {
+            // 文字の形のまま粉々になる粒子（1=その場で崩れて自然落下、2=右へ飛んでいく）
+            val pts = crumblePoints!!
+            Canvas(modifier = Modifier.matchParentSize()) {
+                val fp2 = ((exitProgressValue * 720f - exitDelayMs) / 560f).coerceIn(0f, 1f)
+                if (fp2 > 0f) {
+                    val n = pts.size / 2
+                    for (pi2 in 0 until n) {
+                        val h1 = ((pi2 * 2654435761L) xor (staggerIndex * 131L)) and 0x7fffffffL
+                        val ox = pts[pi2 * 2] * size.width
+                        val oy = pts[pi2 * 2 + 1] * size.height
+                        val dx: Float
+                        val dy: Float
+                        if (crumbleExit == 2) {
+                            dx = fp2 * fp2 * (2.0f + (h1 % 50) / 28f) * size.width
+                            dy = -sin(fp2 * 3.14159f) * (6f + (h1 % 30) / 3f) + fp2 * fp2 * 22f
+                        } else {
+                            dx = sin(fp2 * 5f + (h1 % 628) / 100f) * 3.5f * fp2
+                            dy = fp2 * fp2 * (0.5f + (h1 % 45) / 100f) * size.height * 2.0f
+                        }
+                        val a = (1f - fp2) * (0.45f + (h1 % 55) / 100f)
+                        val c = when ((h1 % 5).toInt()) { 0 -> accentColor; 1 -> Color(0xFFE8D8A8); else -> Color.White }
+                        drawCircle(color = c.copy(alpha = a.coerceIn(0f, 1f)), radius = (1.1f + (h1 % 20) / 10f).dp.toPx() * 0.55f, center = Offset(ox + dx, oy + dy))
+                    }
+                }
+            }
+        }
         }
         val enCaption = if (!exiting && unitText.length > 1 && unitText.all { it in 'ァ'..'ヶ' || it == 'ー' || it == '・' }) KATAKANA_EN[unitText] else null
         if (!exiting && effectKind == 0) {
@@ -2186,7 +2258,7 @@ fun LyricsPvLayer(
     val pvCurLine = lines.getOrNull(pvIndex)
     val pvNextLine = lines.getOrNull(pvIndex + 1)
     val pvInterlude = when {
-        pvCurLine == null -> false
+        pvCurLine == null -> pvIndex < 0 && (lines.firstOrNull()?.let { (it.timeMs - pvPos) > 2500 } ?: false) // 前奏も間奏アートを出す
         pvNextLine == null -> (pvPos - pvCurLine.timeMs) > 8000
         else -> (pvNextLine.timeMs - pvCurLine.timeMs) > 15000 && (pvPos - pvCurLine.timeMs) > 5000 // 行間が長い間奏だけ。次の行が近づいたら前の行に戻る、をしない
     }
@@ -2765,7 +2837,7 @@ fun LyricsFullscreenOverlay(
         val fsCurLine = fsLines.getOrNull(fsIndex)
         val fsNextLine = fsLines.getOrNull(fsIndex + 1)
         val fsInterlude = when {
-            fsCurLine == null -> false
+            fsCurLine == null -> fsIndex < 0 && (fsLines.firstOrNull()?.let { (it.timeMs - fsPos) > 2500 } ?: false) // 前奏も間奏アートを出す
             fsNextLine == null -> (fsPos - fsCurLine.timeMs) > 8000
             else -> (fsNextLine.timeMs - fsCurLine.timeMs) > 15000 && (fsPos - fsCurLine.timeMs) > 5000
         }
