@@ -676,6 +676,7 @@ fun PvLyricLine(
     words: List<LyricWord> = emptyList(),
     startsInParen: Boolean = false,
     lineStartMs: Long = 0L,
+    partsEntry: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val pvEaseIn = CubicBezierEasing(0.42f, 0f, 1f, 1f)
@@ -727,6 +728,19 @@ fun PvLyricLine(
                 val diff = kotlin.math.abs(totalEm / 2f - acc)
                 if (diff < bestDiff) { bestDiff = diff; best = idx }
             }
+            // スペースで区切られている場合は、その区切りを改行位置として優先する（極端に偏る場合を除く）
+            var spaceBest = -1
+            var spaceDiff = Float.MAX_VALUE
+            var sAcc = 0f
+            for (idx in 1 until list.size) {
+                sAcc += chunkEm(list[idx - 1]) + gapEm
+                val prev = list[idx - 1]
+                if (prev.endsWith(" ") || prev.endsWith("　")) {
+                    val diff = kotlin.math.abs(totalEm / 2f - sAcc)
+                    if (diff < spaceDiff) { spaceDiff = diff; spaceBest = idx }
+                }
+            }
+            if (spaceBest > 0 && spaceDiff <= totalEm * 0.30f) best = spaceBest
             // 行頭禁則: 次の行が「ー・小さいカナ・句読点・閉じ括弧」で始まる場合は、分割点をずらす
             val noLineStart = "ーぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮ・、。，．！!？?）)】」』"
             while (best > 1 && list[best].isNotEmpty() && list[best][0] in noLineStart) best--
@@ -847,6 +861,12 @@ fun PvLyricLine(
         animationSpec = infiniteRepeatable(tween(durationMillis = 3400, easing = LinearEasing), RepeatMode.Restart),
         label = "dreamPhase"
     )
+    val waveTransition = rememberInfiniteTransition(label = "waveBg")
+    val wavePhase by waveTransition.animateFloat(
+        initialValue = 0f, targetValue = 6.2832f,
+        animationSpec = infiniteRepeatable(tween(durationMillis = 2600, easing = LinearEasing), RepeatMode.Restart),
+        label = "wavePhase"
+    )
     val barAnim = remember { Animatable(0f) }
     val rippleAnim = remember { Animatable(0f) }
     val fxAnim = remember { Animatable(0f) }
@@ -910,6 +930,37 @@ fun PvLyricLine(
                         useCenter = false,
                         topLeft = Offset(cx - r, cy - r),
                         size = Size(r * 2f, r * 2f),
+                        style = Stroke(width = 1.6.dp.toPx())
+                    )
+                }
+            }
+        }
+        if (text.contains("波") || text.contains("海")) {
+            Canvas(modifier = Modifier.matchParentSize()) {
+                val fadeA = if (exiting) 1f - exitProgress.value else fxAnim.value
+                val W = size.width
+                val H = size.height
+                for (k in 0 until 3) {
+                    val baseY = H * (0.22f + 0.26f * k)
+                    val amp = H * 0.055f * (1f + 0.25f * k)
+                    val wl = W * (0.55f - 0.08f * k)
+                    val ph = wavePhase + k * 1.15f
+                    val path = androidx.compose.ui.graphics.Path()
+                    var x = -8f
+                    var first = true
+                    while (x <= W + 8f) {
+                        val y = baseY + kotlin.math.sin(x / wl * 6.2832f + ph) * amp
+                        if (first) {
+                            path.moveTo(x, y)
+                            first = false
+                        } else {
+                            path.lineTo(x, y)
+                        }
+                        x += 14f
+                    }
+                    drawPath(
+                        path = path,
+                        color = accentColor.copy(alpha = (0.30f - 0.06f * k) * fadeA),
                         style = Stroke(width = 1.6.dp.toPx())
                     )
                 }
@@ -1162,7 +1213,8 @@ fun PvLyricLine(
                         chunkColor = unitChunkColor,
                         arrowUnder = chunkArrow && ru == "行",
                         swayScale = if (bigText) 2.8f else 1f,
-                        entryDelayMs = unitDelayMs
+                        entryDelayMs = unitDelayMs,
+                        partsEntry = partsEntry
                     )
                 }
             }
@@ -1216,7 +1268,8 @@ fun PvLyricUnit(
     windExit: Boolean = false,
     chunkColor: Color? = null,
     arrowUnder: Boolean = false,
-    entryDelayMs: Long = -1L
+    entryDelayMs: Long = -1L,
+    partsEntry: Boolean = false
 ) {
     val pvEaseIn = CubicBezierEasing(0.42f, 0f, 1f, 1f)
     // 文字同期がある行では実時刻ディレイ、無い行では従来の等間隔ディレイで入場する
@@ -1327,7 +1380,7 @@ fun PvLyricUnit(
                     rotationZ = uRot * (2f - a)
                     translationY = (1f - a) * 30f
                 } else {
-                    val a = uAnim.value
+                    val a = if (partsEntry) 1f else uAnim.value
                     val blinkF = if (effectKind == 3 && fxT.value < 1f) {
                         if (sin(fxT.value * 21.99f + uSeed * 1.3f) > -0.2f) 1f else 0.12f
                     } else 1f
@@ -1388,6 +1441,42 @@ fun PvLyricUnit(
                     )
                 }
             }
+            if (partsEntry && !exiting) {
+                // パーツ入場（オプション）: 文字を縦3スライスに分け、バラバラの方向から集まって合体させる
+                val pa = uAnim.value
+                Box {
+                    for (slice in 0 until 3) {
+                        val sDir = PV_ENTRY_DIRS[Math.floorMod(uSeed * 131 + 7 + slice * 3, 8)]
+                        val dist = 44f + slice * 16f
+                        Text(
+                            text = annotatedUnit,
+                            color = Color.White.copy(alpha = if (dimmed) 0.40f else 0.92f),
+                            fontSize = uSize,
+                            fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
+                            textAlign = TextAlign.Center,
+                            overflow = TextOverflow.Visible,
+                            style = LocalTextStyle.current.copy(
+                                fontFamily = fontFamily,
+                                lineHeight = uSize * 1.02f,
+                                shadow = Shadow(color = accentColor.copy(alpha = if (dimmed) 0.35f else 0.85f), blurRadius = 22f)
+                            ),
+                            modifier = Modifier
+                                .graphicsLayer {
+                                    translationX = sDir.first * dist * (1f - pa)
+                                    translationY = sDir.second * dist * (1f - pa)
+                                    alpha = pa
+                                }
+                                .drawWithContent {
+                                    val l = size.width * slice / 3f
+                                    val r = size.width * (slice + 1) / 3f
+                                    clipRect(left = l, top = 0f, right = r, bottom = size.height) {
+                                        this@drawWithContent.drawContent()
+                                    }
+                                }
+                        )
+                    }
+                }
+            } else {
             Text(
                 text = annotatedUnit,
             color = Color.White.copy(alpha = if (dimmed) 0.40f else 0.92f),
@@ -1401,6 +1490,8 @@ fun PvLyricUnit(
                     shadow = Shadow(color = accentColor.copy(alpha = if (dimmed) 0.35f else 0.85f), blurRadius = 22f)
                 )
             )
+            }
+
             if (ghost) {
                 // 「透明」は中身を透けさせ、点線の輪郭だけで描く
                 Canvas(modifier = Modifier.matchParentSize()) {
@@ -1647,24 +1738,35 @@ fun chunkJapanese(span: String): List<String> {
         }
     }
     for (run in runs) {
-        val t = typeOf(run[0])
+        // ーや小さいカナで始まる部分は、前の塊にくっつける（分割したときに ーが行頭に来ないように）
+        var rest = run
+        if (cur.isNotEmpty()) {
+            var cut = 0
+            while (cut < rest.length && (rest[cut] == 'ー' || rest[cut] in "ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ")) cut++
+            if (cut > 0) {
+                cur.append(rest.substring(0, cut))
+                rest = rest.substring(cut)
+                if (rest.isEmpty()) continue
+            }
+        }
+        val t = typeOf(rest[0])
         when {
             t == 2 && cur.isNotEmpty() -> {
                 // ひらがな部分: 先頭の助詞（最大2文字）の後ろに2文字以上残るなら、助詞までを今の塊に付けて次へ
                 var pLen = 0
-                while (pLen < run.length && pLen < 2 && run[pLen] in particles) pLen++
-                if (pLen >= 1 && run.length - pLen >= 2) {
-                    cur.append(run.substring(0, pLen))
+                while (pLen < rest.length && pLen < 2 && rest[pLen] in particles) pLen++
+                if (pLen >= 1 && rest.length - pLen >= 2) {
+                    cur.append(rest.substring(0, pLen))
                     closeChunk()
-                    cur.append(run.substring(pLen))
+                    cur.append(rest.substring(pLen))
                 } else {
-                    cur.append(run)
+                    cur.append(rest)
                 }
             }
-            t == 2 -> cur.append(run) // 行頭のひらがなはそのまま塊の始まり
-            t == 0 -> cur.append(run) // 句読点などは前の塊に付ける
+            t == 2 -> cur.append(rest) // 行頭のひらがなはそのまま塊の始まり
+            t == 0 -> cur.append(rest) // 句読点などは前の塊に付ける
             else -> {
-                if (t == 3 && run.length >= 6) {
+                if (t == 3 && rest.length >= 6) {
                     // 長いカタカナ語は「前の文字＋ー・小さいカナ」を1セットとして塊に分ける
                     // （「ハッピーヘヴンリーバースデー」のような語を行で割れるようにし、ーが行頭に来ないようにするため）
                     closeChunk()
@@ -1675,7 +1777,7 @@ fun chunkJapanese(span: String): List<String> {
                             unit.clear()
                         }
                     }
-                    for (ch in run) {
+                    for (ch in rest) {
                         if (ch == 'ー' || ch in "ァィゥェォッャュョヮ") {
                             unit.append(ch)
                         } else {
@@ -1687,7 +1789,7 @@ fun chunkJapanese(span: String): List<String> {
                 } else {
                     // 漢字・カタカナは新しい塊の始まり
                     closeChunk()
-                    cur.append(run)
+                    cur.append(rest)
                 }
             }
         }
@@ -1980,7 +2082,8 @@ fun LyricsPvLayer(
     translations: List<String>?,
     pvTopDp: Dp,
     interludeTopDp: Dp,
-    translationTopDp: Dp
+    translationTopDp: Dp,
+    partsEntry: Boolean = false
 ) {
     val pvPos = positionMs + lyricOffsetMs
     val pvIndex = lines.indexOfLast { it.timeMs <= pvPos }
@@ -2054,6 +2157,7 @@ fun LyricsPvLayer(
                         effectKind = pvKindFor(exIdx, exText),
                         lineDurationMs = lines.getOrNull(exIdx + 1)?.let { it.timeMs - lines[exIdx].timeMs } ?: Long.MAX_VALUE,
                         startsInParen = pvStartsInParen(lines, exIdx),
+                        partsEntry = partsEntry,
                         modifier = Modifier.padding(top = pvTopDp)
                     )
                 }
@@ -2072,6 +2176,7 @@ fun LyricsPvLayer(
                                 exiting = false,
                                 words = lines[curIdx].words,
                                 lineStartMs = lines[curIdx].timeMs,
+                                partsEntry = partsEntry,
                                 effectKind = pvKindFor(curIdx, curText),
                                 lineDurationMs = lines.getOrNull(curIdx + 1)?.let { it.timeMs - lines[curIdx].timeMs } ?: Long.MAX_VALUE,
                                 startsInParen = pvStartsInParen(lines, curIdx),
@@ -2489,7 +2594,8 @@ fun LyricsFullscreenOverlay(
     artist: String,
     album: String,
     onClose: () -> Unit
-) {
+,
+    partsEntry: Boolean = false) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize().zIndex(96f)) {
         val fsWidth = maxWidth.value
         val fsLines = lines ?: emptyList()
@@ -2589,6 +2695,7 @@ fun LyricsFullscreenOverlay(
                                 bigText = true,
                                 lineDurationMs = fsLines.getOrNull(exIdx + 1)?.let { it.timeMs - fsLines[exIdx].timeMs } ?: Long.MAX_VALUE,
                                 startsInParen = pvStartsInParen(fsLines, exIdx),
+                                partsEntry = partsEntry,
                                 exiting = true,
                                 effectKind = Math.floorMod(Math.floorMod(exIdx * 31 + exText.hashCode(), 997), 8),
                                 modifier = Modifier
@@ -2607,6 +2714,7 @@ fun LyricsFullscreenOverlay(
                                 bigText = true,
                                 lineDurationMs = fsLines.getOrNull(curIdx + 1)?.let { it.timeMs - fsLines[curIdx].timeMs } ?: Long.MAX_VALUE,
                                 startsInParen = pvStartsInParen(fsLines, curIdx),
+                                partsEntry = partsEntry,
                                 exiting = false,
                                 words = fsLines[curIdx].words,
                                 lineStartMs = fsLines[curIdx].timeMs,
