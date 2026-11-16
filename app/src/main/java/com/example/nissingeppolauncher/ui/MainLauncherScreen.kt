@@ -126,8 +126,9 @@ fun MainLauncherScreen() {
     // アートワーク連動カラー: 設定でONのとき、再生中セッションのアートワークから
     // アクセント色（前景）と背景色を抽出してテーマカラーにする
     var matchArtwork by remember { mutableStateOf(repo.prefManager.isMatchArtworkColor()) }
-    var blurArtworkBg by remember { mutableStateOf(repo.prefManager.isBlurArtworkBackground()) }
-    var artworkBgStyle by remember { mutableStateOf(repo.prefManager.getArtworkBackgroundStyle()) }
+    var bgMode by remember { mutableStateOf(repo.prefManager.getBackgroundMode()) }
+    // 背景にアートワークを使うモードか（壁紙モード以外）。単色/ぼかしは WallpaperBackground 側の style で切り替える
+    val useArtworkBg = bgMode != "wallpaper"
     var liquidBackground by remember { mutableStateOf(repo.prefManager.isLiquidBackgroundEnabled()) }
     var homeDiscLayout by remember { mutableStateOf(repo.prefManager.getHomeDiscLayout()) }
     var dateDisplayMode by remember { mutableStateOf(repo.prefManager.getDateDisplayMode()) }
@@ -311,8 +312,8 @@ fun MainLauncherScreen() {
     }
 
     // 再生中セッションのアートワークを定期取得する（ホームの音楽ウィジェットと同じ方式）
-    LaunchedEffect(matchArtwork, blurArtworkBg) {
-        if (!matchArtwork && !blurArtworkBg) {
+    LaunchedEffect(matchArtwork, useArtworkBg) {
+        if (!matchArtwork && !useArtworkBg) {
             sessionAlbumArt = null
             return@LaunchedEffect
         }
@@ -349,9 +350,9 @@ fun MainLauncherScreen() {
             delay(1500)
         }
     }
-    LaunchedEffect(sessionAlbumArt, matchArtwork, blurArtworkBg) {
+    LaunchedEffect(sessionAlbumArt, matchArtwork, useArtworkBg) {
         val art = sessionAlbumArt
-        if ((matchArtwork || blurArtworkBg) && art != null) {
+        if ((matchArtwork || useArtworkBg) && art != null) {
             val (fg, bg) = withContext(Dispatchers.Default) { extractArtworkColors(art) }
             artworkAccent = fg
             artworkBackground = bg
@@ -394,8 +395,7 @@ fun MainLauncherScreen() {
     LaunchedEffect(currentLauncherPage) {
         accentHex = repo.prefManager.getAccentColorHex()
         matchArtwork = repo.prefManager.isMatchArtworkColor()
-        blurArtworkBg = repo.prefManager.isBlurArtworkBackground()
-        artworkBgStyle = repo.prefManager.getArtworkBackgroundStyle()
+        bgMode = repo.prefManager.getBackgroundMode()
         homeDiscLayout = repo.prefManager.getHomeDiscLayout()
         liquidBackground = repo.prefManager.isLiquidBackgroundEnabled()
         dateDisplayMode = repo.prefManager.getDateDisplayMode()
@@ -674,9 +674,9 @@ fun MainLauncherScreen() {
                 customPath = customBackgroundPath,
                 updateKey = backgroundUpdateKey,
                 isHome = (currentLauncherPage == 1),
-                currentAlbumArt = if (matchArtwork || blurArtworkBg) sessionAlbumArt else null,
-                dynamicBackground = if (matchArtwork || blurArtworkBg) artworkBackground else null,
-                artworkBackgroundStyle = artworkBgStyle,
+                currentAlbumArt = if (matchArtwork || useArtworkBg) sessionAlbumArt else null,
+                dynamicBackground = if (matchArtwork || useArtworkBg) artworkBackground else null,
+                artworkBackgroundStyle = if (bgMode == "artwork_blur") "blur" else "solid",
                 liquidEnabled = liquidBackground,
                 liquidAccent = accentColor
             )
