@@ -27,6 +27,12 @@ import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.example.nissingeppolauncher.data.AppPreferenceManager
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.TextPaint
+import android.text.style.MetricAffectingSpan
+import androidx.core.content.res.ResourcesCompat
+import com.example.nissingeppolauncher.R
 import com.example.nissingeppolauncher.data.LyricLine
 import com.example.nissingeppolauncher.data.LyricsManager
 import kotlinx.coroutines.CoroutineScope
@@ -133,13 +139,12 @@ class LyricsOverlayService : Service() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            background = ColorDrawable(Color.argb(165, 6, 8, 14))
+            background = ColorDrawable(Color.argb(246, 6, 8, 14))
             setPadding(dp(10f), 0, dp(8f), 0)
         }
         val clock = TextView(this).apply {
             setTextColor(Color.WHITE)
             textSize = 12.5f
-            typeface = Typeface.DEFAULT_BOLD
             includeFontPadding = false
             setShadowLayer(4f, 0f, 0f, Color.argb(160, 0, 0, 0))
         }
@@ -183,6 +188,7 @@ class LyricsOverlayService : Service() {
         try {
             wm.addView(root, params)
             attached = true
+            applyFonts()
             root.visibility = View.INVISIBLE
             root.requestApplyInsets()
         } catch (e: Exception) {
@@ -207,7 +213,7 @@ class LyricsOverlayService : Service() {
 
     private fun updateVisibility() {
         val root = overlayRoot ?: return
-        val show = statusBarVisible && currentLine.isNotBlank()
+        val show = statusBarVisible && !launcherInForeground && currentLine.isNotBlank()
         val target = if (show) View.VISIBLE else View.INVISIBLE
         if (root.visibility != target) root.visibility = target
     }
@@ -217,6 +223,7 @@ class LyricsOverlayService : Service() {
         serviceScope.launch {
             while (true) {
                 clockView?.text = format.format(Date())
+                applyFonts()
                 delay(5000)
             }
         }
@@ -331,17 +338,90 @@ class LyricsOverlayService : Service() {
         }
     }
 
+    // フォント選択（UIフォント／歌詞フォント／英字フォント）をネイティブ Typeface に解決する
+    private fun typefaceForChoice(choice: String, customPath: String?): Typeface? {
+        return try {
+            when (choice) {
+                "receipt" -> ResourcesCompat.getFont(this, R.font.receipt_font)
+                "denkichip" -> ResourcesCompat.getFont(this, R.font.denkichip_font)
+                "tsukuhou" -> ResourcesCompat.getFont(this, R.font.tsukuhou_font)
+                "kaibunsho" -> ResourcesCompat.getFont(this, R.font.kaibunsyo_font)
+                "freelicense" -> ResourcesCompat.getFont(this, R.font.free_license)
+                "montserratbi" -> ResourcesCompat.getFont(this, R.font.montserrat_bold_italic)
+                "custom" -> customPath?.let { Typeface.createFromFile(it) }
+                else -> null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private var appliedFontKey: String? = null
+    private var lyricTypeface: Typeface = Typeface.DEFAULT
+    private var enTypeface: Typeface? = null
+
+    // 時計=UIフォント、歌詞=歌詞フォント（英字は英字フォント設定があればその部分だけ差し替える）
+    private fun applyFonts() {
+        val clock = clockView ?: return
+        val lyric = lyricView ?: return
+        val pref = AppPreferenceManager(this)
+        val uiChoice = pref.getFontChoice()
+        val lyricChoice = pref.getLyricsPvFont()
+        val enChoice = pref.getLyricsEnFont()
+        val bold = pref.isLyricsBold()
+        val key = "$uiChoice|$lyricChoice|$enChoice|$bold|${pref.getCustomFontPath()}|${pref.getLyricsEnCustomFontPath()}"
+        if (key == appliedFontKey) return
+        appliedFontKey = key
+        clock.typeface = typefaceForChoice(uiChoice, pref.getCustomFontPath()) ?: Typeface.DEFAULT_BOLD
+        val base = typefaceForChoice(lyricChoice, pref.getCustomFontPath()) ?: Typeface.DEFAULT
+        lyricTypeface = if (bold) Typeface.create(base, Typeface.BOLD) else base
+        lyric.typeface = lyricTypeface
+        enTypeface = if (enChoice == "same") null else typefaceForChoice(enChoice, pref.getLyricsEnCustomFontPath())
+        shownLine?.let { lyric.text = styledLine(it) }
+    }
+
+    private class OverlayTypefaceSpan(private val tf: Typeface) : MetricAffectingSpan() {
+        override fun updateDrawState(ds: TextPaint) {
+            ds.typeface = tf
+        }
+
+        override fun updateMeasureState(p: TextPaint) {
+            p.typeface = tf
+        }
+    }
+
+    // 英字フォントが別指定のとき、半角英数字の範囲だけそのフォントで描く
+    private fun styledLine(line: String): CharSequence {
+        val en = enTypeface ?: return line
+        if (line.none { it in ' '..'~' }) return line
+        val sp = SpannableString(line)
+        var i = 0
+        while (i < line.length) {
+            if (line[i] in ' '..'~') {
+                var j = i
+                while (j < line.length && line[j] in ' '..'~') j++
+                sp.setSpan(OverlayTypefaceSpan(en), i, j, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                i = j
+            } else i++
+        }
+        return sp
+    }
+
     private fun showLine(line: String) {
         val view = lyricView ?: return
         if (shownLine == line) return
         shownLine = line
         view.animate().alpha(0f).setDuration(110).withEndAction {
-            view.text = line
+            view.text = styledLine(line)
             view.animate().alpha(1f).setDuration(160).start()
         }.start()
     }
 
     companion object {
+        // ランチャー本体が前面にいる間はオーバーレイを隠す（本体側で同じ歌詞が見えているため）
+        @Volatile
+        var launcherInForeground: Boolean = false
+
         fun start(context: Context) {
             try {
                 val intent = Intent(context, LyricsOverlayService::class.java)
