@@ -1425,8 +1425,8 @@ fun PvLyricLine(
                 while (runEnd < rowUnitTexts.size && rowUnitTexts[runEnd] == t) runEnd++
                 val runLen = runEnd - runStart
                 val ch = t.singleOrNull()
-                // ひらがな・カタカナは「ささくれ」のような通常語の誤爆を避けるため3連続から。それ以外は2連続から
-                val need = if (ch != null && (ch in 'ぁ'..'ゟ' || ch in 'ァ'..'ヶ')) 3 else 2
+                // 四字熟語（堂々・戦々恐々など）や通常語の誤反応を避けるため、文字の種類を問わず3連続から対象にする
+                val need = 3
                 if (runLen >= need && ch != null && !ch.isWhitespace() && ch !in "。、・…‥！？!?ー") {
                     for (k in runStart until runEnd) {
                         repeatIdxArr[k] = k - runStart
@@ -1466,13 +1466,9 @@ fun PvLyricLine(
                         cursor = probe + blockLen
                     }
                     val occ = starts.size
-                    if (occ < 2) continue
-                    // 型の判定: 漢字を含む型（痛み等）は2文字でも2回から対象。
-                    // かなだけの型は、2文字だと1単語に見える（きらきら・キラキラ等）ので3回から。3文字以上（ズキリ等）なら2回から
-                    val blockText = block.joinToString("")
-                    val hasKanji = blockText.any { it in '一'..'鿿' || it == '々' }
-                    val allKana = blockText.all { it in 'ぁ'..'ゟ' || it in 'ァ'..'ヶ' || it == 'ー' }
-                    if (!hasKanji && allKana && blockText.length <= 2 && occ < 3) continue
+                    // 2回だけの繰り返しは、四字熟語やオノマトペの定型（ABAB）と区別がつかないため対象外。
+                    // 強調の繰り返しとして扱うのは3回以上だけにする
+                    if (occ < 3) continue
                     val spanEnd = cursor
                     // 型の途中に、すでに1文字連続で割り当て済みのユニットが混ざっていたらやめる
                     if ((s until spanEnd).any { repeatLenArr[it] > 0 }) continue
