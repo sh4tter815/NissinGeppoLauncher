@@ -15,6 +15,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -51,7 +52,8 @@ fun MusicVinylWidget(
     discCenterYDp: Float,
     discRadiusDp: Float = 165f,
     accentColor: Color = Color(0xFFE53935),
-    textStartAngle: Float = -90f
+    textStartAngle: Float = -90f,
+    artworkTilt3d: Boolean = false
 ) {
     val context = LocalContext.current
     val prefManager = remember { AppPreferenceManager(context) }
@@ -291,6 +293,16 @@ fun MusicVinylWidget(
                     radius = outerRadius,
                     center = center,
                     style = Stroke(width = 1.5f)
+                )
+            }
+
+            // 薄い立体感: アートワークの下に暗い円を少しずらして敷き、盤の厚みとして見せる
+            if (artworkTilt3d && albumArtBitmap != null) {
+                Box(
+                    modifier = Modifier
+                        .size((discRadiusDp * 2f * 0.92f).dp)
+                        .offset(y = 3.5.dp)
+                        .background(Color.Black.copy(alpha = 0.45f), CircleShape)
                 )
             }
 

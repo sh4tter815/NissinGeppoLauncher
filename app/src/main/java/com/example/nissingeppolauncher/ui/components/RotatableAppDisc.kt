@@ -19,6 +19,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerInputChange
@@ -60,7 +62,8 @@ fun RotatableAppDisc(
     selectedPackages: Set<String>? = null,
     onAppClick: (AppInfo) -> Unit,
     onLongClick: (AppInfo) -> Unit,
-    onHoldingChanged: (Boolean) -> Unit = {}
+    onHoldingChanged: (Boolean) -> Unit = {},
+    iconTilt3d: Boolean = false
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val prefManager = remember { com.example.nissingeppolauncher.data.AppPreferenceManager(context) }
@@ -431,6 +434,17 @@ private fun RenderDiscItem(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
+                    if (iconTilt3d) {
+                        // 薄い立体感: アイコンの真下に黒いシルエットを少しずらして敷き、厚みとして見せる
+                        Image(
+                            bitmap = iconBitmap,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size((iconSizeDp - 4f).coerceAtLeast(12f).dp)
+                                .offset(y = 2.5.dp),
+                            colorFilter = ColorFilter.tint(Color.Black.copy(alpha = 0.38f), BlendMode.SrcIn)
+                        )
+                    }
                     Image(
                         bitmap = iconBitmap,
                         contentDescription = null,
