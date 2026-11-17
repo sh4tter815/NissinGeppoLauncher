@@ -12,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
@@ -213,6 +214,118 @@ fun FontSelectionSection(
     }
 }
 
+
+// 3択などの選択肢を、イラスト付きのカードで選ぶための部品
+@Composable
+fun ChoiceIllustration(kind: String, accentColor: Color, selected: Boolean) {
+    Canvas(modifier = Modifier.size(40.dp)) {
+        val w = size.width
+        val h = size.height
+        val ink = Color.White.copy(alpha = 0.9f)
+        val thin = Stroke(width = w * 0.05f)
+        when (kind) {
+            "disc_classic" -> {
+                drawCircle(color = accentColor, radius = w * 0.19f, center = Offset(w * 0.30f, h * 0.50f))
+                drawCircle(color = ink, radius = w * 0.19f, center = Offset(w * 0.70f, h * 0.50f))
+            }
+            "disc_artwork" -> {
+                drawCircle(color = accentColor, radius = w * 0.26f, center = Offset(w * 0.36f, h * 0.50f))
+                drawCircle(color = ink, radius = w * 0.12f, center = Offset(w * 0.78f, h * 0.50f))
+            }
+            "disc_auto" -> {
+                drawCircle(color = accentColor, radius = w * 0.25f, center = Offset(w * 0.38f, h * 0.50f))
+                val tri = Path()
+                tri.moveTo(w * 0.31f, h * 0.37f)
+                tri.lineTo(w * 0.31f, h * 0.63f)
+                tri.lineTo(w * 0.52f, h * 0.50f)
+                tri.close()
+                drawPath(path = tri, color = Color(0xFF101728))
+                drawCircle(color = ink, radius = w * 0.11f, center = Offset(w * 0.79f, h * 0.50f))
+            }
+            "date_sideways" -> {
+                drawCircle(color = ink, radius = w * 0.20f, center = Offset(w * 0.33f, h * 0.50f), style = thin)
+                drawLine(color = ink, start = Offset(w * 0.33f, h * 0.50f), end = Offset(w * 0.33f, h * 0.37f), strokeWidth = w * 0.05f, cap = StrokeCap.Round)
+                drawLine(color = ink, start = Offset(w * 0.33f, h * 0.50f), end = Offset(w * 0.43f, h * 0.55f), strokeWidth = w * 0.05f, cap = StrokeCap.Round)
+                drawCircle(color = accentColor, radius = w * 0.045f, center = Offset(w * 0.72f, h * 0.27f))
+                drawCircle(color = accentColor, radius = w * 0.045f, center = Offset(w * 0.72f, h * 0.50f))
+                drawCircle(color = accentColor, radius = w * 0.045f, center = Offset(w * 0.72f, h * 0.73f))
+            }
+            "date_under" -> {
+                drawCircle(color = ink, radius = w * 0.17f, center = Offset(w * 0.50f, h * 0.36f), style = thin)
+                drawLine(color = ink, start = Offset(w * 0.50f, h * 0.36f), end = Offset(w * 0.50f, h * 0.26f), strokeWidth = w * 0.05f, cap = StrokeCap.Round)
+                drawLine(color = ink, start = Offset(w * 0.50f, h * 0.36f), end = Offset(w * 0.58f, h * 0.40f), strokeWidth = w * 0.05f, cap = StrokeCap.Round)
+                drawLine(color = accentColor, start = Offset(w * 0.28f, h * 0.68f), end = Offset(w * 0.72f, h * 0.68f), strokeWidth = w * 0.06f, cap = StrokeCap.Round)
+                drawLine(color = ink, start = Offset(w * 0.36f, h * 0.82f), end = Offset(w * 0.64f, h * 0.82f), strokeWidth = w * 0.06f, cap = StrokeCap.Round)
+            }
+            "date_auto" -> {
+                drawCircle(color = ink, radius = w * 0.18f, center = Offset(w * 0.36f, h * 0.40f), style = thin)
+                drawLine(color = ink, start = Offset(w * 0.36f, h * 0.40f), end = Offset(w * 0.36f, h * 0.29f), strokeWidth = w * 0.05f, cap = StrokeCap.Round)
+                drawLine(color = ink, start = Offset(w * 0.36f, h * 0.40f), end = Offset(w * 0.45f, h * 0.45f), strokeWidth = w * 0.05f, cap = StrokeCap.Round)
+                drawLine(color = accentColor, start = Offset(w * 0.56f, h * 0.70f), end = Offset(w * 0.84f, h * 0.70f), strokeWidth = w * 0.05f, cap = StrokeCap.Round)
+                drawLine(color = accentColor, start = Offset(w * 0.84f, h * 0.70f), end = Offset(w * 0.74f, h * 0.61f), strokeWidth = w * 0.05f, cap = StrokeCap.Round)
+                drawLine(color = accentColor, start = Offset(w * 0.84f, h * 0.86f), end = Offset(w * 0.56f, h * 0.86f), strokeWidth = w * 0.05f, cap = StrokeCap.Round)
+                drawLine(color = accentColor, start = Offset(w * 0.56f, h * 0.86f), end = Offset(w * 0.66f, h * 0.77f), strokeWidth = w * 0.05f, cap = StrokeCap.Round)
+            }
+            "bg_wallpaper" -> {
+                drawRoundRect(color = ink, topLeft = Offset(w * 0.13f, h * 0.17f), size = Size(w * 0.74f, h * 0.66f), cornerRadius = CornerRadius(w * 0.06f, w * 0.06f), style = thin)
+                drawCircle(color = accentColor, radius = w * 0.08f, center = Offset(w * 0.68f, h * 0.35f))
+                val m1 = Path()
+                m1.moveTo(w * 0.20f, h * 0.75f)
+                m1.lineTo(w * 0.42f, h * 0.45f)
+                m1.lineTo(w * 0.58f, h * 0.75f)
+                m1.close()
+                drawPath(path = m1, color = ink.copy(alpha = 0.85f))
+                val m2 = Path()
+                m2.moveTo(w * 0.48f, h * 0.75f)
+                m2.lineTo(w * 0.64f, h * 0.53f)
+                m2.lineTo(w * 0.80f, h * 0.75f)
+                m2.close()
+                drawPath(path = m2, color = ink.copy(alpha = 0.6f))
+            }
+            "bg_solid" -> {
+                drawRoundRect(color = accentColor, topLeft = Offset(w * 0.16f, h * 0.20f), size = Size(w * 0.68f, h * 0.60f), cornerRadius = CornerRadius(w * 0.06f, w * 0.06f))
+            }
+            "bg_blur" -> {
+                drawCircle(color = accentColor.copy(alpha = 0.45f), radius = w * 0.20f, center = Offset(w * 0.38f, h * 0.42f))
+                drawCircle(color = ink.copy(alpha = 0.35f), radius = w * 0.20f, center = Offset(w * 0.62f, h * 0.42f))
+                drawCircle(color = Color(0xFF9AA0A6).copy(alpha = 0.40f), radius = w * 0.20f, center = Offset(w * 0.50f, h * 0.63f))
+            }
+        }
+    }
+}
+
+@Composable
+fun IllustratedChoiceCard(
+    kind: String,
+    label: String,
+    selected: Boolean,
+    accentColor: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Surface(
+        color = if (selected) accentColor.copy(alpha = 0.25f) else Color(0xFF1F293D),
+        shape = RoundedCornerShape(16.dp),
+        border = if (selected) BorderStroke(1.5.dp, accentColor) else null,
+        modifier = modifier.height(84.dp).clickable { onClick() }
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+        ) {
+            ChoiceIllustration(kind = kind, accentColor = accentColor, selected = selected)
+            Spacer(modifier = Modifier.height(5.dp))
+            Text(
+                text = label,
+                color = if (selected) Color.White else Color.White.copy(alpha = 0.7f),
+                fontSize = 11.5.sp,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                maxLines = 1
+            )
+        }
+    }
+}
 
 // 設定トップのカテゴリ行に付ける小さなイラスト（Canvas の簡単な線画）
 @Composable
@@ -1077,30 +1190,20 @@ fun SettingsScreen(
                                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
                                             listOf(
-                                                "classic" to "従来（均等）",
-                                                "artwork" to "アートワーク大きめ",
-                                                "auto" to "自動"
-                                            ).forEach { (layoutId, label) ->
-                                                val isSelected = homeDiscLayout == layoutId
-                                                Box(
-                                                    modifier = Modifier
-                                                        .weight(1f)
-                                                        .height(40.dp)
-                                                        .clip(RoundedCornerShape(12.dp))
-                                                        .background(if (isSelected) currentAccentColor else Color(0xFF1F293D))
-                                                        .clickable {
-                                                            homeDiscLayout = layoutId
-                                                            repo.prefManager.setHomeDiscLayout(layoutId)
-                                                            onChanged()
-                                                        },
-                                                    contentAlignment = Alignment.Center
+                                                Triple("classic", "従来（均等）", "disc_classic"),
+                                                Triple("artwork", "アートワーク大きめ", "disc_artwork"),
+                                                Triple("auto", "自動", "disc_auto")
+                                            ).forEach { (value, label, illo) ->
+                                                IllustratedChoiceCard(
+                                                    kind = illo,
+                                                    label = label,
+                                                    selected = homeDiscLayout == value,
+                                                    accentColor = currentAccentColor,
+                                                    modifier = Modifier.weight(1f)
                                                 ) {
-                                                    Text(
-                                                        text = label,
-                                                        color = Color.White,
-                                                        fontSize = 13.sp,
-                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                                    )
+                                                    homeDiscLayout = value
+                                                    repo.prefManager.setHomeDiscLayout(value)
+                                                    onChanged()
                                                 }
                                             }
                                         }
@@ -1128,30 +1231,20 @@ fun SettingsScreen(
                                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
                                             listOf(
-                                                "sideways" to "常時縦",
-                                                "under" to "常時横",
-                                                "auto" to "切り替え"
-                                            ).forEach { (modeId, label) ->
-                                                val isSelected = dateDisplayMode == modeId
-                                                Box(
-                                                    modifier = Modifier
-                                                        .weight(1f)
-                                                        .height(40.dp)
-                                                        .clip(RoundedCornerShape(12.dp))
-                                                        .background(if (isSelected) currentAccentColor else Color(0xFF1F293D))
-                                                        .clickable {
-                                                            dateDisplayMode = modeId
-                                                            repo.prefManager.setDateDisplayMode(modeId)
-                                                            onChanged()
-                                                        },
-                                                    contentAlignment = Alignment.Center
+                                                Triple("sideways", "常時縦", "date_sideways"),
+                                                Triple("under", "常時横", "date_under"),
+                                                Triple("auto", "切り替え", "date_auto")
+                                            ).forEach { (value, label, illo) ->
+                                                IllustratedChoiceCard(
+                                                    kind = illo,
+                                                    label = label,
+                                                    selected = dateDisplayMode == value,
+                                                    accentColor = currentAccentColor,
+                                                    modifier = Modifier.weight(1f)
                                                 ) {
-                                                    Text(
-                                                        text = label,
-                                                        color = Color.White,
-                                                        fontSize = 13.sp,
-                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                                    )
+                                                    dateDisplayMode = value
+                                                    repo.prefManager.setDateDisplayMode(value)
+                                                    onChanged()
                                                 }
                                             }
                                         }
@@ -1180,23 +1273,23 @@ fun SettingsScreen(
                                         }
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            verticalAlignment = Alignment.CenterVertically
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            listOf("wallpaper" to "壁紙", "artwork_solid" to "単色", "artwork_blur" to "ぼかし").forEach { (value, label) ->
-                                                val selectedChip = bgMode == value
-                                                Box(
-                                                    modifier = Modifier
-                                                        .clip(RoundedCornerShape(50))
-                                                        .background(if (selectedChip) currentAccentColor else Color(0xFF1B2438))
-                                                        .clickable {
-                                                            bgMode = value
-                                                            repo.prefManager.setBackgroundMode(value)
-                                                            onChanged()
-                                                        }
-                                                        .padding(horizontal = 14.dp, vertical = 7.dp)
+                                            listOf(
+                                                Triple("wallpaper", "壁紙", "bg_wallpaper"),
+                                                Triple("artwork_solid", "単色", "bg_solid"),
+                                                Triple("artwork_blur", "ぼかし", "bg_blur")
+                                            ).forEach { (value, label, illo) ->
+                                                IllustratedChoiceCard(
+                                                    kind = illo,
+                                                    label = label,
+                                                    selected = bgMode == value,
+                                                    accentColor = currentAccentColor,
+                                                    modifier = Modifier.weight(1f)
                                                 ) {
-                                                    Text(label, color = if (selectedChip) Color.White else Color.Gray, fontSize = 12.sp)
+                                                    bgMode = value
+                                                    repo.prefManager.setBackgroundMode(value)
+                                                    onChanged()
                                                 }
                                             }
                                         }
