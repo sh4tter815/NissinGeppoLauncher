@@ -3152,6 +3152,26 @@ fun LyricsBrowseOverlay(
             val isFocusedLine = idx == focusedIdx
             val fade = (1f - (abs(relPos) - 4f) / 3f).coerceIn(0f, 1f)
             val myHeightDp = (lineHeightsPx[idx]?.let { it / densityNow.density } ?: 34f)
+            if (isFocusedLine) {
+                // 「移動」ボタンは選択中の行の横に置く（下段のボタン列を空けて翻訳ボタンを収めるため）
+                Box(
+                    modifier = Modifier
+                        .offset(
+                            x = (browseWidthDp - 82f).dp,
+                            y = (centerYDp + offsetDpFor(idx) - 19f).dp
+                        )
+                        .zIndex(95f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(accentColor)
+                        .clickable {
+                            onSeek((lines[idx].timeMs - lyricOffsetMs).coerceAtLeast(0L))
+                            onClose()
+                        }
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                ) {
+                    Text("移動", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                }
+            }
             Column(
                 modifier = Modifier
                     .offset(
@@ -3209,7 +3229,6 @@ fun LyricsBrowseOverlay(
         }
     }
     // 下部ボタン: 移動（フォーカス行へジャンプ）／タイミング調整／閉じる
-    val focusedLineForButtons = lines.getOrNull(focusedIdx)
     Box(
         modifier = Modifier
             .align(Alignment.TopEnd)
@@ -3348,21 +3367,6 @@ fun LyricsBrowseOverlay(
                 ) {
                     Icon(Icons.Default.Edit, contentDescription = "歌詞を編集", tint = Color.White, modifier = Modifier.size(24.dp))
                 }
-            }
-            // 中央: フォーカス行へ移動
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(accentColor)
-                    .clickable {
-                        if (focusedLineForButtons != null) {
-                            onSeek((focusedLineForButtons.timeMs - lyricOffsetMs).coerceAtLeast(0L))
-                        }
-                        onClose()
-                    }
-                    .padding(horizontal = 22.dp, vertical = 12.dp)
-            ) {
-                Text("移動", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
             }
             // 右: タイミング調整（オフセット）
             Box(
