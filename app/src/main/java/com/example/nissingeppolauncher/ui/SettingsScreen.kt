@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.geometry.CornerRadius
@@ -223,9 +224,14 @@ fun SettingsCategoryIcon(kind: String, accentColor: Color) {
         val thin = Stroke(width = w * 0.055f)
         when (kind) {
             "behavior" -> {
-                drawArc(color = accentColor, startAngle = -30f, sweepAngle = 250f, useCenter = false, topLeft = Offset(w * 0.14f, h * 0.14f), size = Size(w * 0.72f, h * 0.72f), style = thin)
-                drawLine(color = accentColor, start = Offset(w * 0.88f, h * 0.08f), end = Offset(w * 0.88f, h * 0.34f), strokeWidth = w * 0.055f, cap = StrokeCap.Round)
-                drawLine(color = accentColor, start = Offset(w * 0.88f, h * 0.24f), end = Offset(w * 0.66f, h * 0.15f), strokeWidth = w * 0.055f, cap = StrokeCap.Round)
+                // 左右で逆向きの2本矢印（スクロール方向・操作感のイメージ）
+                val lw = w * 0.06f
+                drawLine(color = accentColor, start = Offset(w * 0.16f, h * 0.35f), end = Offset(w * 0.76f, h * 0.35f), strokeWidth = lw, cap = StrokeCap.Round)
+                drawLine(color = accentColor, start = Offset(w * 0.76f, h * 0.35f), end = Offset(w * 0.60f, h * 0.21f), strokeWidth = lw, cap = StrokeCap.Round)
+                drawLine(color = accentColor, start = Offset(w * 0.76f, h * 0.35f), end = Offset(w * 0.60f, h * 0.49f), strokeWidth = lw, cap = StrokeCap.Round)
+                drawLine(color = ink, start = Offset(w * 0.84f, h * 0.65f), end = Offset(w * 0.24f, h * 0.65f), strokeWidth = lw, cap = StrokeCap.Round)
+                drawLine(color = ink, start = Offset(w * 0.24f, h * 0.65f), end = Offset(w * 0.40f, h * 0.51f), strokeWidth = lw, cap = StrokeCap.Round)
+                drawLine(color = ink, start = Offset(w * 0.24f, h * 0.65f), end = Offset(w * 0.40f, h * 0.79f), strokeWidth = lw, cap = StrokeCap.Round)
             }
             "appearance" -> {
                 drawCircle(color = accentColor, radius = w * 0.27f, center = Offset(w * 0.36f, h * 0.38f))
@@ -254,8 +260,12 @@ fun SettingsCategoryIcon(kind: String, accentColor: Color) {
             }
             else -> {
                 drawCircle(color = ink, radius = w * 0.36f, style = thin)
-                drawArc(color = ink, startAngle = -170f, sweepAngle = 210f, useCenter = false, topLeft = Offset(w * 0.36f, h * 0.24f), size = Size(w * 0.28f, h * 0.28f), style = thin)
-                drawCircle(color = ink, radius = w * 0.05f, center = Offset(w * 0.50f, h * 0.70f))
+                val q = Path()
+                q.moveTo(w * 0.38f, h * 0.37f)
+                q.cubicTo(w * 0.38f, h * 0.23f, w * 0.62f, h * 0.23f, w * 0.62f, h * 0.37f)
+                q.cubicTo(w * 0.62f, h * 0.49f, w * 0.50f, h * 0.50f, w * 0.50f, h * 0.61f)
+                drawPath(path = q, color = ink, style = Stroke(width = w * 0.055f, cap = StrokeCap.Round))
+                drawCircle(color = ink, radius = w * 0.045f, center = Offset(w * 0.50f, h * 0.73f))
             }
         }
     }
@@ -406,7 +416,6 @@ fun SettingsScreen(
         )
     }
     // 外観内のサブタブ ("wallpaper", "color", "font")
-    var appearanceSubTab by remember { mutableStateOf("wallpaper") }
 
     var customFontPath by remember { mutableStateOf(repo.prefManager.getCustomFontPath()) }
     var useCustomFont by remember { mutableStateOf(repo.prefManager.isUseCustomFont()) }
@@ -1155,335 +1164,312 @@ fun SettingsScreen(
                                 }
                             }
                             item {
-                                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                                    // 外観サブタブ選択
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                Surface(
+                                    color = Color(0x99101728),
+                                    shape = RoundedCornerShape(20.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(20.dp),
+                                        verticalArrangement = Arrangement.spacedBy(20.dp)
                                     ) {
-                                        listOf(
-                                            "wallpaper" to "壁紙",
-                                            "color" to "配色",
-                                            "font" to "フォント"
-                                        ).forEach { (tabId, label) ->
-                                            val isSelected = appearanceSubTab == tabId
-                                            Box(
-                                                modifier = Modifier
-                                                    .weight(1f)
-                                                    .height(40.dp)
-                                                    .clip(RoundedCornerShape(12.dp))
-                                                    .background(if (isSelected) currentAccentColor else Color(0x99101728))
-                                                    .clickable { appearanceSubTab = tabId },
-                                                contentAlignment = Alignment.Center
+                                        Text("壁紙画像", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Normal)
+                                        Column {
+                                            Text("背景の見せ方", color = Color.White, fontSize = 14.sp)
+                                            Text("アートワークを選ぶと、再生中は曲のアートワーク由来の背景になります", color = Color.Gray, fontSize = 12.sp)
+                                        }
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            listOf("wallpaper" to "壁紙", "artwork_solid" to "単色", "artwork_blur" to "ぼかし").forEach { (value, label) ->
+                                                val selectedChip = bgMode == value
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(50))
+                                                        .background(if (selectedChip) currentAccentColor else Color(0xFF1B2438))
+                                                        .clickable {
+                                                            bgMode = value
+                                                            repo.prefManager.setBackgroundMode(value)
+                                                            onChanged()
+                                                        }
+                                                        .padding(horizontal = 14.dp, vertical = 7.dp)
+                                                ) {
+                                                    Text(label, color = if (selectedChip) Color.White else Color.Gray, fontSize = 12.sp)
+                                                }
+                                            }
+                                        }
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text("液体グラデーション背景", color = Color.White, fontSize = 14.sp)
+                                                Text("壁紙がないときや再生中のアートワーク背景の上で、グラデーションがゆっくり動きます", color = Color.Gray, fontSize = 12.sp)
+                                            }
+                                            Switch(
+                                                checked = liquidBackground,
+                                                onCheckedChange = {
+                                                    liquidBackground = it
+                                                    repo.prefManager.setLiquidBackgroundEnabled(it)
+                                                    onChanged()
+                                                },
+                                                colors = switchColors
+                                            )
+                                        }
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Button(
+                                                onClick = { imagePickerLauncher.launch("image/*") },
+                                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F293D)),
+                                                elevation = null
                                             ) {
-                                                Text(
-                                                    text = label,
-                                                    color = Color.White,
-                                                    fontSize = 14.sp,
-                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                                )
+                                                Text("画像を選択", color = Color.White, fontWeight = FontWeight.Light)
+                                            }
+                                            if (backgroundPath != null) {
+                                                OutlinedButton(
+                                                    onClick = {
+                                                        repo.prefManager.setCustomBackgroundPath(null)
+                                                        backgroundPath = null
+                                                        onChanged()
+                                                    },
+                                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),
+                                                    border = null
+                                                ) {
+                                                    Text("解除", fontWeight = FontWeight.Light)
+                                                }
+                                            }
+                                        }
+
+                                        HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+
+                                        Column {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                Text("ホーム背景の明るさ", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Light)
+                                                Text("${((1f - wallpaperAlpha) * 100).toInt()}%", color = Color.LightGray, fontSize = 14.sp, fontWeight = FontWeight.Light)
+                                            }
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            SimpleTickSlider(
+                                                value = wallpaperAlpha,
+                                                onValueChange = {
+                                                    wallpaperAlpha = it
+                                                    repo.prefManager.setHomeWallpaperAlpha(it)
+                                                    onChanged()
+                                                },
+                                                valueRange = 0.05f..0.9f,
+                                                steps = 17,
+                                                accentColor = currentAccentColor
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            item {
+                                Surface(
+                                    color = Color(0x99101728),
+                                    shape = RoundedCornerShape(20.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(20.dp),
+                                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text("アートワークに合わせる", color = Color.White, fontSize = 14.sp)
+                                                Text("再生中の曲のアートワークから、アクセントと背景の色を自動で決めます", color = Color.Gray, fontSize = 12.sp)
+                                            }
+                                            Switch(
+                                                checked = matchArtwork,
+                                                onCheckedChange = {
+                                                    matchArtwork = it
+                                                    repo.prefManager.setMatchArtworkColor(it)
+                                                    onChanged()
+                                                },
+                                                colors = switchColors
+                                            )
+                                        }
+                                        Text("アクセントカラー", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Normal)
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            ACCENT_PRESETS.forEach { (_, hex) ->
+                                                val color = parseHexColor(hex)
+                                                val isSelected = accentHex.equals(hex, ignoreCase = true)
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(36.dp)
+                                                        .clip(CircleShape)
+                                                        .background(color)
+                                                        .clickable {
+                                                            accentHex = hex
+                                                            repo.prefManager.setAccentColorHex(hex)
+                                                            onChanged()
+                                                        },
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    if (isSelected) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(14.dp)
+                                                                .clip(CircleShape)
+                                                                .background(Color.White)
+                                                        )
+                                                    }
+                                                }
                                             }
                                         }
                                     }
-
-                                    // サブタブ内容
-                                    when (appearanceSubTab) {
-                                        "wallpaper" -> {
-                                            Surface(
-                                                color = Color(0x99101728),
-                                                shape = RoundedCornerShape(20.dp),
-                                                modifier = Modifier.fillMaxWidth()
-                                            ) {
-                                                Column(
-                                                    modifier = Modifier.padding(20.dp),
-                                                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                                }
+                            }
+                            item {
+                                Surface(
+                                    color = Color(0x99101728),
+                                    shape = RoundedCornerShape(20.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(20.dp),
+                                        verticalArrangement = Arrangement.spacedBy(20.dp)
+                                    ) {
+                                        FontPickerCard(
+                                            title = "UIフォント",
+                                            options = listOf(
+                                                "default" to "システムフォント",
+                                                "receipt" to "レシートフォント (Receipt Font)",
+                                                "denkichip" to "でんきチップ (DenkiChip)",
+                                                "tsukuhou" to "築豊明朝 (Tsukuhou Mincho)",
+                                                "kaibunsho" to "怪聞書フォント (Kaibunsho)",
+                                                "custom" to "カスタムフォント (.ttf/.otf)"
+                                            ),
+                                            selected = currentFontChoice,
+                                            accentColor = currentAccentColor,
+                                            expanded = fontPickerExpanded == "ui",
+                                            onToggle = { fontPickerExpanded = if (fontPickerExpanded == "ui") null else "ui" },
+                                            onSelected = { newChoice ->
+                                                currentFontChoice = newChoice
+                                                repo.prefManager.setFontChoice(newChoice)
+                                                useCustomFont = newChoice == "custom"
+                                                repo.prefManager.setUseCustomFont(newChoice == "custom")
+                                                onChanged()
+                                            },
+                                            fontFor = { key -> parseFontFamily(key, if (key == "custom") customFontPath else null) },
+                                            sampleText = "あア 12:34",
+                                            footer = {
+                                                Button(
+                                                    onClick = { fontPickerLauncher.launch("*/*") },
+                                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F293D)),
+                                                    modifier = Modifier.fillMaxWidth()
                                                 ) {
-                                                    Text("壁紙画像", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Normal)
-                                                    Column {
-                                                        Text("背景の見せ方", color = Color.White, fontSize = 14.sp)
-                                                        Text("アートワークを選ぶと、再生中は曲のアートワーク由来の背景になります", color = Color.Gray, fontSize = 12.sp)
-                                                    }
-                                                    Row(
-                                                        modifier = Modifier.fillMaxWidth(),
-                                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                        verticalAlignment = Alignment.CenterVertically
-                                                    ) {
-                                                        listOf("wallpaper" to "壁紙", "artwork_solid" to "単色", "artwork_blur" to "ぼかし").forEach { (value, label) ->
-                                                            val selectedChip = bgMode == value
-                                                            Box(
-                                                                modifier = Modifier
-                                                                    .clip(RoundedCornerShape(50))
-                                                                    .background(if (selectedChip) currentAccentColor else Color(0xFF1B2438))
-                                                                    .clickable {
-                                                                        bgMode = value
-                                                                        repo.prefManager.setBackgroundMode(value)
-                                                                        onChanged()
-                                                                    }
-                                                                    .padding(horizontal = 14.dp, vertical = 7.dp)
-                                                            ) {
-                                                                Text(label, color = if (selectedChip) Color.White else Color.Gray, fontSize = 12.sp)
-                                                            }
-                                                        }
-                                                    }
-                                                    Row(
-                                                        modifier = Modifier.fillMaxWidth(),
-                                                        verticalAlignment = Alignment.CenterVertically
-                                                    ) {
-                                                        Column(modifier = Modifier.weight(1f)) {
-                                                            Text("液体グラデーション背景", color = Color.White, fontSize = 14.sp)
-                                                            Text("壁紙がないときや再生中のアートワーク背景の上で、グラデーションがゆっくり動きます", color = Color.Gray, fontSize = 12.sp)
-                                                        }
-                                                        Switch(
-                                                            checked = liquidBackground,
-                                                            onCheckedChange = {
-                                                                liquidBackground = it
-                                                                repo.prefManager.setLiquidBackgroundEnabled(it)
-                                                                onChanged()
-                                                            },
-                                                            colors = switchColors
-                                                        )
-                                                    }
-                                                    Row(
-                                                        modifier = Modifier.fillMaxWidth(),
-                                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                                        verticalAlignment = Alignment.CenterVertically
-                                                    ) {
-                                                        Button(
-                                                            onClick = { imagePickerLauncher.launch("image/*") },
-                                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F293D)),
-                                                            elevation = null
-                                                        ) {
-                                                            Text("画像を選択", color = Color.White, fontWeight = FontWeight.Light)
-                                                        }
-                                                        if (backgroundPath != null) {
-                                                            OutlinedButton(
-                                                                onClick = {
-                                                                    repo.prefManager.setCustomBackgroundPath(null)
-                                                                    backgroundPath = null
-                                                                    onChanged()
-                                                                },
-                                                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),
-                                                                border = null
-                                                            ) {
-                                                                Text("解除", fontWeight = FontWeight.Light)
-                                                            }
-                                                        }
-                                                    }
-
-                                                    HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
-
-                                                    Column {
-                                                        Row(
-                                                            modifier = Modifier.fillMaxWidth(),
-                                                            horizontalArrangement = Arrangement.SpaceBetween
-                                                        ) {
-                                                            Text("ホーム背景の明るさ", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Light)
-                                                            Text("${((1f - wallpaperAlpha) * 100).toInt()}%", color = Color.LightGray, fontSize = 14.sp, fontWeight = FontWeight.Light)
-                                                        }
-                                                        Spacer(modifier = Modifier.height(8.dp))
-                                                        SimpleTickSlider(
-                                                            value = wallpaperAlpha,
-                                                            onValueChange = {
-                                                                wallpaperAlpha = it
-                                                                repo.prefManager.setHomeWallpaperAlpha(it)
-                                                                onChanged()
-                                                            },
-                                                            valueRange = 0.05f..0.9f,
-                                                            steps = 17,
-                                                            accentColor = currentAccentColor
-                                                        )
-                                                    }
+                                                    Text("フォントファイル (.ttf / .otf) をインポート", color = Color.White, fontWeight = FontWeight.Light)
                                                 }
                                             }
+                                        )
+
+                                        HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
+
+                                        // 1. アイコンサイズ
+                                        Column {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                Text("アイコンサイズ", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Light)
+                                                Text("${iconSize.toInt()} dp", color = Color.LightGray, fontSize = 14.sp, fontWeight = FontWeight.Light)
+                                            }
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            SimpleTickSlider(
+                                                value = iconSize,
+                                                onValueChange = {
+                                                    iconSize = it
+                                                    repo.prefManager.setAppDiscIconSizeDp(it)
+                                                    onChanged()
+                                                },
+                                                valueRange = 16f..32f,
+                                                steps = 15,
+                                                accentColor = currentAccentColor
+                                            )
                                         }
-                                        "color" -> {
-                                            Surface(
-                                                color = Color(0x99101728),
-                                                shape = RoundedCornerShape(20.dp),
-                                                modifier = Modifier.fillMaxWidth()
+
+                                        // 2. テキストサイズ
+                                        Column {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween
                                             ) {
-                                                Column(
-                                                    modifier = Modifier.padding(20.dp),
-                                                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                                                ) {
-                                                    Row(
-                                                        modifier = Modifier.fillMaxWidth(),
-                                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                                        verticalAlignment = Alignment.CenterVertically
-                                                    ) {
-                                                        Column(modifier = Modifier.weight(1f)) {
-                                                            Text("アートワークに合わせる", color = Color.White, fontSize = 14.sp)
-                                                            Text("再生中の曲のアートワークから、アクセントと背景の色を自動で決めます", color = Color.Gray, fontSize = 12.sp)
-                                                        }
-                                                        Switch(
-                                                            checked = matchArtwork,
-                                                            onCheckedChange = {
-                                                                matchArtwork = it
-                                                                repo.prefManager.setMatchArtworkColor(it)
-                                                                onChanged()
-                                                            },
-                                                            colors = switchColors
-                                                        )
-                                                    }
-                                                    Text("アクセントカラー", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Normal)
-                                                    Row(
-                                                        modifier = Modifier.fillMaxWidth(),
-                                                        horizontalArrangement = Arrangement.SpaceBetween
-                                                    ) {
-                                                        ACCENT_PRESETS.forEach { (_, hex) ->
-                                                            val color = parseHexColor(hex)
-                                                            val isSelected = accentHex.equals(hex, ignoreCase = true)
-                                                            Box(
-                                                                modifier = Modifier
-                                                                    .size(36.dp)
-                                                                    .clip(CircleShape)
-                                                                    .background(color)
-                                                                    .clickable {
-                                                                        accentHex = hex
-                                                                        repo.prefManager.setAccentColorHex(hex)
-                                                                        onChanged()
-                                                                    },
-                                                                contentAlignment = Alignment.Center
-                                                            ) {
-                                                                if (isSelected) {
-                                                                    Box(
-                                                                        modifier = Modifier
-                                                                            .size(14.dp)
-                                                                            .clip(CircleShape)
-                                                                            .background(Color.White)
-                                                                    )
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
+                                                Text("テキストサイズ", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Light)
+                                                Text("${textSize.toInt()} sp", color = Color.LightGray, fontSize = 14.sp, fontWeight = FontWeight.Light)
                                             }
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            SimpleTickSlider(
+                                                value = textSize,
+                                                onValueChange = {
+                                                    textSize = it
+                                                    repo.prefManager.setAppDiscTextSizeSp(it)
+                                                    onChanged()
+                                                },
+                                                valueRange = 12f..22f,
+                                                steps = 9,
+                                                accentColor = currentAccentColor
+                                            )
                                         }
-                                        "font" -> {
-                                            Surface(
-                                                color = Color(0x99101728),
-                                                shape = RoundedCornerShape(20.dp),
-                                                modifier = Modifier.fillMaxWidth()
+
+                                        // 3. 文字間隔
+                                        Column {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween
                                             ) {
-                                                Column(
-                                                    modifier = Modifier.padding(20.dp),
-                                                    verticalArrangement = Arrangement.spacedBy(20.dp)
-                                                ) {
-                                                    FontSelectionSection(
-                                                        currentFontChoice = currentFontChoice,
-                                                        onFontSelected = { newChoice ->
-                                                            currentFontChoice = newChoice
-                                                            repo.prefManager.setFontChoice(newChoice)
-                                                            useCustomFont = newChoice == "custom"
-                                                            repo.prefManager.setUseCustomFont(newChoice == "custom")
-                                                            onChanged()
-                                                        },
-                                                        onImportClick = { fontPickerLauncher.launch("*/*") },
-                                                        customFontPath = customFontPath,
-                                                        useCustomFont = useCustomFont,
-                                                        onUseCustomFontChanged = { use ->
-                                                            useCustomFont = use
-                                                            repo.prefManager.setUseCustomFont(use)
-                                                            onChanged()
-                                                        },
-                                                        switchColors = switchColors
-                                                    )
-
-                                                    HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
-
-                                                    // 1. アイコンサイズ
-                                                    Column {
-                                                        Row(
-                                                            modifier = Modifier.fillMaxWidth(),
-                                                            horizontalArrangement = Arrangement.SpaceBetween
-                                                        ) {
-                                                            Text("アイコンサイズ", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Light)
-                                                            Text("${iconSize.toInt()} dp", color = Color.LightGray, fontSize = 14.sp, fontWeight = FontWeight.Light)
-                                                        }
-                                                        Spacer(modifier = Modifier.height(6.dp))
-                                                        SimpleTickSlider(
-                                                            value = iconSize,
-                                                            onValueChange = {
-                                                                iconSize = it
-                                                                repo.prefManager.setAppDiscIconSizeDp(it)
-                                                                onChanged()
-                                                            },
-                                                            valueRange = 16f..32f,
-                                                            steps = 15,
-                                                            accentColor = currentAccentColor
-                                                        )
-                                                    }
-
-                                                    // 2. テキストサイズ
-                                                    Column {
-                                                        Row(
-                                                            modifier = Modifier.fillMaxWidth(),
-                                                            horizontalArrangement = Arrangement.SpaceBetween
-                                                        ) {
-                                                            Text("テキストサイズ", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Light)
-                                                            Text("${textSize.toInt()} sp", color = Color.LightGray, fontSize = 14.sp, fontWeight = FontWeight.Light)
-                                                        }
-                                                        Spacer(modifier = Modifier.height(6.dp))
-                                                        SimpleTickSlider(
-                                                            value = textSize,
-                                                            onValueChange = {
-                                                                textSize = it
-                                                                repo.prefManager.setAppDiscTextSizeSp(it)
-                                                                onChanged()
-                                                            },
-                                                            valueRange = 12f..22f,
-                                                            steps = 9,
-                                                            accentColor = currentAccentColor
-                                                        )
-                                                    }
-
-                                                    // 3. 文字間隔
-                                                    Column {
-                                                        Row(
-                                                            modifier = Modifier.fillMaxWidth(),
-                                                            horizontalArrangement = Arrangement.SpaceBetween
-                                                        ) {
-                                                            Text("文字間隔", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Light)
-                                                            Text(String.format(java.util.Locale.ROOT, "%.1f sp", letterSpacing), color = Color.LightGray, fontSize = 14.sp, fontWeight = FontWeight.Light)
-                                                        }
-                                                        Spacer(modifier = Modifier.height(6.dp))
-                                                        SimpleTickSlider(
-                                                            value = letterSpacing,
-                                                            onValueChange = {
-                                                                letterSpacing = it
-                                                                repo.prefManager.setAppDiscLetterSpacingSp(it)
-                                                                onChanged()
-                                                            },
-                                                            valueRange = 0.5f..3.0f,
-                                                            steps = 25,
-                                                            accentColor = currentAccentColor
-                                                        )
-                                                    }
-
-                                                    // 4. リストの間隔
-                                                    Column {
-                                                        Row(
-                                                            modifier = Modifier.fillMaxWidth(),
-                                                            horizontalArrangement = Arrangement.SpaceBetween
-                                                        ) {
-                                                            Text("リストの間隔", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Light)
-                                                            Text(String.format(java.util.Locale.ROOT, "%.1f°", stepAngle), color = Color.LightGray, fontSize = 14.sp, fontWeight = FontWeight.Light)
-                                                        }
-                                                        Spacer(modifier = Modifier.height(6.dp))
-                                                        SimpleTickSlider(
-                                                            value = stepAngle,
-                                                            onValueChange = {
-                                                                stepAngle = it
-                                                                repo.prefManager.setAppDiscStepAngle(it)
-                                                                onChanged()
-                                                            },
-                                                            valueRange = 10f..20f,
-                                                            steps = 20,
-                                                            accentColor = currentAccentColor
-                                                        )
-                                                    }
-                                                }
+                                                Text("文字間隔", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Light)
+                                                Text(String.format(java.util.Locale.ROOT, "%.1f sp", letterSpacing), color = Color.LightGray, fontSize = 14.sp, fontWeight = FontWeight.Light)
                                             }
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            SimpleTickSlider(
+                                                value = letterSpacing,
+                                                onValueChange = {
+                                                    letterSpacing = it
+                                                    repo.prefManager.setAppDiscLetterSpacingSp(it)
+                                                    onChanged()
+                                                },
+                                                valueRange = 0.5f..3.0f,
+                                                steps = 25,
+                                                accentColor = currentAccentColor
+                                            )
+                                        }
+
+                                        // 4. リストの間隔
+                                        Column {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                Text("リストの間隔", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Light)
+                                                Text(String.format(java.util.Locale.ROOT, "%.1f°", stepAngle), color = Color.LightGray, fontSize = 14.sp, fontWeight = FontWeight.Light)
+                                            }
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            SimpleTickSlider(
+                                                value = stepAngle,
+                                                onValueChange = {
+                                                    stepAngle = it
+                                                    repo.prefManager.setAppDiscStepAngle(it)
+                                                    onChanged()
+                                                },
+                                                valueRange = 10f..20f,
+                                                steps = 20,
+                                                accentColor = currentAccentColor
+                                            )
                                         }
                                     }
                                 }
