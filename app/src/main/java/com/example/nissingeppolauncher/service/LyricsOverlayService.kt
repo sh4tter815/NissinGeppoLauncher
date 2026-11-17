@@ -64,6 +64,11 @@ class LyricsOverlayService : Service() {
     private var statusBarVisible = true
     private var currentLine = ""
     private var shownLine: String? = null
+    // 長い行は表示幅に収まる断片へ分割し、行の表示時間を等分して順にスクロール表示する
+    private var lineSegments: List<String> = listOf("")
+    private var segmentLineText: String? = null
+    private var shownSegment: String? = null
+    private var segmentsDirty = false
 
     private var trackKey = ""
     private var trackTitle = ""
@@ -322,8 +327,22 @@ class LyricsOverlayService : Service() {
                             }
                             if (newLine != currentLine) {
                                 currentLine = newLine
-                                showLine(newLine)
                             }
+                            // 行が変わった（またはフォントが変わった）ら、表示幅に合わせて分割し直す
+                            if (newLine != segmentLineText || segmentsDirty) {
+                                segmentLineText = newLine
+                                segmentsDirty = false
+                                lineSegments = splitSegments(newLine)
+                            }
+                            // 行の表示時間をセグメント数で等分し、現在のセグメントを選ぶ
+                            val segIdx = if (lineSegments.size <= 1 || curLine == null) 0 else {
+                                val start = curLine.timeMs
+                                val end = nextLine?.timeMs ?: trackDurationMs.takeIf { it > start } ?: (start + 5000L)
+                                val total = (end - start).coerceAtLeast(1L)
+                                (((posMs - start).coerceAtLeast(0L) * lineSegments.size) / total).toInt()
+                                    .coerceIn(0, lineSegments.size - 1)
+                            }
+                            showSegment(lineSegments.getOrElse(segIdx) { newLine })
                             updateVisibility()
                         }
                     } else if (currentLine.isNotEmpty()) {
@@ -372,6 +391,7 @@ class LyricsOverlayService : Service() {
         val key = "$uiChoice|$lyricChoice|$enChoice|$bold|${pref.getCustomFontPath()}|${pref.getLyricsEnCustomFontPath()}"
         if (key == appliedFontKey) return
         appliedFontKey = key
+        segmentsDirty = true
         clock.typeface = typefaceForChoice(uiChoice, pref.getCustomFontPath()) ?: Typeface.DEFAULT_BOLD
         val base = typefaceForChoice(lyricChoice, pref.getCustomFontPath()) ?: Typeface.DEFAULT
         lyricTypeface = if (bold) Typeface.create(base, Typeface.BOLD) else base
@@ -423,13 +443,38 @@ class LyricsOverlayService : Service() {
         return sp
     }
 
-    private fun showLine(line: String) {
+    /** 行が表示幅に収まらない場合は、収まる大きさの断片へ分割する（収まる場合は1要素） */
+    private fun splitSegments(text: String): List<String> {
+        if (text.isBlank() || text == "♪") return listOf(text)
+        val view = lyricView ?: return listOf(text)
+        val avail = view.width - view.paddingLeft - view.paddingRight
+        if (avail <= 0) return listOf(text)
+        val paint = view.paint
+        if (paint.measureText(text) <= avail) return listOf(text)
+        val out = mutableListOf<String>()
+        val cur = StringBuilder()
+        for (ch in text) {
+            if (cur.isNotEmpty() && paint.measureText(cur.toString() + ch) > avail) {
+                out.add(cur.toString())
+                cur.setLength(0)
+            }
+            cur.append(ch)
+        }
+        if (cur.isNotEmpty()) out.add(cur.toString())
+        return if (out.isEmpty()) listOf(text) else out
+    }
+
+    private fun showSegment(seg: String) {
         val view = lyricView ?: return
-        if (shownLine == line) return
-        shownLine = line
-        view.animate().alpha(0f).setDuration(110).withEndAction {
-            view.text = styledLine(line)
-            view.animate().alpha(1f).setDuration(160).start()
+        if (shownSegment == seg) return
+        shownSegment = seg
+        shownLine = seg
+        // フェードではなくスクロール: 表示中の断片が上へ抜け、次の断片が下から入ってくる
+        val h = (view.height.takeIf { it > 0 } ?: dp(14f)).toFloat()
+        view.animate().translationY(-h * 0.7f).alpha(0f).setDuration(130).withEndAction {
+            view.text = styledLine(seg)
+            view.translationY = h * 0.7f
+            view.animate().translationY(0f).alpha(1f).setDuration(180).start()
         }.start()
     }
 
