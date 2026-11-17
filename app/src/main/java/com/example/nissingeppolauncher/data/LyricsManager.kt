@@ -891,7 +891,9 @@ object LyricsManager {
         val durationSec: Int,
         val syncedLyrics: String?,
         val kugouHash: String?,
-        val instrumental: Boolean = false
+        val instrumental: Boolean = false,
+        /** 文字単位の同期（カラオケ）がある候補か。Kugou候補は検索時にKRCの実在を確認して埋める */
+        val wordSync: Boolean = false
     )
 
     /** 曲名・アーティスト名で歌詞候補を検索する（LRCLIBとKugouの両方を当たる） */
@@ -958,6 +960,8 @@ object LyricsManager {
                             null
                         }
                         if (candArr == null || candArr.length() == 0) continue
+                        // チップ表示用に、文字同期（KRC）があるかも先に確認しておく
+                        val hasWordSync = kugouCandidateHasWordSync(candArr, songName)
                         results.add(
                             LyricCandidate(
                                 source = "Kugou",
@@ -965,7 +969,8 @@ object LyricsManager {
                                 artist = info.optString("singername", ""),
                                 durationSec = info.optInt("duration", 0),
                                 syncedLyrics = null,
-                                kugouHash = hash
+                                kugouHash = hash,
+                                wordSync = hasWordSync
                             )
                         )
                         added++
@@ -977,6 +982,45 @@ object LyricsManager {
             }
             results
         }
+
+    /**
+     * Kugouの歌詞候補リストに、文字同期つき（KRC）の歌詞があるかを確認する。
+     * 候補チップ表示用。ダウンロードまで試して、実際に文字タイミングが取れたときだけ true
+     */
+    private fun kugouCandidateHasWordSync(candidates: org.json.JSONArray, songTitle: String): Boolean {
+        return try {
+            fun enc(v: String) = URLEncoder.encode(v, "UTF-8")
+            var first = candidates.optJSONObject(0) ?: return false
+            for (j in 0 until candidates.length()) {
+                val cand = candidates.optJSONObject(j) ?: continue
+                if (titleMatches(cand.optString("song", ""), songTitle)) {
+                    first = cand
+                    break
+                }
+            }
+            val candId = first.optString("id", "")
+            val accessKey = first.optString("accesskey", "")
+            if (candId.isBlank() || accessKey.isBlank()) return false
+            val dlUrl = "https://lyrics.kugou.com/download?ver=1&client=pc&id=$candId" +
+                "&accesskey=$accessKey&fmt=krc&charset=utf8"
+            val dlText = httpGetText(dlUrl, desktopUa) ?: return false
+            val contentB64 = try {
+                JSONObject(dlText).optString("content", "")
+            } catch (e: Exception) {
+                ""
+            }
+            if (contentB64.isBlank()) return false
+            val krc = decodeKrc(contentB64) ?: return false
+            val parsed = try {
+                parseKrc(krc)
+            } catch (e: Exception) {
+                emptyList()
+            }
+            parsed.isNotEmpty() && parsed.any { it.words.isNotEmpty() }
+        } catch (e: Exception) {
+            false
+        }
+    }
 
     /** 候補の歌詞本文（LRC）を取得する */
     suspend fun fetchCandidateLrc(candidate: LyricCandidate): String? = withContext(Dispatchers.IO) {
