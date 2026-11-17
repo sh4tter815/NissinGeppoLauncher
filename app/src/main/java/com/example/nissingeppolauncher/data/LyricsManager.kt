@@ -72,6 +72,16 @@ object LyricsManager {
     )
 
     /** 簡体字・繁体字を日本の漢字に変換する */
+    /**
+     * 歌詞本文（クレジット行を除く）に簡体字・繁体字（日本の漢字への変換対象）が含まれているか。
+     * Kugou の歌詞は中国語版や簡体字混じりのことがあるため、優先判定に使う
+     */
+    private fun bodyHasSimplified(text: String): Boolean {
+        return text.lines().any { line ->
+            !isCreditLine(line) && line.any { ch -> kanjiConvertMap.containsKey(ch) }
+        }
+    }
+
     private fun toJapaneseKanji(text: String): String {
         if (text.none { kanjiConvertMap.containsKey(it) }) return text
         val sb = StringBuilder(text.length)
@@ -428,6 +438,10 @@ object LyricsManager {
     @Volatile
     var lastFetchSource: String = ""
 
+    /** 直近の fetchKugouKrc が、アーティスト名の一致する候補から取得したかどうか */
+    @Volatile
+    var lastKugouKrcArtistMatched: Boolean = false
+
     suspend fun getSyncedLyrics(
         context: Context,
         title: String,
@@ -496,7 +510,7 @@ object LyricsManager {
                         } catch (e: Exception) {
                             emptyList()
                         }
-                        if (krcParsed2.isNotEmpty() && krcParsed2.any { it.words.isNotEmpty() }) {
+                        if (krcParsed2.isNotEmpty() && krcParsed2.any { it.words.isNotEmpty() } && lastKugouKrcArtistMatched && !bodyHasSimplified(krcText)) {
                             try {
                                 cache.writeText(linesToLrc(krcParsed2), Charsets.UTF_8)
                                 File(cache.absolutePath + ".krc").writeText(krcText, Charsets.UTF_8)
@@ -526,7 +540,11 @@ object LyricsManager {
         // 表示やキャッシュのキーは元のタイトルのままにする
         val queryTitle = title.replace(Regex("""^\\s*\\d{1,3}\\s*[.．、:：_\\-]\\s*"""), "").ifBlank { title }
 
-        // 2.5) Kugouに文字同期（KRC）がある場合は、LRCLIBより優先する
+        // 2.5) Kugouに文字同期（KRC）がある場合は、LRCLIBより優先する。
+        // ただしアーティストが一致していないKRCは即採用せず保留し、LRCLIBにアーティスト一致の
+        // 歌詞（行同期）があればそちらを優先する（同名曲の別アーティスト版を掴まないため）
+        var pendingKrc: Pair<String, List<LyricLine>>? = null
+        var pendingStrict = false
         val kugouKrcFirst = try {
             fetchKugouKrc(queryTitle, artist, durationMs)
         } catch (e: Exception) {
@@ -539,14 +557,23 @@ object LyricsManager {
                 emptyList()
             }
             if (parsedKrcFirst.isNotEmpty() && parsedKrcFirst.any { it.words.isNotEmpty() }) {
-                try {
-                    cache.writeText(linesToLrc(parsedKrcFirst), Charsets.UTF_8)
-                    File(cache.absolutePath + ".krc").writeText(kugouKrcFirst, Charsets.UTF_8)
-                } catch (e: Exception) {
-                    // キャッシュ保存失敗は無視する
+                // 本文に簡体字が混ざっているKRCも即採用しない（LRCLIBを優先する）
+                val krcSimplified = bodyHasSimplified(kugouKrcFirst)
+                if (lastKugouKrcArtistMatched && !krcSimplified) {
+                    try {
+                        cache.writeText(linesToLrc(parsedKrcFirst), Charsets.UTF_8)
+                        File(cache.absolutePath + ".krc").writeText(kugouKrcFirst, Charsets.UTF_8)
+                    } catch (e: Exception) {
+                        // キャッシュ保存失敗は無視する
+                    }
+                    lastFetchSource = "Kugou"
+                    return@withContext parsedKrcFirst
+                } else {
+                    pendingKrc = kugouKrcFirst to parsedKrcFirst
+                    // LRCLIB側にアーティスト一致を要求するのは「アーティスト不一致だけ」が理由のとき。
+                    // 簡体字が理由のときは、LRCLIBの通常の採用基準で優先する
+                    pendingStrict = !lastKugouKrcArtistMatched && !krcSimplified
                 }
-                lastFetchSource = "Kugou"
-                return@withContext parsedKrcFirst
             }
         }
 
@@ -614,7 +641,8 @@ object LyricsManager {
             val titleOnlyUrl = "https://lrclib.net/api/search?track_name=${enc(queryTitle)}"
             consider(httpGetJsonArray(titleOnlyUrl), requireCloseDuration = true)
         }
-        val chosen = bestArtistText ?: bestText
+        // アーティスト不一致だけが理由でKRCを保留している間は、LRCLIB側もアーティスト一致の候補だけを採用する
+        val chosen = if (pendingKrc != null && pendingStrict) bestArtistText else (bestArtistText ?: bestText)
         if (chosen != null) {
             val parsed = parseLrc(chosen)
             if (parsed.isNotEmpty()) {
@@ -626,6 +654,20 @@ object LyricsManager {
                 lastFetchSource = "LRCLIB"
                 return@withContext parsed
             }
+        }
+
+        // 保留していたKRC: LRCLIBにアーティスト一致の歌詞が無かったので、ここで採用する
+        val pk = pendingKrc
+        if (pk != null) {
+            val (krcText, krcLines) = pk
+            try {
+                cache.writeText(linesToLrc(krcLines), Charsets.UTF_8)
+                File(cache.absolutePath + ".krc").writeText(krcText, Charsets.UTF_8)
+            } catch (e: Exception) {
+                // キャッシュ保存失敗は無視する
+            }
+            lastFetchSource = "Kugou"
+            return@withContext krcLines
         }
 
         // 5) Kugou（酷狗）: さらにマニアックな曲の候補（KRCは 2.5 で試し済みなので、ここではLRCのみ）
@@ -828,6 +870,7 @@ object LyricsManager {
 
     /** Kugou の非公式APIから文字同期つき歌詞（KRCテキスト）を復号して取得する。見つからなければ null */
     private fun fetchKugouKrc(title: String, artist: String, durationMs: Long): String? {
+        lastKugouKrcArtistMatched = false
         fun enc(v: String) = URLEncoder.encode(v, "UTF-8")
         val wantJapanese = containsJapanese(title) || containsJapanese(artist)
         fun searchInfos(keyword: String): org.json.JSONArray? {
@@ -877,7 +920,7 @@ object LyricsManager {
             pool
         }
 
-        for ((hash, durSec, _) in ordered.take(3)) {
+        for ((hash, durSec, artistMatched) in ordered.take(3)) {
             val durMs = if (durSec > 0) durSec * 1000 else durationMs
             val candUrl = "https://lyrics.kugou.com/search?ver=1&man=yes&client=pc" +
                 "&keyword=${enc(title)}&duration=$durMs&hash=$hash"
@@ -912,7 +955,10 @@ object LyricsManager {
             val krc = decodeKrc(contentB64) ?: continue
             if (parseKrc(krc).isNotEmpty() &&
                 (!wantJapanese || containsJapanese(krc))
-            ) return krc
+            ) {
+                lastKugouKrcArtistMatched = artistMatched
+                return krc
+            }
         }
         return null
     }
