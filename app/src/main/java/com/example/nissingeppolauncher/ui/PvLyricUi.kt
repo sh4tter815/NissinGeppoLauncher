@@ -710,6 +710,7 @@ fun PvLyricLine(
     lineStartMs: Long = 0L,
     partsEntry: Boolean = false,
     enFontFamily: FontFamily? = null,
+    camFlow: Int = -1,
     modifier: Modifier = Modifier
 ) {
     val pvEaseIn = CubicBezierEasing(0.42f, 0f, 1f, 1f)
@@ -950,12 +951,25 @@ fun PvLyricLine(
         animationSpec = infiniteRepeatable(tween(durationMillis = 2600, easing = LinearEasing), RepeatMode.Restart),
         label = "wavePhase"
     )
-    // 短い行の直後に長い間奏・後奏が続くときは、大きめに入場してゆっくり縮小する（カメラがズームアウトしていくイメージ）
-    val zoomLine = totalChars in 1..8 && lineDurationMs >= 10000L
-    val zoomAnim = remember { Animatable(if (exiting) 1f else 0f) }
-    if (!exiting && zoomLine) {
+    // カメラワーク: 全行に、入場と退場がつながるカメラの流れを付ける。
+    // camFlow: 0=右へ流れる（退場は右へ・入場は左から） 1=左へ 2=上へ 3=下へ 4=押し込む（ズームイン系） 5=引く（ズームアウト系）
+    // -1 のときは baseSeed から決める。入場はイーズアウト、退場はイーズインで、退場と次の入場が同じ流れを共有する
+    val camFlowEff = if (camFlow >= 0) camFlow else Math.floorMod(baseSeed * 13 + 7, 6)
+    val camAnim = remember { Animatable(if (exiting) 1f else 0f) }
+    if (!exiting) {
         LaunchedEffect(Unit) {
-            zoomAnim.animateTo(1f, animationSpec = tween(durationMillis = 1500, easing = FastOutSlowInEasing))
+            camAnim.animateTo(1f, animationSpec = tween(durationMillis = if (camFlowEff >= 4) 1100 else 800, easing = FastOutSlowInEasing))
+        }
+    }
+    val camDensity = LocalDensity.current
+    val camSlideXPx = with(camDensity) { (screenWidthDp * 0.24f).dp.toPx() }
+    val camSlideYPx = with(camDensity) { (fitSize * 1.7f).dp.toPx() }
+    // 規制の白塗りは行全体で1つの時計を共有し、連なった伏せ字を一気に覆う
+    val censorProgress = remember { Animatable(if (exiting) 1f else 0f) }
+    if (!exiting) {
+        LaunchedEffect(Unit) {
+            delay(600)
+            censorProgress.animateTo(1f, animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing))
         }
     }
     // 「深」は縦に下へ、「長」は横に伸びる（時計は行全体で共有し、隣の文字を押す動きと同期させる）
@@ -996,10 +1010,15 @@ fun PvLyricLine(
             .graphicsLayer {
                 // 退場の最後は行ごとフェードアウトして残像を残さない
                 alpha = if (exiting) 1f - ((exitProgress.value - 0.6f) / 0.4f).coerceIn(0f, 1f) else 1f
-                if (zoomLine) {
-                    val zs = 1.5f - 0.5f * zoomAnim.value
-                    scaleX = zs
-                    scaleY = zs
+                // カメラワーク（入場はイーズアウト済みの camAnim、退場は exitProgress をイーズイン変換し、同じ流れで動かす）
+                val camP = if (exiting) pvEaseIn.transform(exitProgress.value) else camAnim.value
+                when (camFlowEff) {
+                    0 -> translationX = (if (exiting) camP else camP - 1f) * camSlideXPx
+                    1 -> translationX = (if (exiting) -camP else 1f - camP) * camSlideXPx
+                    2 -> translationY = (if (exiting) -camP else 1f - camP) * camSlideYPx
+                    3 -> translationY = (if (exiting) camP else camP - 1f) * camSlideYPx
+                    4 -> { val s = if (exiting) 1f + 0.5f * camP else 0.72f + 0.28f * camP; scaleX = s; scaleY = s }
+                    else -> { val s = if (exiting) 1f - 0.3f * camP else 1.45f - 0.45f * camP; scaleX = s; scaleY = s }
                 }
                 // 「落」の行は文字ごとにバラバラに落下する（PvLyricUnit 側で処理）
             }
@@ -1197,6 +1216,9 @@ fun PvLyricLine(
         // 規制表現（伏せ字）の検出: ワード全体ではなく、規制された部分のユニットだけを白塗り対象にする
         val censorStartArr = FloatArray(rowUnitTexts.size) { 0f }
         val censorEndArr = FloatArray(rowUnitTexts.size) { 0f }
+        // 連なった伏せ字を一気に覆うため、ユニットの規制区間が「ラン全体の何割〜何割」かも持つ
+        val censorRunAArr = FloatArray(rowUnitTexts.size) { 0f }
+        val censorRunBArr = FloatArray(rowUnitTexts.size) { 1f }
         run {
             val rowText = rowUnitTexts.joinToString("")
             val ranges = mutableListOf<IntRange>()
@@ -1210,9 +1232,9 @@ fun PvLyricLine(
                 ranges.add(st until en)
                 si = rowText.indexOf("自主規制", en)
             }
-            // 伏せ字グリフの連続: 〇○●は伏せ字専用に近いので1文字でも対象、*・―・-・×等は2文字以上の連続だけ対象
-            val strongMask = setOf('〇', '○', '●')
-            val weakMask = setOf('*', '＊', '―', '—', '－', '-', '×', '✕', '✖', '■')
+            // 伏せ字グリフの連続: 〇○●■□は伏せ字専用に近いので1文字でも対象、*・―・-・×等は2文字以上の連続だけ対象
+            val strongMask = setOf('〇', '○', '●', '■', '□')
+            val weakMask = setOf('*', '＊', '―', '—', '－', '-', '×', '✕', '✖')
             var mi = 0
             while (mi < rowText.length) {
                 if (rowText[mi] in strongMask || rowText[mi] in weakMask) {
@@ -1238,8 +1260,14 @@ fun PvLyricLine(
                             if (oEnd > oStart) {
                                 val sf = (oStart - pos).toFloat() / uLen
                                 val ef = (oEnd - pos).toFloat() / uLen
-                                if (censorEndArr[idx] == 0f || sf < censorStartArr[idx]) censorStartArr[idx] = sf
+                                val censorFirst = censorEndArr[idx] == 0f
+                                if (censorFirst || sf < censorStartArr[idx]) censorStartArr[idx] = sf
                                 if (ef > censorEndArr[idx]) censorEndArr[idx] = ef
+                                if (censorFirst) {
+                                    val runLenChars = (r.last - r.first + 1).toFloat()
+                                    censorRunAArr[idx] = (oStart - r.first).toFloat() / runLenChars
+                                    censorRunBArr[idx] = (oEnd - r.first).toFloat() / runLenChars
+                                }
                             }
                         }
                     }
@@ -1382,6 +1410,13 @@ fun PvLyricLine(
                     break
                 }
                 if (!placed) s++
+            }
+        }
+        // 規制範囲にかかるユニットは、繰り返しの重ねエフェクトを解除して規制の白塗りを優先する
+        for (idx in rowUnitTexts.indices) {
+            if (censorEndArr[idx] > censorStartArr[idx]) {
+                repeatIdxArr[idx] = -1
+                repeatLenArr[idx] = 0
             }
         }
         Box {
@@ -1535,6 +1570,9 @@ fun PvLyricLine(
                         pushXFactor = stretchPushArr.getOrElse(rIdx) { 0f },
                         censorStart = censorStartArr.getOrElse(rIdx) { 0f },
                         censorEnd = censorEndArr.getOrElse(rIdx) { 0f },
+                        censorRunA = censorRunAArr.getOrElse(rIdx) { 0f },
+                        censorRunB = censorRunBArr.getOrElse(rIdx) { 1f },
+                        censorT = censorProgress.value,
                         lineDurationMs = lineDurationMs,
                         rubyKana = rubyModeHere == 2
                     )
@@ -1602,6 +1640,9 @@ fun PvLyricUnit(
     pushXFactor: Float = 0f,
     censorStart: Float = 0f,
     censorEnd: Float = 0f,
+    censorRunA: Float = 0f,
+    censorRunB: Float = 1f,
+    censorT: Float = 0f,
     lineDurationMs: Long = 0L,
     rubyKana: Boolean = false
 ) {
@@ -1733,14 +1774,9 @@ fun PvLyricUnit(
             wipeT.animateTo(1f, animationSpec = tween(durationMillis = 650, easing = LinearEasing))
         }
     }
-    // 規制表現の白塗り: 左から右へイージングで塗り広げ、塗り終わったら覆い続ける
-    val censorT = remember { Animatable(if (exiting) 1f else 0f) }
-    if (censorEnd > censorStart && !exiting) {
-        LaunchedEffect(staggerIndex) {
-            delay(effDelayMs + 120L)
-            censorT.animateTo(1f, animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing))
-        }
-    }
+    // 規制表現の白塗り: 行全体で共有する進行度（censorT）を使い、連なった伏せ字を一気に覆う。
+    // 自分の担当区間（censorRunA〜censorRunB）に進行度が差しかかった分だけ塗る
+    val censorLocal = if (censorRunB > censorRunA) ((censorT - censorRunA) / (censorRunB - censorRunA)).coerceIn(0f, 1f) else censorT
     // 点滅(3)とグリッチ(4)用の進行度
     val fxT = remember { Animatable(0f) }
     if (!exiting && (effectKind == 3 || effectKind == 4)) {
@@ -2012,14 +2048,14 @@ fun PvLyricUnit(
                     }
                 }
             }
-            if (censorEnd > censorStart && censorT.value > 0f) {
+            if (censorEnd > censorStart && censorLocal > 0f) {
                 // 伏せ字の部分だけを白い帯で左から右へ塗りつぶす（英単語の途中にある ** 等にも対応するため、ユニット内の割合で範囲を指定）
                 Canvas(modifier = Modifier.matchParentSize()) {
                     val x0 = size.width * censorStart
                     drawRect(
                         color = Color.White,
                         topLeft = Offset(x0, size.height * 0.07f),
-                        size = Size(size.width * (censorEnd - censorStart) * censorT.value, size.height * 0.86f)
+                        size = Size(size.width * (censorEnd - censorStart) * censorLocal, size.height * 0.86f)
                     )
                 }
             }
@@ -2695,6 +2731,17 @@ fun LyricsPvLayer(
             pvKindMap[idx] = kind
             return kind
         }
+        // カメラの流れも行ごとにランダム（前の行と同じ流れは避ける）。
+        // 退場する行は「次の行の流れ」を共有するので、退場と入場がつながって見える
+        val pvCamMap = remember { mutableStateMapOf<Int, Int>() }
+        fun pvCamFlowFor(idx: Int, text: String): Int {
+            pvCamMap[idx]?.let { return it }
+            val raw = Math.floorMod(Math.floorMod(idx * 41 + text.hashCode(), 997), 6)
+            val prev = pvCamMap[idx - 1]
+            val flow = if (prev != null && raw == prev) (raw + 1) % 6 else raw
+            pvCamMap[idx] = flow
+            return flow
+        }
         var pvCurrent by remember { mutableStateOf<Pair<Int, String>?>(null) }
         var pvExiting by remember { mutableStateOf<Pair<Int, String>?>(null) }
         // 対訳を「PVの2行目の真下」に置くため、現在のPV行の実高さを測る
@@ -2746,6 +2793,7 @@ fun LyricsPvLayer(
                         startsInParen = pvStartsInParen(lines, exIdx),
                         partsEntry = partsEntry,
                         enFontFamily = enFontFamily,
+                        camFlow = pvCurrent?.let { pvCamFlowFor(it.first, it.second) } ?: pvCamFlowFor(exIdx + 1, lines.getOrNull(exIdx + 1)?.text ?: ""),
                         modifier = Modifier.padding(top = pvTopDp)
                     )
                 }
@@ -2766,6 +2814,7 @@ fun LyricsPvLayer(
                                 lineStartMs = lines[curIdx].timeMs,
                                 partsEntry = partsEntry,
                         enFontFamily = enFontFamily,
+                                camFlow = pvCamFlowFor(curIdx, curText),
                                 effectKind = pvKindFor(curIdx, curText),
                                 lineDurationMs = lines.getOrNull(curIdx + 1)?.let { it.timeMs - lines[curIdx].timeMs } ?: Long.MAX_VALUE,
                                 startsInParen = pvStartsInParen(lines, curIdx),
@@ -3274,6 +3323,16 @@ fun LyricsFullscreenOverlay(
                 var fsCurrent by remember { mutableStateOf<Pair<Int, String>?>(null) }
                 var fsExiting by remember { mutableStateOf<Pair<Int, String>?>(null) }
                 LaunchedEffect(lines) { fsCurrent = null; fsExiting = null }
+                // カメラの流れ（退場と入場で共有してつなげる）
+                val fsCamMap = remember { mutableStateMapOf<Int, Int>() }
+                fun fsCamFlowFor(idx: Int, text: String): Int {
+                    fsCamMap[idx]?.let { return it }
+                    val raw = Math.floorMod(Math.floorMod(idx * 41 + text.hashCode(), 997), 6)
+                    val prev = fsCamMap[idx - 1]
+                    val flow = if (prev != null && raw == prev) (raw + 1) % 6 else raw
+                    fsCamMap[idx] = flow
+                    return flow
+                }
                 LaunchedEffect(fsDisplayIndex) {
                     if (fsDisplayIndex >= 0) {
                         if (fsCurrent?.first != fsDisplayIndex) {
@@ -3311,6 +3370,7 @@ fun LyricsFullscreenOverlay(
                                 startsInParen = pvStartsInParen(fsLines, exIdx),
                                 partsEntry = partsEntry,
                                 enFontFamily = enFontFamily,
+                                camFlow = fsCurrent?.let { fsCamFlowFor(it.first, it.second) } ?: fsCamFlowFor(exIdx + 1, fsLines.getOrNull(exIdx + 1)?.text ?: ""),
                                 exiting = true,
                                 effectKind = Math.floorMod(Math.floorMod(exIdx * 31 + exText.hashCode(), 997), 8),
                                 modifier = Modifier
@@ -3331,6 +3391,7 @@ fun LyricsFullscreenOverlay(
                                 startsInParen = pvStartsInParen(fsLines, curIdx),
                                 partsEntry = partsEntry,
                                 enFontFamily = enFontFamily,
+                                camFlow = fsCamFlowFor(curIdx, curText),
                                 exiting = false,
                                 words = fsLines[curIdx].words,
                                 lineStartMs = fsLines[curIdx].timeMs,
