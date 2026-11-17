@@ -96,6 +96,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -3009,7 +3010,7 @@ fun LyricsBrowseOverlay(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    val ok = editText.lines().any { Regex("^\[\d{1,2}:\d{2}").containsMatchIn(it) }
+                    val ok = editText.lines().any { Regex("^\\[\\d{1,2}:\\d{2}").containsMatchIn(it) }
                     if (!ok) {
                         editError = true
                     } else {
