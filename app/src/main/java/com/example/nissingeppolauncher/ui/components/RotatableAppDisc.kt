@@ -329,7 +329,8 @@ fun RotatableAppDisc(
                             selectedPackages = selectedPackages,
                             onAppClick = onAppClick,
                             onLongClick = onLongClick,
-                            showLabels = showLabels
+                            showLabels = showLabels,
+                            iconTilt3d = iconTilt3d
                         )
                     }
                 }
@@ -362,7 +363,8 @@ fun RotatableAppDisc(
                             selectedPackages = selectedPackages,
                             onAppClick = onAppClick,
                             onLongClick = onLongClick,
-                            showLabels = showLabels
+                            showLabels = showLabels,
+                            iconTilt3d = iconTilt3d
                         )
                     }
                 }
@@ -389,7 +391,8 @@ private fun RenderDiscItem(
     selectedPackages: Set<String>?,
     onAppClick: (AppInfo) -> Unit,
     onLongClick: (AppInfo) -> Unit,
-    showLabels: Boolean = true
+    showLabels: Boolean = true,
+    iconTilt3d: Boolean = false
 ) {
     when (discItem) {
         is DiscItem.IndexEntry -> {
