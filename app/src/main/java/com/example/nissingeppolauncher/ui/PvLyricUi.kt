@@ -1975,7 +1975,8 @@ fun PvLyricUnit(
             } else Modifier
         ) {
             if (!exiting && effectKind == 4 && fxT.value < 1f) {
-                val flick = (0.35f + 0.3f * sin(fxT.value * 47f + uSeed * 3.1f)).coerceIn(0.1f, 0.65f)
+                // 色ゴーストは入場（uAnim）と同時にだけ出す。入場前から薄く見えてしまわないように、濃さを入場の進み具合に連動させる
+                val flick = ((0.35f + 0.3f * sin(fxT.value * 47f + uSeed * 3.1f)) * uAnim.value).coerceIn(0f, 0.65f)
                 Text(
                     text = annotatedUnit,
                     color = accentColor.copy(alpha = flick),
