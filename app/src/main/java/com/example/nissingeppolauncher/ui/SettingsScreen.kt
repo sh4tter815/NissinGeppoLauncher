@@ -474,6 +474,8 @@ fun SettingsScreen(
     var bgMode by remember { mutableStateOf(repo.prefManager.getBackgroundMode()) }
     var liquidBackground by remember { mutableStateOf(repo.prefManager.isLiquidBackgroundEnabled()) }
     var homeDiscLayout by remember { mutableStateOf(repo.prefManager.getHomeDiscLayout()) }
+    var disc3d by remember { mutableStateOf(repo.prefManager.isDisc3dEnabled()) }
+    var disc3dTilt by remember { mutableStateOf(repo.prefManager.isDisc3dTiltEnabled()) }
     var dateDisplayMode by remember { mutableStateOf(repo.prefManager.getDateDisplayMode()) }
     // 配色をアートワークに合わせるONのときは、画面側で算出されたアートワーク由来の
     // アクセント色（accentColor引数）を設定UIの色にも使う。OFFのときは手動色
@@ -1212,6 +1214,58 @@ fun SettingsScreen(
                                             color = Color.Gray,
                                             fontSize = 12.sp
                                         )
+                                    }
+                                }
+                            }
+                            item {
+                                Surface(
+                                    color = Color(0x99101728),
+                                    shape = RoundedCornerShape(20.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(20.dp),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text("円を3D表示", color = Color.White, fontSize = 15.sp)
+                                                Text("ホームの左右の円を少し奥に倒して、立体的に見せます", color = Color.Gray, fontSize = 12.sp)
+                                            }
+                                            Switch(
+                                                checked = disc3d,
+                                                onCheckedChange = {
+                                                    disc3d = it
+                                                    repo.prefManager.setDisc3dEnabled(it)
+                                                    onChanged()
+                                                },
+                                                colors = switchColors
+                                            )
+                                        }
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text("端末の傾きで角度を変える", color = if (disc3d) Color.White else Color.Gray, fontSize = 14.sp)
+                                                Text("スマホを傾けると、円の傾きもついてきます（3D表示がオンのときだけ）", color = Color.Gray, fontSize = 12.sp)
+                                            }
+                                            Switch(
+                                                checked = disc3dTilt,
+                                                onCheckedChange = {
+                                                    disc3dTilt = it
+                                                    repo.prefManager.setDisc3dTiltEnabled(it)
+                                                    onChanged()
+                                                },
+                                                colors = switchColors,
+                                                enabled = disc3d
+                                            )
+                                        }
                                     }
                                 }
                             }
