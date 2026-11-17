@@ -156,8 +156,8 @@ fun MainLauncherScreen() {
         val listener = object : SensorEventListener {
             override fun onSensorChanged(e: SensorEvent) {
                 val k = 0.14f
-                val targetY = (e.values[0] / 9.8f * 11f).coerceIn(-11f, 11f)
-                val targetX = ((e.values[1] - 9.8f) / 9.8f * 11f).coerceIn(-11f, 11f)
+                val targetY = (e.values[0] / 9.8f * 14f).coerceIn(-14f, 14f)
+                val targetX = ((e.values[1] - 9.8f) / 9.8f * 14f).coerceIn(-14f, 14f)
                 discTiltY.value += (targetY - discTiltY.value) * k
                 discTiltX.value += (targetX - discTiltX.value) * k
             }
@@ -939,9 +939,9 @@ fun MainLauncherScreen() {
                                         (animatedDisc2CenterX / screenWidthDp).coerceIn(-2f, 3f),
                                         ((disc2CenterY + lyricsDiscDrop) / screenHeightDp).coerceIn(-2f, 3f)
                                     )
-                                    rotationX = 16f + discTiltX.value
+                                    rotationX = 27f + discTiltX.value
                                     rotationY = discTiltY.value
-                                    cameraDistance = 9f * density
+                                    cameraDistance = 6.5f * density
                                 }
                             },
                         apps = favoriteApps,
@@ -974,9 +974,9 @@ fun MainLauncherScreen() {
                                         (animatedDisc1CenterX / screenWidthDp).coerceIn(-2f, 3f),
                                         ((disc1CenterY + lyricsDiscDrop) / screenHeightDp).coerceIn(-2f, 3f)
                                     )
-                                    rotationX = 16f + discTiltX.value
+                                    rotationX = 27f + discTiltX.value
                                     rotationY = discTiltY.value
-                                    cameraDistance = 9f * density
+                                    cameraDistance = 6.5f * density
                                 }
                             }
                     ) {
