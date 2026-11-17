@@ -1,8 +1,10 @@
 package com.example.nissingeppolauncher.ui
 
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -36,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.nissingeppolauncher.data.AppRepository
+import com.example.nissingeppolauncher.service.LyricsOverlayService
 import com.example.nissingeppolauncher.ui.components.parseFontFamily
 import kotlinx.coroutines.launch
 import java.io.File
@@ -240,6 +243,7 @@ fun SettingsScreen(
     var lyricsPvFont by remember { mutableStateOf(repo.prefManager.getLyricsPvFont()) }
     var lyricsBold by remember { mutableStateOf(repo.prefManager.isLyricsBold()) }
     var pvPartsEntry by remember { mutableStateOf(repo.prefManager.isPvPartsEntryEnabled()) }
+    var statusBarLyrics by remember { mutableStateOf(repo.prefManager.isStatusBarLyricsEnabled()) }
         var pageSwitchStyle by remember { mutableStateOf(repo.prefManager.getPageSwitchStyle()) }
     var appsUpdateStatus by remember { mutableStateOf("") }
     var isUpdatingApps by remember { mutableStateOf(false) }
@@ -633,6 +637,42 @@ fun SettingsScreen(
                                                 onCheckedChange = {
                                                     pvPartsEntry = it
                                                     repo.prefManager.setPvPartsEntryEnabled(it)
+                                                    onChanged()
+                                                },
+                                                colors = switchColors
+                                            )
+                                        }
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text("ステータスバーに歌詞を表示", color = Color.White, fontSize = 14.sp)
+                                                Text("他のアプリの上にも、時計と同期歌詞1行を重ねます（重ねて表示の権限が必要）", color = Color.Gray, fontSize = 12.sp)
+                                            }
+                                            Switch(
+                                                checked = statusBarLyrics,
+                                                onCheckedChange = { checked ->
+                                                    statusBarLyrics = checked
+                                                    repo.prefManager.setStatusBarLyricsEnabled(checked)
+                                                    if (checked) {
+                                                        if (Settings.canDrawOverlays(context)) {
+                                                            LyricsOverlayService.start(context)
+                                                        } else {
+                                                            val intent = Intent(
+                                                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                                                Uri.parse("package:" + context.packageName)
+                                                            )
+                                                            try {
+                                                                context.startActivity(intent)
+                                                            } catch (e: Exception) {
+                                                                // 権限画面を開けない場合は何もしない
+                                                            }
+                                                        }
+                                                    } else {
+                                                        LyricsOverlayService.stop(context)
+                                                    }
                                                     onChanged()
                                                 },
                                                 colors = switchColors
