@@ -145,7 +145,7 @@ fun MainLauncherScreen() {
     val discTiltX = remember { mutableFloatStateOf(0f) }
     val discTiltY = remember { mutableFloatStateOf(0f) }
     DisposableEffect(disc3d, disc3dTilt, currentLauncherPage) {
-        if (!disc3d || !disc3dTilt || currentLauncherPage != 1) {
+        if (!disc3d || !disc3dTilt || currentLauncherPage !in 1..3) {
             discTiltX.value = 0f
             discTiltY.value = 0f
             return@DisposableEffect onDispose { }
@@ -1035,7 +1035,15 @@ fun MainLauncherScreen() {
                     }
 
                     RotatableAppDisc(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize()
+                                .graphicsLayer {
+                                    if (disc3d) {
+                                        transformOrigin = TransformOrigin((animatedDisc2CenterX / screenWidthDp).coerceIn(-2f, 3f), (disc2CenterY / screenHeightDp).coerceIn(-2f, 3f))
+                                        rotationX = 27f + discTiltX.value
+                                        rotationY = discTiltY.value
+                                        cameraDistance = 6.5f * density
+                                    }
+                                },
                         apps = displayedApps,
                         discCenterXDp = animatedDisc2CenterX,
                         discCenterYDp = disc2CenterY,
@@ -1058,7 +1066,15 @@ fun MainLauncherScreen() {
                     // --- 3: フォルダ画面 ---
                     if (isEditingFolder) {
                         RotatableIndexWheel(
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.fillMaxSize()
+                                .graphicsLayer {
+                                    if (disc3d) {
+                                        transformOrigin = TransformOrigin((animatedDisc1CenterX / screenWidthDp).coerceIn(-2f, 3f), (disc1CenterY / screenHeightDp).coerceIn(-2f, 3f))
+                                        rotationX = 27f + discTiltX.value
+                                        rotationY = discTiltY.value
+                                        cameraDistance = 6.5f * density
+                                    }
+                                },
                             discCenterXDp = animatedDisc1CenterX,
                             discCenterYDp = disc1CenterY,
                             discRadiusDp = disc1RadiusDp,
@@ -1072,7 +1088,15 @@ fun MainLauncherScreen() {
                         // 左側: フォルダ選択ダイヤル
                         RotatableFolderWheel(
                             folders = folderList,
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.fillMaxSize()
+                                .graphicsLayer {
+                                    if (disc3d) {
+                                        transformOrigin = TransformOrigin((animatedDisc1CenterX / screenWidthDp).coerceIn(-2f, 3f), (disc1CenterY / screenHeightDp).coerceIn(-2f, 3f))
+                                        rotationX = 27f + discTiltX.value
+                                        rotationY = discTiltY.value
+                                        cameraDistance = 6.5f * density
+                                    }
+                                },
                             discCenterXDp = animatedDisc1CenterX,
                             discCenterYDp = disc1CenterY,
                             discRadiusDp = disc1RadiusDp,
@@ -1118,7 +1142,15 @@ fun MainLauncherScreen() {
                     }
 
                     RotatableAppDisc(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize()
+                                .graphicsLayer {
+                                    if (disc3d) {
+                                        transformOrigin = TransformOrigin((animatedDisc2CenterX / screenWidthDp).coerceIn(-2f, 3f), (disc2CenterY / screenHeightDp).coerceIn(-2f, 3f))
+                                        rotationX = 27f + discTiltX.value
+                                        rotationY = discTiltY.value
+                                        cameraDistance = 6.5f * density
+                                    }
+                                },
                         apps = discApps,
                         discCenterXDp = animatedDisc2CenterX,
                         discCenterYDp = disc2CenterY,
@@ -1800,6 +1832,10 @@ fun MainLauncherScreen() {
                     isLyricsBrowsing = false
                 },
                 onOpenSearch = { showLyricSearch = true },
+                onSaveEditedLyrics = { editedText ->
+                    LyricsManager.saveEditedLyrics(context, sessionTrackTitle, sessionTrackArtist, sessionTrackAlbum, editedText)
+                    lyricsRefreshTick++
+                },
                 onClose = { isLyricsBrowsing = false }
             )
         }

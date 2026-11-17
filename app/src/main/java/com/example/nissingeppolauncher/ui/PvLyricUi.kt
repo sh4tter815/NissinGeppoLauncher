@@ -47,6 +47,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Lyrics
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Shuffle
@@ -2970,6 +2971,7 @@ fun LyricsBrowseOverlay(
     onSeek: (Long) -> Unit,
     onRefresh: () -> Unit,
     onOpenSearch: () -> Unit,
+    onSaveEditedLyrics: ((String) -> Unit)? = null,
     onClose: () -> Unit,
     enFontFamily: FontFamily? = null
 ) {
@@ -2977,6 +2979,50 @@ fun LyricsBrowseOverlay(
     val haptic = LocalHapticFeedback.current
     var follow by remember { mutableStateOf(true) }
     var showOffsetPanel by remember { mutableStateOf(false) }
+    var showLyricEditor by remember { mutableStateOf(false) }
+    var editText by remember { mutableStateOf("") }
+    var editError by remember { mutableStateOf(false) }
+    if (showLyricEditor) {
+        AlertDialog(
+            onDismissRequest = { showLyricEditor = false },
+            containerColor = Color(0xFF141C2E),
+            title = { Text("歌詞を編集", color = Color.White, fontSize = 18.sp) },
+            text = {
+                Column {
+                    Text(
+                        "1行ごとに [分:秒.ミリ秒]歌詞 の形です。誤字の修正のほか、時刻も直せます。保存するとキャッシュに残るので、次回からも直した歌詞が出ます（文字同期は外れます）。",
+                        color = Color.Gray,
+                        fontSize = 11.5.sp
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = editText,
+                        onValueChange = { editText = it; editError = false },
+                        textStyle = TextStyle(color = Color.White, fontSize = 13.sp, fontFamily = fontFamily),
+                        modifier = Modifier.fillMaxWidth().height(300.dp)
+                    )
+                    if (editError) {
+                        Spacer(Modifier.height(6.dp))
+                        Text("時刻タグ [00:00.00] のある行が1つもありません", color = Color(0xFFFF9E9E), fontSize = 12.sp)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val ok = editText.lines().any { Regex("^\[\d{1,2}:\d{2}").containsMatchIn(it) }
+                    if (!ok) {
+                        editError = true
+                    } else {
+                        onSaveEditedLyrics?.invoke(editText)
+                        showLyricEditor = false
+                    }
+                }) { Text("保存", color = Color(0xFF88C0FF)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLyricEditor = false }) { Text("キャンセル", color = Color.Gray) }
+            }
+        )
+    }
     // 自由スクロール: 位置は「行」単位の小数で持ち、指に追従させて離すと慣性で流れる
     val scrollAnim = remember { Animatable(startIndex.toFloat()) }
     val maxPos = (lines.size - 1).coerceAtLeast(0).toFloat()
@@ -3285,6 +3331,23 @@ fun LyricsBrowseOverlay(
             ) {
                 Icon(Icons.Default.Search, contentDescription = "タグを指定して検索", tint = Color.White, modifier = Modifier.size(24.dp))
             }
+            // 歌詞を手で編集（誤字修正など。キャッシュに保存される）
+            if (onSaveEditedLyrics != null && lines.isNotEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF263238))
+                        .clickable {
+                            editText = buildLrcText(lines)
+                            editError = false
+                            showLyricEditor = true
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Edit, contentDescription = "歌詞を編集", tint = Color.White, modifier = Modifier.size(24.dp))
+                }
+            }
             // 中央: フォーカス行へ移動
             Box(
                 modifier = Modifier
@@ -3325,6 +3388,19 @@ fun LyricsBrowseOverlay(
         }
     }
     }
+}
+
+// 編集用に、行リストを LRC 形式のテキストへ戻す（LyricsManager.linesToLrc と同じ書式）
+private fun buildLrcText(lines: List<LyricLine>): String {
+    val sb = StringBuilder()
+    for (line in lines) {
+        val totalSec = line.timeMs / 1000
+        val mm = (totalSec / 60).toString().padStart(2, '0')
+        val ss = (totalSec % 60).toString().padStart(2, '0')
+        val cs = ((line.timeMs % 1000) / 10).toString().padStart(2, '0')
+        sb.append("[$mm:$ss.$cs]").append(line.text).append("\n")
+    }
+    return sb.toString()
 }
 
 /** 歌詞フルスクリーン（横画面）: PVだけ、または曲情報と歌詞を大きく表示する */
