@@ -260,14 +260,28 @@ fun DrawScope.drawLyricIcon(kind: Int) {
             drawLine(col, pt(0f, 0f), pt(11f, 6f), strokeWidth = 3.0f * u, cap = StrokeCap.Round)
         }
         LyricIcon.FLAME -> {
-            val path = Path().apply {
-                moveTo(cx, cy - 32f * u)
-                cubicTo(cx + 20f * u, cy - 8f * u, cx + 22f * u, cy + 6f * u, cx + 14f * u, cy + 18f * u)
-                cubicTo(cx + 8f * u, cy + 29f * u, cx - 8f * u, cy + 29f * u, cx - 14f * u, cy + 18f * u)
-                cubicTo(cx - 22f * u, cy + 6f * u, cx - 13f * u, cy - 10f * u, cx, cy - 32f * u)
+            // 炎: 先端を右へ倒し、左側に小さな flick（はね）を入れた非対称な輪郭＋内側の芯。
+            // 左右対称な涙型（DROP）と見間違えないようにする
+            val outer = Path().apply {
+                moveTo(cx + 2f * u, cy - 34f * u)
+                cubicTo(cx + 10f * u, cy - 20f * u, cx + 20f * u, cy - 14f * u, cx + 21f * u, cy - 2f * u)
+                cubicTo(cx + 22f * u, cy + 8f * u, cx + 16f * u, cy + 14f * u, cx + 15f * u, cy + 20f * u)
+                cubicTo(cx + 13f * u, cy + 30f * u, cx + 6f * u, cy + 33f * u, cx, cy + 33f * u)
+                cubicTo(cx - 10f * u, cy + 33f * u, cx - 18f * u, cy + 27f * u, cx - 19f * u, cy + 16f * u)
+                cubicTo(cx - 20f * u, cy + 6f * u, cx - 12f * u, cy, cx - 11f * u, cy - 8f * u)
+                cubicTo(cx - 10f * u, cy - 15f * u, cx - 4f * u, cy - 18f * u, cx - 3f * u, cy - 24f * u)
+                cubicTo(cx - 2f * u, cy - 28f * u, cx, cy - 31f * u, cx + 2f * u, cy - 34f * u)
                 close()
             }
-            drawPath(path, col, style = st)
+            drawPath(outer, col, style = st)
+            val core = Path().apply {
+                moveTo(cx, cy + 4f * u)
+                cubicTo(cx + 6f * u, cy + 12f * u, cx + 9f * u, cy + 17f * u, cx + 9f * u, cy + 22f * u)
+                cubicTo(cx + 9f * u, cy + 28f * u, cx - 9f * u, cy + 28f * u, cx - 9f * u, cy + 22f * u)
+                cubicTo(cx - 9f * u, cy + 17f * u, cx - 5f * u, cy + 11f * u, cx, cy + 4f * u)
+                close()
+            }
+            drawPath(core, col, style = st)
         }
         LyricIcon.DROP -> {
             val path = Path().apply {
@@ -924,6 +938,23 @@ fun PvLyricLine(
         animationSpec = infiniteRepeatable(tween(durationMillis = 2600, easing = LinearEasing), RepeatMode.Restart),
         label = "wavePhase"
     )
+    // 短い行の直後に長い間奏・後奏が続くときは、大きめに入場してゆっくり縮小する（カメラがズームアウトしていくイメージ）
+    val zoomLine = totalChars in 1..8 && lineDurationMs >= 10000L
+    val zoomAnim = remember { Animatable(if (exiting) 1f else 0f) }
+    if (!exiting && zoomLine) {
+        LaunchedEffect(Unit) {
+            zoomAnim.animateTo(1f, animationSpec = tween(durationMillis = 1500, easing = FastOutSlowInEasing))
+        }
+    }
+    // 「深」は縦に下へ、「長」は横に伸びる（時計は行全体で共有し、隣の文字を押す動きと同期させる）
+    val hasStretch = text.contains("深") || text.contains("長")
+    val stretchAnim = remember { Animatable(if (exiting) 1f else 0f) }
+    if (!exiting && hasStretch) {
+        LaunchedEffect(Unit) {
+            delay(450)
+            stretchAnim.animateTo(1f, animationSpec = tween(durationMillis = 1100, easing = FastOutSlowInEasing))
+        }
+    }
     val barAnim = remember { Animatable(0f) }
     val rippleAnim = remember { Animatable(0f) }
     val fxAnim = remember { Animatable(0f) }
@@ -953,6 +984,11 @@ fun PvLyricLine(
             .graphicsLayer {
                 // 退場の最後は行ごとフェードアウトして残像を残さない
                 alpha = if (exiting) 1f - ((exitProgress.value - 0.6f) / 0.4f).coerceIn(0f, 1f) else 1f
+                if (zoomLine) {
+                    val zs = 1.5f - 0.5f * zoomAnim.value
+                    scaleX = zs
+                    scaleY = zs
+                }
                 // 「落」の行は文字ごとにバラバラに落下する（PvLyricUnit 側で処理）
             }
     ) {
@@ -1138,11 +1174,104 @@ fun PvLyricLine(
         rows.forEachIndexed { rowIdx, rowChunks ->
         val unitsInRow = rowChunks.sumOf { renderUnitsOf(it).size }
         var rowUnitIdx = 0
+        // 同じ1文字が3つ以上連続する並び（超超超…など）を行単位で先に検出しておく。
+        // 対象ユニットは横に詰めて重ね、先頭ほど薄くする
+        val rowUnitTexts = rowChunks.flatMap { renderUnitsOf(it) }
+        val repeatIdxArr = IntArray(rowUnitTexts.size) { -1 }
+        val repeatLenArr = IntArray(rowUnitTexts.size) { 0 }
+        val repeatStartArr = IntArray(rowUnitTexts.size) { -1 }
+        val repeatSpanArr = IntArray(rowUnitTexts.size) { 0 }
+        // 「長」が横に伸びたとき、隣の文字が押される量（近いほど大きく、2つ先まで）
+        val stretchPushArr = FloatArray(rowUnitTexts.size) { r ->
+            var f = 0f
+            for (s in rowUnitTexts.indices) {
+                if (s != r && rowUnitTexts[s].contains("長")) {
+                    val d = kotlin.math.abs(r - s)
+                    val fall = when (d) { 1 -> 1.0f; 2 -> 0.45f; else -> 0f }
+                    f += (if (r > s) 1f else -1f) * fall
+                }
+            }
+            f
+        }
+        run {
+            var runStart = 0
+            while (runStart < rowUnitTexts.size) {
+                val t = rowUnitTexts[runStart]
+                var runEnd = runStart + 1
+                while (runEnd < rowUnitTexts.size && rowUnitTexts[runEnd] == t) runEnd++
+                val runLen = runEnd - runStart
+                val ch = t.singleOrNull()
+                // ひらがな・カタカナは「ささくれ」のような通常語の誤爆を避けるため3連続から。それ以外は2連続から
+                val need = if (ch != null && (ch in 'ぁ'..'ゟ' || ch in 'ァ'..'ヶ')) 3 else 2
+                if (runLen >= need && ch != null && !ch.isWhitespace() && ch !in "。、・…‥！？!?ー") {
+                    for (k in runStart until runEnd) {
+                        repeatIdxArr[k] = k - runStart
+                        repeatLenArr[k] = runLen
+                        repeatStartArr[k] = runStart
+                        repeatSpanArr[k] = runLen
+                    }
+                }
+                runStart = runEnd
+            }
+        }
+        // 単語・フレーズ単位の繰り返し（誰も誰も誰も、のような型）も重ね表示の対象にする。
+        // 1文字の連続は上の処理が担当するので、ここでは2ユニット以上の型だけを見る
+        run {
+            var s = 0
+            while (s < rowUnitTexts.size) {
+                if (repeatLenArr[s] > 0) {
+                    s++
+                    continue
+                }
+                var placed = false
+                for (blockLen in 2..6) {
+                    if (s + blockLen * 2 > rowUnitTexts.size) break
+                    val block = rowUnitTexts.subList(s, s + blockLen)
+                    // 句読点・空白・長音を含む型と、全て同じユニットの型（1文字連続側で処理）は対象外
+                    if (block.any { it.isBlank() || it in listOf("。", "、", "・", "…", "‥", "！", "？", "!", "?", "ー") }) continue
+                    if (block.all { it == block[0] }) continue
+                    // 繰り返しの間にスペースが挟まっていてもよい（ズキリ ズキリ、のような表記ゆれ対応）
+                    val starts = mutableListOf(s)
+                    var cursor = s + blockLen
+                    while (true) {
+                        var probe = cursor
+                        while (probe < rowUnitTexts.size && rowUnitTexts[probe].isBlank()) probe++
+                        if (probe + blockLen > rowUnitTexts.size) break
+                        if (rowUnitTexts.subList(probe, probe + blockLen) != block) break
+                        starts.add(probe)
+                        cursor = probe + blockLen
+                    }
+                    val occ = starts.size
+                    if (occ < 2) continue
+                    // 型の判定: 漢字を含む型（痛み等）は2文字でも2回から対象。
+                    // かなだけの型は、2文字だと1単語に見える（きらきら・キラキラ等）ので3回から。3文字以上（ズキリ等）なら2回から
+                    val blockText = block.joinToString("")
+                    val hasKanji = blockText.any { it in '一'..'鿿' || it == '々' }
+                    val allKana = blockText.all { it in 'ぁ'..'ゟ' || it in 'ァ'..'ヶ' || it == 'ー' }
+                    if (!hasKanji && allKana && blockText.length <= 2 && occ < 3) continue
+                    val spanEnd = cursor
+                    // 型の途中に、すでに1文字連続で割り当て済みのユニットが混ざっていたらやめる
+                    if ((s until spanEnd).any { repeatLenArr[it] > 0 }) continue
+                    starts.forEachIndexed { oi, st ->
+                        for (k in st until st + blockLen) {
+                            repeatIdxArr[k] = oi
+                            repeatLenArr[k] = occ
+                            repeatStartArr[k] = s
+                            repeatSpanArr[k] = spanEnd - s
+                        }
+                    }
+                    s = spanEnd
+                    placed = true
+                    break
+                }
+                if (!placed) s++
+            }
+        }
         Box {
         Row(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
-            modifier = if (rowIdx > 0) Modifier.padding(start = row2Indent, top = 0.dp) else Modifier
+            modifier = if (rowIdx > 0) Modifier.padding(start = row2Indent, top = (if ((0 until rowIdx).any { rd -> rows[rd].any { c -> c.contains("深") } }) (stretchAnim.value * fitSize * 0.45f).dp else 0.dp) else Modifier
         ) {
             rowChunks.forEachIndexed { posInRow, chunk ->
                 if (posInRow > 0 && latinDominant) {
@@ -1164,6 +1293,9 @@ fun PvLyricLine(
                     chunk.contains("秘密") -> null
                     chunk.contains("蜂蜜") || chunk.contains("はちみつ") || chunk.contains("ハチミツ") || chunk.contains("蜜") -> "蜜" to Color(0xFFFFB300)
                     chunk.contains("どろどろ") || chunk.contains("ドロドロ") -> "どろどろ" to Color(0xFF8D6E63)
+                    chunk.contains("涎") -> "涎" to Color(0xFF6EC6FF)
+                    chunk.contains("よだれ") -> "よだれ" to Color(0xFF6EC6FF)
+                    chunk.contains("ヨダレ") -> "ヨダレ" to Color(0xFF6EC6FF)
                     chunk.contains("液体") -> "液体" to Color(0xFF6EC6FF)
                     chunk.contains("液") -> "液" to Color(0xFF6EC6FF)
                     else -> null
@@ -1189,6 +1321,17 @@ fun PvLyricLine(
                     val rIdx = rowUnitIdx++
                     // 文字同士がほんの少し被るくらいに、行の中心へ向けて詰める（画面外へのはみ出しは増やさない）
                     val uXShift = ((unitsInRow - 1) / 2f - rIdx) * fitSize * 0.05f
+                    // 同字連続のユニットは並びの中心へさらに寄せて、横に重なるようにする
+                    val repeatIdxHere = repeatIdxArr.getOrElse(rIdx) { -1 }
+                    val repeatLenHere = repeatLenArr.getOrElse(rIdx) { 0 }
+                    val repeatStartHere = repeatStartArr.getOrElse(rIdx) { -1 }
+                    val repeatSpanHere = repeatSpanArr.getOrElse(rIdx) { 0 }
+                    val repeatShift = if (repeatLenHere >= 2 && repeatIdxHere >= 0) {
+                        val spanHere = if (repeatSpanHere > 0) repeatSpanHere else repeatLenHere
+                        val runCenter = repeatStartHere + (spanHere - 1) / 2f
+                        (runCenter - rIdx) * fitSize * 0.20f
+                    } else 0f
+                    val uXShiftTotal = uXShift + repeatShift
                     // 長音（ー）は前の文字と1パーツとして扱い、座標・角度・揺れの種を前の文字に統一する（バラけると読みづらいため）
                     val effGi = if (ru == "ー" && prevUnitGi >= 0) prevUnitGi else gi
                     prevUnitGi = gi
@@ -1226,6 +1369,7 @@ fun PvLyricLine(
                     val mosaicLen = if (chunkMosaicStart >= 0) 1 else if (chunkMosaicWordStart >= 0) 3 else 0
                     val unitMosaic = mosaicStart >= 0 && unitStart < mosaicStart + mosaicLen && unitStart + ru.length > mosaicStart
                     // 「積もる・重なる」系の文字は、同じ文字を上に重ねて表現する
+                    val unitStretchKind = when { ru.contains("深") -> 1; ru.contains("長") -> 2; else -> 0 }
                     val unitPile = chunkPileWord != null && unitStart < chunkPileStart + chunkPileWord.length && unitStart + ru.length > chunkPileStart
                     val unitDrip = if (chunkDrip != null && unitStart < chunkDripStart + chunkDrip.first.length && unitStart + ru.length > chunkDripStart) chunkDrip.second else null
                     val unitParts = chunkPartsWord != null && unitStart < chunkPartsStart + chunkPartsWord.length && unitStart + ru.length > chunkPartsStart
@@ -1236,7 +1380,7 @@ fun PvLyricLine(
                         uSize = (fitSize * (0.92f + (uSeed % 22) / 100f) * effCharFactor).coerceIn(fitSize * 0.55f, fitSize * 1.35f).sp,
                         uRot = ((uSeed / 3) % 29 - 14).toFloat(),
                         uYOffset = ((uSeed / 5) % 17 - 8).dp,
-                        uXShiftDp = uXShift,
+                        uXShiftDp = uXShiftTotal,
                         staggerIndex = effGi,
                         exiting = exiting,
                         exitProgressValue = if (sandLine && !fallLine) (exitProgress.value * 1.6f).coerceAtMost(1f) else exitProgress.value,
@@ -1258,7 +1402,12 @@ fun PvLyricLine(
                         swayScale = if (bigText) 2.8f else 1f,
                         entryDelayMs = unitDelayMs,
                         partsEntry = partsEntry,
-                        wordParts = unitParts
+                        wordParts = unitParts,
+                        repeatIndex = repeatIdxHere,
+                        repeatCount = repeatLenHere,
+                        stretchKind = unitStretchKind,
+                        stretchProgress = stretchAnim.value,
+                        pushXFactor = stretchPushArr.getOrElse(rIdx) { 0f }
                     )
                 }
             }
@@ -1316,7 +1465,12 @@ fun PvLyricUnit(
     arrowUnder: Boolean = false,
     entryDelayMs: Long = -1L,
     partsEntry: Boolean = false,
-    wordParts: Boolean = false
+    wordParts: Boolean = false,
+    repeatIndex: Int = -1,
+    repeatCount: Int = 0,
+    stretchKind: Int = 0,
+    stretchProgress: Float = 0f,
+    pushXFactor: Float = 0f
 ) {
     val pvEaseIn = CubicBezierEasing(0.42f, 0f, 1f, 1f)
     // 文字同期がある行では実時刻ディレイ、無い行では従来の等間隔ディレイで入場する
@@ -1439,6 +1593,8 @@ fun PvLyricUnit(
             fxT.animateTo(1f, animationSpec = tween(durationMillis = 800, easing = LinearEasing))
         }
     }
+    // 同じ文字が3つ以上連続する場合、先頭ほど薄くする（横重ねエフェクト用）
+    val repeatAlphaF = if (repeatCount >= 2 && repeatIndex >= 0) 0.42f + 0.58f * (repeatIndex.toFloat() / (repeatCount - 1).coerceAtLeast(1)) else 1f
     Box(
         modifier = Modifier
             .width(IntrinsicSize.Max)
@@ -1450,7 +1606,7 @@ fun PvLyricUnit(
                     val spd = 0.7f + ((uSeed % 50) / 50f) * 0.7f
                     val pe = (fp2 * spd).coerceAtMost(1f)
                     val dirR = if (uSeed % 2 == 0) 1f else -1f
-                    alpha = (if (pe < 0.6f) 1f else 1f - (pe - 0.6f) / 0.4f) * (if (ghost) 0.38f else 1f)
+                    alpha = (if (pe < 0.6f) 1f else 1f - (pe - 0.6f) / 0.4f) * (if (ghost) 0.38f else 1f) * repeatAlphaF
                     rotationZ = uRot + dirR * pe * (22f + (uSeed % 38))
                     translationX = dirR * pe * pe * (14f + (uSeed % 26))
                     translationY = pe * pe * (560f + (uSeed % 30) * 9f)
@@ -1459,7 +1615,7 @@ fun PvLyricUnit(
                     val wx = ((exitProgressValue * 720f - exitDelayMs) / 520f).coerceIn(0f, 1f)
                     val wd = wx * wx
                     val wDir = if (uSeed % 2 == 0) 1f else -1f
-                    alpha = (if (wx < 0.55f) 1f else 1f - (wx - 0.55f) / 0.45f) * (if (ghost) 0.38f else 1f)
+                    alpha = (if (wx < 0.55f) 1f else 1f - (wx - 0.55f) / 0.45f) * (if (ghost) 0.38f else 1f) * repeatAlphaF
                     rotationZ = uRot + wd * (55f + (uSeed % 50)) * wDir
                     translationX = wd * (360f + (uSeed % 40) * 7f)
                     translationY = wd * ((uSeed % 41) - 20) * 2.4f - wd * 26f
@@ -1468,12 +1624,12 @@ fun PvLyricUnit(
                     scaleY = ws
                 } else if (exiting && crumbleExit != 0) {
                     // 粒子化して消える文字は、崩れる表現は粒子側が担当するので本体は姿勢だけ保つ
-                    alpha = if (ghost) 0.38f else 1f
+                    alpha = (if (ghost) 0.38f else 1f) * repeatAlphaF
                     rotationZ = uRot
                 } else if (exiting) {
                     val localX = ((exitProgressValue * 720f - exitDelayMs) / 320f).coerceIn(0f, 1f)
                     val a = 1f - pvEaseIn.transform(localX)
-                    alpha = a * (if (ghost) 0.38f else 1f)
+                    alpha = a * (if (ghost) 0.38f else 1f) * repeatAlphaF
                     val es = 0.5f + 0.5f * a
                     scaleX = es
                     scaleY = es
@@ -1484,7 +1640,7 @@ fun PvLyricUnit(
                     val blinkF = if (effectKind == 3 && fxT.value < 1f) {
                         if (sin(fxT.value * 21.99f + uSeed * 1.3f) > -0.2f) 1f else 0.12f
                     } else 1f
-                    alpha = a * blinkF * (if (ghost) 0.38f else 1f)
+                    alpha = a * blinkF * (if (ghost) 0.38f else 1f) * repeatAlphaF
                     val ns = 0.6f + 0.4f * a
                     scaleX = ns
                     scaleY = ns
@@ -1503,6 +1659,17 @@ fun PvLyricUnit(
                 when (unitText) {
                     "！", "？", "!", "?" -> { scaleX *= 1.45f; scaleY *= 1.45f; rotationZ += -12f }
                     "。", "、", "・", "…", "‥" -> { scaleX *= 0.66f; scaleY *= 0.66f }
+                }
+                // 「深」は上を支点に縦へ下に伸び、「長」は横に伸びる。伸びた分、隣の文字を押す
+                if (stretchKind == 1) {
+                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0f)
+                    scaleY *= 1f + 0.55f * stretchProgress
+                }
+                if (stretchKind == 2) {
+                    scaleX *= 1f + 0.7f * stretchProgress
+                }
+                if (pushXFactor != 0f) {
+                    translationX += pushXFactor * stretchProgress * uSize.value * 1.05f
                 }
             }
     ) {
@@ -1649,6 +1816,24 @@ fun PvLyricUnit(
                         cornerRadius = CornerRadius(6.dp.toPx(), 6.dp.toPx()),
                         style = Stroke(width = 1.2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(7f, 6f), 0f))
                     )
+                }
+            }
+            if (mosaic && !exiting) {
+                // 「隠」の文字は入場時もモザイクから現れる（入場が進むにつれてセルが解けていく）
+                Canvas(modifier = Modifier.matchParentSize()) {
+                    val fp = 1f - uAnim.value
+                    if (fp > 0f) {
+                        val cell = 6.dp.toPx()
+                        val cols = (size.width / cell).toInt() + 1
+                        val rowsN = (size.height / cell).toInt() + 1
+                        for (gx in 0 until cols) for (gy in 0 until rowsN) {
+                            val h = (((gx * 73856093) xor (gy * 19349663) xor (uSeed * 83492791)) and 0x7fffffff) % 100
+                            if (h < fp * 135f) {
+                                val c = when (h % 4) { 0 -> Color(0xFF9E9E9E); 1 -> accentColor; 2 -> Color(0xFF616161); else -> Color(0xFFBDBDBD) }
+                                drawRect(color = c.copy(alpha = 0.9f), topLeft = Offset(gx * cell, gy * cell), size = Size(cell, cell))
+                            }
+                        }
+                    }
                 }
             }
             if (mosaic && exiting) {
