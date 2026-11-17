@@ -220,6 +220,10 @@ class AppPreferenceManager(private val context: Context) {
     fun setLiquidBackgroundEnabled(enabled: Boolean) { prefs.edit().putBoolean("liquid_background", enabled).apply() }
     fun getHomeDiscLayout(): String = prefs.getString("home_disc_layout", "classic") ?: "classic"
     fun setHomeDiscLayout(layout: String) { prefs.edit().putString("home_disc_layout", layout).apply() }
+    fun isDisc3dEnabled(): Boolean = prefs.getBoolean("disc_3d", false)
+    fun setDisc3dEnabled(enabled: Boolean) { prefs.edit().putBoolean("disc_3d", enabled).apply() }
+    fun isDisc3dTiltEnabled(): Boolean = prefs.getBoolean("disc_3d_tilt", false)
+    fun setDisc3dTiltEnabled(enabled: Boolean) { prefs.edit().putBoolean("disc_3d_tilt", enabled).apply() }
 
     fun isLyricsPvMode(): Boolean = prefs.getBoolean("lyrics_pv_mode", false)
     fun setLyricsPvMode(enabled: Boolean) { prefs.edit().putBoolean("lyrics_pv_mode", enabled).apply() }
