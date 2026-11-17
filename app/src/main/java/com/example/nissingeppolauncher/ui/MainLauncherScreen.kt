@@ -219,6 +219,13 @@ fun MainLauncherScreen() {
         }
     }
 
+    // ステータスバー歌詞オーバーレイ: 設定がONで権限があればサービスを起動しておく
+    LaunchedEffect(Unit) {
+        if (repo.prefManager.isStatusBarLyricsEnabled() && android.provider.Settings.canDrawOverlays(context)) {
+            com.example.nissingeppolauncher.service.LyricsOverlayService.start(context)
+        }
+    }
+
     // 再生中セッションの曲情報を定期取得する（歌詞の照合用）
     LaunchedEffect(Unit) {
         val mediaSessionManager = context.getSystemService(android.content.Context.MEDIA_SESSION_SERVICE) as? android.media.session.MediaSessionManager
