@@ -1913,10 +1913,14 @@ fun PvLyricUnit(
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box {
         Box(
-            modifier = Modifier.drawWithContent {
-                crumbleLayer.record { this@drawWithContent.drawContent() }
-                if (crumblePoints == null || crumbleFp <= 0f) drawLayer(crumbleLayer)
-            }
+            // 軽量化: 文字の形の画像化（GraphicsLayer への記録）は、粒子化する退場ユニットだけに絞る。
+            // それ以外のユニットは内容を直接描く（見た目は同じで、オフスクリーン記録の分だけ軽くなる）
+            modifier = if (exiting && crumbleExit != 0) {
+                Modifier.drawWithContent {
+                    crumbleLayer.record { this@drawWithContent.drawContent() }
+                    if (crumblePoints == null || crumbleFp <= 0f) drawLayer(crumbleLayer)
+                }
+            } else Modifier
         ) {
             if (!exiting && effectKind == 4 && fxT.value < 1f) {
                 val flick = (0.35f + 0.3f * sin(fxT.value * 47f + uSeed * 3.1f)).coerceIn(0.1f, 0.65f)
