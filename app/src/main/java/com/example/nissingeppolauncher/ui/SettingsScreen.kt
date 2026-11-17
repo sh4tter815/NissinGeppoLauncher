@@ -1029,7 +1029,7 @@ fun SettingsScreen(
                                                 fxMessage = when (result) {
                                                     1 -> "更新しました（データ v${LyricEffectsData.appliedVersion}）"
                                                     0 -> "最新のデータです（データ v${LyricEffectsData.appliedVersion}）"
-                                                    else -> "確認に失敗しました"
+                                                    else -> "確認に失敗しました" + (LyricEffectsData.lastRefreshError?.let { "（$it）" } ?: "")
                                                 }
                                             }
                                         }

@@ -440,6 +440,8 @@ object LyricEffectsData {
     @Volatile var placeholderMarkers: List<String> = DEFAULT_PLACEHOLDER_MARKERS; private set
     @Volatile var chorusSyllables: List<String> = DEFAULT_CHORUS_SYLLABLES; private set
     @Volatile var appliedVersion: Int = 4; private set
+    // 直近の更新失敗の理由（設定画面で表示する。成功時は null）
+    @Volatile var lastRefreshError: String? = null; private set
     @Volatile private var appliedRaw: String = ""
 
     private val ICON_BY_NAME: Map<String, Int> = mapOf(
@@ -651,19 +653,37 @@ object LyricEffectsData {
 
     // 戻り値: 1=更新した / 0=最新だった / -1=失敗
     suspend fun refresh(context: Context): Int {
-        val text = withContext(Dispatchers.IO) {
-            try {
-                val conn = URL(DATA_URL).openConnection() as HttpURLConnection
-                conn.connectTimeout = 8000
-                conn.readTimeout = 8000
-                conn.setRequestProperty("User-Agent", "NissinGeppoLauncher")
-                conn.inputStream.bufferedReader().use { it.readText() }
-            } catch (e: Exception) {
-                null
+        var text: String? = null
+        var lastError: Exception? = null
+        // 不安定な回線でも拾えるよう、長めのタイムアウトで最大2回試す
+        for (attempt in 0..1) {
+            text = withContext(Dispatchers.IO) {
+                try {
+                    val conn = URL(DATA_URL).openConnection() as HttpURLConnection
+                    conn.connectTimeout = 15000
+                    conn.readTimeout = 15000
+                    conn.setRequestProperty("User-Agent", "NissinGeppoLauncher")
+                    conn.inputStream.bufferedReader().use { it.readText() }
+                } catch (e: Exception) {
+                    lastError = e
+                    null
+                }
             }
-        } ?: return -1
-        if (text == appliedRaw) return 0
-        if (!applyJson(text)) return -1
+            if (text != null) break
+        }
+        if (text == null) {
+            lastRefreshError = "通信エラー: ${lastError?.javaClass?.simpleName ?: "不明"} ${lastError?.message ?: ""}".trim()
+            return -1
+        }
+        if (text == appliedRaw) {
+            lastRefreshError = null
+            return 0
+        }
+        if (!applyJson(text)) {
+            lastRefreshError = "データ検証エラー"
+            return -1
+        }
+        lastRefreshError = null
         withContext(Dispatchers.IO) {
             try {
                 File(context.filesDir, CACHE_FILE).writeText(text)
