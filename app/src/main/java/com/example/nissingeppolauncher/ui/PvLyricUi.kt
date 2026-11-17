@@ -893,14 +893,13 @@ fun PvLyricLine(
     // 退場は1本の時計（exitProgress）で全文字を駆動する（位相だけ文字ごとにずらす）
     val exitProgress = remember { Animatable(0f) }
     // 「落」を含む行は、退場のときに文字をバラさず行ごと画面下へ落下させる
-    val fallLine = text.contains("落")
+    val fallLine = FALL_WORDS.any { text.contains(it) }
     // 単語で発火する入場・退場エフェクトの対象判定
     // 否定語（ない等）には打ち消し線ではなく☓アイコンを付ける（対象語の開始位置を塊ごとに探す）
-    val negWords = listOf("なかった", "じゃない", "なくて", "なくな", "無い", "ない", "間違い", "誤り")
-    val sandLine = text.contains("砂") || text.contains("消") || text.contains("壊") || text.contains("砕")
-    val dreamLine = text.contains("夢") || text.contains("思い出")
-    val windLine = text.contains("風")
-    val rippleWord = text.contains("響")
+    val sandLine = SAND_WORDS.any { text.contains(it) }
+    val dreamLine = DREAM_WORDS.any { text.contains(it) }
+    val windLine = WIND_WORDS.any { text.contains(it) }
+    val rippleWord = RIPPLE_WORDS.any { text.contains(it) }
     if (exiting) {
         LaunchedEffect(Unit) {
             exitProgress.animateTo(1f, animationSpec = tween(durationMillis = 720, easing = LinearEasing))
@@ -944,7 +943,7 @@ fun PvLyricLine(
     val camSlideXPx = with(camDensity) { (screenWidthDp * 0.24f).dp.toPx() }
     val camSlideYPx = with(camDensity) { (fitSize * 1.7f).dp.toPx() }
     // 「深」は縦に下へ、「長」は横に伸びる（時計は行全体で共有し、隣の文字を押す動きと同期させる）
-    val hasStretch = text.contains("深") || text.contains("長")
+    val hasStretch = STRETCH_VERTICAL_WORDS.any { text.contains(it) } || STRETCH_HORIZONTAL_WORDS.any { text.contains(it) }
     val stretchAnim = remember { Animatable(if (exiting) 1f else 0f) }
     if (!exiting && hasStretch) {
         LaunchedEffect(Unit) {
@@ -1030,7 +1029,7 @@ fun PvLyricLine(
                 }
             }
         }
-        if (text.contains("波") || text.contains("海") || text.contains("流")) {
+        if (WAVE_WORDS.any { text.contains(it) }) {
             // 流・波・海は、間奏アートと同じベジェ曲線の波を文字の後ろに敷く
             val waveFade = if (exiting) 1f - exitProgress.value else fxAnim.value
             PvInterludeArt(
@@ -1200,9 +1199,9 @@ fun PvLyricLine(
                 ranges.add(st until en)
                 si = rowText.indexOf("自主規制", en)
             }
-            // 伏せ字グリフの連続: 〇○●は伏せ字専用に近いので1文字でも対象、*・―・-・×等は2文字以上の連続だけ対象
-            val strongMask = setOf('〇', '○', '●')
-            val weakMask = setOf('*', '＊', '―', '—', '－', '-', '×', '✕', '✖', '■')
+            // 伏せ字グリフの連続: 〇○●■□は伏せ字専用に近いので1文字でも対象、*・―・-・×等は2文字以上の連続だけ対象
+            val strongMask = setOf('〇', '○', '●', '■', '□')
+            val weakMask = setOf('*', '＊', '―', '—', '－', '-', '×', '✕', '✖')
             var mi = 0
             while (mi < rowText.length) {
                 if (rowText[mi] in strongMask || rowText[mi] in weakMask) {
@@ -1292,7 +1291,7 @@ fun PvLyricLine(
         val stretchPushArr = FloatArray(rowUnitTexts.size) { r ->
             var f = 0f
             for (s in rowUnitTexts.indices) {
-                if (s != r && rowUnitTexts[s].contains("長")) {
+                if (s != r && STRETCH_HORIZONTAL_WORDS.any { w -> rowUnitTexts[s].contains(w) }) {
                     val d = kotlin.math.abs(r - s)
                     val fall = when (d) { 1 -> 1.0f; 2 -> 0.45f; else -> 0f }
                     f += (if (r > s) 1f else -1f) * fall
@@ -1378,7 +1377,7 @@ fun PvLyricLine(
         Row(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
-            modifier = if (rowIdx > 0) Modifier.padding(start = row2Indent, top = (if ((0 until rowIdx).any { rd -> rows[rd].any { c -> c.contains("深") } }) (stretchAnim.value * fitSize * 0.45f).dp else 0.dp)) else Modifier
+            modifier = if (rowIdx > 0) Modifier.padding(start = row2Indent, top = (if ((0 until rowIdx).any { rd -> rows[rd].any { c -> STRETCH_VERTICAL_WORDS.any { w -> c.contains(w) } } }) (stretchAnim.value * fitSize * 0.45f).dp else 0.dp)) else Modifier
         ) {
             rowChunks.forEachIndexed { posInRow, chunk ->
                 if (posInRow > 0 && latinDominant) {
@@ -1390,29 +1389,35 @@ fun PvLyricLine(
                 if (chunk.contains("）") || chunk.contains(")")) inParen = false
                 val chunkIconKind = if (!iconPlaced && iconWord != null && chunk.contains(iconWord.first)) iconWord.second else null
                 // 否定語の開始位置（この塊の中に否定語があれば、その文字に☓アイコンを付ける）
-                val chunkNegStart = negWords.mapNotNull { w -> chunk.indexOf(w).takeIf { it >= 0 } }.minOrNull() ?: -1
-                val chunkGhost = chunk.contains("透明")
-                val chunkPileWord = listOf("積み重な", "降り積も", "積も", "積み", "重な", "重ね", "堆積", "累積").firstOrNull { chunk.contains(it) }
+                val chunkNegStart = NEG_WORDS.mapNotNull { w -> chunk.indexOf(w).takeIf { it >= 0 } }.minOrNull() ?: -1
+                val chunkGhost = GHOST_WORDS.any { chunk.contains(it) }
+                val chunkPileWord = PILE_WORDS.firstOrNull { chunk.contains(it) }
                 val chunkPileStart = chunkPileWord?.let { chunk.indexOf(it) } ?: -1
-                // 液体っぽい単語は、文字の下端から液が垂れるエフェクトにする（蜂蜜系は黄色、どろどろは茶色、液体は水色）
-                val chunkDrip: Pair<String, Color>? = when {
-                    chunk.contains("血液") -> "血液" to Color(0xFFE53935)
-                    chunk.contains("秘密") -> null
-                    chunk.contains("蜂蜜") || chunk.contains("はちみつ") || chunk.contains("ハチミツ") || chunk.contains("蜜") -> "蜜" to Color(0xFFFFB300)
-                    chunk.contains("どろどろ") || chunk.contains("ドロドロ") -> "どろどろ" to Color(0xFF8D6E63)
-                    chunk.contains("涎") -> "涎" to Color(0xFF6EC6FF)
-                    chunk.contains("よだれ") -> "よだれ" to Color(0xFF6EC6FF)
-                    chunk.contains("ヨダレ") -> "ヨダレ" to Color(0xFF6EC6FF)
-                    chunk.contains("液体") -> "液体" to Color(0xFF6EC6FF)
-                    chunk.contains("液") -> "液" to Color(0xFF6EC6FF)
-                    else -> null
+                // 液体っぽい単語は、文字の下端から液が垂れるエフェクトにする（対象語と色はデータ配信側で管理）
+                var dripStartFound = -1
+                val chunkDrip: Pair<String, Color>? = DRIP_WORDS.firstOrNull { (w, _) ->
+                    val ex = DRIP_EXCLUSIONS[w] ?: emptyList()
+                    var from = 0
+                    var ok = false
+                    while (true) {
+                        val i = chunk.indexOf(w, from)
+                        if (i < 0) break
+                        if (ex.any { chunk.startsWith(it, i) }) {
+                            from = i + 1
+                            continue
+                        }
+                        dripStartFound = i
+                        ok = true
+                        break
+                    }
+                    ok
                 }
-                val chunkDripStart = chunkDrip?.let { chunk.indexOf(it.first) } ?: -1
+                val chunkDripStart = if (chunkDrip != null) dripStartFound else -1
                 // バラバラ・壊れる系の単語は、設定に関係なく文字をパーツに分解したまま揺らす
-                val chunkPartsWord = listOf("バラバラ", "ばらばら", "壊れ", "割れ", "砕け", "崩れ", "破", "割", "壊", "砕").firstOrNull { chunk.contains(it) }
+                val chunkPartsWord = PARTS_WORDS.firstOrNull { chunk.contains(it) }
                 val chunkPartsStart = chunkPartsWord?.let { chunk.indexOf(it) } ?: -1
-                val chunkMosaicStart = chunk.indexOf("隠")
-                val chunkMosaicWordStart = chunk.indexOf("モザイク")
+                val chunkMosaicWord = MOSAIC_WORDS.firstOrNull { chunk.contains(it) }
+                val chunkMosaicStart = chunkMosaicWord?.let { chunk.indexOf(it) } ?: -1
                 // 複数文字の色ワード（希望・想い等）は塊単位で判定し、該当する文字だけに色を渡す
                 val chunkColorHit = (COLOR_WORDS + ASSOC_COLOR_WORDS).firstOrNull { (w, _) -> w.length > 1 && chunk.contains(w) }
                 val chunkColorStart = chunkColorHit?.let { chunk.indexOf(it.first) } ?: -1
@@ -1469,16 +1474,16 @@ fun PvLyricLine(
                         thisUnitIcon = LyricIcon.CROSS
                         negIconPlaced = true
                     }
-                    // 「隠」「モザイク」の文字にだけモザイクをかける
-                    val mosaicStart = when {
-                        chunkMosaicStart >= 0 -> chunkMosaicStart
-                        chunkMosaicWordStart >= 0 -> chunkMosaicWordStart
-                        else -> -1
-                    }
-                    val mosaicLen = if (chunkMosaicStart >= 0) 1 else if (chunkMosaicWordStart >= 0) 3 else 0
+                    // モザイク対象語の文字にだけモザイクをかける
+                    val mosaicStart = chunkMosaicStart
+                    val mosaicLen = chunkMosaicWord?.length ?: 0
                     val unitMosaic = mosaicStart >= 0 && unitStart < mosaicStart + mosaicLen && unitStart + ru.length > mosaicStart
                     // 「積もる・重なる」系の文字は、同じ文字を上に重ねて表現する
-                    val unitStretchKind = when { ru.contains("深") -> 1; ru.contains("長") -> 2; else -> 0 }
+                    val unitStretchKind = when {
+                        STRETCH_VERTICAL_WORDS.any { w -> ru.contains(w) } -> 1
+                        STRETCH_HORIZONTAL_WORDS.any { w -> ru.contains(w) } -> 2
+                        else -> 0
+                    }
                     val unitPile = chunkPileWord != null && unitStart < chunkPileStart + chunkPileWord.length && unitStart + ru.length > chunkPileStart
                     val unitDrip = if (chunkDrip != null && unitStart < chunkDripStart + chunkDrip.first.length && unitStart + ru.length > chunkDripStart) chunkDrip.second else null
                     val unitParts = chunkPartsWord != null && unitStart < chunkPartsStart + chunkPartsWord.length && unitStart + ru.length > chunkPartsStart
@@ -2068,7 +2073,7 @@ fun PvLyricUnit(
                     )
                 )
             }
-            if (!exiting && (unitText.contains("光") || unitText.contains("輝"))) {
+            if (!exiting && SPARKLE_WORDS.any { unitText.contains(it) }) {
                 // 「光」「輝」はコーティングが反射するみたいにキラキラさせる
                 Canvas(modifier = Modifier.matchParentSize()) {
                     val phBase = sway.value * 6.2832f
@@ -2716,7 +2721,7 @@ fun LyricsPvLayer(
             }
         }
         // 「暗」を含む行では背景を少し暗くし、次の行で戻す
-        val darkTarget = if (pvDisplayIndex >= 0 && lines.getOrNull(pvDisplayIndex)?.text?.let { it.contains("暗") || it.contains("闇") } == true) 0.32f else 0f
+        val darkTarget = if (pvDisplayIndex >= 0 && lines.getOrNull(pvDisplayIndex)?.text?.let { t -> DARK_WORDS.any { t.contains(it) } } == true) 0.32f else 0f
         val darkAlpha = remember { Animatable(0f) }
         LaunchedEffect(darkTarget) {
             darkAlpha.animateTo(darkTarget, animationSpec = tween(durationMillis = 700))
@@ -2797,12 +2802,7 @@ fun LyricsPvLayer(
             }
         }
         pvCurrent?.let { (_, curText) ->
-            val ambKind = when {
-                curText.contains("桜") -> 2
-                curText.contains("雨") -> 0
-                curText.contains("雪") -> 1
-                else -> -1
-            }
+            val ambKind = AMBIENT_WORDS.firstOrNull { (w, _) -> curText.contains(w) }?.second ?: -1
             if (ambKind >= 0) {
                 PvAmbientEffect(kind = ambKind, modifier = Modifier.fillMaxSize())
             }
@@ -3294,7 +3294,7 @@ fun LyricsFullscreenOverlay(
                     if (fsExiting != null) { delay(750); fsExiting = null }
                 }
                 // 「暗」を含む行では背景を少し暗くし、次の行で戻す
-                val fsDarkTarget = if (fsDisplayIndex >= 0 && fsLines.getOrNull(fsDisplayIndex)?.text?.let { it.contains("暗") || it.contains("闇") } == true) 0.32f else 0f
+                val fsDarkTarget = if (fsDisplayIndex >= 0 && fsLines.getOrNull(fsDisplayIndex)?.text?.let { t -> DARK_WORDS.any { t.contains(it) } } == true) 0.32f else 0f
                 val fsDarkAlpha = remember { Animatable(0f) }
                 LaunchedEffect(fsDarkTarget) {
                     fsDarkAlpha.animateTo(fsDarkTarget, animationSpec = tween(durationMillis = 700))
@@ -3351,9 +3351,7 @@ fun LyricsFullscreenOverlay(
                 }
                 fsCurrent?.let { (_, curText) ->
                     val ambKind = when {
-                        curText.contains("桜") -> 2
-                        curText.contains("雨") -> 0
-                        curText.contains("雪") -> 1
+                        AMBIENT_WORDS.any { (w, _) -> curText.contains(w) } -> AMBIENT_WORDS.first { (w, _) -> curText.contains(w) }.second
                         else -> -1
                     }
                     if (ambKind >= 0) PvAmbientEffect(kind = ambKind, modifier = Modifier.fillMaxSize())
