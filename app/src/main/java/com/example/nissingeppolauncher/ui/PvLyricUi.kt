@@ -970,6 +970,34 @@ fun PvLyricLine(
         fixed
     }
     fun rowEm(row: List<String>): Float = row.sumOf { chunkEm(it).toDouble() }.toFloat() + gapEm * (row.size - 1).coerceAtLeast(0)
+    // ユニットごとの英字フォント適用フラグ。半角でも英字・数字を含むユニットだけを英字フォントにし、
+    // 記号だけのユニット（() 等）は直前のユニットの扱いに合わせる（先頭にある場合は直後を見る）。
+    // 日本語の文中で半角記号が英字フォントになってしまうのを防ぐ
+    val unitEnFlags: List<Boolean> = if (enFontFamily == null) emptyList() else {
+        val flat = rows.flatten().flatMap { renderUnitsOf(it) }
+        // -1 = 記号のみ（未定）, 0 = 日本語フォント, 1 = 英字フォント
+        val state = IntArray(flat.size) { idx ->
+            val u = flat[idx]
+            when {
+                u.isEmpty() || u.any { it !in ' '..'~' } -> 0
+                u.any { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' } -> 1
+                else -> -1
+            }
+        }
+        var prevFlag = -1
+        for (idx in state.indices) {
+            if (state[idx] == -1) {
+                if (prevFlag != -1) state[idx] = prevFlag
+            } else {
+                prevFlag = state[idx]
+            }
+        }
+        var nextFlag = 0
+        for (idx in state.indices.reversed()) {
+            if (state[idx] == -1) state[idx] = nextFlag else nextFlag = state[idx]
+        }
+        state.map { it == 1 }
+    }
     val longestRowEm = rows.maxOf { rowEm(it) }.coerceAtLeast(1f)
     // 行ごとの大きさを均等に: どの行も「枠いっぱいに広がるサイズ」を基本にし、短い行だけ高さ上限で止める
     val heightCapBase = when {
@@ -1664,7 +1692,7 @@ fun PvLyricLine(
                         exiting = exiting,
                         exitProgressValue = if (sandLine && !fallLine) (exitProgress.value * 1.6f).coerceAtMost(1f) else exitProgress.value,
                         exitDelayMs = (uSeed % 5) * 35f + gi * 12f,
-                        fontFamily = if (enFontFamily != null && ru.isNotEmpty() && ru.all { it in ' '..'~' }) enFontFamily else fontFamily,
+                        fontFamily = if (unitEnFlags.getOrElse(gi) { false }) enFontFamily else fontFamily,
                         accentColor = accentColor,
                         effectKind = effKind,
                         iconKind = thisUnitIcon,
