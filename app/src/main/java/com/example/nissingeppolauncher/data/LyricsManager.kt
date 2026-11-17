@@ -306,6 +306,11 @@ object LyricsManager {
         } catch (e: Exception) {
             // 削除失敗は無視する
         }
+        try {
+            File(cacheFile(context, title, artist, album).absolutePath + ".nokrc").delete()
+        } catch (e: Exception) {
+            // 削除失敗は無視する
+        }
     }
 
     /**
@@ -439,6 +444,40 @@ object LyricsManager {
                     }
                     if (krcParsed.isNotEmpty()) return@withContext krcParsed
                 }
+                // 文字同期なしのキャッシュ（LRCLIB由来など）の場合は、Kugouに文字同期（KRC）が
+                // ないか一度だけ確認し、あればそちらへ差し替える。無いことを確認したら
+                // .nokrc マーカーを残し、次回からは確認しない
+                val noKrcFile = File(cache.absolutePath + ".nokrc")
+                if (!noKrcFile.exists() && title.isNotBlank()) {
+                    val qTitle = title.replace(Regex("""^\\s*\\d{1,3}\\s*[.．、:：_\\-]\\s*"""), "").ifBlank { title }
+                    val krcText = try {
+                        fetchKugouKrc(qTitle, artist, durationMs)
+                    } catch (e: Exception) {
+                        null
+                    }
+                    if (!krcText.isNullOrBlank()) {
+                        val krcParsed2 = try {
+                            parseKrc(krcText)
+                        } catch (e: Exception) {
+                            emptyList()
+                        }
+                        if (krcParsed2.isNotEmpty() && krcParsed2.any { it.words.isNotEmpty() }) {
+                            try {
+                                cache.writeText(linesToLrc(krcParsed2), Charsets.UTF_8)
+                                File(cache.absolutePath + ".krc").writeText(krcText, Charsets.UTF_8)
+                            } catch (e: Exception) {
+                                // キャッシュ保存失敗は無視する
+                            }
+                            lastFetchSource = "Kugou"
+                            return@withContext krcParsed2
+                        }
+                    }
+                    try {
+                        noKrcFile.writeText("1", Charsets.UTF_8)
+                    } catch (e: Exception) {
+                        // マーカー保存失敗は無視する
+                    }
+                }
                 return@withContext parsed
             }
         }
@@ -451,6 +490,30 @@ object LyricsManager {
         // データベース側の曲名には番号が付いていないため、そのままだと照合で不利になる。
         // 表示やキャッシュのキーは元のタイトルのままにする
         val queryTitle = title.replace(Regex("""^\\s*\\d{1,3}\\s*[.．、:：_\\-]\\s*"""), "").ifBlank { title }
+
+        // 2.5) Kugouに文字同期（KRC）がある場合は、LRCLIBより優先する
+        val kugouKrcFirst = try {
+            fetchKugouKrc(queryTitle, artist, durationMs)
+        } catch (e: Exception) {
+            null
+        }
+        if (!kugouKrcFirst.isNullOrBlank()) {
+            val parsedKrcFirst = try {
+                parseKrc(kugouKrcFirst)
+            } catch (e: Exception) {
+                emptyList()
+            }
+            if (parsedKrcFirst.isNotEmpty() && parsedKrcFirst.any { it.words.isNotEmpty() }) {
+                try {
+                    cache.writeText(linesToLrc(parsedKrcFirst), Charsets.UTF_8)
+                    File(cache.absolutePath + ".krc").writeText(kugouKrcFirst, Charsets.UTF_8)
+                } catch (e: Exception) {
+                    // キャッシュ保存失敗は無視する
+                }
+                lastFetchSource = "Kugou"
+                return@withContext parsedKrcFirst
+            }
+        }
 
         // 3) LRCLIB /api/get（タイトル・アーティスト・アルバム・長さで照合）
         val durationSec = if (durationMs > 0) durationMs / 1000 else 0
@@ -530,26 +593,7 @@ object LyricsManager {
             }
         }
 
-        // 5) Kugou（酷狗）: さらにマニアックな曲の候補
-        // まず文字同期つきの KRC を試す（取れたら文字単位のタイミングも一緒にキャッシュする）
-        val kugouKrc = try {
-            fetchKugouKrc(queryTitle, artist, durationMs)
-        } catch (e: Exception) {
-            null
-        }
-        if (!kugouKrc.isNullOrBlank()) {
-            val parsedKrc = parseKrc(kugouKrc)
-            if (parsedKrc.isNotEmpty()) {
-                try {
-                    cache.writeText(linesToLrc(parsedKrc), Charsets.UTF_8)
-                    File(cache.absolutePath + ".krc").writeText(kugouKrc, Charsets.UTF_8)
-                } catch (e: Exception) {
-                    // キャッシュ保存失敗は無視する
-                }
-                lastFetchSource = "Kugou"
-                return@withContext parsedKrc
-            }
-        }
+        // 5) Kugou（酷狗）: さらにマニアックな曲の候補（KRCは 2.5 で試し済みなので、ここではLRCのみ）
         val kugouLrc = try {
             fetchKugouLrc(queryTitle, artist, durationMs)
         } catch (e: Exception) {
@@ -1060,6 +1104,7 @@ object LyricsManager {
         try { cacheFile(context, title, artist, album).delete() } catch (e: Exception) { }
         try { instrumentalFile(context, title, artist, album).delete() } catch (e: Exception) { }
         try { File(cacheFile(context, title, artist, album).absolutePath + ".ja3").delete() } catch (e: Exception) { }
+        try { File(cacheFile(context, title, artist, album).absolutePath + ".nokrc").delete() } catch (e: Exception) { }
     }
 
     /** 歌詞の各行を日本語へ翻訳する（日本語を含む行は空文字＝訳なし）。結果はキャッシュする */
