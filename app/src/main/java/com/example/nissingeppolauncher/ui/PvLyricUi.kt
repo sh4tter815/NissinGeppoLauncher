@@ -1011,6 +1011,32 @@ fun PvLyricLine(
             delay(16)
         }
     }
+    // 疑似視差用: この行のカメラ平行移動量（スライド＋手ブレ）を状態として共有する。
+    // 文字ごとに「大きさ＝奥行き」ぶんのズレを足すことで、カメラが動いたときに視差が出る。
+    // 値は PvLyricUnit の graphicsLayer 内でのみ読むので、再コンポーズは走らない
+    val camFlowState = rememberUpdatedState(camFlowEff)
+    val camExitingState = rememberUpdatedState(exiting)
+    val camTransState = remember {
+        derivedStateOf {
+            val flow = camFlowState.value
+            val ex = camExitingState.value
+            val camP = if (ex) pvEaseIn.transform(exitProgress.value) else camAnim.value
+            var tx = 0f
+            var ty = 0f
+            when (flow) {
+                0 -> tx = (if (ex) camP else camP - 1f) * camSlideXPx
+                1 -> tx = (if (ex) -camP else 1f - camP) * camSlideXPx
+                2 -> ty = (if (ex) -camP else 1f - camP) * camSlideYPx
+                3 -> ty = (if (ex) camP else camP - 1f) * camSlideYPx
+            }
+            val driftT = camDriftMs.value / 1000f
+            val driftX = (Math.sin(driftT * 1.185) * 0.7 + Math.sin(driftT * 0.706 + 1.7) * 0.3).toFloat()
+            val driftY = (Math.sin(driftT * 0.938 + 0.6) * 0.7 + Math.sin(driftT * 0.556 + 3.1) * 0.3).toFloat()
+            tx += driftX * camDriftAmpXPx
+            ty += driftY * camDriftAmpYPx
+            Offset(tx, ty)
+        }
+    }
     // 「深」は縦に下へ、「長」は横に伸びる（時計は行全体で共有し、隣の文字を押す動きと同期させる）
     val hasStretch = STRETCH_VERTICAL_WORDS.any { text.contains(it) } || STRETCH_HORIZONTAL_WORDS.any { text.contains(it) }
     val stretchAnim = remember { Animatable(if (exiting) 1f else 0f) }
@@ -1620,7 +1646,9 @@ fun PvLyricLine(
                         censorRunB = censorRunBArr.getOrElse(rIdx) { 1f },
                         censorT = censorProgress.value,
                         lineDurationMs = lineDurationMs,
-                        rubyKana = rubyModeHere == 2
+                        rubyKana = rubyModeHere == 2,
+                        parallaxState = camTransState,
+                        parallaxDepth = effCharFactor - 1f
                     )
                 }
             }
@@ -1690,7 +1718,9 @@ fun PvLyricUnit(
     censorRunB: Float = 1f,
     censorT: Float = 0f,
     lineDurationMs: Long = 0L,
-    rubyKana: Boolean = false
+    rubyKana: Boolean = false,
+    parallaxState: State<Offset>? = null,
+    parallaxDepth: Float = 0f
 ) {
     val pvEaseIn = CubicBezierEasing(0.42f, 0f, 1f, 1f)
     // 文字同期がある行では実時刻ディレイ、無い行では従来の等間隔ディレイで入場する
@@ -1911,6 +1941,15 @@ fun PvLyricUnit(
                 }
                 // ルビのかなは漢字の真上に来るよう持ち上げる（uSize はルビ側の小さいサイズ基準）
                 if (rubyKana) translationY -= uSize.value * 1.25f
+                // 疑似視差: カメラの平行移動に対し、文字の大きさ（奥行き）ぶんだけズレを足す。
+                // 大きい文字（手前）ほど大きく、小さい文字（奥）ほど小さくズレる。
+                // 落下・風・粒子化の退場中は専用の動きが付いているので足さない
+                val pState = parallaxState
+                if (pState != null && !(exiting && (fallExit || windExit || crumbleExit != 0))) {
+                    val po = pState.value
+                    translationX += po.x * parallaxDepth * 0.55f
+                    translationY += po.y * parallaxDepth * 0.55f
+                }
             }
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
