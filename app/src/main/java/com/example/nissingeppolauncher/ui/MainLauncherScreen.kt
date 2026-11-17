@@ -845,6 +845,7 @@ fun MainLauncherScreen() {
             // リリックビデオ（文字PV）: 再生中セッション（Spotify等も含む）の歌詞を大きく散らして表示する
             if (lyricsDisplayMode == "video" && currentLauncherPage == 1 && !isLyricsBrowsing && syncedLyricLines.isNotEmpty()) {
                 LyricsPvLayer(
+                    pvTilt3d = disc3d,
                     lines = syncedLyricLines,
                     positionMs = sessionPositionMs,
                     lyricOffsetMs = lyricOffsetMs,
@@ -919,7 +920,15 @@ fun MainLauncherScreen() {
                         modifier = Modifier
                             .padding(start = 28.dp, top = topPaddingDp + 48.dp)
                             .zIndex(10f)
-                            .graphicsLayer { alpha = if (isLyricsBrowsing) 0f else 1f },
+                            .graphicsLayer {
+                                alpha = if (isLyricsBrowsing) 0f else 1f
+                                if (disc3d) {
+                                    transformOrigin = TransformOrigin(0.5f, 0.5f)
+                                    rotationX = 27f + discTiltX.value
+                                    rotationY = discTiltY.value
+                                    cameraDistance = 6.5f * density
+                                }
+                            },
                         lyricsLine = if (lyricsDisplayMode == "line") currentLyricLine else "",
                         translationText = if (lyricsDisplayMode == "line" && translationEnabled) lyricTranslations?.getOrNull(syncedLyricLines.indexOfLast { it.timeMs <= sessionPositionMs + lyricOffsetMs }) ?: "" else "",
                         karaokeLine = if (lyricsDisplayMode == "line") syncedLyricLines.lastOrNull { it.timeMs <= sessionPositionMs + lyricOffsetMs } else null,
@@ -932,6 +941,7 @@ fun MainLauncherScreen() {
                     )
 
                     RotatableAppDisc(
+                        iconTilt3d = disc3d,
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer {
@@ -989,7 +999,8 @@ fun MainLauncherScreen() {
                             discCenterYDp = disc1CenterY + lyricsDiscDrop,
                             discRadiusDp = disc1RadiusDp,
                             accentColor = accentColor,
-                            textStartAngle = lyricsTextAngle
+                            textStartAngle = lyricsTextAngle,
+                            artworkTilt3d = disc3d
                         )
                     }
                 }
@@ -1035,6 +1046,7 @@ fun MainLauncherScreen() {
                     }
 
                     RotatableAppDisc(
+                        iconTilt3d = disc3d,
                         modifier = Modifier.fillMaxSize()
                                 .graphicsLayer {
                                     if (disc3d) {
@@ -1142,6 +1154,7 @@ fun MainLauncherScreen() {
                     }
 
                     RotatableAppDisc(
+                        iconTilt3d = disc3d,
                         modifier = Modifier.fillMaxSize()
                                 .graphicsLayer {
                                     if (disc3d) {
@@ -1201,6 +1214,14 @@ fun MainLauncherScreen() {
                     .align(Alignment.BottomCenter)
                     .padding(bottom = bottomPaddingDp + 4.dp)
                     .zIndex(250f)
+                    .graphicsLayer {
+                        if (disc3d) {
+                            transformOrigin = TransformOrigin(0.5f, 0.5f)
+                            rotationX = 27f + discTiltX.value
+                            rotationY = discTiltY.value
+                            cameraDistance = 6.5f * density
+                        }
+                    }
             )
         } else if (!isLyricsBrowsing && !pvFullscreen) {
             BottomPageDial(
@@ -1213,6 +1234,14 @@ fun MainLauncherScreen() {
                     .align(Alignment.BottomCenter)
                     .padding(bottom = bottomPaddingDp + 4.dp)
                     .zIndex(250f)
+                    .graphicsLayer {
+                        if (disc3d) {
+                            transformOrigin = TransformOrigin(0.5f, 0.5f)
+                            rotationX = 27f + discTiltX.value
+                            rotationY = discTiltY.value
+                            cameraDistance = 6.5f * density
+                        }
+                    }
             )
         }
 
@@ -1852,6 +1881,7 @@ fun MainLauncherScreen() {
         // 歌詞フルスクリーン（横画面）: PVモードならPVだけ、1行/複数行モードなら曲名などと一緒に表示
         if (pvFullscreen && currentLauncherPage == 1) {
             LyricsFullscreenOverlay(
+                pvTilt3d = disc3d,
                 lines = syncedLyricLines,
                 positionMs = sessionPositionMs,
                 lyricOffsetMs = lyricOffsetMs,

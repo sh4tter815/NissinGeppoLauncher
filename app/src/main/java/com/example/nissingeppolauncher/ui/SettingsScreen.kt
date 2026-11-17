@@ -1233,8 +1233,8 @@ fun SettingsScreen(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Column(modifier = Modifier.weight(1f)) {
-                                                Text("円を3D表示", color = Color.White, fontSize = 15.sp)
-                                                Text("ホームの左右の円を少し奥に倒して、立体的に見せます", color = Color.Gray, fontSize = 12.sp)
+                                                Text("UIを3D表示", color = Color.White, fontSize = 15.sp)
+                                                Text("円・時計・ダイヤル・歌詞PVなどを少し奥に倒して、立体的に見せます", color = Color.Gray, fontSize = 12.sp)
                                             }
                                             Switch(
                                                 checked = disc3d,
@@ -1253,7 +1253,7 @@ fun SettingsScreen(
                                         ) {
                                             Column(modifier = Modifier.weight(1f)) {
                                                 Text("端末の傾きで角度を変える", color = if (disc3d) Color.White else Color.Gray, fontSize = 14.sp)
-                                                Text("スマホを傾けると、円の傾きもついてきます（3D表示がオンのときだけ）", color = Color.Gray, fontSize = 12.sp)
+                                                Text("スマホを傾けると、3Dの角度もついてきます（3D表示がオンのときだけ）", color = Color.Gray, fontSize = 12.sp)
                                             }
                                             Switch(
                                                 checked = disc3dTilt,

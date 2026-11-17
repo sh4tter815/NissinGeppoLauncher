@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Lyrics
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Shuffle
@@ -741,6 +742,7 @@ fun PvLyricLine(
     partsEntry: Boolean = false,
     enFontFamily: FontFamily? = null,
     camFlow: Int = -1,
+    tilt3d: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val pvEaseIn = CubicBezierEasing(0.42f, 0f, 1f, 1f)
@@ -1093,6 +1095,11 @@ fun PvLyricLine(
                 translationX += driftX * camDriftAmpXPx
                 translationY += driftY * camDriftAmpYPx
                 rotationZ = (Math.sin(driftT * 0.647 + 2.0) * 0.35).toFloat()
+                // 3Dモード: 行全体を1枚の面として少し奥へ倒す
+                if (tilt3d) {
+                    rotationX = 15f
+                    cameraDistance = 9f * camDensity.density
+                }
                 // 「落」の行は文字ごとにバラバラに落下する（PvLyricUnit 側で処理）
             }
     ) {
@@ -2777,7 +2784,8 @@ fun LyricsPvLayer(
     translationTopDp: Dp,
     partsEntry: Boolean = false,
     enFontFamily: FontFamily? = null,
-    onAccentFlash: (Color?) -> Unit = {}
+    onAccentFlash: (Color?) -> Unit = {},
+    pvTilt3d: Boolean = false,
 ) {
     val pvPos = positionMs + lyricOffsetMs
     val pvIndex = lines.indexOfLast { it.timeMs <= pvPos }
@@ -2886,6 +2894,7 @@ fun LyricsPvLayer(
                         partsEntry = partsEntry,
                         enFontFamily = enFontFamily,
                         camFlow = pvCurrent?.let { pvCamFlowFor(it.first, it.second) } ?: pvCamFlowFor(exIdx + 1, lines.getOrNull(exIdx + 1)?.text ?: ""),
+                        tilt3d = pvTilt3d,
                         modifier = Modifier.padding(top = pvTopDp)
                     )
                 }
@@ -2907,6 +2916,7 @@ fun LyricsPvLayer(
                                 partsEntry = partsEntry,
                         enFontFamily = enFontFamily,
                                 camFlow = pvCamFlowFor(curIdx, curText),
+                                tilt3d = pvTilt3d,
                                 effectKind = pvKindFor(curIdx, curText),
                                 lineDurationMs = lines.getOrNull(curIdx + 1)?.let { it.timeMs - lines[curIdx].timeMs } ?: Long.MAX_VALUE,
                                 startsInParen = pvStartsInParen(lines, curIdx),
@@ -3174,7 +3184,9 @@ fun LyricsBrowseOverlay(
             } else if (idx < baseIdx) {
                 for (i in idx until baseIdx) acc -= stepDp(i)
             }
-            return acc - fracPart * stepDp(baseIdx)
+            // 選択中の行の前後は間隔を広げて、選択位置を分かりやすくする（スクロールに滑らかに追従）
+            val focusSpread = 13f * (idx - virtualPos).coerceIn(-1f, 1f)
+            return acc - fracPart * stepDp(baseIdx) + focusSpread
         }
         val browseWidthDp = maxWidth.value
         val firstIdx = maxOf(0, floor(virtualPos - 7f).toInt())
@@ -3185,23 +3197,24 @@ fun LyricsBrowseOverlay(
             val fade = (1f - (abs(relPos) - 4f) / 3f).coerceIn(0f, 1f)
             val myHeightDp = (lineHeightsPx[idx]?.let { it / densityNow.density } ?: 34f)
             if (isFocusedLine) {
-                // 「移動」ボタンは選択中の行の横に置く（下段のボタン列を空けて翻訳ボタンを収めるため）
+                // 「移動」ボタンは選択中の行の横に丸いアイコンボタンで置く（幅を取らず、歌詞にも被せない）
                 Box(
                     modifier = Modifier
                         .offset(
-                            x = (browseWidthDp - 82f).dp,
-                            y = (centerYDp + offsetDpFor(idx) - 19f).dp
+                            x = (browseWidthDp - 58f).dp,
+                            y = (centerYDp + offsetDpFor(idx) - 21f).dp
                         )
                         .zIndex(95f)
-                        .clip(RoundedCornerShape(12.dp))
+                        .size(42.dp)
+                        .clip(CircleShape)
                         .background(accentColor)
                         .clickable {
                             onSeek((lines[idx].timeMs - lyricOffsetMs).coerceAtLeast(0L))
                             onClose()
-                        }
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text("移動", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Icon(Icons.Default.PlayArrow, contentDescription = "ここへ移動", tint = Color.White, modifier = Modifier.size(24.dp))
                 }
             }
             Column(
@@ -3210,7 +3223,7 @@ fun LyricsBrowseOverlay(
                         x = (40f + relPos * 5f).dp,
                         y = (centerYDp + offsetDpFor(idx) - myHeightDp / 2f).dp
                     )
-                    .fillMaxWidth(0.85f)
+                    .fillMaxWidth(if (isFocusedLine) ((browseWidthDp - 118f) / browseWidthDp).coerceIn(0.3f, 0.85f) else 0.85f)
                     .onGloballyPositioned { lineHeightsPx[idx] = it.size.height }
             ) {
                 if (isFocusedLine && idx == browsePlayingIdx && lines[idx].words.isNotEmpty()) {
@@ -3219,7 +3232,7 @@ fun LyricsBrowseOverlay(
                         positionMs = positionMs + lyricOffsetMs,
                         sungColor = accentColor,
                         baseColor = Color.White,
-                        fontSize = fitFontSizeSp(lines[idx].text, 26f, browseWidthDp * 0.85f).sp,
+                        fontSize = fitFontSizeSp(lines[idx].text, 26f, browseWidthDp - 118f).sp,
                         fontWeight = lyricWeight,
                         fontFamily = fontFamily,
                         enFontFamily = enFontFamily,
@@ -3231,7 +3244,7 @@ fun LyricsBrowseOverlay(
                     Text(
                         text = lyricMixedFontText(lines[idx].text, enFontFamily),
                         color = if (isFocusedLine) Color.White else Color.White.copy(alpha = 0.92f * fade),
-                        fontSize = fitFontSizeSp(lines[idx].text, if (isFocusedLine) 26f else 15f, browseWidthDp * 0.85f).sp,
+                        fontSize = fitFontSizeSp(lines[idx].text, if (isFocusedLine) 26f else 15f, if (isFocusedLine) browseWidthDp - 118f else browseWidthDp * 0.85f).sp,
                         fontWeight = if (isFocusedLine) lyricWeight else FontWeight.Normal,
                         letterSpacing = 1.0.sp,
                         textAlign = TextAlign.Start,
@@ -3459,10 +3472,11 @@ fun LyricsFullscreenOverlay(
     title: String,
     artist: String,
     album: String,
-    onClose: () -> Unit
-,
+    onClose: () -> Unit,
     partsEntry: Boolean = false,
-    enFontFamily: FontFamily? = null) {
+    enFontFamily: FontFamily? = null,
+    pvTilt3d: Boolean = false
+) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize().zIndex(96f)) {
         val fsWidth = maxWidth.value
         val fsLines = lines ?: emptyList()
@@ -3575,6 +3589,7 @@ fun LyricsFullscreenOverlay(
                                 partsEntry = partsEntry,
                                 enFontFamily = enFontFamily,
                                 camFlow = fsCurrent?.let { fsCamFlowFor(it.first, it.second) } ?: fsCamFlowFor(exIdx + 1, fsLines.getOrNull(exIdx + 1)?.text ?: ""),
+                                tilt3d = pvTilt3d,
                                 exiting = true,
                                 effectKind = Math.floorMod(Math.floorMod(exIdx * 31 + exText.hashCode(), 997), 8),
                                 modifier = Modifier
@@ -3596,6 +3611,7 @@ fun LyricsFullscreenOverlay(
                                 partsEntry = partsEntry,
                                 enFontFamily = enFontFamily,
                                 camFlow = fsCamFlowFor(curIdx, curText),
+                                tilt3d = pvTilt3d,
                                 exiting = false,
                                 words = fsLines[curIdx].words,
                                 lineStartMs = fsLines[curIdx].timeMs,
