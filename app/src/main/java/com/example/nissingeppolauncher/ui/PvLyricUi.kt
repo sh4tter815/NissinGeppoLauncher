@@ -128,7 +128,10 @@ import com.example.nissingeppolauncher.ui.components.parseFontFamily
 import kotlin.math.roundToInt
 import androidx.core.graphics.toColorInt
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPaddingWithConstraints
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Search
@@ -3565,10 +3568,12 @@ fun LyricsFullscreenOverlay(
             }
         }
         }
-        // 終了ボタン: もう一度押すと縦画面に戻る
+        // 終了ボタン: もう一度押すと縦画面に戻る。
+        // 横画面では右端にナビゲーションバーが出るため、その幅の分だけ左へ逃がす
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
+                .windowInsetsPadding(WindowInsets.navigationBars)
                 .padding(top = 18.dp, end = 22.dp)
                 .size(44.dp)
                 .clickable { onClose() },
