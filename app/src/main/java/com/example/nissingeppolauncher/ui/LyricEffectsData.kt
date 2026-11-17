@@ -519,7 +519,7 @@ object LyricEffectsData {
         for (i in 0 until arr.length()) {
             val p = arr.optJSONArray(i) ?: return null
             val word = p.optString(0)
-            if (word.isEmpty() || !p.has(1)) return null
+            if (word.isEmpty() || p.length() < 2) return null
             out.add(word to p.optInt(1))
         }
         return out
