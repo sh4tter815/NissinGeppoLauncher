@@ -73,6 +73,44 @@ val ASSOC_COLOR_WORDS: List<Pair<String, Color>>
 val KATAKANA_EN: Map<String, String>
     get() = LyricEffectsData.katakanaEn
 
+// エフェクト系の対象単語（データ配信側。対象語の追加は lyric_effects.json の更新だけで済む）
+val DRIP_WORDS: List<Pair<String, Color>>
+    get() = LyricEffectsData.dripWords
+val DRIP_EXCLUSIONS: Map<String, List<String>>
+    get() = LyricEffectsData.dripExclusions
+val DREAM_WORDS: List<String>
+    get() = LyricEffectsData.dreamWords
+val WAVE_WORDS: List<String>
+    get() = LyricEffectsData.waveWords
+val SAND_WORDS: List<String>
+    get() = LyricEffectsData.sandWords
+val WIND_WORDS: List<String>
+    get() = LyricEffectsData.windWords
+val FALL_WORDS: List<String>
+    get() = LyricEffectsData.fallWords
+val RIPPLE_WORDS: List<String>
+    get() = LyricEffectsData.rippleWords
+val MOSAIC_WORDS: List<String>
+    get() = LyricEffectsData.mosaicWords
+val PILE_WORDS: List<String>
+    get() = LyricEffectsData.pileWords
+val PARTS_WORDS: List<String>
+    get() = LyricEffectsData.partsWords
+val NEG_WORDS: List<String>
+    get() = LyricEffectsData.negWords
+val GHOST_WORDS: List<String>
+    get() = LyricEffectsData.ghostWords
+val SPARKLE_WORDS: List<String>
+    get() = LyricEffectsData.sparkleWords
+val DARK_WORDS: List<String>
+    get() = LyricEffectsData.darkWords
+val STRETCH_VERTICAL_WORDS: List<String>
+    get() = LyricEffectsData.stretchVerticalWords
+val STRETCH_HORIZONTAL_WORDS: List<String>
+    get() = LyricEffectsData.stretchHorizontalWords
+val AMBIENT_WORDS: List<Pair<String, Int>>
+    get() = LyricEffectsData.ambientWords
+
 val PV_ENTRY_DIRS = listOf(
     0f to -1f, 0.72f to -0.72f, 1f to 0f, 0.72f to 0.72f,
     0f to 1f, -0.72f to 0.72f, -1f to 0f, -0.72f to -0.72f
