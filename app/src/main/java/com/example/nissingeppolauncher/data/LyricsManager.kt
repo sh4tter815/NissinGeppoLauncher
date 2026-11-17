@@ -1156,6 +1156,12 @@ object LyricsManager {
         }
     }
 
+    /** 手編集した歌詞をキャッシュへ保存する（対訳キャッシュは行対応がずれるので消す） */
+    fun saveEditedLyrics(context: Context, title: String, artist: String, album: String, lrcText: String) {
+        saveLyricsOverride(context, title, artist, album, lrcText)
+        try { File(cacheFile(context, title, artist, album).absolutePath + ".ja3").delete() } catch (e: Exception) { }
+    }
+
     /** インスト曲（歌詞なし）指定を保存するマーカー */
     private fun instrumentalFile(context: Context, title: String, artist: String, album: String): File {
         val dir = File(context.filesDir, "lyrics")
