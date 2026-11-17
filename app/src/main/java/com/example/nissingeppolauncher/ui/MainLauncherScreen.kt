@@ -1836,6 +1836,15 @@ fun MainLauncherScreen() {
                     LyricsManager.saveEditedLyrics(context, sessionTrackTitle, sessionTrackArtist, sessionTrackAlbum, editedText)
                     lyricsRefreshTick++
                 },
+                onPublishLyrics = { lrcText, report ->
+                    coroutineScope.launch {
+                        val err = LyricsManager.publishToLrclib(
+                            sessionTrackTitle, sessionTrackArtist, sessionTrackAlbum,
+                            (sessionDurationMs / 1000).toInt(), lrcText
+                        )
+                        report(if (err == null) "OK" else err)
+                    }
+                },
                 onClose = { isLyricsBrowsing = false }
             )
         }

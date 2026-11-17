@@ -745,7 +745,6 @@ fun PvLyricLine(
 ) {
     val pvEaseIn = CubicBezierEasing(0.42f, 0f, 1f, 1f)
     // 改行位置は塊（文節・英単語）の境界で決める。描画とアニメーションは文字ごと（英単語だけ単語ごと）
-    val iconWord = findIconWord(text)
     val chunks = remember(text) { splitLyricUnits(text) }
     if (chunks.isEmpty()) return
     // 文字同期（KRC）がある行用: 文字位置→その文字の開始時刻（絶対ms）のテーブル
@@ -1273,7 +1272,6 @@ fun PvLyricLine(
         var globalIndex = 0
         var prevUnitGi = -1
         var prevCharFactor = 1f
-        var iconPlaced = false
         var negIconPlaced = false
         var inParen = startsInParen
         rows.forEachIndexed { rowIdx, rowChunks ->
@@ -1507,7 +1505,7 @@ fun PvLyricLine(
                 val chunkDim = inParen || chunk.startsWith("（") || chunk.startsWith("(") || isChorusWord(chunk)
                 if (chunk.contains("（") || chunk.contains("(")) inParen = true
                 if (chunk.contains("）") || chunk.contains(")")) inParen = false
-                val chunkIconKind = if (!iconPlaced && iconWord != null && chunk.contains(iconWord.first)) iconWord.second else null
+                val chunkIconMatches = findIconWords(chunk)
                 // 否定語の開始位置（この塊の中に否定語があれば、その文字に☓アイコンを付ける）
                 val chunkNegStart = NEG_WORDS.mapNotNull { w -> chunk.indexOf(w).takeIf { it >= 0 } }.minOrNull() ?: -1
                 val chunkGhost = GHOST_WORDS.any { chunk.contains(it) }
@@ -1547,8 +1545,7 @@ fun PvLyricLine(
                 var unitIdxInChunk = 0
                 for (ru in chunkUnits) {
                     val gi = globalIndex++
-                    var thisUnitIcon = if (chunkIconKind != null && unitIdxInChunk == 0) chunkIconKind else null
-                    if (thisUnitIcon != null) iconPlaced = true
+                    var thisUnitIcon: Int? = null
                     unitIdxInChunk++
                     val rIdx = rowUnitIdx++
                     // 文字同士がほんの少し被るくらいに、行の中心へ向けて詰める（画面外へのはみ出しは増やさない）
@@ -1583,6 +1580,10 @@ fun PvLyricLine(
                     val effCharFactor = if (ru == "ー" && effGi != gi) prevCharFactor else charFactor
                     prevCharFactor = effCharFactor
                     val unitStart = chunkCharPos; chunkCharPos += ru.length
+                    // アイコン単語は塊の中の全部が対象（時計→時計、見る→目、のように複数出せる）
+                    if (thisUnitIcon == null) {
+                        thisUnitIcon = chunkIconMatches.firstOrNull { it.third >= unitStart && it.third < unitStart + ru.length }?.second
+                    }
                     // 文字同期がある行では、このユニットの実時刻（行頭からの差分）で入場させる
                     var unitDelayMs = -1L
                     if (charStartArr != null) {
@@ -2973,6 +2974,7 @@ fun LyricsBrowseOverlay(
     onRefresh: () -> Unit,
     onOpenSearch: () -> Unit,
     onSaveEditedLyrics: ((String) -> Unit)? = null,
+    onPublishLyrics: ((String, (String) -> Unit) -> Unit)? = null,
     onClose: () -> Unit,
     enFontFamily: FontFamily? = null
 ) {
@@ -2983,6 +2985,8 @@ fun LyricsBrowseOverlay(
     var showLyricEditor by remember { mutableStateOf(false) }
     var editText by remember { mutableStateOf("") }
     var editError by remember { mutableStateOf(false) }
+    var publishPhase by remember { mutableStateOf(0) }
+    var publishMessage by remember { mutableStateOf("") }
     if (showLyricEditor) {
         AlertDialog(
             onDismissRequest = { showLyricEditor = false },
@@ -3005,6 +3009,34 @@ fun LyricsBrowseOverlay(
                     if (editError) {
                         Spacer(Modifier.height(6.dp))
                         Text("時刻タグ [00:00.00] のある行が1つもありません", color = Color(0xFFFF9E9E), fontSize = 12.sp)
+                    }
+                    if (onPublishLyrics != null) {
+                        Spacer(Modifier.height(12.dp))
+                        when (publishPhase) {
+                            0 -> TextButton(onClick = { publishPhase = 1 }) {
+                                Text("この歌詞を LRCLIB に投稿する", color = Color(0xFF88C0FF), fontSize = 13.sp)
+                            }
+                            1 -> Column {
+                                Text(
+                                    "LRCLIB は公開データベースです。投稿すると誰でも見られるようになり、取り消しはできません。直した歌詞をみんなで共有できます。",
+                                    color = Color(0xFFFFD28F),
+                                    fontSize = 11.5.sp
+                                )
+                                Row {
+                                    TextButton(onClick = {
+                                        publishPhase = 2
+                                        onPublishLyrics.invoke(editText) { msg ->
+                                            publishMessage = msg
+                                            publishPhase = if (msg == "OK") 3 else 4
+                                        }
+                                    }) { Text("投稿する", color = Color(0xFF88C0FF)) }
+                                    TextButton(onClick = { publishPhase = 0 }) { Text("やめる", color = Color.Gray) }
+                                }
+                            }
+                            2 -> Text("投稿中…（計算パズルを解くため、数十秒かかることがあります）", color = Color.Gray, fontSize = 12.sp)
+                            3 -> Text("LRCLIB に投稿しました", color = Color(0xFF7FD4F2), fontSize = 12.5.sp)
+                            else -> Text(publishMessage, color = Color(0xFFFF9E9E), fontSize = 12.sp)
+                        }
                     }
                 }
             },
@@ -3361,6 +3393,8 @@ fun LyricsBrowseOverlay(
                         .clickable {
                             editText = buildLrcText(lines)
                             editError = false
+                            publishPhase = 0
+                            publishMessage = ""
                             showLyricEditor = true
                         },
                     contentAlignment = Alignment.Center

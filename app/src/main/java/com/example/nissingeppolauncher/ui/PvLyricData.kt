@@ -56,18 +56,47 @@ fun findIconWord(text: String): Pair<String, Int>? {
     }
     return null
 }
-// コーラス（yeah や la の繰り返し）判定の音節は配信データ（LyricEffectsData.chorusSyllables）が正本。
-// 音節リストから正規表現を組み立て、リストが差し替わったときだけ作り直す
-private var chorusRegexCache: Pair<List<String>, Regex>? = null
-val CHORUS_REGEX: Regex
-    get() {
-        val syl = LyricEffectsData.chorusSyllables
-        val c = chorusRegexCache
-        if (c != null && c.first == syl) return c.second
-        val r = Regex("^(" + syl.joinToString("|") { Regex.escape(it) } + ")+$")
-        chorusRegexCache = syl to r
-        return r
+// テキスト中のアイコン単語を全部拾う（単語, 種別, 開始位置）。重なるマッチは先勝ち（長い語優先）
+fun findIconWords(text: String): List<Triple<String, Int, Int>> {
+    val found = mutableListOf<Triple<String, Int, Int>>()
+    for ((word, kind) in LYRIC_ICON_WORDS) {
+        if (word == "心" && text.trim() == "心") continue
+        val exclusions = LYRIC_ICON_EXCLUSIONS[word] ?: emptyList()
+        var from = 0
+        while (true) {
+            val i = text.indexOf(word, from)
+            if (i < 0) break
+            if (exclusions.any { text.startsWith(it, i) }) {
+                from = i + 1
+                continue
+            }
+            if (word == "目" && i > 0 && text[i - 1] in "0123456789０１２３４５６７８９一二三四五六七八九十百千何日回番度つ個曲点週年月項標的注面") {
+                from = i + 1
+                continue
+            }
+            found.add(Triple(word, kind, i))
+            from = i + word.length
+        }
     }
+    for ((word, kind) in LYRIC_ICON_WORDS_EN) {
+        val re = Regex("""(?i)(?<![A-Za-z])${Regex.escape(word)}(?![A-Za-z])""")
+        for (m in re.findAll(text)) {
+            found.add(Triple(m.value, kind, m.range.first))
+        }
+    }
+    // 開始位置順に並べ、前に採用した単語と重なるものは捨てる（同位置なら長い語を優先）
+    val sorted = found.sortedWith(compareBy<Triple<String, Int, Int>> { it.third }.thenByDescending { it.first.length })
+    val out = mutableListOf<Triple<String, Int, Int>>()
+    var occupiedUntil = -1
+    for (t in sorted) {
+        if (t.third < occupiedUntil) continue
+        out.add(t)
+        occupiedUntil = t.third + t.first.length
+    }
+    return out
+}
+
+val CHORUS_REGEX = Regex("^(yeah|yea|ah|oh|ooh|wow|la|na|hey|uh|yay|hoo|ha|mm|hmm)+$")
 
 fun isChorusWord(text: String): Boolean {
     val t = text.trim().lowercase().trim('!', '?', ',', '.', '~', '〜', '・')
