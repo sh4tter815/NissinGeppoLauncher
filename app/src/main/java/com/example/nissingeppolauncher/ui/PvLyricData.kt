@@ -56,7 +56,18 @@ fun findIconWord(text: String): Pair<String, Int>? {
     }
     return null
 }
-val CHORUS_REGEX = Regex("^(yeah|yea|ah|oh|ooh|wow|la|na|hey|uh|yay|hoo|ha|mm|hmm)+$")
+// コーラス（yeah や la の繰り返し）判定の音節は配信データ（LyricEffectsData.chorusSyllables）が正本。
+// 音節リストから正規表現を組み立て、リストが差し替わったときだけ作り直す
+private var chorusRegexCache: Pair<List<String>, Regex>? = null
+val CHORUS_REGEX: Regex
+    get() {
+        val syl = LyricEffectsData.chorusSyllables
+        val c = chorusRegexCache
+        if (c != null && c.first == syl) return c.second
+        val r = Regex("^(" + syl.joinToString("|") { Regex.escape(it) } + ")+$")
+        chorusRegexCache = syl to r
+        return r
+    }
 
 fun isChorusWord(text: String): Boolean {
     val t = text.trim().lowercase().trim('!', '?', ',', '.', '~', '〜', '・')
