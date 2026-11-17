@@ -688,6 +688,7 @@ fun PvLyricLine(
     startsInParen: Boolean = false,
     lineStartMs: Long = 0L,
     partsEntry: Boolean = false,
+    camFlow: Int = -1,
     modifier: Modifier = Modifier
 ) {
     val pvEaseIn = CubicBezierEasing(0.42f, 0f, 1f, 1f)
@@ -929,14 +930,19 @@ fun PvLyricLine(
         animationSpec = infiniteRepeatable(tween(durationMillis = 2600, easing = LinearEasing), RepeatMode.Restart),
         label = "wavePhase"
     )
-    // 短い行の直後に長い間奏・後奏が続くときは、大きめに入場してゆっくり縮小する（カメラがズームアウトしていくイメージ）
-    val zoomLine = totalChars in 1..8 && lineDurationMs >= 10000L
-    val zoomAnim = remember { Animatable(if (exiting) 1f else 0f) }
-    if (!exiting && zoomLine) {
+    // カメラワーク: 全行に、入場と退場がつながるカメラの流れを付ける。
+    // camFlow: 0=右へ流れる（退場は右へ・入場は左から） 1=左へ 2=上へ 3=下へ 4=押し込む（ズームイン系） 5=引く（ズームアウト系）
+    // -1 のときは baseSeed から決める。入場はイーズアウト、退場はイーズインで、退場と次の入場が同じ流れを共有する
+    val camFlowEff = if (camFlow >= 0) camFlow else Math.floorMod(baseSeed * 13 + 7, 6)
+    val camAnim = remember { Animatable(if (exiting) 1f else 0f) }
+    if (!exiting) {
         LaunchedEffect(Unit) {
-            zoomAnim.animateTo(1f, animationSpec = tween(durationMillis = 1500, easing = FastOutSlowInEasing))
+            camAnim.animateTo(1f, animationSpec = tween(durationMillis = if (camFlowEff >= 4) 1100 else 800, easing = FastOutSlowInEasing))
         }
     }
+    val camDensity = LocalDensity.current
+    val camSlideXPx = with(camDensity) { (screenWidthDp * 0.24f).dp.toPx() }
+    val camSlideYPx = with(camDensity) { (fitSize * 1.7f).dp.toPx() }
     // 「深」は縦に下へ、「長」は横に伸びる（時計は行全体で共有し、隣の文字を押す動きと同期させる）
     val hasStretch = text.contains("深") || text.contains("長")
     val stretchAnim = remember { Animatable(if (exiting) 1f else 0f) }
@@ -975,10 +981,15 @@ fun PvLyricLine(
             .graphicsLayer {
                 // 退場の最後は行ごとフェードアウトして残像を残さない
                 alpha = if (exiting) 1f - ((exitProgress.value - 0.6f) / 0.4f).coerceIn(0f, 1f) else 1f
-                if (zoomLine) {
-                    val zs = 1.5f - 0.5f * zoomAnim.value
-                    scaleX = zs
-                    scaleY = zs
+                // カメラワーク（入場はイーズアウト済みの camAnim、退場は exitProgress をイーズイン変換し、同じ流れで動かす）
+                val camP = if (exiting) pvEaseIn.transform(exitProgress.value) else camAnim.value
+                when (camFlowEff) {
+                    0 -> translationX = (if (exiting) camP else camP - 1f) * camSlideXPx
+                    1 -> translationX = (if (exiting) -camP else 1f - camP) * camSlideXPx
+                    2 -> translationY = (if (exiting) -camP else 1f - camP) * camSlideYPx
+                    3 -> translationY = (if (exiting) camP else camP - 1f) * camSlideYPx
+                    4 -> { val s = if (exiting) 1f + 0.5f * camP else 0.72f + 0.28f * camP; scaleX = s; scaleY = s }
+                    else -> { val s = if (exiting) 1f - 0.3f * camP else 1.45f - 0.45f * camP; scaleX = s; scaleY = s }
                 }
                 // 「落」の行は文字ごとにバラバラに落下する（PvLyricUnit 側で処理）
             }
@@ -1173,6 +1184,111 @@ fun PvLyricLine(
         val repeatStartArr = IntArray(rowUnitTexts.size) { -1 }
         val repeatSpanArr = IntArray(rowUnitTexts.size) { 0 }
         // 「長」が横に伸びたとき、隣の文字が押される量（近いほど大きく、2つ先まで）
+        // 規制表現（伏せ字）の検出: ワード全体ではなく、規制された部分のユニットだけを白塗り対象にする
+        val censorStartArr = FloatArray(rowUnitTexts.size) { 0f }
+        val censorEndArr = FloatArray(rowUnitTexts.size) { 0f }
+        run {
+            val rowText = rowUnitTexts.joinToString("")
+            val ranges = mutableListOf<IntRange>()
+            // 「自主規制」は前後の括弧ごと対象にする
+            var si = rowText.indexOf("自主規制")
+            while (si >= 0) {
+                var st = si
+                var en = si + 4
+                if (st > 0 && rowText[st - 1] in "（(【［") st--
+                if (en < rowText.length && rowText[en] in "）)】］") en++
+                ranges.add(st until en)
+                si = rowText.indexOf("自主規制", en)
+            }
+            // 伏せ字グリフの連続: 〇○●は伏せ字専用に近いので1文字でも対象、*・―・-・×等は2文字以上の連続だけ対象
+            val strongMask = setOf('〇', '○', '●')
+            val weakMask = setOf('*', '＊', '―', '—', '－', '-', '×', '✕', '✖', '■')
+            var mi = 0
+            while (mi < rowText.length) {
+                if (rowText[mi] in strongMask || rowText[mi] in weakMask) {
+                    var mj = mi
+                    var hasStrong = false
+                    while (mj < rowText.length && (rowText[mj] in strongMask || rowText[mj] in weakMask)) {
+                        if (rowText[mj] in strongMask) hasStrong = true
+                        mj++
+                    }
+                    if (hasStrong || mj - mi >= 2) ranges.add(mi until mj)
+                    mi = mj
+                } else mi++
+            }
+            if (ranges.isNotEmpty()) {
+                var pos = 0
+                for (idx in rowUnitTexts.indices) {
+                    val uLen = rowUnitTexts[idx].length
+                    val uEnd = pos + uLen
+                    if (uLen > 0) {
+                        for (r in ranges) {
+                            val oStart = maxOf(pos, r.first)
+                            val oEnd = minOf(uEnd, r.last + 1)
+                            if (oEnd > oStart) {
+                                val sf = (oStart - pos).toFloat() / uLen
+                                val ef = (oEnd - pos).toFloat() / uLen
+                                if (censorEndArr[idx] == 0f || sf < censorStartArr[idx]) censorStartArr[idx] = sf
+                                if (ef > censorEndArr[idx]) censorEndArr[idx] = ef
+                            }
+                        }
+                    }
+                    pos = uEnd
+                }
+            }
+        }
+        // ルビ（漢字の直後に括弧書きされた読み仮名）の検出。
+        // コーラス括弧と誤認しないよう、直前が漢字・中身は全部かな・短い・読みが漢字数以上、の全部を満たす時だけルビ扱いにする
+        // （例: 「恋情（イエス）」のようなカナだけのコーラスは誤判定しうるが、それは仕様として許容する）
+        val rubyModeArr = IntArray(rowUnitTexts.size) // 0=なし 1=括弧（表示しない） 2=ルビのかな
+        val rubyShiftArr = FloatArray(rowUnitTexts.size)
+        run {
+            val rowText = rowUnitTexts.joinToString("")
+            val unitStartArr = IntArray(rowUnitTexts.size)
+            var upos = 0
+            for (i in rowUnitTexts.indices) { unitStartArr[i] = upos; upos += rowUnitTexts[i].length }
+            fun unitIndexAt(charPos: Int): Int {
+                var lo = 0
+                for (i in rowUnitTexts.indices) { if (unitStartArr[i] <= charPos) lo = i else break }
+                return lo
+            }
+            fun isKanjiCh(c: Char): Boolean = c in '一'..'鿿' || c == '々' || c == '〆'
+            var i = 0
+            while (i < rowText.length) {
+                val open = rowText[i]
+                if (open == '（' || open == '(') {
+                    val closeCh = if (open == '（') '）' else ')'
+                    val close = rowText.indexOf(closeCh, i + 1)
+                    if (close > i + 1 && i > 0 && isKanjiCh(rowText[i - 1])) {
+                        val content = rowText.substring(i + 1, close)
+                        val allKana = content.all { it in 'ぁ'..'ゟ' || it in 'ァ'..'ヶ' || it == 'ー' || it == '・' }
+                        if (allKana && content.length in 1..8) {
+                            var b = i
+                            while (b > 0 && isKanjiCh(rowText[b - 1])) b--
+                            val baseLen = i - b
+                            if (baseLen in 1..6 && content.length >= baseLen) {
+                                rubyModeArr[unitIndexAt(i)] = 1
+                                rubyModeArr[unitIndexAt(close)] = 1
+                                var baseEm = 0f
+                                for (u in unitIndexAt(b)..unitIndexAt(i - 1)) baseEm += rowUnitTexts[u].sumOf { ch -> charEm(ch).toDouble() }.toFloat()
+                                var rubyEm = 0f
+                                val firstRubyUnit = unitIndexAt(i + 1)
+                                val lastRubyUnit = unitIndexAt(close - 1)
+                                for (u in firstRubyUnit..lastRubyUnit) {
+                                    rubyModeArr[u] = 2
+                                    rubyEm += rowUnitTexts[u].sumOf { ch -> charEm(ch).toDouble() }.toFloat()
+                                }
+                                // ルビ全体が漢字の真上に来るよう、全ルビ文字を同じ量だけ左へ寄せる
+                                val shift = -(baseEm + rubyEm * 0.52f) / 2f * fitSize
+                                for (u in firstRubyUnit..lastRubyUnit) rubyShiftArr[u] = shift
+                                i = close
+                            }
+                        }
+                    }
+                }
+                i++
+            }
+        }
         val stretchPushArr = FloatArray(rowUnitTexts.size) { r ->
             var f = 0f
             for (s in rowUnitTexts.indices) {
@@ -1293,7 +1409,7 @@ fun PvLyricLine(
                 }
                 val chunkDripStart = chunkDrip?.let { chunk.indexOf(it.first) } ?: -1
                 // バラバラ・壊れる系の単語は、設定に関係なく文字をパーツに分解したまま揺らす
-                val chunkPartsWord = listOf("バラバラ", "ばらばら", "壊れ", "割れ", "砕け", "崩れ").firstOrNull { chunk.contains(it) }
+                val chunkPartsWord = listOf("バラバラ", "ばらばら", "壊れ", "割れ", "砕け", "崩れ", "破", "割", "壊", "砕").firstOrNull { chunk.contains(it) }
                 val chunkPartsStart = chunkPartsWord?.let { chunk.indexOf(it) } ?: -1
                 val chunkMosaicStart = chunk.indexOf("隠")
                 val chunkMosaicWordStart = chunk.indexOf("モザイク")
@@ -1322,7 +1438,9 @@ fun PvLyricLine(
                         val runCenter = repeatStartHere + (spanHere - 1) / 2f
                         (runCenter - rIdx) * fitSize * 0.20f
                     } else 0f
-                    val uXShiftTotal = uXShift + repeatShift
+                    val rubyModeHere = rubyModeArr.getOrElse(rIdx) { 0 }
+                    val rubyShiftHere = rubyShiftArr.getOrElse(rIdx) { 0f }
+                    val uXShiftTotal = uXShift + repeatShift + rubyShiftHere
                     // 長音（ー）は前の文字と1パーツとして扱い、座標・角度・揺れの種を前の文字に統一する（バラけると読みづらいため）
                     val effGi = if (ru == "ー" && prevUnitGi >= 0) prevUnitGi else gi
                     prevUnitGi = gi
@@ -1367,8 +1485,8 @@ fun PvLyricLine(
                     val unitChunkColor = if (chunkColorHit != null && unitStart < chunkColorStart + chunkColorHit.first.length && unitStart + ru.length > chunkColorStart) chunkColorHit.second else null
                     PvLyricUnit(
                         bold = bold,
-                        unitText = ru,
-                        uSize = (fitSize * (0.92f + (uSeed % 22) / 100f) * effCharFactor).coerceIn(fitSize * 0.55f, fitSize * 1.35f).sp,
+                        unitText = if (rubyModeHere == 1) "" else ru,
+                        uSize = ((fitSize * (0.92f + (uSeed % 22) / 100f) * effCharFactor).coerceIn(fitSize * 0.55f, fitSize * 1.35f) * (if (rubyModeHere == 2) 0.52f else 1f)).sp,
                         uRot = ((uSeed / 3) % 29 - 14).toFloat(),
                         uYOffset = ((uSeed / 5) % 17 - 8).dp,
                         uXShiftDp = uXShiftTotal,
@@ -1399,7 +1517,10 @@ fun PvLyricLine(
                         stretchKind = unitStretchKind,
                         stretchProgress = stretchAnim.value,
                         pushXFactor = stretchPushArr.getOrElse(rIdx) { 0f },
-                        lineDurationMs = lineDurationMs
+                        censorStart = censorStartArr.getOrElse(rIdx) { 0f },
+                        censorEnd = censorEndArr.getOrElse(rIdx) { 0f },
+                        lineDurationMs = lineDurationMs,
+                        rubyKana = rubyModeHere == 2
                     )
                 }
             }
@@ -1463,7 +1584,10 @@ fun PvLyricUnit(
     stretchKind: Int = 0,
     stretchProgress: Float = 0f,
     pushXFactor: Float = 0f,
-    lineDurationMs: Long = 0L
+    censorStart: Float = 0f,
+    censorEnd: Float = 0f,
+    lineDurationMs: Long = 0L,
+    rubyKana: Boolean = false
 ) {
     val pvEaseIn = CubicBezierEasing(0.42f, 0f, 1f, 1f)
     // 文字同期がある行では実時刻ディレイ、無い行では従来の等間隔ディレイで入場する
@@ -1593,6 +1717,14 @@ fun PvLyricUnit(
             wipeT.animateTo(1f, animationSpec = tween(durationMillis = 650, easing = LinearEasing))
         }
     }
+    // 規制表現の白塗り: 左から右へイージングで塗り広げ、塗り終わったら覆い続ける
+    val censorT = remember { Animatable(if (exiting) 1f else 0f) }
+    if (censorEnd > censorStart && !exiting) {
+        LaunchedEffect(staggerIndex) {
+            delay(effDelayMs + 120L)
+            censorT.animateTo(1f, animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing))
+        }
+    }
     // 点滅(3)とグリッチ(4)用の進行度
     val fxT = remember { Animatable(0f) }
     if (!exiting && (effectKind == 3 || effectKind == 4)) {
@@ -1679,6 +1811,8 @@ fun PvLyricUnit(
                 if (pushXFactor != 0f) {
                     translationX += pushXFactor * stretchProgress * uSize.value * 1.05f
                 }
+                // ルビのかなは漢字の真上に来るよう持ち上げる（uSize はルビ側の小さいサイズ基準）
+                if (rubyKana) translationY -= uSize.value * 1.25f
             }
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1862,6 +1996,17 @@ fun PvLyricUnit(
                     }
                 }
             }
+            if (censorEnd > censorStart && censorT.value > 0f) {
+                // 伏せ字の部分だけを白い帯で左から右へ塗りつぶす（英単語の途中にある ** 等にも対応するため、ユニット内の割合で範囲を指定）
+                Canvas(modifier = Modifier.matchParentSize()) {
+                    val x0 = size.width * censorStart
+                    drawRect(
+                        color = Color.White,
+                        topLeft = Offset(x0, size.height * 0.07f),
+                        size = Size(size.width * (censorEnd - censorStart) * censorT.value, size.height * 0.86f)
+                    )
+                }
+            }
             if (arrowUnder) {
                 // 「行く」の下に、右へ伸びる矢印
                 Canvas(modifier = Modifier.matchParentSize()) {
@@ -1966,7 +2111,7 @@ fun PvLyricUnit(
         }
         }
         val enCaption = if (!exiting && unitText.length > 1 && unitText.all { it in 'ァ'..'ヶ' || it == 'ー' || it == '・' }) KATAKANA_EN[unitText] else null
-        if (!exiting && effectKind == 0) {
+        if (!exiting && effectKind == 0 && !rubyKana) {
             Spacer(modifier = Modifier.height(3.dp))
             val ulv = ulAnim.value
             Canvas(modifier = Modifier.fillMaxWidth().height(3.5.dp)) {
@@ -2380,12 +2525,34 @@ fun LyricTagSearchDialog(
                                     }
                                     .padding(vertical = 8.dp)
                             ) {
-                                Text(
-                                    text = if (applyingIndex == idx) "取得中…" else cand.title.ifBlank { "(タイトルなし)" },
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = if (applyingIndex == idx) "取得中…" else cand.title.ifBlank { "(タイトルなし)" },
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f, fill = false)
+                                    )
+                                    // 同期の種類チップ（文字同期＝カラオケ可能／行同期＝行単位）
+                                    if (!cand.instrumental) {
+                                        Box(
+                                            modifier = Modifier
+                                                .padding(start = 8.dp)
+                                                .background(
+                                                    if (cand.wordSync) Color(0xFF7FD4F2) else Color(0xFF444B54),
+                                                    RoundedCornerShape(6.dp)
+                                                )
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = if (cand.wordSync) "文字同期" else "行同期",
+                                                color = if (cand.wordSync) Color(0xFF0B2536) else Color(0xFFD6DCE3),
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
                                 val dur = if (cand.durationSec > 0) {
                                     " ・ ${cand.durationSec / 60}:${(cand.durationSec % 60).toString().padStart(2, '0')}"
                                 } else ""
@@ -2511,6 +2678,17 @@ fun LyricsPvLayer(
             pvKindMap[idx] = kind
             return kind
         }
+        // カメラの流れも行ごとにランダム（前の行と同じ流れは避ける）。
+        // 退場する行は「次の行の流れ」を共有するので、退場と入場がつながって見える
+        val pvCamMap = remember { mutableStateMapOf<Int, Int>() }
+        fun pvCamFlowFor(idx: Int, text: String): Int {
+            pvCamMap[idx]?.let { return it }
+            val raw = Math.floorMod(Math.floorMod(idx * 41 + text.hashCode(), 997), 6)
+            val prev = pvCamMap[idx - 1]
+            val flow = if (prev != null && raw == prev) (raw + 1) % 6 else raw
+            pvCamMap[idx] = flow
+            return flow
+        }
         var pvCurrent by remember { mutableStateOf<Pair<Int, String>?>(null) }
         var pvExiting by remember { mutableStateOf<Pair<Int, String>?>(null) }
         // 対訳を「PVの2行目の真下」に置くため、現在のPV行の実高さを測る
@@ -2561,6 +2739,7 @@ fun LyricsPvLayer(
                         lineDurationMs = lines.getOrNull(exIdx + 1)?.let { it.timeMs - lines[exIdx].timeMs } ?: Long.MAX_VALUE,
                         startsInParen = pvStartsInParen(lines, exIdx),
                         partsEntry = partsEntry,
+                        camFlow = pvCurrent?.let { pvCamFlowFor(it.first, it.second) } ?: pvCamFlowFor(exIdx + 1, lines.getOrNull(exIdx + 1)?.text ?: ""),
                         modifier = Modifier.padding(top = pvTopDp)
                     )
                 }
@@ -2580,6 +2759,7 @@ fun LyricsPvLayer(
                                 words = lines[curIdx].words,
                                 lineStartMs = lines[curIdx].timeMs,
                                 partsEntry = partsEntry,
+                                camFlow = pvCamFlowFor(curIdx, curText),
                                 effectKind = pvKindFor(curIdx, curText),
                                 lineDurationMs = lines.getOrNull(curIdx + 1)?.let { it.timeMs - lines[curIdx].timeMs } ?: Long.MAX_VALUE,
                                 startsInParen = pvStartsInParen(lines, curIdx),
@@ -3090,6 +3270,16 @@ fun LyricsFullscreenOverlay(
                 var fsCurrent by remember { mutableStateOf<Pair<Int, String>?>(null) }
                 var fsExiting by remember { mutableStateOf<Pair<Int, String>?>(null) }
                 LaunchedEffect(lines) { fsCurrent = null; fsExiting = null }
+                // カメラの流れ（退場と入場で共有してつなげる）
+                val fsCamMap = remember { mutableStateMapOf<Int, Int>() }
+                fun fsCamFlowFor(idx: Int, text: String): Int {
+                    fsCamMap[idx]?.let { return it }
+                    val raw = Math.floorMod(Math.floorMod(idx * 41 + text.hashCode(), 997), 6)
+                    val prev = fsCamMap[idx - 1]
+                    val flow = if (prev != null && raw == prev) (raw + 1) % 6 else raw
+                    fsCamMap[idx] = flow
+                    return flow
+                }
                 LaunchedEffect(fsDisplayIndex) {
                     if (fsDisplayIndex >= 0) {
                         if (fsCurrent?.first != fsDisplayIndex) {
@@ -3126,6 +3316,7 @@ fun LyricsFullscreenOverlay(
                                 lineDurationMs = fsLines.getOrNull(exIdx + 1)?.let { it.timeMs - fsLines[exIdx].timeMs } ?: Long.MAX_VALUE,
                                 startsInParen = pvStartsInParen(fsLines, exIdx),
                                 partsEntry = partsEntry,
+                                camFlow = fsCurrent?.let { fsCamFlowFor(it.first, it.second) } ?: fsCamFlowFor(exIdx + 1, fsLines.getOrNull(exIdx + 1)?.text ?: ""),
                                 exiting = true,
                                 effectKind = Math.floorMod(Math.floorMod(exIdx * 31 + exText.hashCode(), 997), 8),
                                 modifier = Modifier
@@ -3145,6 +3336,7 @@ fun LyricsFullscreenOverlay(
                                 lineDurationMs = fsLines.getOrNull(curIdx + 1)?.let { it.timeMs - fsLines[curIdx].timeMs } ?: Long.MAX_VALUE,
                                 startsInParen = pvStartsInParen(fsLines, curIdx),
                                 partsEntry = partsEntry,
+                                camFlow = fsCamFlowFor(curIdx, curText),
                                 exiting = false,
                                 words = fsLines[curIdx].words,
                                 lineStartMs = fsLines[curIdx].timeMs,
