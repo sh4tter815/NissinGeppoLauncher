@@ -52,7 +52,23 @@ object LyricsManager {
         '壓' to '圧', '畫' to '画', '圓' to '円', '團' to '団', '圖' to '図', '淚' to '涙',
         '讓' to '譲', '鐵' to '鉄', '髮' to '髪', '臉' to '顔', '綠' to '緑', '關' to '関',
         '時' to '時', '紅' to '紅', '愛' to '愛', '夢' to '夢', '傷' to '傷', '還' to '還',
-        '過' to '過', '個' to '個', '為' to '為', '這' to '這', '們' to '們'
+        '過' to '過', '個' to '個', '為' to '為', '這' to '這', '們' to '們',
+        '达' to '達', '诉' to '訴', '边' to '辺', '渐' to '漸', '满' to '満', '游' to '遊', '灿' to '燦', '烂' to '爛',
+        '畅' to '暢', '犹' to '猶', '狮' to '獅', '狱' to '獄', '贵' to '貴', '质' to '質', '败' to '敗', '购' to '購',
+        '货' to '貨', '贫' to '貧', '贴' to '貼', '迟' to '遅', '迹' to '跡', '乡' to '郷', '丰' to '豊', '临' to '臨',
+        '丽' to '麗', '乌' to '烏', '乔' to '喬', '习' to '習', '亚' to '亜', '产' to '産', '亲' to '親', '亿' to '億',
+        '仅' to '僅', '从' to '従', '仓' to '倉', '仪' to '儀', '优' to '優', '侣' to '侶', '侦' to '偵', '侧' to '側',
+        '侨' to '僑', '俭' to '倹', '债' to '債', '倾' to '傾', '假' to '仮', '偿' to '償', '储' to '儲', '儿' to '児',
+        '兰' to '蘭', '兴' to '興', '养' to '養', '兽' to '獣', '冈' to '岡', '册' to '冊', '军' to '軍', '农' to '農',
+        '冲' to '沖', '决' to '決', '况' to '況', '冻' to '凍', '减' to '減', '几' to '幾', '凤' to '鳳', '划' to '劃',
+        '刘' to '劉', '则' to '則', '刚' to '剛', '创' to '創', '删' to '刪', '别' to '別', '剂' to '剤', '剑' to '剣',
+        '剧' to '劇', '劝' to '勧', '务' to '務', '劲' to '勁', '劳' to '労', '势' to '勢', '勋' to '勲', '华' to '華',
+        '协' to '協', '卫' to '衛', '厅' to '庁', '历' to '歴', '厌' to '厭', '县' to '県', '变' to '変', '叠' to '畳',
+        '叹' to '嘆', '吴' to '呉', '咏' to '詠',
+        '國' to '国', '學' to '学', '會' to '会', '實' to '実', '點' to '点', '產' to '産', '樣' to '様', '處' to '処',
+        '價' to '価', '妝' to '粧', '寶' to '宝', '寬' to '寛', '屬' to '属', '歲' to '歳', '帶' to '帯', '廣' to '広',
+        '廢' to '廃', '閒' to '閑', '隨' to '随', '險' to '険', '隱' to '隠', '雙' to '双', '雜' to '雑', '雞' to '鶏',
+        '靜' to '静', '顏' to '顔', '體' to '体', '鬥' to '闘', '鹽' to '塩', '麥' to '麦', '黃' to '黄', '黑' to '黒'
     )
 
     /** 簡体字・繁体字を日本の漢字に変換する */
@@ -71,7 +87,7 @@ object LyricsManager {
     )
 
     fun parseLrc(lrcText: String): List<LyricLine> {
-        val result = mutableListOf<LyricLine>()
+        val raw = mutableListOf<LyricLine>()
         for (rawLine in lrcText.lineSequence()) {
             val line = rawLine.trim()
             if (line.isEmpty()) continue
@@ -81,8 +97,6 @@ object LyricsManager {
             if (rawText.isEmpty()) continue
             // 中国ソースがインスト曲に付けるダミー行（「纯音乐，请欣赏」＝純音楽、ご鑑賞ください）は歌詞ではないので除外する
             if (PLACEHOLDER_LYRIC_MARKERS.any { rawText.contains(it) }) continue
-            // 中国ソース由来の簡体字・繁体字は日本の漢字にそろえる（詞：〜等のクレジット行は残す）
-            val text = toJapaneseKanji(rawText)
             for (m in matches) {
                 val min = m.groupValues[1].toLongOrNull() ?: continue
                 val sec = m.groupValues[2].toLongOrNull() ?: continue
@@ -93,9 +107,18 @@ object LyricsManager {
                     2 -> (fracRaw.toLongOrNull() ?: 0L) * 10L
                     else -> (fracRaw.toLongOrNull() ?: 0L)
                 }
-                result.add(LyricLine(min * 60_000L + sec * 1_000L + fracMs, text))
+                raw.add(LyricLine(min * 60_000L + sec * 1_000L + fracMs, rawText))
             }
         }
+        // 簡体字・繁体字の手直しは「日本語の歌詞」のときだけ行う（かなを含む行があるかで判定する。中国語の歌詞は原文のまま使う）。
+        // クレジット行（詞：〜等）は変換せずに残す
+        val hasKana = raw.any { line -> line.text.any { it in '\u3040'..'\u30FF' } }
+        val result = if (hasKana) {
+            raw.map { line ->
+                if (isCreditLine(line.text)) line
+                else LyricLine(line.timeMs, toJapaneseKanji(line.text))
+            }
+        } else raw
         return splitLongLines(result.sortedBy { it.timeMs })
     }
 
@@ -104,7 +127,7 @@ object LyricsManager {
     private val krcWordRegex = Regex("""<(\d+),(\d+),\d+>([^<]*)""")
 
     fun parseKrc(krcText: String): List<LyricLine> {
-        val result = mutableListOf<LyricLine>()
+        val raw = mutableListOf<LyricLine>()
         for (rawLine in krcText.lineSequence()) {
             val line = rawLine.trim()
             val m = krcLineRegex.find(line) ?: continue
@@ -115,7 +138,7 @@ object LyricsManager {
             for (wm in krcWordRegex.findAll(body)) {
                 val off = wm.groupValues[1].toLongOrNull() ?: continue
                 val dur = wm.groupValues[2].toLongOrNull() ?: continue
-                val ch = toJapaneseKanji(wm.groupValues[3])
+                val ch = wm.groupValues[3]
                 if (ch.isEmpty()) continue
                 words.add(LyricWord(ch, lineStart + off, lineStart + off + dur))
                 sb.append(ch)
@@ -124,8 +147,20 @@ object LyricsManager {
             val text = sb.toString()
             if (words.isEmpty() || text.isBlank()) continue
             if (PLACEHOLDER_LYRIC_MARKERS.any { text.contains(it) }) continue
-            result.add(LyricLine(lineStart, text, words))
+            raw.add(LyricLine(lineStart, text, words))
         }
+        // 日本語の歌詞のときだけ簡体字・繁体字を日本の漢字にそろえる（クレジット行は残す。中国語の歌詞は原文のまま使う）
+        val hasKana = raw.any { line -> line.text.any { it in '\u3040'..'\u30FF' } }
+        val result = if (hasKana) {
+            raw.map { line ->
+                if (isCreditLine(line.text)) line
+                else LyricLine(
+                    line.timeMs,
+                    toJapaneseKanji(line.text),
+                    line.words.map { w -> LyricWord(toJapaneseKanji(w.text), w.startMs, w.endMs) }
+                )
+            }
+        } else raw
         return splitLongLines(result.sortedBy { it.timeMs })
     }
 
