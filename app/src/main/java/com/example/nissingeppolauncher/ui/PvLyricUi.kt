@@ -693,6 +693,11 @@ private fun pvStartsInParen(lines: List<LyricLine>, index: Int): Boolean {
     return depth > 0
 }
 
+// PV全体の「カメラの手ブレ」用の共有時計（行が切り替わってもカメラの位相が飛ばないよう、開始時刻を全体で共有する）
+private object PvCamClock {
+    val startMs: Long = System.currentTimeMillis()
+}
+
 @Composable
 fun PvLyricLine(
     text: String,
@@ -964,12 +969,22 @@ fun PvLyricLine(
     val camDensity = LocalDensity.current
     val camSlideXPx = with(camDensity) { (screenWidthDp * 0.24f).dp.toPx() }
     val camSlideYPx = with(camDensity) { (fitSize * 1.7f).dp.toPx() }
+    val camDriftAmpXPx = with(camDensity) { 5.dp.toPx() }
+    val camDriftAmpYPx = with(camDensity) { 3.5.dp.toPx() }
     // 規制の白塗りは行全体で1つの時計を共有し、連なった伏せ字を一気に覆う
     val censorProgress = remember { Animatable(if (exiting) 1f else 0f) }
     if (!exiting) {
         LaunchedEffect(Unit) {
             delay(600)
             censorProgress.animateTo(1f, animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing))
+        }
+    }
+    // カメラの手ブレ: 周期の違うサイン波を重ね、座標がずっとゆるく漂う（位相は共有時計で全行共通）
+    val camDriftMs = remember { mutableStateOf(0L) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            camDriftMs.value = System.currentTimeMillis() - PvCamClock.startMs
+            delay(16)
         }
     }
     // 「深」は縦に下へ、「長」は横に伸びる（時計は行全体で共有し、隣の文字を押す動きと同期させる）
@@ -1020,6 +1035,13 @@ fun PvLyricLine(
                     4 -> { val s = if (exiting) 1f + 0.5f * camP else 0.72f + 0.28f * camP; scaleX = s; scaleY = s }
                     else -> { val s = if (exiting) 1f - 0.3f * camP else 1.45f - 0.45f * camP; scaleX = s; scaleY = s }
                 }
+                // 手ブレ（サイン波の重ね合わせで、ゆるく漂い続ける）
+                val driftT = camDriftMs.value / 1000f
+                val driftX = (Math.sin(driftT * 1.185) * 0.7 + Math.sin(driftT * 0.706 + 1.7) * 0.3).toFloat()
+                val driftY = (Math.sin(driftT * 0.938 + 0.6) * 0.7 + Math.sin(driftT * 0.556 + 3.1) * 0.3).toFloat()
+                translationX += driftX * camDriftAmpXPx
+                translationY += driftY * camDriftAmpYPx
+                rotationZ = (Math.sin(driftT * 0.647 + 2.0) * 0.35).toFloat()
                 // 「落」の行は文字ごとにバラバラに落下する（PvLyricUnit 側で処理）
             }
     ) {
