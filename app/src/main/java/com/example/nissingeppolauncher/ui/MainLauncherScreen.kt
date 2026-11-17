@@ -1007,7 +1007,19 @@ fun MainLauncherScreen() {
                 2 -> {
                     // --- 2: アプリ一覧画面 ---
                     RotatableIndexWheel(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                if (disc3d) {
+                                    transformOrigin = TransformOrigin(
+                                        (animatedDisc1CenterX / screenWidthDp).coerceIn(-2f, 3f),
+                                        (disc1CenterY / screenHeightDp).coerceIn(-2f, 3f)
+                                    )
+                                    rotationX = 27f + discTiltX.value
+                                    rotationY = discTiltY.value
+                                    cameraDistance = 6.5f * density
+                                }
+                            },
                         discCenterXDp = animatedDisc1CenterX,
                         discCenterYDp = disc1CenterY,
                         discRadiusDp = disc1RadiusDp,
