@@ -1156,6 +1156,94 @@ object LyricsManager {
         }
     }
 
+    /**
+     * 編集した歌詞を LRCLIB へ投稿する（公開データベースへの書き込み）。
+     * スパム防止の計算パズル（SHA-256 の Proof of Work）を解いてから POST する。
+     * 戻り値: null = 成功、それ以外はエラーメッセージ。
+     */
+    suspend fun publishToLrclib(title: String, artist: String, album: String, durationSec: Int, syncedLyrics: String): String? {
+        if (durationSec <= 0) return "曲の長さが分からないため投稿できません"
+        return withContext(Dispatchers.IO) {
+            try {
+                val ua = "NissinGeppoLauncher/1.2 (https://github.com/sh4tter815/NissinGeppoLauncher)"
+                // 1) チャレンジ取得
+                val chConn = (URL("https://lrclib.net/api/request-challenge").openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    doOutput = true
+                    setRequestProperty("User-Agent", ua)
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                }
+                chConn.outputStream.use { it.write(ByteArray(0)) }
+                if (chConn.responseCode != 200) return@withContext "チャレンジ取得に失敗しました (${chConn.responseCode})"
+                val chJson = JSONObject(chConn.inputStream.bufferedReader().readText())
+                val prefix = chJson.getString("prefix")
+                val target = hexToBytes(chJson.getString("target")) ?: return@withContext "チャレンジの形式が不正です"
+                // 2) Proof of Work: SHA-256(prefix + nonce) が target 未満になる nonce を探す（最大約4分）
+                val md = MessageDigest.getInstance("SHA-256")
+                var nonce = 0L
+                var solved: String? = null
+                val deadline = System.currentTimeMillis() + 240_000L
+                while (System.currentTimeMillis() < deadline) {
+                    val hash = md.digest((prefix + nonce).toByteArray(Charsets.UTF_8))
+                    if (isLessThanUnsigned(hash, target)) {
+                        solved = nonce.toString()
+                        break
+                    }
+                    nonce++
+                }
+                val solvedNonce = solved ?: return@withContext "計算が時間切れになりました。もう一度お試しください"
+                // 3) 投稿
+                val plain = syncedLyrics.lines()
+                    .map { it.replace(Regex("^\\[[^\\]]*\\]"), "").trim() }
+                    .filter { it.isNotEmpty() }
+                    .joinToString("\n")
+                val body = JSONObject()
+                    .put("trackName", title)
+                    .put("artistName", artist)
+                    .put("albumName", album)
+                    .put("duration", durationSec)
+                    .put("plainLyrics", plain)
+                    .put("syncedLyrics", syncedLyrics)
+                    .toString()
+                val conn = (URL("https://lrclib.net/api/publish").openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    doOutput = true
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("X-Publish-Token", "$prefix:$solvedNonce")
+                    setRequestProperty("User-Agent", ua)
+                    connectTimeout = 15000
+                    readTimeout = 30000
+                }
+                conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                val code = conn.responseCode
+                if (code == 201) null else "投稿に失敗しました ($code)"
+            } catch (e: Exception) {
+                "投稿に失敗しました (${e.javaClass.simpleName})"
+            }
+        }
+    }
+
+    private fun hexToBytes(hex: String): ByteArray? {
+        if (hex.length % 2 != 0) return null
+        val out = ByteArray(hex.length / 2)
+        for (i in out.indices) {
+            val v = hex.substring(i * 2, i * 2 + 2).toIntOrNull(16) ?: return null
+            out[i] = v.toByte()
+        }
+        return out
+    }
+
+    private fun isLessThanUnsigned(a: ByteArray, b: ByteArray): Boolean {
+        val n = minOf(a.size, b.size)
+        for (i in 0 until n) {
+            val av = a[i].toInt() and 0xFF
+            val bv = b[i].toInt() and 0xFF
+            if (av != bv) return av < bv
+        }
+        return a.size < b.size
+    }
+
     /** 手編集した歌詞をキャッシュへ保存する（対訳キャッシュは行対応がずれるので消す） */
     fun saveEditedLyrics(context: Context, title: String, artist: String, album: String, lrcText: String) {
         saveLyricsOverride(context, title, artist, album, lrcText)
