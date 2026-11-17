@@ -32,11 +32,20 @@ val DenkiChipFontFamily = FontFamily(Font(R.font.denkichip_font))
 
 val TsukuhouFontFamily = FontFamily(Font(R.font.tsukuhou_font))
 
+val FreeLicenseFontFamily = FontFamily(Font(R.font.free_license))
+
+val MontserratBoldItalicFontFamily = FontFamily(Font(R.font.montserrat_bold_italic))
+
+val KaibunshoFontFamily = FontFamily(Font(R.font.kaibunsyo_font))
+
 fun parseFontFamily(fontChoice: String, customPath: String?): FontFamily {
     return when (fontChoice) {
         "receipt" -> ReceiptFontFamily
         "denkichip" -> DenkiChipFontFamily
         "tsukuhou" -> TsukuhouFontFamily
+        "freelicense" -> FreeLicenseFontFamily
+        "montserratbi" -> MontserratBoldItalicFontFamily
+        "kaibunsho" -> KaibunshoFontFamily
         "custom" -> loadCustomFontFamily(customPath) ?: FontFamily.Default
         else -> {
             if (!customPath.isNullOrBlank()) {

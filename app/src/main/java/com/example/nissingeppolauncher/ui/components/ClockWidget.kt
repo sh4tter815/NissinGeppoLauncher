@@ -24,7 +24,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import com.example.nissingeppolauncher.ui.lyricMixedFontText
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -48,7 +50,10 @@ fun ClockWidget(
     karaokePositionMs: Long = 0L,
     karaokeSungColor: Color = Color(0xFF7FD4F2),
     // 対訳（翻訳ONのとき、現在行の下に小さく出す）
-    translationText: String = ""
+    translationText: String = "",
+    // 歌詞行のフォント（歌詞設定のフォント）と、英字だけ別にする場合のフォント
+    lyricFontFamily: FontFamily? = null,
+    lyricEnFontFamily: FontFamily? = null
 ) {
     val context = LocalContext.current
     var currentTime by remember { mutableStateOf(Date()) }
@@ -108,6 +113,7 @@ fun ClockWidget(
 
     // 歌詞行のグロー（アクセントカラーで発光させる）
     val lyricsStyle = LocalTextStyle.current.copy(
+        fontFamily = lyricFontFamily,
         shadow = Shadow(
             color = glowColor.copy(alpha = 0.9f),
             offset = Offset(0f, 0f),
@@ -187,11 +193,13 @@ fun ClockWidget(
                             baseColor = Color.White,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium,
+                            fontFamily = lyricFontFamily,
+                            enFontFamily = lyricEnFontFamily,
                             shadow = Shadow(color = glowColor.copy(alpha = 0.9f), offset = Offset(0f, 0f), blurRadius = 16f)
                         )
                     } else {
                         Text(
-                            text = line,
+                            text = lyricMixedFontText(line, lyricEnFontFamily),
                             color = Color.White,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium,
@@ -270,11 +278,13 @@ fun ClockWidget(
                             baseColor = Color.White,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium,
+                            fontFamily = lyricFontFamily,
+                            enFontFamily = lyricEnFontFamily,
                             shadow = Shadow(color = glowColor.copy(alpha = 0.9f), offset = Offset(0f, 0f), blurRadius = 16f)
                         )
                     } else {
                         Text(
-                            text = line,
+                            text = lyricMixedFontText(line, lyricEnFontFamily),
                             color = Color.White,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium,
