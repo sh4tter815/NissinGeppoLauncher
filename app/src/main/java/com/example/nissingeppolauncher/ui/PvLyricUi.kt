@@ -592,20 +592,40 @@ fun PvInterludeArt(accentColor: Color, modifier: Modifier = Modifier) {
  * words が無い行は baseColor の通常テキストとして描く
  */
 // 英字（半角ASCII）の範囲だけ別フォントで描くための混合フォント文字列を作る。
-// enFontFamily が null のときは通常の文字列として返す
+// enFontFamily が null のときは通常の文字列として返す。
+// 半角記号（？！括弧など）だけの並びは英語扱いにせず、直前の文のフォントに合わせる
+// （日本語の文中に出てくる半角記号は日本語フォント、英語の文中の記号は英語フォントになる）
 fun lyricMixedFontText(text: String, enFontFamily: FontFamily?): androidx.compose.ui.text.AnnotatedString {
     if (enFontFamily == null) return androidx.compose.ui.text.AnnotatedString(text)
+    // 半角／全角のランに分ける
+    val runs = mutableListOf<Triple<Int, Int, Boolean>>()
+    var i = 0
+    while (i < text.length) {
+        val ascii = text[i] in ' '..'~'
+        var j = i
+        while (j < text.length && (text[j] in ' '..'~') == ascii) j++
+        runs.add(Triple(i, j, ascii))
+        i = j
+    }
+    // 英字・数字を含むランだけを「英語」として英語フォントにする
+    val useEn = BooleanArray(runs.size)
+    for (k in runs.indices) {
+        val (s, e, ascii) = runs[k]
+        if (!ascii) continue
+        if (text.substring(s, e).any { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' }) useEn[k] = true
+    }
+    // 記号だけのランは直前のランの扱いに合わせる（先頭にある場合は直後を見る）
+    for (k in runs.indices) {
+        if (!runs[k].third || useEn[k]) continue
+        useEn[k] = if (k > 0) useEn[k - 1] else (if (runs.size > 1) useEn[k + 1] else false)
+    }
     return buildAnnotatedString {
-        var i = 0
-        while (i < text.length) {
-            if (text[i] in ' '..'~') {
-                var j = i
-                while (j < text.length && text[j] in ' '..'~') j++
-                withStyle(SpanStyle(fontFamily = enFontFamily)) { append(text.substring(i, j)) }
-                i = j
+        for (k in runs.indices) {
+            val (s, e, _) = runs[k]
+            if (useEn[k]) {
+                withStyle(SpanStyle(fontFamily = enFontFamily)) { append(text.substring(s, e)) }
             } else {
-                append(text[i])
-                i++
+                append(text.substring(s, e))
             }
         }
     }
@@ -980,7 +1000,8 @@ fun PvLyricLine(
         }
     }
     // カメラの手ブレ: 周期の違うサイン波を重ね、座標がずっとゆるく漂う（位相は共有時計で全行共通）
-    val camDriftMs = remember { mutableStateOf(0L) }
+    // 初期値も現在時刻から入れる（0で始めると、行が切り替わる瞬間にカメラ位置が飛んでガタつくため）
+    val camDriftMs = remember { mutableStateOf(System.currentTimeMillis() - PvCamClock.startMs) }
     LaunchedEffect(Unit) {
         while (true) {
             camDriftMs.value = System.currentTimeMillis() - PvCamClock.startMs
