@@ -1,6 +1,7 @@
 package com.example.nissingeppolauncher.ui
 
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
@@ -334,6 +335,8 @@ fun MainLauncherScreen() {
         val mediaSessionManager = context.getSystemService(android.content.Context.MEDIA_SESSION_SERVICE) as? android.media.session.MediaSessionManager
         val listenerComponent = android.content.ComponentName(context, com.example.nissingeppolauncher.service.LauncherMediaListenerService::class.java)
         var lastArtKey = ""
+        var artMissKey = ""
+        var artMissCount = 0
         while (true) {
             try {
                 val controllers = mediaSessionManager?.getActiveSessions(listenerComponent)
@@ -343,19 +346,70 @@ fun MainLauncherScreen() {
                 val metadata = activeController?.metadata
                 // 曲が変わったときだけアートワークを取り直す。
                 // 毎回Bitmapを読み直すと別インスタンスになって色抽出と背景ぼかしが
-                // 回り続けて重くなるため、タイトル/アーティスト/アルバムで判定する
+                // 回り続けて重くなるため、タイトル/アーティスト/アルバムで判定する。
+                // ただし画像がまだ届いていない場合は、届くまで再試行する。
+                // プレイヤーは曲名を先に渡して画像を遅れて渡すことがあり、最初の1回で
+                // nullを掴んだまま固定すると、その曲の間ずっと壁紙のままになっていた。
                 val artKey = listOf(
                     metadata?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE) ?: "",
                     metadata?.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST) ?: "",
                     metadata?.getString(android.media.MediaMetadata.METADATA_KEY_ALBUM) ?: ""
                 ).joinToString("|")
-                if (artKey != lastArtKey) {
-                    lastArtKey = artKey
-                    sessionAlbumArt = if (artKey.isBlank()) null else try {
-                        metadata?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART)
-                            ?: metadata?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ART)
-                    } catch (e: Exception) {
-                        null
+                if (artKey.isBlank()) {
+                    if (lastArtKey.isNotBlank()) {
+                        lastArtKey = ""
+                        sessionAlbumArt = null
+                    }
+                    artMissKey = ""
+                    artMissCount = 0
+                } else if (artKey != lastArtKey) {
+                    val loaded = withContext(Dispatchers.IO) {
+                        try {
+                            metadata?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART)
+                                ?: metadata?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ART)
+                                ?: metadata?.getBitmap(android.media.MediaMetadata.METADATA_KEY_DISPLAY_ICON)
+                                ?: run {
+                                    val uriStr = metadata?.getString(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART_URI)
+                                        ?: metadata?.getString(android.media.MediaMetadata.METADATA_KEY_ART_URI)
+                                        ?: metadata?.getString(android.media.MediaMetadata.METADATA_KEY_DISPLAY_ICON_URI)
+                                    val uri = uriStr?.let { Uri.parse(it) }
+                                    when {
+                                        uri == null -> null
+                                        uri.scheme == "http" || uri.scheme == "https" -> try {
+                                            java.net.URL(uriStr).openStream().use { BitmapFactory.decodeStream(it) }
+                                        } catch (e: Exception) {
+                                            null
+                                        }
+                                        else -> try {
+                                            context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it) }
+                                        } catch (e: Exception) {
+                                            null
+                                        }
+                                    }
+                                }
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+                    if (loaded != null) {
+                        lastArtKey = artKey
+                        sessionAlbumArt = loaded
+                        artMissKey = ""
+                        artMissCount = 0
+                    } else {
+                        if (artMissKey != artKey) {
+                            // この曲で初めて取りに行って空だった。前の曲の画像は残さない
+                            artMissKey = artKey
+                            artMissCount = 0
+                            sessionAlbumArt = null
+                        }
+                        artMissCount++
+                        if (artMissCount >= 10) {
+                            // 約15秒取りに行っても無ければ、本当にアートワークが無い曲として打ち切る
+                            lastArtKey = artKey
+                            artMissKey = ""
+                            artMissCount = 0
+                        }
                     }
                 }
             } catch (e: Exception) {
