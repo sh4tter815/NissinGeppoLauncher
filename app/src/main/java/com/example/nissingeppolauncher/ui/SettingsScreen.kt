@@ -157,6 +157,7 @@ fun FontSelectionSection(
         "receipt" to "レシートフォント (Receipt Font)",
         "denkichip" to "でんきチップ (DenkiChip)",
         "tsukuhou" to "築豊明朝 (Tsukuhou Mincho)",
+        "kaibunsho" to "怪聞書フォント (Kaibunsho)",
         "custom" to "カスタムフォント (.ttf/.otf)"
     )
     val currentLabel = fontOptions[currentFontChoice] ?: "システムフォント"
@@ -241,6 +242,8 @@ fun SettingsScreen(
     var currentFontChoice by remember { mutableStateOf(repo.prefManager.getFontChoice()) }
     var lyricsDisplayMode by remember { mutableStateOf(repo.prefManager.getLyricsDisplayMode()) }
     var lyricsPvFont by remember { mutableStateOf(repo.prefManager.getLyricsPvFont()) }
+    var lyricsEnFont by remember { mutableStateOf(repo.prefManager.getLyricsEnFont()) }
+    var lyricsEnCustomPath by remember { mutableStateOf(repo.prefManager.getLyricsEnCustomFontPath()) }
     var lyricsBold by remember { mutableStateOf(repo.prefManager.isLyricsBold()) }
     var pvPartsEntry by remember { mutableStateOf(repo.prefManager.isPvPartsEntryEnabled()) }
     var statusBarLyrics by remember { mutableStateOf(repo.prefManager.isStatusBarLyricsEnabled()) }
@@ -347,6 +350,31 @@ fun SettingsScreen(
                     currentFontChoice = "custom"
                     onChanged()
                     Toast.makeText(context, "カスタムフォントを読み込みました", Toast.LENGTH_SHORT).show()
+                }
+            } catch (_: Exception) {
+                Toast.makeText(context, "フォントの読み込みに失敗しました", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // 英字フォント専用のカスタムフォント選択ピッカー (.ttf / .otf)
+    val enFontPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val destFile = File(context.filesDir, "custom_font_en.ttf")
+                    FileOutputStream(destFile).use { out ->
+                        inputStream.copyTo(out)
+                    }
+                    val path = destFile.absolutePath
+                    repo.prefManager.setLyricsEnCustomFontPath(path)
+                    repo.prefManager.setLyricsEnFont("custom")
+                    lyricsEnCustomPath = path
+                    lyricsEnFont = "custom"
+                    onChanged()
+                    Toast.makeText(context, "英字用カスタムフォントを読み込みました", Toast.LENGTH_SHORT).show()
                 }
             } catch (_: Exception) {
                 Toast.makeText(context, "フォントの読み込みに失敗しました", Toast.LENGTH_SHORT).show()
@@ -576,6 +604,7 @@ fun SettingsScreen(
                                                 "receipt" to "レシートフォント (Receipt Font)",
                                                 "denkichip" to "でんきチップ (DenkiChip)",
                                                 "tsukuhou" to "築豊明朝 (Tsukuhou Mincho)",
+                                                "kaibunsho" to "怪聞書フォント (Kaibunsho)",
                                                 "custom" to "カスタムフォント (.ttf/.otf)"
                                             ).forEach { (key, label) ->
                                                 Row(
@@ -603,6 +632,58 @@ fun SettingsScreen(
                                                 }
                                             }
                                             Text("「カスタムフォント」はフォント設定で選んだファイルを使います", color = Color.Gray, fontSize = 12.sp)
+                                        }
+                                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            Text("歌詞の英字フォント", color = Color.White, fontSize = 14.sp)
+                                            listOf(
+                                                "same" to "日本語フォントと同じ",
+                                                "freelicense" to "Free License",
+                                                "montserratbi" to "Montserrat Bold Italic",
+                                                "default" to "システムフォント",
+                                                "receipt" to "レシートフォント (Receipt Font)",
+                                                "denkichip" to "でんきチップ (DenkiChip)",
+                                                "tsukuhou" to "築豊明朝 (Tsukuhou Mincho)",
+                                                "kaibunsho" to "怪聞書フォント (Kaibunsho)",
+                                                "custom" to "カスタムフォント (.ttf/.otf)"
+                                            ).forEach { (key, label) ->
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clickable {
+                                                            lyricsEnFont = key
+                                                            repo.prefManager.setLyricsEnFont(key)
+                                                            onChanged()
+                                                        }
+                                                        .padding(vertical = 2.dp)
+                                                ) {
+                                                    RadioButton(
+                                                        selected = lyricsEnFont == key,
+                                                        onClick = null,
+                                                        colors = RadioButtonDefaults.colors(selectedColor = currentAccentColor, unselectedColor = Color.Gray)
+                                                    )
+                                                    Text(
+                                                        text = label,
+                                                        color = if (lyricsEnFont == key) currentAccentColor else Color.White.copy(alpha = 0.8f),
+                                                        fontSize = 15.sp,
+                                                        fontFamily = when (key) {
+                                                            "same" -> parseFontFamily(lyricsPvFont, if (lyricsPvFont == "custom") customFontPath else null)
+                                                            "custom" -> parseFontFamily("custom", lyricsEnCustomPath)
+                                                            else -> parseFontFamily(key, null)
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                            if (lyricsEnFont == "custom") {
+                                                Button(
+                                                    onClick = { enFontPickerLauncher.launch("*/*") },
+                                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F293D)),
+                                                    modifier = Modifier.fillMaxWidth()
+                                                ) {
+                                                    Text("英字用フォントファイル (.ttf / .otf) をインポート", color = Color.White, fontWeight = FontWeight.Light)
+                                                }
+                                                Text("英字フォント専用のファイルです（日本語用とは別に選べます）", color = Color.Gray, fontSize = 12.sp)
+                                            }
                                         }
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),

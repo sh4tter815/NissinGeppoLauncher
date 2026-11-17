@@ -591,6 +591,26 @@ fun PvInterludeArt(accentColor: Color, modifier: Modifier = Modifier) {
  * カラオケ式テロップ表示: 文字同期（words）がある行は、歌い終わった文字から sungColor に変わっていく。
  * words が無い行は baseColor の通常テキストとして描く
  */
+// 英字（半角ASCII）の範囲だけ別フォントで描くための混合フォント文字列を作る。
+// enFontFamily が null のときは通常の文字列として返す
+fun lyricMixedFontText(text: String, enFontFamily: FontFamily?): androidx.compose.ui.text.AnnotatedString {
+    if (enFontFamily == null) return androidx.compose.ui.text.AnnotatedString(text)
+    return buildAnnotatedString {
+        var i = 0
+        while (i < text.length) {
+            if (text[i] in ' '..'~') {
+                var j = i
+                while (j < text.length && text[j] in ' '..'~') j++
+                withStyle(SpanStyle(fontFamily = enFontFamily)) { append(text.substring(i, j)) }
+                i = j
+            } else {
+                append(text[i])
+                i++
+            }
+        }
+    }
+}
+
 @Composable
 fun KaraokeLyricText(
     line: LyricLine,
@@ -600,6 +620,7 @@ fun KaraokeLyricText(
     fontSize: androidx.compose.ui.unit.TextUnit,
     fontWeight: FontWeight = FontWeight.Normal,
     fontFamily: FontFamily? = null,
+    enFontFamily: FontFamily? = null,
     letterSpacing: androidx.compose.ui.unit.TextUnit = androidx.compose.ui.unit.TextUnit.Unspecified,
     textAlign: TextAlign = TextAlign.Start,
     shadow: Shadow? = null,
@@ -607,7 +628,7 @@ fun KaraokeLyricText(
 ) {
     if (line.words.isEmpty()) {
         Text(
-            text = line.text,
+            text = lyricMixedFontText(line.text, enFontFamily),
             color = baseColor,
             fontSize = fontSize,
             fontWeight = fontWeight,
@@ -642,7 +663,7 @@ fun KaraokeLyricText(
                 positionMs <= t.first -> baseColor
                 else -> lerp(baseColor, sungColor, ((positionMs - t.first).toFloat() / (t.second - t.first).coerceAtLeast(1L).toFloat()).coerceIn(0f, 1f))
             }
-            withStyle(SpanStyle(color = col)) { append(ch) }
+            withStyle(SpanStyle(color = col, fontFamily = if (enFontFamily != null && ch in ' '..'~') enFontFamily else null)) { append(ch) }
             ci++
         }
     }
@@ -688,7 +709,7 @@ fun PvLyricLine(
     startsInParen: Boolean = false,
     lineStartMs: Long = 0L,
     partsEntry: Boolean = false,
-    camFlow: Int = -1,
+    enFontFamily: FontFamily? = null,
     modifier: Modifier = Modifier
 ) {
     val pvEaseIn = CubicBezierEasing(0.42f, 0f, 1f, 1f)
@@ -929,19 +950,14 @@ fun PvLyricLine(
         animationSpec = infiniteRepeatable(tween(durationMillis = 2600, easing = LinearEasing), RepeatMode.Restart),
         label = "wavePhase"
     )
-    // カメラワーク: 全行に、入場と退場がつながるカメラの流れを付ける。
-    // camFlow: 0=右へ流れる（退場は右へ・入場は左から） 1=左へ 2=上へ 3=下へ 4=押し込む（ズームイン系） 5=引く（ズームアウト系）
-    // -1 のときは baseSeed から決める。入場はイーズアウト、退場はイーズインで、退場と次の入場が同じ流れを共有する
-    val camFlowEff = if (camFlow >= 0) camFlow else Math.floorMod(baseSeed * 13 + 7, 6)
-    val camAnim = remember { Animatable(if (exiting) 1f else 0f) }
-    if (!exiting) {
+    // 短い行の直後に長い間奏・後奏が続くときは、大きめに入場してゆっくり縮小する（カメラがズームアウトしていくイメージ）
+    val zoomLine = totalChars in 1..8 && lineDurationMs >= 10000L
+    val zoomAnim = remember { Animatable(if (exiting) 1f else 0f) }
+    if (!exiting && zoomLine) {
         LaunchedEffect(Unit) {
-            camAnim.animateTo(1f, animationSpec = tween(durationMillis = if (camFlowEff >= 4) 1100 else 800, easing = FastOutSlowInEasing))
+            zoomAnim.animateTo(1f, animationSpec = tween(durationMillis = 1500, easing = FastOutSlowInEasing))
         }
     }
-    val camDensity = LocalDensity.current
-    val camSlideXPx = with(camDensity) { (screenWidthDp * 0.24f).dp.toPx() }
-    val camSlideYPx = with(camDensity) { (fitSize * 1.7f).dp.toPx() }
     // 「深」は縦に下へ、「長」は横に伸びる（時計は行全体で共有し、隣の文字を押す動きと同期させる）
     val hasStretch = STRETCH_VERTICAL_WORDS.any { text.contains(it) } || STRETCH_HORIZONTAL_WORDS.any { text.contains(it) }
     val stretchAnim = remember { Animatable(if (exiting) 1f else 0f) }
@@ -980,15 +996,10 @@ fun PvLyricLine(
             .graphicsLayer {
                 // 退場の最後は行ごとフェードアウトして残像を残さない
                 alpha = if (exiting) 1f - ((exitProgress.value - 0.6f) / 0.4f).coerceIn(0f, 1f) else 1f
-                // カメラワーク（入場はイーズアウト済みの camAnim、退場は exitProgress をイーズイン変換し、同じ流れで動かす）
-                val camP = if (exiting) pvEaseIn.transform(exitProgress.value) else camAnim.value
-                when (camFlowEff) {
-                    0 -> translationX = (if (exiting) camP else camP - 1f) * camSlideXPx
-                    1 -> translationX = (if (exiting) -camP else 1f - camP) * camSlideXPx
-                    2 -> translationY = (if (exiting) -camP else 1f - camP) * camSlideYPx
-                    3 -> translationY = (if (exiting) camP else camP - 1f) * camSlideYPx
-                    4 -> { val s = if (exiting) 1f + 0.5f * camP else 0.72f + 0.28f * camP; scaleX = s; scaleY = s }
-                    else -> { val s = if (exiting) 1f - 0.3f * camP else 1.45f - 0.45f * camP; scaleX = s; scaleY = s }
+                if (zoomLine) {
+                    val zs = 1.5f - 0.5f * zoomAnim.value
+                    scaleX = zs
+                    scaleY = zs
                 }
                 // 「落」の行は文字ごとにバラバラに落下する（PvLyricUnit 側で処理）
             }
@@ -1199,9 +1210,9 @@ fun PvLyricLine(
                 ranges.add(st until en)
                 si = rowText.indexOf("自主規制", en)
             }
-            // 伏せ字グリフの連続: 〇○●■□は伏せ字専用に近いので1文字でも対象、*・―・-・×等は2文字以上の連続だけ対象
-            val strongMask = setOf('〇', '○', '●', '■', '□')
-            val weakMask = setOf('*', '＊', '―', '—', '－', '-', '×', '✕', '✖')
+            // 伏せ字グリフの連続: 〇○●は伏せ字専用に近いので1文字でも対象、*・―・-・×等は2文字以上の連続だけ対象
+            val strongMask = setOf('〇', '○', '●')
+            val weakMask = setOf('*', '＊', '―', '—', '－', '-', '×', '✕', '✖', '■')
             var mi = 0
             while (mi < rowText.length) {
                 if (rowText[mi] in strongMask || rowText[mi] in weakMask) {
@@ -1499,7 +1510,7 @@ fun PvLyricLine(
                         exiting = exiting,
                         exitProgressValue = if (sandLine && !fallLine) (exitProgress.value * 1.6f).coerceAtMost(1f) else exitProgress.value,
                         exitDelayMs = (uSeed % 5) * 35f + gi * 12f,
-                        fontFamily = fontFamily,
+                        fontFamily = if (enFontFamily != null && ru.isNotEmpty() && ru.all { it in ' '..'~' }) enFontFamily else fontFamily,
                         accentColor = accentColor,
                         effectKind = effKind,
                         iconKind = thisUnitIcon,
@@ -2637,6 +2648,7 @@ fun LyricsPvLayer(
     interludeTopDp: Dp,
     translationTopDp: Dp,
     partsEntry: Boolean = false,
+    enFontFamily: FontFamily? = null,
     onAccentFlash: (Color?) -> Unit = {}
 ) {
     val pvPos = positionMs + lyricOffsetMs
@@ -2682,17 +2694,6 @@ fun LyricsPvLayer(
             val kind = if (prev != null && raw == prev) (raw + 1) % 8 else raw
             pvKindMap[idx] = kind
             return kind
-        }
-        // カメラの流れも行ごとにランダム（前の行と同じ流れは避ける）。
-        // 退場する行は「次の行の流れ」を共有するので、退場と入場がつながって見える
-        val pvCamMap = remember { mutableStateMapOf<Int, Int>() }
-        fun pvCamFlowFor(idx: Int, text: String): Int {
-            pvCamMap[idx]?.let { return it }
-            val raw = Math.floorMod(Math.floorMod(idx * 41 + text.hashCode(), 997), 6)
-            val prev = pvCamMap[idx - 1]
-            val flow = if (prev != null && raw == prev) (raw + 1) % 6 else raw
-            pvCamMap[idx] = flow
-            return flow
         }
         var pvCurrent by remember { mutableStateOf<Pair<Int, String>?>(null) }
         var pvExiting by remember { mutableStateOf<Pair<Int, String>?>(null) }
@@ -2744,7 +2745,7 @@ fun LyricsPvLayer(
                         lineDurationMs = lines.getOrNull(exIdx + 1)?.let { it.timeMs - lines[exIdx].timeMs } ?: Long.MAX_VALUE,
                         startsInParen = pvStartsInParen(lines, exIdx),
                         partsEntry = partsEntry,
-                        camFlow = pvCurrent?.let { pvCamFlowFor(it.first, it.second) } ?: pvCamFlowFor(exIdx + 1, lines.getOrNull(exIdx + 1)?.text ?: ""),
+                        enFontFamily = enFontFamily,
                         modifier = Modifier.padding(top = pvTopDp)
                     )
                 }
@@ -2764,7 +2765,7 @@ fun LyricsPvLayer(
                                 words = lines[curIdx].words,
                                 lineStartMs = lines[curIdx].timeMs,
                                 partsEntry = partsEntry,
-                                camFlow = pvCamFlowFor(curIdx, curText),
+                        enFontFamily = enFontFamily,
                                 effectKind = pvKindFor(curIdx, curText),
                                 lineDurationMs = lines.getOrNull(curIdx + 1)?.let { it.timeMs - lines[curIdx].timeMs } ?: Long.MAX_VALUE,
                                 startsInParen = pvStartsInParen(lines, curIdx),
@@ -2831,7 +2832,8 @@ fun LyricsBrowseOverlay(
     onSeek: (Long) -> Unit,
     onRefresh: () -> Unit,
     onOpenSearch: () -> Unit,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    enFontFamily: FontFamily? = null
 ) {
     val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
@@ -2983,13 +2985,14 @@ fun LyricsBrowseOverlay(
                         fontSize = fitFontSizeSp(lines[idx].text, 26f, browseWidthDp * 0.85f).sp,
                         fontWeight = lyricWeight,
                         fontFamily = fontFamily,
+                        enFontFamily = enFontFamily,
                         letterSpacing = 1.0.sp,
                         textAlign = TextAlign.Start,
                         shadow = if (accentGlow) Shadow(color = accentColor, blurRadius = 14f) else Shadow(color = Color.Black.copy(alpha = 0.75f), blurRadius = 10f)
                     )
                 } else {
                     Text(
-                        text = lines[idx].text,
+                        text = lyricMixedFontText(lines[idx].text, enFontFamily),
                         color = if (isFocusedLine) Color.White else Color.White.copy(alpha = 0.92f * fade),
                         fontSize = fitFontSizeSp(lines[idx].text, if (isFocusedLine) 26f else 15f, browseWidthDp * 0.85f).sp,
                         fontWeight = if (isFocusedLine) lyricWeight else FontWeight.Normal,
@@ -3205,7 +3208,8 @@ fun LyricsFullscreenOverlay(
     album: String,
     onClose: () -> Unit
 ,
-    partsEntry: Boolean = false) {
+    partsEntry: Boolean = false,
+    enFontFamily: FontFamily? = null) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize().zIndex(96f)) {
         val fsWidth = maxWidth.value
         val fsLines = lines ?: emptyList()
@@ -3270,16 +3274,6 @@ fun LyricsFullscreenOverlay(
                 var fsCurrent by remember { mutableStateOf<Pair<Int, String>?>(null) }
                 var fsExiting by remember { mutableStateOf<Pair<Int, String>?>(null) }
                 LaunchedEffect(lines) { fsCurrent = null; fsExiting = null }
-                // カメラの流れ（退場と入場で共有してつなげる）
-                val fsCamMap = remember { mutableStateMapOf<Int, Int>() }
-                fun fsCamFlowFor(idx: Int, text: String): Int {
-                    fsCamMap[idx]?.let { return it }
-                    val raw = Math.floorMod(Math.floorMod(idx * 41 + text.hashCode(), 997), 6)
-                    val prev = fsCamMap[idx - 1]
-                    val flow = if (prev != null && raw == prev) (raw + 1) % 6 else raw
-                    fsCamMap[idx] = flow
-                    return flow
-                }
                 LaunchedEffect(fsDisplayIndex) {
                     if (fsDisplayIndex >= 0) {
                         if (fsCurrent?.first != fsDisplayIndex) {
@@ -3316,7 +3310,7 @@ fun LyricsFullscreenOverlay(
                                 lineDurationMs = fsLines.getOrNull(exIdx + 1)?.let { it.timeMs - fsLines[exIdx].timeMs } ?: Long.MAX_VALUE,
                                 startsInParen = pvStartsInParen(fsLines, exIdx),
                                 partsEntry = partsEntry,
-                                camFlow = fsCurrent?.let { fsCamFlowFor(it.first, it.second) } ?: fsCamFlowFor(exIdx + 1, fsLines.getOrNull(exIdx + 1)?.text ?: ""),
+                                enFontFamily = enFontFamily,
                                 exiting = true,
                                 effectKind = Math.floorMod(Math.floorMod(exIdx * 31 + exText.hashCode(), 997), 8),
                                 modifier = Modifier
@@ -3336,7 +3330,7 @@ fun LyricsFullscreenOverlay(
                                 lineDurationMs = fsLines.getOrNull(curIdx + 1)?.let { it.timeMs - fsLines[curIdx].timeMs } ?: Long.MAX_VALUE,
                                 startsInParen = pvStartsInParen(fsLines, curIdx),
                                 partsEntry = partsEntry,
-                                camFlow = fsCamFlowFor(curIdx, curText),
+                                enFontFamily = enFontFamily,
                                 exiting = false,
                                 words = fsLines[curIdx].words,
                                 lineStartMs = fsLines[curIdx].timeMs,
@@ -3387,7 +3381,7 @@ fun LyricsFullscreenOverlay(
                         val curText = if (fsInterlude) "♪" else (fsCurLine?.text ?: "")
                         val nextText = fsNextLine?.text ?: ""
                         if (prevText.isNotEmpty()) {
-                            Text(prevText, color = Color.White.copy(alpha = 0.45f), fontSize = fitFontSizeSp(prevText, 18f, fsWidth - 80f).sp, letterSpacing = 2.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = fontFamily))
+                            Text(lyricMixedFontText(prevText, enFontFamily), color = Color.White.copy(alpha = 0.45f), fontSize = fitFontSizeSp(prevText, 18f, fsWidth - 80f).sp, letterSpacing = 2.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = fontFamily))
                             Spacer(Modifier.height(14.dp))
                         }
                         if (curText.isNotEmpty()) {
@@ -3401,13 +3395,14 @@ fun LyricsFullscreenOverlay(
                                     fontSize = fitFontSizeSp(curText, 30f, fsWidth - 108f).sp,
                                     fontWeight = lyricWeight,
                                     fontFamily = fontFamily,
+                                    enFontFamily = enFontFamily,
                                     letterSpacing = 3.sp,
                                     shadow = Shadow(color = Color.White.copy(alpha = 0.85f), blurRadius = 18f),
                                     modifier = Modifier.padding(start = 28.dp)
                                 )
                             } else {
                                 Text(
-                                    curText,
+                                    lyricMixedFontText(curText, enFontFamily),
                                     color = Color.White,
                                     fontSize = fitFontSizeSp(curText, 30f, fsWidth - 108f).sp,
                                     fontWeight = lyricWeight,
@@ -3423,7 +3418,7 @@ fun LyricsFullscreenOverlay(
                         }
                         if (nextText.isNotEmpty()) {
                             Spacer(Modifier.height(14.dp))
-                            Text(nextText, color = Color.White.copy(alpha = 0.45f), fontSize = fitFontSizeSp(nextText, 18f, fsWidth - 136f).sp, letterSpacing = 2.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = fontFamily), modifier = Modifier.padding(start = 56.dp))
+                            Text(lyricMixedFontText(nextText, enFontFamily), color = Color.White.copy(alpha = 0.45f), fontSize = fitFontSizeSp(nextText, 18f, fsWidth - 136f).sp, letterSpacing = 2.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = fontFamily), modifier = Modifier.padding(start = 56.dp))
                         }
                     } else {
                         val lineText = if (fsIndex < 0) "" else if (fsInterlude) "♪" else (fsCurLine?.text ?: "")
@@ -3438,12 +3433,13 @@ fun LyricsFullscreenOverlay(
                                     fontSize = fitFontSizeSp(lineText, 26f, fsWidth - 80f).sp,
                                     fontWeight = lyricWeight,
                                     fontFamily = fontFamily,
+                                    enFontFamily = enFontFamily,
                                     letterSpacing = 2.sp,
                                     shadow = Shadow(color = Color.White.copy(alpha = 0.85f), blurRadius = 18f)
                                 )
                             } else {
                                 Text(
-                                    lineText,
+                                    lyricMixedFontText(lineText, enFontFamily),
                                     color = Color.White,
                                     fontSize = fitFontSizeSp(lineText, 26f, fsWidth - 80f).sp,
                                     fontWeight = lyricWeight,

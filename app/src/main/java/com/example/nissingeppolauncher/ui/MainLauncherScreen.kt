@@ -150,6 +150,8 @@ fun MainLauncherScreen() {
     var lyricOffsetMs by remember { mutableLongStateOf(0L) }
     var lyricsDisplayMode by remember { mutableStateOf(repo.prefManager.getLyricsDisplayMode()) }
     var lyricsPvFont by remember { mutableStateOf(repo.prefManager.getLyricsPvFont()) }
+    var lyricsEnFont by remember { mutableStateOf(repo.prefManager.getLyricsEnFont()) }
+    var lyricsEnCustomPath by remember { mutableStateOf(repo.prefManager.getLyricsEnCustomFontPath()) }
     var lyricsBold by remember { mutableStateOf(repo.prefManager.isLyricsBold()) }
     var pvPartsEntry by remember { mutableStateOf(repo.prefManager.isPvPartsEntryEnabled()) }
     // 色塗り行でのアクセントフラッシュ（液体背景とPVのグローが一瞬その色になる）。一定時間で自動で戻る
@@ -224,6 +226,21 @@ fun MainLauncherScreen() {
         if (repo.prefManager.isStatusBarLyricsEnabled() && android.provider.Settings.canDrawOverlays(context)) {
             com.example.nissingeppolauncher.service.LyricsOverlayService.start(context)
         }
+    }
+
+    // 権限画面から戻った直後など、画面が再表示されるタイミングでも起動を確認する
+    // （初回起動チェックだけだと、許可した後にサービスが始まらないことがあった）
+    val overlayLifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(overlayLifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                if (repo.prefManager.isStatusBarLyricsEnabled() && android.provider.Settings.canDrawOverlays(context)) {
+                    com.example.nissingeppolauncher.service.LyricsOverlayService.start(context)
+                }
+            }
+        }
+        overlayLifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { overlayLifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     // 再生中セッションの曲情報を定期取得する（歌詞の照合用）
@@ -742,6 +759,9 @@ fun MainLauncherScreen() {
     }
 
     val lyricsFontFamily = parseFontFamily(lyricsPvFont, if (lyricsPvFont == "custom") customFontPath else null)
+    // 英字フォント: "same" のときは日本語フォントと同じ（=混合しないので null を渡す）
+    val lyricsEnFontFamily = if (lyricsEnFont == "same") lyricsFontFamily else parseFontFamily(lyricsEnFont, if (lyricsEnFont == "custom") lyricsEnCustomPath else null)
+    val lyricsEnFontArg = if (lyricsEnFont == "same") null else lyricsEnFontFamily
     val lyricWeight = if (lyricsBold) FontWeight.Bold else FontWeight.Normal
 
     CompositionLocalProvider(
@@ -800,6 +820,7 @@ fun MainLauncherScreen() {
                     interludeTopDp = topPaddingDp + 145.dp,
                     translationTopDp = topPaddingDp + 320.dp,
                     partsEntry = pvPartsEntry,
+                    enFontFamily = lyricsEnFontArg,
                     onAccentFlash = { pvFlashColor = it }
                 )
             }
@@ -813,6 +834,7 @@ fun MainLauncherScreen() {
                     translationEnabled = translationEnabled,
                     translations = lyricTranslations,
                     fontFamily = lyricsFontFamily,
+                    enFontFamily = lyricsEnFontArg,
                     lyricWeight = lyricWeight,
                     accentColor = accentColor,
                     screenWidthDp = screenWidthDp,
@@ -843,6 +865,8 @@ fun MainLauncherScreen() {
                                 fontChoice = repo.prefManager.getFontChoice()
                                 lyricsDisplayMode = repo.prefManager.getLyricsDisplayMode()
                                 lyricsPvFont = repo.prefManager.getLyricsPvFont()
+                                lyricsEnFont = repo.prefManager.getLyricsEnFont()
+                                lyricsEnCustomPath = repo.prefManager.getLyricsEnCustomFontPath()
                                 lyricsBold = repo.prefManager.isLyricsBold()
                             },
                             onAppsUpdated = {
@@ -863,6 +887,8 @@ fun MainLauncherScreen() {
                         karaokeLine = if (lyricsDisplayMode == "line") syncedLyricLines.lastOrNull { it.timeMs <= sessionPositionMs + lyricOffsetMs } else null,
                         karaokePositionMs = sessionPositionMs + lyricOffsetMs,
                         karaokeSungColor = accentColor,
+                        lyricFontFamily = lyricsFontFamily,
+                        lyricEnFontFamily = lyricsEnFontArg,
                         dateMode = if (lyricsDisplayMode == "video" && syncedLyricLines.isNotEmpty()) "sideways" else dateDisplayMode,
                         glowColor = accentColor
                     )
@@ -1691,6 +1717,7 @@ fun MainLauncherScreen() {
                     repo.prefManager.setLyricOffsetMs(sessionTrackTitle, sessionTrackArtist, newOffset)
                 },
                 fontFamily = lyricsFontFamily,
+                enFontFamily = lyricsEnFontArg,
                 lyricWeight = lyricWeight,
                 accentColor = accentColor,
                 accentGlow = true,
@@ -1725,6 +1752,7 @@ fun MainLauncherScreen() {
                 displayMode = lyricsDisplayMode,
                 bold = lyricsBold,
                 fontFamily = lyricsFontFamily,
+                enFontFamily = lyricsEnFontArg,
                 lyricWeight = lyricWeight,
                 accentColor = effectiveAccent,
                 artwork = sessionAlbumArt,
@@ -1994,6 +2022,7 @@ private fun LauncherMultiLineLyrics(
     translationEnabled: Boolean,
     translations: List<String>?,
     fontFamily: FontFamily?,
+    enFontFamily: FontFamily? = null,
     lyricWeight: FontWeight,
     accentColor: Color,
     screenWidthDp: Float,
@@ -2019,7 +2048,7 @@ private fun LauncherMultiLineLyrics(
             val curText = multiLines.getOrNull(rawIdx)?.text
             val nextText = multiLines.getOrNull(rawIdx + 1)?.text
             if (prevText != null) {
-                Text(prevText, color = Color.White.copy(alpha = 0.45f), fontSize = fitFontSizeSp(prevText, 18f, screenWidthDp - 52f).sp, letterSpacing = 2.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = fontFamily), modifier = Modifier.padding(start = 0.dp))
+                Text(lyricMixedFontText(prevText, enFontFamily), color = Color.White.copy(alpha = 0.45f), fontSize = fitFontSizeSp(prevText, 18f, screenWidthDp - 52f).sp, letterSpacing = 2.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = fontFamily), modifier = Modifier.padding(start = 0.dp))
                 if (translationEnabled) {
                     val trP = translations?.getOrNull(rawIdx - 1)
                     if (!trP.isNullOrBlank()) {
@@ -2040,13 +2069,14 @@ private fun LauncherMultiLineLyrics(
                     fontSize = fitFontSizeSp(curLineObj.text, 30f, screenWidthDp - 80f).sp,
                     fontWeight = lyricWeight,
                     fontFamily = fontFamily,
+                    enFontFamily = enFontFamily,
                     letterSpacing = 3.sp,
                     shadow = Shadow(color = accentColor.copy(alpha = 0.8f), blurRadius = 16f),
                     modifier = Modifier.padding(start = 28.dp)
                 )
             } else {
                 Text(
-                    text = if (mInterlude) "♪" else (curText ?: ""),
+                    text = lyricMixedFontText(if (mInterlude) "♪" else (curText ?: ""), enFontFamily),
                     color = Color.White,
                     fontSize = fitFontSizeSp(if (mInterlude) "♪" else (curText ?: ""), 30f, screenWidthDp - 80f).sp,
                     fontWeight = lyricWeight,
@@ -2065,7 +2095,7 @@ private fun LauncherMultiLineLyrics(
             }
             Spacer(Modifier.height(16.dp))
             if (nextText != null) {
-                Text(nextText, color = Color.White.copy(alpha = 0.45f), fontSize = fitFontSizeSp(nextText, 18f, screenWidthDp - 108f).sp, letterSpacing = 2.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = fontFamily), modifier = Modifier.padding(start = 56.dp))
+                Text(lyricMixedFontText(nextText, enFontFamily), color = Color.White.copy(alpha = 0.45f), fontSize = fitFontSizeSp(nextText, 18f, screenWidthDp - 108f).sp, letterSpacing = 2.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = fontFamily), modifier = Modifier.padding(start = 56.dp))
                 if (translationEnabled) {
                     val trN = translations?.getOrNull(rawIdx + 1)
                     if (!trN.isNullOrBlank()) {
