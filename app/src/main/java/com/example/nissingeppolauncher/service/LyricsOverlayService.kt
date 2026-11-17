@@ -390,19 +390,35 @@ class LyricsOverlayService : Service() {
         }
     }
 
-    // 英字フォントが別指定のとき、半角英数字の範囲だけそのフォントで描く
+    // 英字フォントが別指定のとき、英語の範囲だけそのフォントで描く。
+    // 半角記号だけの並びは直前の文のフォントに合わせる（日本語文中の記号は日本語フォントのまま）
     private fun styledLine(line: String): CharSequence {
         val en = enTypeface ?: return line
         if (line.none { it in ' '..'~' }) return line
-        val sp = SpannableString(line)
+        val runs = mutableListOf<Triple<Int, Int, Boolean>>()
         var i = 0
         while (i < line.length) {
-            if (line[i] in ' '..'~') {
-                var j = i
-                while (j < line.length && line[j] in ' '..'~') j++
-                sp.setSpan(OverlayTypefaceSpan(en), i, j, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                i = j
-            } else i++
+            val ascii = line[i] in ' '..'~'
+            var j = i
+            while (j < line.length && (line[j] in ' '..'~') == ascii) j++
+            runs.add(Triple(i, j, ascii))
+            i = j
+        }
+        val useEn = BooleanArray(runs.size)
+        for (k in runs.indices) {
+            val (s, e, ascii) = runs[k]
+            if (!ascii) continue
+            if (line.substring(s, e).any { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' }) useEn[k] = true
+        }
+        for (k in runs.indices) {
+            if (!runs[k].third || useEn[k]) continue
+            useEn[k] = if (k > 0) useEn[k - 1] else (if (runs.size > 1) useEn[k + 1] else false)
+        }
+        val sp = SpannableString(line)
+        for (k in runs.indices) {
+            if (!useEn[k]) continue
+            val (s, e, _) = runs[k]
+            sp.setSpan(OverlayTypefaceSpan(en), s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
         return sp
     }
