@@ -749,6 +749,11 @@ fun PvLyricLine(
     // 改行位置は塊（文節・英単語）の境界で決める。描画とアニメーションは文字ごと（英単語だけ単語ごと）
     val chunks = remember(text) { splitLyricUnits(text) }
     if (chunks.isEmpty()) return
+    // 行頭の1・2文字目が両方ひらがなの行は、先頭文字だけを大きくして行の入りを読みやすくする
+    val leadHiraganaBoost = remember(text) {
+        val head = text.trimStart(' ', '　', '（', '(', '「')
+        head.length >= 2 && head[0] in 'ぁ'..'ゟ' && head[1] in 'ぁ'..'ゟ'
+    }
     // 文字同期（KRC）がある行用: 文字位置→その文字の開始時刻（絶対ms）のテーブル
     val charStartArr = remember(text, words) {
         if (words.isEmpty()) null else {
@@ -840,6 +845,20 @@ fun PvLyricLine(
                 }
             }
             if (spaceBest > 0 && spaceDiff <= totalEm * 0.30f) best = spaceBest
+            // て形＋補助動詞の境界（取り消して／しまった）も改行位置として優先する
+            var auxBest = -1
+            var auxDiff = Float.MAX_VALUE
+            var aAcc = 0f
+            val auxHeads = listOf("しまった", "しまう", "しちゃ", "ちゃった", "いる", "いた", "いく", "くる", "くれる", "もらう", "あげる", "ある", "おく", "みる", "みた", "みたい", "ほしい")
+            for (idx in 1 until list.size) {
+                aAcc += chunkEm(list[idx - 1]) + gapEm
+                val prevEndsTe = list[idx - 1].endsWith("て") || list[idx - 1].endsWith("で")
+                if (prevEndsTe && auxHeads.any { list[idx].startsWith(it) }) {
+                    val diff = kotlin.math.abs(totalEm / 2f - aAcc)
+                    if (diff < auxDiff) { auxDiff = diff; auxBest = idx }
+                }
+            }
+            if (auxBest > 0 && auxDiff <= totalEm * 0.35f) best = auxBest
             // 行頭禁則: 次の行が「ー・小さいカナ・句読点・閉じ括弧」で始まる場合は、分割点をずらす
             val noLineStart = "ーぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮ・、。，．！!？?）)】」』"
             while (best > 1 && list[best].isNotEmpty() && list[best][0] in noLineStart) best--
@@ -927,9 +946,29 @@ fun PvLyricLine(
     // クレジット行（作詞・作曲・編曲など）は「：」の直後を改行位置にする
     val creditWords = listOf("作詞", "作曲", "編曲", "作词", "编曲", "歌唱", "演唱", "ボーカル", "Vocal", "Lyrics", "Composer", "Arranger", "詞：", "曲：")
     val colonChunkIdx = if (creditWords.any { text.contains(it) }) chunks.indexOfFirst { it.contains("：") || it.contains(":") } else -1
-    val rows: List<List<String>> = if (colonChunkIdx in 0 until chunks.size - 1) {
+    val rowsRaw: List<List<String>> = if (colonChunkIdx in 0 until chunks.size - 1) {
         listOf(chunks.subList(0, colonChunkIdx + 1), chunks.subList(colonChunkIdx + 1, chunks.size))
     } else baseRows
+    // 1文字だけの行は作らない: 隣の行と合体させる（「お／膳立て」のように割れるのを防ぐ）
+    val rows: List<List<String>> = run {
+        val fixed = rowsRaw.toMutableList()
+        var ri = 0
+        while (fixed.size > 1 && ri < fixed.size) {
+            val charCount = fixed[ri].sumOf { it.count { ch -> ch != ' ' && ch != '　' } }
+            if (charCount == 1) {
+                if (ri < fixed.size - 1) {
+                    fixed[ri] = fixed[ri] + fixed[ri + 1]
+                    fixed.removeAt(ri + 1)
+                } else {
+                    fixed[ri - 1] = fixed[ri - 1] + fixed[ri]
+                    fixed.removeAt(ri)
+                }
+            } else {
+                ri++
+            }
+        }
+        fixed
+    }
     fun rowEm(row: List<String>): Float = row.sumOf { chunkEm(it).toDouble() }.toFloat() + gapEm * (row.size - 1).coerceAtLeast(0)
     val longestRowEm = rows.maxOf { rowEm(it) }.coerceAtLeast(1f)
     // 行ごとの大きさを均等に: どの行も「枠いっぱいに広がるサイズ」を基本にし、短い行だけ高さ上限で止める
@@ -1582,6 +1621,8 @@ fun PvLyricLine(
                     // 長音は大きさの係数も前の文字に統一する（前の文字と段差が出ると別パーツに見えるため）
                     val effCharFactor = if (ru == "ー" && effGi != gi) prevCharFactor else charFactor
                     prevCharFactor = effCharFactor
+                    // 行頭がひらがな続きの行は、先頭の1文字だけ漢字並みの大きさにする（2文字目より大きく）
+                    val sizeFactor = if (gi == 0 && leadHiraganaBoost) 1.25f else effCharFactor
                     val unitStart = chunkCharPos; chunkCharPos += ru.length
                     // アイコン単語は塊の中の全部が対象（時計→時計、見る→目、のように複数出せる）
                     if (thisUnitIcon == null) {
@@ -1615,7 +1656,7 @@ fun PvLyricLine(
                     PvLyricUnit(
                         bold = bold,
                         unitText = if (rubyModeHere == 1) "" else ru,
-                        uSize = ((fitSize * (0.92f + (uSeed % 22) / 100f) * effCharFactor).coerceIn(fitSize * 0.55f, fitSize * 1.35f) * (if (rubyModeHere == 2) 0.52f else 1f)).sp,
+                        uSize = ((fitSize * (0.92f + (uSeed % 22) / 100f) * sizeFactor).coerceIn(fitSize * 0.55f, fitSize * 1.35f) * (if (rubyModeHere == 2) 0.52f else 1f)).sp,
                         uRot = ((uSeed / 3) % 29 - 14).toFloat(),
                         uYOffset = ((uSeed / 5) % 17 - 8).dp,
                         uXShiftDp = uXShiftTotal,
@@ -2399,6 +2440,23 @@ fun chunkJapanese(span: String): List<String> {
     if (sb.isNotEmpty()) runs.add(sb.toString())
 
     val particles = "はがをにへとやのもでからまでよりばねよわ"
+    // て形＋補助動詞の境界（取り消して／しまった、聞いて／いた 等）を探す。
+    // ひらがな部分の中で「て／で」の後ろに補助動詞が続く位置を返す（無ければ -1）
+    val auxList = listOf(
+        "しまった", "しまう", "しまい", "しちゃ", "ちゃった", "ちゃう",
+        "いる", "いた", "いない", "いく", "いった", "くる", "きた",
+        "くれる", "くれた", "もらう", "もらった", "あげる", "ある", "あった",
+        "おく", "おいた", "みる", "みた", "みたい", "ほしい", "ください"
+    )
+    fun auxSplitAt(run: String): Int {
+        for (i in 1 until run.length - 1) {
+            if (run[i] == 'て' || run[i] == 'で') {
+                val tail = run.substring(i + 1)
+                if (auxList.any { tail.startsWith(it) }) return i + 1
+            }
+        }
+        return -1
+    }
     val chunks = mutableListOf<String>()
     val cur = StringBuilder()
     fun closeChunk() {
@@ -2422,18 +2480,35 @@ fun chunkJapanese(span: String): List<String> {
         val t = typeOf(rest[0])
         when {
             t == 2 && cur.isNotEmpty() -> {
-                // ひらがな部分: 先頭の助詞（最大2文字）の後ろに2文字以上残るなら、助詞までを今の塊に付けて次へ
-                var pLen = 0
-                while (pLen < rest.length && pLen < 2 && rest[pLen] in particles) pLen++
-                if (pLen >= 1 && rest.length - pLen >= 2) {
-                    cur.append(rest.substring(0, pLen))
+                val auxAt = auxSplitAt(rest)
+                if (auxAt > 0) {
+                    // て形までを今の塊に付けて閉じ、補助動詞からは新しい塊にする
+                    cur.append(rest.substring(0, auxAt))
                     closeChunk()
-                    cur.append(rest.substring(pLen))
+                    cur.append(rest.substring(auxAt))
+                } else {
+                    // ひらがな部分: 先頭の助詞（最大2文字）の後ろに2文字以上残るなら、助詞までを今の塊に付けて次へ
+                    var pLen = 0
+                    while (pLen < rest.length && pLen < 2 && rest[pLen] in particles) pLen++
+                    if (pLen >= 1 && rest.length - pLen >= 2) {
+                        cur.append(rest.substring(0, pLen))
+                        closeChunk()
+                        cur.append(rest.substring(pLen))
+                    } else {
+                        cur.append(rest)
+                    }
+                }
+            }
+            t == 2 -> {
+                // 行頭のひらがな: 補助動詞の境界があれば、そこまでは1つの塊にする
+                val auxAt = auxSplitAt(rest)
+                if (auxAt > 0) {
+                    chunks.add(rest.substring(0, auxAt))
+                    cur.append(rest.substring(auxAt))
                 } else {
                     cur.append(rest)
                 }
             }
-            t == 2 -> cur.append(rest) // 行頭のひらがなはそのまま塊の始まり
             t == 0 -> cur.append(rest) // 句読点などは前の塊に付ける
             else -> {
                 if (t == 3 && rest.length >= 12) {
