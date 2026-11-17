@@ -112,6 +112,7 @@ object LyricEffectsData {
     "水色" to Color(0xFF7FD4F2),
     "ピンク" to Color(0xFFFF8FBF),
     "オレンジ" to Color(0xFFFF9A3D),
+    "橙" to Color(0xFFFF9A3D),
     "グレー" to Color(0xFF9AA0A6),
     "群青" to Color(0xFF3A5FCD),
     "瑠璃" to Color(0xFF1F4788),
@@ -166,7 +167,7 @@ object LyricEffectsData {
     "好" to Color(0xFFFF8FBF),
     "心" to Color(0xFFFF8FBF),
     "桜" to Color(0xFFFF8FBF),
-    "血" to Color(0xFFFF4545),
+    "血" to Color(0xFF7A0C0C),
     "宵闇" to Color(0xFF2B4C9B),
     "闇" to Color(0xFF000000),
     "夜" to Color(0xFF2B4C9B),
@@ -181,18 +182,18 @@ object LyricEffectsData {
     "凍" to Color(0xFF7FD4F2),
     "氷" to Color(0xFF7FD4F2),
     "想い" to Color(0xFFFF8FBF),
-    "炎" to Color(0xFFFF9A3D),
+    "炎" to Color(0xFFFF6A00),
     "熱" to Color(0xFFFF9A3D),
-    "火" to Color(0xFFFF9A3D),
+    "火" to Color(0xFFFF6A00),
     "砂" to Color(0xFFFFC94D),
     "汚" to Color(0xFFA9744F),
     "希望" to Color(0xFFFFE14D),
-    "殺" to Color(0xFFFF4545),
-    "死" to Color(0xFFFF4545),
-    "地獄" to Color(0xFFFF4545),
+    "殺" to Color(0xFF7A0C0C),
+    "死" to Color(0xFF7A0C0C),
+    "地獄" to Color(0xFF7A0C0C),
     "行方不明" to Color(0xFFFF4545),
     "不明" to Color(0xFFFF4545),
-    "不安" to Color(0xFFFF4545),
+    "不安" to Color(0xFF7A0C0C),
     "危険" to Color(0xFFFF4545),
     "怖" to Color(0xFFFF4545),
     "恐" to Color(0xFFFF4545),
@@ -212,7 +213,8 @@ object LyricEffectsData {
     "sky" to Color(0xFF7FD4F2),
     "tear" to Color(0xFF7FD4F2),
     "tears" to Color(0xFF7FD4F2),
-    "fire" to Color(0xFFFF9A3D)
+    "fire" to Color(0xFFFF9A3D),
+    "毒" to Color(0xFF9B30FF)
     )
     private val DEFAULT_KATAKANA_EN: Map<String, String> = mapOf(
     "ハート" to "HEART",
@@ -321,12 +323,65 @@ object LyricEffectsData {
     "フォレスト" to "FOREST"
     )
 
+    // エフェクト系の単語リスト（v7で配信対象に追加。アプリ更新なしで対象語を増やせるようにするため）
+    private val DEFAULT_DRIP_WORDS: List<Pair<String, Color>> = listOf(
+        "血液" to Color(0xFFE53935),
+        "蜂蜜" to Color(0xFFFFB300),
+        "はちみつ" to Color(0xFFFFB300),
+        "ハチミツ" to Color(0xFFFFB300),
+        "蜜" to Color(0xFFFFB300),
+        "どろどろ" to Color(0xFF8D6E63),
+        "ドロドロ" to Color(0xFF8D6E63),
+        "涎" to Color(0xFF6EC6FF),
+        "よだれ" to Color(0xFF6EC6FF),
+        "ヨダレ" to Color(0xFF6EC6FF),
+        "液体" to Color(0xFF6EC6FF),
+        "液" to Color(0xFF6EC6FF)
+    )
+    private val DEFAULT_DRIP_EXCLUSIONS: Map<String, List<String>> = mapOf(
+        "蜜" to listOf("秘密")
+    )
+    private val DEFAULT_DREAM_WORDS: List<String> = listOf("夢", "思い出")
+    private val DEFAULT_WAVE_WORDS: List<String> = listOf("流", "波", "海")
+    private val DEFAULT_SAND_WORDS: List<String> = listOf("砂", "消", "壊", "砕")
+    private val DEFAULT_WIND_WORDS: List<String> = listOf("風")
+    private val DEFAULT_FALL_WORDS: List<String> = listOf("落")
+    private val DEFAULT_RIPPLE_WORDS: List<String> = listOf("響")
+    private val DEFAULT_MOSAIC_WORDS: List<String> = listOf("隠", "モザイク")
+    private val DEFAULT_PILE_WORDS: List<String> = listOf("積み重な", "降り積も", "積も", "積み", "重な", "重ね", "堆積", "累積")
+    private val DEFAULT_PARTS_WORDS: List<String> = listOf("バラバラ", "ばらばら", "壊れ", "割れ", "砕け", "崩れ", "破", "割", "壊", "砕")
+    private val DEFAULT_NEG_WORDS: List<String> = listOf("なかった", "じゃない", "なくて", "なくな", "無い", "ない", "間違い", "誤り")
+    private val DEFAULT_GHOST_WORDS: List<String> = listOf("透明")
+    private val DEFAULT_SPARKLE_WORDS: List<String> = listOf("光", "輝")
+    private val DEFAULT_DARK_WORDS: List<String> = listOf("暗", "闇")
+    private val DEFAULT_STRETCH_VERTICAL_WORDS: List<String> = listOf("深")
+    private val DEFAULT_STRETCH_HORIZONTAL_WORDS: List<String> = listOf("長")
+    private val DEFAULT_AMBIENT_WORDS: List<Pair<String, Int>> = listOf("桜" to 2, "雨" to 0, "雪" to 1)
+
     @Volatile var iconWords: List<Pair<String, Int>> = DEFAULT_ICON_WORDS; private set
     @Volatile var iconWordsEn: List<Pair<String, Int>> = DEFAULT_ICON_WORDS_EN; private set
     @Volatile var iconExclusions: Map<String, List<String>> = DEFAULT_ICON_EXCLUSIONS; private set
     @Volatile var colorWords: List<Pair<String, Color>> = DEFAULT_COLOR_WORDS; private set
     @Volatile var assocColorWords: List<Pair<String, Color>> = DEFAULT_ASSOC_COLOR_WORDS; private set
     @Volatile var katakanaEn: Map<String, String> = DEFAULT_KATAKANA_EN; private set
+    @Volatile var dripWords: List<Pair<String, Color>> = DEFAULT_DRIP_WORDS; private set
+    @Volatile var dripExclusions: Map<String, List<String>> = DEFAULT_DRIP_EXCLUSIONS; private set
+    @Volatile var dreamWords: List<String> = DEFAULT_DREAM_WORDS; private set
+    @Volatile var waveWords: List<String> = DEFAULT_WAVE_WORDS; private set
+    @Volatile var sandWords: List<String> = DEFAULT_SAND_WORDS; private set
+    @Volatile var windWords: List<String> = DEFAULT_WIND_WORDS; private set
+    @Volatile var fallWords: List<String> = DEFAULT_FALL_WORDS; private set
+    @Volatile var rippleWords: List<String> = DEFAULT_RIPPLE_WORDS; private set
+    @Volatile var mosaicWords: List<String> = DEFAULT_MOSAIC_WORDS; private set
+    @Volatile var pileWords: List<String> = DEFAULT_PILE_WORDS; private set
+    @Volatile var partsWords: List<String> = DEFAULT_PARTS_WORDS; private set
+    @Volatile var negWords: List<String> = DEFAULT_NEG_WORDS; private set
+    @Volatile var ghostWords: List<String> = DEFAULT_GHOST_WORDS; private set
+    @Volatile var sparkleWords: List<String> = DEFAULT_SPARKLE_WORDS; private set
+    @Volatile var darkWords: List<String> = DEFAULT_DARK_WORDS; private set
+    @Volatile var stretchVerticalWords: List<String> = DEFAULT_STRETCH_VERTICAL_WORDS; private set
+    @Volatile var stretchHorizontalWords: List<String> = DEFAULT_STRETCH_HORIZONTAL_WORDS; private set
+    @Volatile var ambientWords: List<Pair<String, Int>> = DEFAULT_AMBIENT_WORDS; private set
     @Volatile var appliedVersion: Int = 4; private set
     @Volatile private var appliedRaw: String = ""
 
@@ -392,6 +447,38 @@ object LyricEffectsData {
         return out
     }
 
+    private fun parseWordList(arr: JSONArray): List<String>? {
+        val out = mutableListOf<String>()
+        for (i in 0 until arr.length()) {
+            val w = arr.optString(i)
+            if (w.isEmpty()) return null
+            out.add(w)
+        }
+        return out
+    }
+
+    private fun parseWordInts(arr: JSONArray): List<Pair<String, Int>>? {
+        val out = mutableListOf<Pair<String, Int>>()
+        for (i in 0 until arr.length()) {
+            val p = arr.optJSONArray(i) ?: return null
+            val word = p.optString(0)
+            if (word.isEmpty() || !p.has(1)) return null
+            out.add(word to p.optInt(1))
+        }
+        return out
+    }
+
+    private fun parseExclusions(obj: JSONObject): Map<String, List<String>> {
+        val out = mutableMapOf<String, List<String>>()
+        val keys = obj.keys()
+        while (keys.hasNext()) {
+            val k = keys.next()
+            val a = obj.getJSONArray(k)
+            out[k] = List(a.length()) { a.getString(it) }
+        }
+        return out
+    }
+
     // JSON を検証してから一括で差し替える。途中で壊れていたら何も変えず false
     private fun applyJson(text: String): Boolean {
         return try {
@@ -418,12 +505,49 @@ object LyricEffectsData {
                 kata[k] = kataObj.getString(k)
             }
             if (iw.isEmpty() || cw.isEmpty() || kata.isEmpty()) return false
+            // v7以降のエフェクト系セクションは任意。ある場合は検証して取り込み、無い場合は現行値（内蔵デフォルト等）を維持する
+            val newDrip = root.optJSONArray("dripWords")?.let { parseColors(it) ?: return false }
+            val newDripExcl = root.optJSONObject("dripExclusions")?.let { parseExclusions(it) }
+            val newDream = root.optJSONArray("dreamWords")?.let { parseWordList(it) ?: return false }
+            val newWave = root.optJSONArray("waveWords")?.let { parseWordList(it) ?: return false }
+            val newSand = root.optJSONArray("sandWords")?.let { parseWordList(it) ?: return false }
+            val newWind = root.optJSONArray("windWords")?.let { parseWordList(it) ?: return false }
+            val newFall = root.optJSONArray("fallWords")?.let { parseWordList(it) ?: return false }
+            val newRipple = root.optJSONArray("rippleWords")?.let { parseWordList(it) ?: return false }
+            val newMosaic = root.optJSONArray("mosaicWords")?.let { parseWordList(it) ?: return false }
+            val newPile = root.optJSONArray("pileWords")?.let { parseWordList(it) ?: return false }
+            val newParts = root.optJSONArray("partsWords")?.let { parseWordList(it) ?: return false }
+            val newNeg = root.optJSONArray("negWords")?.let { parseWordList(it) ?: return false }
+            val newGhost = root.optJSONArray("ghostWords")?.let { parseWordList(it) ?: return false }
+            val newSparkle = root.optJSONArray("sparkleWords")?.let { parseWordList(it) ?: return false }
+            val newDark = root.optJSONArray("darkWords")?.let { parseWordList(it) ?: return false }
+            val newStretchV = root.optJSONArray("stretchVerticalWords")?.let { parseWordList(it) ?: return false }
+            val newStretchH = root.optJSONArray("stretchHorizontalWords")?.let { parseWordList(it) ?: return false }
+            val newAmbient = root.optJSONArray("ambientWords")?.let { parseWordInts(it) ?: return false }
             iconWords = iw
             iconWordsEn = iwe
             iconExclusions = excl
             colorWords = cw
             assocColorWords = aw
             katakanaEn = kata
+            if (newDrip != null) dripWords = newDrip
+            if (newDripExcl != null) dripExclusions = newDripExcl
+            if (newDream != null) dreamWords = newDream
+            if (newWave != null) waveWords = newWave
+            if (newSand != null) sandWords = newSand
+            if (newWind != null) windWords = newWind
+            if (newFall != null) fallWords = newFall
+            if (newRipple != null) rippleWords = newRipple
+            if (newMosaic != null) mosaicWords = newMosaic
+            if (newPile != null) pileWords = newPile
+            if (newParts != null) partsWords = newParts
+            if (newNeg != null) negWords = newNeg
+            if (newGhost != null) ghostWords = newGhost
+            if (newSparkle != null) sparkleWords = newSparkle
+            if (newDark != null) darkWords = newDark
+            if (newStretchV != null) stretchVerticalWords = newStretchV
+            if (newStretchH != null) stretchHorizontalWords = newStretchH
+            if (newAmbient != null) ambientWords = newAmbient
             appliedVersion = version
             appliedRaw = text
             true
