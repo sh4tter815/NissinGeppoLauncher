@@ -68,6 +68,7 @@ class LyricsOverlayService : Service() {
     private var lineSegments: List<String> = listOf("")
     private var segmentLineText: String? = null
     private var shownSegment: String? = null
+    private var segmentAnimGen = 0
     private var segmentsDirty = false
 
     private var trackKey = ""
@@ -443,22 +444,33 @@ class LyricsOverlayService : Service() {
         return sp
     }
 
-    /** 行が表示幅に収まらない場合は、収まる大きさの断片へ分割する（収まる場合は1要素） */
+    /**
+     * 長い行は「約9文字まで」の断片へ分割する（半角は0.5文字換算。実測幅も併用する）。
+     * 記号類は禁則処理として、上限を超えても前の断片に付ける（文末の「。」が次の断片の先頭に来ないように）
+     */
     private fun splitSegments(text: String): List<String> {
         if (text.isBlank() || text == "♪") return listOf(text)
-        val view = lyricView ?: return listOf(text)
-        val avail = view.width - view.paddingLeft - view.paddingRight
-        if (avail <= 0) return listOf(text)
-        val paint = view.paint
-        if (paint.measureText(text) <= avail) return listOf(text)
+        val view = lyricView
+        val avail = if (view != null) view.width - view.paddingLeft - view.paddingRight else 0
+        val paint = view?.paint
+        fun weightOf(s: CharSequence): Double = s.sumOf { if (it in ' '..'~') 0.5 else 1.0 }
+        // 文字数も幅も収まる場合は分割しない
+        if (weightOf(text) <= 9.0 && (paint == null || avail <= 0 || paint.measureText(text) <= avail)) return listOf(text)
+        val noStart = "、。，．・：；！？!?）)】」』〕〉》ーぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶゝゞ々"
         val out = mutableListOf<String>()
         val cur = StringBuilder()
+        var curWeight = 0.0
         for (ch in text) {
-            if (cur.isNotEmpty() && paint.measureText(cur.toString() + ch) > avail) {
+            val w = if (ch in ' '..'~') 0.5 else 1.0
+            val overCap = curWeight + w > 9.0
+            val overWidth = paint != null && avail > 0 && cur.isNotEmpty() && paint.measureText(cur.toString() + ch) > avail
+            if (cur.isNotEmpty() && (overCap || overWidth) && ch !in noStart) {
                 out.add(cur.toString())
                 cur.setLength(0)
+                curWeight = 0.0
             }
             cur.append(ch)
+            curWeight += w
         }
         if (cur.isNotEmpty()) out.add(cur.toString())
         return if (out.isEmpty()) listOf(text) else out
@@ -469,9 +481,15 @@ class LyricsOverlayService : Service() {
         if (shownSegment == seg) return
         shownSegment = seg
         shownLine = seg
-        // フェードではなくスクロール: 表示中の断片が上へ抜け、次の断片が下から入ってくる
+        // フェードではなくスクロール: 表示中の断片が上へ抜け、次の断片が下から入ってくる。
+        // 世代カウンタで古いアニメーションの後処理を無効化し、開始前に位置と透明度を戻して表示が壊れないようにする
+        val gen = ++segmentAnimGen
         val h = (view.height.takeIf { it > 0 } ?: dp(14f)).toFloat()
+        view.animate().cancel()
+        view.translationY = 0f
+        view.alpha = 1f
         view.animate().translationY(-h * 0.7f).alpha(0f).setDuration(130).withEndAction {
+            if (gen != segmentAnimGen) return@withEndAction
             view.text = styledLine(seg)
             view.translationY = h * 0.7f
             view.animate().translationY(0f).alpha(1f).setDuration(180).start()
