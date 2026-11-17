@@ -267,9 +267,12 @@ fun MainLauncherScreen() {
     androidx.compose.runtime.DisposableEffect(overlayLifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                com.example.nissingeppolauncher.service.LyricsOverlayService.launcherInForeground = true
                 if (repo.prefManager.isStatusBarLyricsEnabled() && android.provider.Settings.canDrawOverlays(context)) {
                     com.example.nissingeppolauncher.service.LyricsOverlayService.start(context)
                 }
+            } else if (event == androidx.lifecycle.Lifecycle.Event.ON_PAUSE) {
+                com.example.nissingeppolauncher.service.LyricsOverlayService.launcherInForeground = false
             }
         }
         overlayLifecycleOwner.lifecycle.addObserver(observer)
