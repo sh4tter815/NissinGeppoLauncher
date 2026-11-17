@@ -50,6 +50,12 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.TransformOrigin
+import android.content.Context
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -133,6 +139,33 @@ fun MainLauncherScreen() {
     val useArtworkBg = bgMode != "wallpaper"
     var liquidBackground by remember { mutableStateOf(repo.prefManager.isLiquidBackgroundEnabled()) }
     var homeDiscLayout by remember { mutableStateOf(repo.prefManager.getHomeDiscLayout()) }
+    var disc3d by remember { mutableStateOf(repo.prefManager.isDisc3dEnabled()) }
+    var disc3dTilt by remember { mutableStateOf(repo.prefManager.isDisc3dTiltEnabled()) }
+    // 傾き連動の現在値（ローパス済み）。graphicsLayer の中でのみ読むので再コンポーズは走らない
+    val discTiltX = remember { mutableFloatStateOf(0f) }
+    val discTiltY = remember { mutableFloatStateOf(0f) }
+    DisposableEffect(disc3d, disc3dTilt, currentLauncherPage) {
+        if (!disc3d || !disc3dTilt || currentLauncherPage != 1) {
+            discTiltX.value = 0f
+            discTiltY.value = 0f
+            return@DisposableEffect onDispose { }
+        }
+        val sm = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        val sensor = sm?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        if (sm == null || sensor == null) return@DisposableEffect onDispose { }
+        val listener = object : SensorEventListener {
+            override fun onSensorChanged(e: SensorEvent) {
+                val k = 0.14f
+                val targetY = (e.values[0] / 9.8f * 11f).coerceIn(-11f, 11f)
+                val targetX = ((e.values[1] - 9.8f) / 9.8f * 11f).coerceIn(-11f, 11f)
+                discTiltY.value += (targetY - discTiltY.value) * k
+                discTiltX.value += (targetX - discTiltX.value) * k
+            }
+            override fun onAccuracyChanged(s: Sensor?, accuracy: Int) { }
+        }
+        sm.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_UI)
+        onDispose { sm.unregisterListener(listener) }
+    }
     var dateDisplayMode by remember { mutableStateOf(repo.prefManager.getDateDisplayMode()) }
     var sessionAlbumArt by remember { mutableStateOf<Bitmap?>(null) }
     var artworkAccent by remember { mutableStateOf<Color?>(null) }
@@ -234,12 +267,9 @@ fun MainLauncherScreen() {
     androidx.compose.runtime.DisposableEffect(overlayLifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-                com.example.nissingeppolauncher.service.LyricsOverlayService.launcherInForeground = true
                 if (repo.prefManager.isStatusBarLyricsEnabled() && android.provider.Settings.canDrawOverlays(context)) {
                     com.example.nissingeppolauncher.service.LyricsOverlayService.start(context)
                 }
-            } else if (event == androidx.lifecycle.Lifecycle.Event.ON_PAUSE) {
-                com.example.nissingeppolauncher.service.LyricsOverlayService.launcherInForeground = false
             }
         }
         overlayLifecycleOwner.lifecycle.addObserver(observer)
@@ -498,6 +528,8 @@ fun MainLauncherScreen() {
         matchArtwork = repo.prefManager.isMatchArtworkColor()
         bgMode = repo.prefManager.getBackgroundMode()
         homeDiscLayout = repo.prefManager.getHomeDiscLayout()
+        disc3d = repo.prefManager.isDisc3dEnabled()
+        disc3dTilt = repo.prefManager.isDisc3dTiltEnabled()
         liquidBackground = repo.prefManager.isLiquidBackgroundEnabled()
         dateDisplayMode = repo.prefManager.getDateDisplayMode()
         if (currentLauncherPage == 1) {
@@ -899,7 +931,19 @@ fun MainLauncherScreen() {
                     RotatableAppDisc(
                         modifier = Modifier
                             .fillMaxSize()
-                            .graphicsLayer { alpha = if (isLyricsBrowsing) 0f else 1f },
+                            .graphicsLayer {
+                                alpha = if (isLyricsBrowsing) 0f else 1f
+                                if (disc3d) {
+                                    // 円の中心を軸に少し奥へ倒す（3Dモード）
+                                    transformOrigin = TransformOrigin(
+                                        (animatedDisc2CenterX / screenWidthDp).coerceIn(-2f, 3f),
+                                        ((disc2CenterY + lyricsDiscDrop) / screenHeightDp).coerceIn(-2f, 3f)
+                                    )
+                                    rotationX = 16f + discTiltX.value
+                                    rotationY = discTiltY.value
+                                    cameraDistance = 9f * density
+                                }
+                            },
                         apps = favoriteApps,
                         discCenterXDp = animatedDisc2CenterX,
                         discCenterYDp = disc2CenterY + lyricsDiscDrop,
@@ -923,7 +967,18 @@ fun MainLauncherScreen() {
                         modifier = Modifier
                             .fillMaxSize()
                             .zIndex(50f)
-                            .graphicsLayer { alpha = if (isLyricsBrowsing) 0f else 1f }
+                            .graphicsLayer {
+                                alpha = if (isLyricsBrowsing) 0f else 1f
+                                if (disc3d) {
+                                    transformOrigin = TransformOrigin(
+                                        (animatedDisc1CenterX / screenWidthDp).coerceIn(-2f, 3f),
+                                        ((disc1CenterY + lyricsDiscDrop) / screenHeightDp).coerceIn(-2f, 3f)
+                                    )
+                                    rotationX = 16f + discTiltX.value
+                                    rotationY = discTiltY.value
+                                    cameraDistance = 9f * density
+                                }
+                            }
                     ) {
                         MusicVinylWidget(
                             modifier = Modifier.fillMaxSize(),
