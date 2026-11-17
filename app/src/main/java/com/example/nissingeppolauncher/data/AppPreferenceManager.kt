@@ -225,6 +225,11 @@ class AppPreferenceManager(private val context: Context) {
     fun setLyricsPvMode(enabled: Boolean) { prefs.edit().putBoolean("lyrics_pv_mode", enabled).apply() }
     fun getLyricsPvFont(): String = prefs.getString("lyrics_pv_font", "default") ?: "default"
     fun setLyricsPvFont(value: String) { prefs.edit().putString("lyrics_pv_font", value).apply() }
+    // 歌詞の英字フォント: "same"=日本語フォントと同じ / それ以外は歌詞フォントと同じキー体系
+    fun getLyricsEnFont(): String = prefs.getString("lyrics_pv_font_en", "same") ?: "same"
+    fun setLyricsEnFont(value: String) { prefs.edit().putString("lyrics_pv_font_en", value).apply() }
+    fun getLyricsEnCustomFontPath(): String? = prefs.getString("lyrics_en_custom_font_path", null)
+    fun setLyricsEnCustomFontPath(value: String?) { prefs.edit().putString("lyrics_en_custom_font_path", value).apply() }
     fun isLyricsBold(): Boolean = prefs.getBoolean("lyrics_bold", false)
     fun setLyricsBold(value: Boolean) { prefs.edit().putBoolean("lyrics_bold", value).apply() }
     fun isPvPartsEntryEnabled(): Boolean = prefs.getBoolean("pv_parts_entry", false)
