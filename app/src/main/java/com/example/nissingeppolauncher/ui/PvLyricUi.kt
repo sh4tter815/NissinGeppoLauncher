@@ -582,16 +582,7 @@ fun PvInterludeArt(accentColor: Color, modifier: Modifier = Modifier) {
             }
             drawPath(path, colr, style = Stroke(width = 2.2f + (i % 3) * 0.9f, cap = StrokeCap.Round))
         }
-        for (i in 0 until 3) {
-            val cxp = w * (0.25f + 0.25f * i) + sin(ph * 0.7f + i * 2.1f) * w * 0.03f
-            val cyp = h * (0.35f + 0.15f * i) + kotlin.math.cos(ph * 0.6f + i * 1.3f) * h * 0.05f
-            drawCircle(
-                color = Color.White.copy(alpha = 0.22f),
-                radius = h * (0.10f + 0.04f * i) * (0.9f + 0.1f * sin(ph + i)),
-                center = Offset(cxp, cyp),
-                style = Stroke(width = 1.8f)
-            )
-        }
+        // 円は出さない（波の線だけにする）
     }
 }
 
@@ -1271,7 +1262,7 @@ fun PvLyricLine(
         Row(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
-            modifier = if (rowIdx > 0) Modifier.padding(start = row2Indent, top = (if ((0 until rowIdx).any { rd -> rows[rd].any { c -> c.contains("深") } }) (stretchAnim.value * fitSize * 0.45f).dp else 0.dp) else Modifier
+            modifier = if (rowIdx > 0) Modifier.padding(start = row2Indent, top = (if ((0 until rowIdx).any { rd -> rows[rd].any { c -> c.contains("深") } }) (stretchAnim.value * fitSize * 0.45f).dp else 0.dp)) else Modifier
         ) {
             rowChunks.forEachIndexed { posInRow, chunk ->
                 if (posInRow > 0 && latinDominant) {
@@ -1407,7 +1398,8 @@ fun PvLyricLine(
                         repeatCount = repeatLenHere,
                         stretchKind = unitStretchKind,
                         stretchProgress = stretchAnim.value,
-                        pushXFactor = stretchPushArr.getOrElse(rIdx) { 0f }
+                        pushXFactor = stretchPushArr.getOrElse(rIdx) { 0f },
+                        lineDurationMs = lineDurationMs
                     )
                 }
             }
@@ -1470,7 +1462,8 @@ fun PvLyricUnit(
     repeatCount: Int = 0,
     stretchKind: Int = 0,
     stretchProgress: Float = 0f,
-    pushXFactor: Float = 0f
+    pushXFactor: Float = 0f,
+    lineDurationMs: Long = 0L
 ) {
     val pvEaseIn = CubicBezierEasing(0.42f, 0f, 1f, 1f)
     // 文字同期がある行では実時刻ディレイ、無い行では従来の等間隔ディレイで入場する
@@ -1478,7 +1471,14 @@ fun PvLyricUnit(
     val uSeed = staggerIndex
     val uAnim = remember(staggerIndex) { Animatable(0f) }
     // 表示中ずっと、位置がごく小さくぐらぐら揺れる（角度は変えない）
-    val sway = remember(staggerIndex) { Animatable(0f) }
+    // 退場用インスタンスでは揺れ時計を表示経過時間から逆算した位相で止める。
+    // 位相が0に戻ると液体ドリップなどが退場の瞬間にパッと縮んで「外れた」ように見えるため
+    val swayInit = if (exiting) {
+        val periodMs = 2400L + (uSeed % 5) * 380L
+        val elapsedMs = lineDurationMs - effDelayMs
+        if (lineDurationMs > 0L && elapsedMs > 0L) (elapsedMs % periodMs).toFloat() / periodMs.toFloat() else 0f
+    } else 0f
+    val sway = remember(staggerIndex) { Animatable(swayInit) }
     if (!exiting) {
         LaunchedEffect(staggerIndex) {
             delay(effDelayMs)
@@ -1518,8 +1518,13 @@ fun PvLyricUnit(
     // その形のまま粒子に分解する。取れなかった場合は通常の退場に任せる
     val crumbleLayer = rememberGraphicsLayer()
     var crumblePoints by remember { mutableStateOf<FloatArray?>(null) }
+    // 粒子が動き出すまでは文字本体を出し続ける（粒子側の開始待ちで一瞬消えるのを防ぐ）
+    val crumbleFp = if (exiting && crumbleExit != 0) ((exitProgressValue * 720f - exitDelayMs) / 560f).coerceIn(0f, 1f) else 0f
     LaunchedEffect(exiting) {
         if (exiting && crumbleExit != 0 && crumblePoints == null) {
+            // 退場用インスタンスのレイヤーは作られた直後だとまだ空で画像化に失敗することがある。取れるまで数フレーム粘る
+            var attempt = 0
+            while (crumblePoints == null && attempt < 14) {
             try {
                 val bmp = crumbleLayer.toImageBitmap().asAndroidBitmap()
                 val w = bmp.width
@@ -1557,7 +1562,10 @@ fun PvLyricUnit(
                     if (out.isNotEmpty()) crumblePoints = out
                 }
             } catch (e: Exception) {
-                // 記録が取れなければ通常の退場に任せる
+                // 取れなければ次のフレームで取り直す（最後まで取れなければ通常の退場に任せる）
+            }
+            if (crumblePoints == null) delay(24)
+            attempt++
             }
         }
     }
@@ -1678,7 +1686,7 @@ fun PvLyricUnit(
         Box(
             modifier = Modifier.drawWithContent {
                 crumbleLayer.record { this@drawWithContent.drawContent() }
-                if (crumblePoints == null) drawLayer(crumbleLayer)
+                if (crumblePoints == null || crumbleFp <= 0f) drawLayer(crumbleLayer)
             }
         ) {
             if (!exiting && effectKind == 4 && fxT.value < 1f) {
