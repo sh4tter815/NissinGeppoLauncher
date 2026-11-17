@@ -77,13 +77,10 @@ object LyricsManager {
             }
         }
         // 簡体字・繁体字の手直しは「日本語の歌詞」のときだけ行う（かなを含む行があるかで判定する。中国語の歌詞は原文のまま使う）。
-        // クレジット行（詞：〜等）は変換せずに残す
+        // クレジット行（作词：〜等）も、ラベル部分が簡体字のまま残らないよう一緒に変換する
         val hasKana = raw.any { line -> line.text.any { it in '\u3040'..'\u30FF' } }
         val result = if (hasKana) {
-            raw.map { line ->
-                if (isCreditLine(line.text)) line
-                else LyricLine(line.timeMs, toJapaneseKanji(line.text))
-            }
+            raw.map { line -> LyricLine(line.timeMs, toJapaneseKanji(line.text)) }
         } else raw
         return splitLongLines(result.sortedBy { it.timeMs })
     }
@@ -115,12 +112,11 @@ object LyricsManager {
             if (PLACEHOLDER_LYRIC_MARKERS.any { text.contains(it) }) continue
             raw.add(LyricLine(lineStart, text, words))
         }
-        // 日本語の歌詞のときだけ簡体字・繁体字を日本の漢字にそろえる（クレジット行は残す。中国語の歌詞は原文のまま使う）
+        // 日本語の歌詞のときだけ簡体字・繁体字を日本の漢字にそろえる（クレジット行も含む。中国語の歌詞は原文のまま使う）
         val hasKana = raw.any { line -> line.text.any { it in '\u3040'..'\u30FF' } }
         val result = if (hasKana) {
             raw.map { line ->
-                if (isCreditLine(line.text)) line
-                else LyricLine(
+                LyricLine(
                     line.timeMs,
                     toJapaneseKanji(line.text),
                     line.words.map { w -> LyricWord(toJapaneseKanji(w.text), w.startMs, w.endMs) }
