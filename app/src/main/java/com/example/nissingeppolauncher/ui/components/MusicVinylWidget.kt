@@ -17,6 +17,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -45,6 +47,7 @@ fun isNotificationServiceEnabled(context: Context): Boolean {
     return flat?.contains(packageName) == true
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MusicVinylWidget(
     modifier: Modifier = Modifier,
@@ -138,6 +141,21 @@ fun MusicVinylWidget(
 
     val currentRotation = if (isPlaying) rotation else 0f
 
+    // 曲が変わった瞬間、アートワークが縦軸でくるっと1回転する
+    val flipAnim = remember { Animatable(1f) }
+    var lastFlipKey by remember { mutableStateOf("") }
+    LaunchedEffect(trackTitle, trackArtist) {
+        val key = "$trackTitle|$trackArtist"
+        if (key != lastFlipKey) {
+            val hadTrack = lastFlipKey.isNotBlank() && lastFlipKey != "|"
+            lastFlipKey = key
+            if (hadTrack && trackTitle.isNotBlank()) {
+                flipAnim.snapTo(0f)
+                flipAnim.animateTo(1f, animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing))
+            }
+        }
+    }
+
     if (showPermissionDialog) {
         val fontFamily = LocalLauncherFontFamily.current
         AlertDialog(
@@ -182,9 +200,20 @@ fun MusicVinylWidget(
                 .offset(x = (discCenterXDp - discRadiusDp).dp, y = (discCenterYDp - discRadiusDp).dp)
                 .size((discRadiusDp * 2f).dp)
                 .clip(CircleShape)
-                .clickable(
+                .combinedClickable(
                     interactionSource = remember { MutableInteractionSource() },
-                    indication = null
+                    indication = null,
+                    onLongClick = {
+                        // 長押しで再生／一時停止（プレイヤーを開かずに操作できる）
+                        try {
+                            val tc = sessionController?.transportControls
+                            if (tc != null) {
+                                if (isPlaying) tc.pause() else tc.play()
+                            }
+                        } catch (e: Exception) {
+                            // 操作できないセッションでは何もしない
+                        }
+                    }
                 ) {
                     if (!isNotificationServiceEnabled(context)) {
                         showPermissionDialog = true
@@ -312,6 +341,8 @@ fun MusicVinylWidget(
                     .size((discRadiusDp * 2f * 0.92f).dp)
                     .graphicsLayer {
                         rotationZ = currentRotation
+                        rotationY = (1f - flipAnim.value) * 360f
+                        cameraDistance = 9f * density
                     }
                     .clip(CircleShape),
                 contentAlignment = Alignment.Center
