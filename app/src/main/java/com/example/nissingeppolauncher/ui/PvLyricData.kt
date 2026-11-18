@@ -138,6 +138,14 @@ val PARTS_WORDS: List<String>
     get() = LyricEffectsData.partsWords
 val BOUNCE_WORDS: List<String>
     get() = LyricEffectsData.bounceWords
+val QUAKE_WORDS: List<String>
+    get() = LyricEffectsData.quakeWords
+val TUNE_SWAY_AMP: Float
+    get() = LyricEffectsData.tuningSwayAmp
+val TUNE_CAM_SLIDE: Float
+    get() = LyricEffectsData.tuningCamSlide
+val TUNE_DRIFT_AMP: Float
+    get() = LyricEffectsData.tuningDriftAmp
 val NEG_WORDS: List<String>
     get() = LyricEffectsData.negWords
 val GHOST_WORDS: List<String>
