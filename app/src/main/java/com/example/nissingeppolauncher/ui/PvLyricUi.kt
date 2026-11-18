@@ -3343,19 +3343,20 @@ fun LyricsBrowseOverlay(
                     .fillMaxWidth(if (isFocusedLine) ((browseWidthDp - 118f) / browseWidthDp).coerceIn(0.3f, 0.85f) else 0.85f)
                     .onGloballyPositioned { lineHeightsPx[idx] = it.size.height }
             ) {
-                if (isFocusedLine && idx == browsePlayingIdx && lines[idx].words.isNotEmpty()) {
+                if (idx == browsePlayingIdx && lines[idx].words.isNotEmpty()) {
+                    // 再生中の行は、フォーカスが外れていてもカラオケ色付けで表示する
                     KaraokeLyricText(
                         line = lines[idx],
                         positionMs = positionMs + lyricOffsetMs,
-                        sungColor = accentColor,
-                        baseColor = Color.White,
-                        fontSize = fitFontSizeSp(lines[idx].text, 26f, browseWidthDp - 118f).sp,
-                        fontWeight = lyricWeight,
+                        sungColor = if (isFocusedLine) accentColor else accentColor.copy(alpha = 0.92f * fade),
+                        baseColor = if (isFocusedLine) Color.White else Color.White.copy(alpha = 0.92f * fade),
+                        fontSize = fitFontSizeSp(lines[idx].text, if (isFocusedLine) 26f else 15f, if (isFocusedLine) browseWidthDp - 118f else browseWidthDp * 0.85f).sp,
+                        fontWeight = if (isFocusedLine) lyricWeight else FontWeight.Normal,
                         fontFamily = fontFamily,
                         enFontFamily = enFontFamily,
                         letterSpacing = 1.0.sp,
                         textAlign = TextAlign.Start,
-                        shadow = if (accentGlow) Shadow(color = accentColor, blurRadius = 14f) else Shadow(color = Color.Black.copy(alpha = 0.75f), blurRadius = 10f)
+                        shadow = if (accentGlow && isFocusedLine) Shadow(color = accentColor, blurRadius = 14f) else Shadow(color = Color.Black.copy(alpha = 0.75f), blurRadius = 10f)
                     )
                 } else {
                     Text(
