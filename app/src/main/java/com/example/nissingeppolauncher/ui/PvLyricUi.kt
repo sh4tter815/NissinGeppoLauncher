@@ -1681,13 +1681,16 @@ fun PvLyricLine(
                     val unitDrip = if (chunkDrip != null && unitStart < chunkDripStart + chunkDrip.first.length && unitStart + ru.length > chunkDripStart) chunkDrip.second else null
                     val unitParts = chunkPartsWord != null && unitStart < chunkPartsStart + chunkPartsWord.length && unitStart + ru.length > chunkPartsStart
                     val unitChunkColor = if (chunkColorHit != null && unitStart < chunkColorStart + chunkColorHit.first.length && unitStart + ru.length > chunkColorStart) chunkColorHit.second else null
+                    val censorStartHere = censorStartArr.getOrElse(rIdx) { 0f }
+                    val censorEndHere = censorEndArr.getOrElse(rIdx) { 0f }
+                    val unitCensored = censorEndHere > censorStartHere
                     PvLyricUnit(
                         bold = bold,
                         unitText = if (rubyModeHere == 1) "" else ru,
                         uSize = ((fitSize * (0.92f + (uSeed % 22) / 100f) * sizeFactor).coerceIn(fitSize * 0.55f, fitSize * 1.35f) * (if (rubyModeHere == 2) 0.52f else 1f)).sp,
-                        uRot = ((uSeed / 3) % 29 - 14).toFloat(),
-                        uYOffset = ((uSeed / 5) % 17 - 8).dp,
-                        uXShiftDp = uXShiftTotal,
+                        uRot = if (unitCensored) 0f else ((uSeed / 3) % 29 - 14).toFloat(),
+                        uYOffset = if (unitCensored) 0.dp else ((uSeed / 5) % 17 - 8).dp,
+                        uXShiftDp = if (unitCensored) 0f else uXShiftTotal,
                         staggerIndex = effGi,
                         exiting = exiting,
                         exitProgressValue = if (sandLine && !fallLine) (exitProgress.value * 1.6f).coerceAtMost(1f) else exitProgress.value,
@@ -1706,7 +1709,7 @@ fun PvLyricLine(
                         crumbleExit = if (fallLine) 0 else if (sandLine) 1 else if (windLine) 2 else 0,
                         chunkColor = unitChunkColor,
                         arrowUnder = chunkArrow && ru == "行",
-                        swayScale = if (bigText) 2.8f else 1f,
+                        swayScale = if (unitCensored) 0f else if (bigText) 2.8f else 1f,
                         entryDelayMs = unitDelayMs,
                         partsEntry = partsEntry,
                         wordParts = unitParts,
@@ -1715,8 +1718,10 @@ fun PvLyricLine(
                         stretchKind = unitStretchKind,
                         stretchProgress = stretchAnim.value,
                         pushXFactor = stretchPushArr.getOrElse(rIdx) { 0f },
-                        censorStart = censorStartArr.getOrElse(rIdx) { 0f },
-                        censorEnd = censorEndArr.getOrElse(rIdx) { 0f },
+                        censorStart = censorStartHere,
+                        censorEnd = censorEndHere,
+                        censorUnit = unitCensored,
+                        censorBandSp = fitSize * 1.18f,
                         censorRunA = censorRunAArr.getOrElse(rIdx) { 0f },
                         censorRunB = censorRunBArr.getOrElse(rIdx) { 1f },
                         censorT = censorProgress.value,
@@ -1792,6 +1797,8 @@ fun PvLyricUnit(
     censorRunA: Float = 0f,
     censorRunB: Float = 1f,
     censorT: Float = 0f,
+    censorUnit: Boolean = false,
+    censorBandSp: Float = 0f,
     lineDurationMs: Long = 0L,
     rubyKana: Boolean = false,
     parallaxState: State<Offset>? = null,
@@ -2025,6 +2032,13 @@ fun PvLyricUnit(
                     translationX += po.x * parallaxDepth * 0.55f
                     translationY += po.y * parallaxDepth * 0.55f
                 }
+                // 伏せ字のユニットは姿勢を揃える: 回転・移動・視差を無効化して、きれいに横並びにする
+                // （落下・風・粒子化の退場中は専用の動きを優先する）
+                if (censorUnit && !(exiting && (fallExit || windExit || crumbleExit != 0))) {
+                    rotationZ = 0f
+                    translationX = 0f
+                    translationY = 0f
+                }
             }
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -2215,12 +2229,15 @@ fun PvLyricUnit(
             }
             if (censorEnd > censorStart && censorLocal > 0f) {
                 // 伏せ字の部分だけを白い帯で左から右へ塗りつぶす（英単語の途中にある ** 等にも対応するため、ユニット内の割合で範囲を指定）
+                // 帯の高さは行全体で統一し中央にそろえることで、隣のユニットとつながって一続きのブロックに見える
                 Canvas(modifier = Modifier.matchParentSize()) {
                     val x0 = size.width * censorStart
+                    val bandH = if (censorBandSp > 0f) (censorBandSp.sp.toPx()).coerceAtMost(size.height) else size.height * 0.86f
+                    val bandTop = if (censorBandSp > 0f) (size.height - bandH) / 2f else size.height * 0.07f
                     drawRect(
                         color = Color.White,
-                        topLeft = Offset(x0, size.height * 0.07f),
-                        size = Size(size.width * (censorEnd - censorStart) * censorLocal, size.height * 0.86f)
+                        topLeft = Offset(x0, bandTop),
+                        size = Size(size.width * (censorEnd - censorStart) * censorLocal, bandH)
                     )
                 }
             }
