@@ -30,6 +30,7 @@ import com.example.nissingeppolauncher.data.AppPreferenceManager
 import android.text.SpannableString
 import android.text.Spanned
 import android.text.TextPaint
+import android.text.style.ForegroundColorSpan
 import android.text.style.MetricAffectingSpan
 import androidx.core.content.res.ResourcesCompat
 import com.example.nissingeppolauncher.R
@@ -69,6 +70,10 @@ class LyricsOverlayService : Service() {
     private var segmentLineText: String? = null
     private var shownSegment: String? = null
     private var segmentAnimGen = 0
+    private var lineSegmentStarts: List<Int> = listOf(0)
+    private var shownSungChars: Int = 0
+    private var segmentAnimating: Boolean = false
+    private var accentColorInt: Int = Color.rgb(229, 57, 53)
     private var segmentsDirty = false
 
     private var trackKey = ""
@@ -150,8 +155,11 @@ class LyricsOverlayService : Service() {
         }
         val clock = TextView(this).apply {
             setTextColor(Color.WHITE)
-            textSize = 12.5f
+            // 時と分を縦に2行並べにして幅を詰め、歌詞の表示領域を広げる
+            textSize = 9.5f
             includeFontPadding = false
+            setLineSpacing(0f, 0.82f)
+            gravity = Gravity.CENTER
             setShadowLayer(4f, 0f, 0f, Color.argb(160, 0, 0, 0))
         }
         val lyric = TextView(this).apply {
@@ -225,10 +233,12 @@ class LyricsOverlayService : Service() {
     }
 
     private fun startClockLoop() {
-        val format = SimpleDateFormat("HH:mm", Locale.JAPAN)
+        val hourFormat = SimpleDateFormat("HH", Locale.JAPAN)
+        val minuteFormat = SimpleDateFormat("mm", Locale.JAPAN)
         serviceScope.launch {
             while (true) {
-                clockView?.text = format.format(Date())
+                val now = Date()
+                clockView?.text = hourFormat.format(now) + "\n" + minuteFormat.format(now)
                 applyFonts()
                 delay(5000)
             }
@@ -333,7 +343,9 @@ class LyricsOverlayService : Service() {
                             if (newLine != segmentLineText || segmentsDirty) {
                                 segmentLineText = newLine
                                 segmentsDirty = false
-                                lineSegments = splitSegments(newLine)
+                                val segs = splitSegments(newLine)
+                                lineSegments = segs.first
+                                lineSegmentStarts = segs.second
                             }
                             // 行の表示時間をセグメント数で等分し、現在のセグメントを選ぶ
                             val segIdx = if (lineSegments.size <= 1 || curLine == null) 0 else {
@@ -343,7 +355,18 @@ class LyricsOverlayService : Service() {
                                 (((posMs - start).coerceAtLeast(0L) * lineSegments.size) / total).toInt()
                                     .coerceIn(0, lineSegments.size - 1)
                             }
-                            showSegment(lineSegments.getOrElse(segIdx) { newLine })
+                            // 文字同期がある行は、歌い終わった文字数を数えてセグメント内の色付けに使う
+                            val sungInLine = if (curLine != null && curLine.words.isNotEmpty()) {
+                                var count = 0
+                                for (w in curLine.words) {
+                                    if (posMs >= w.endMs) count += w.text.length else break
+                                }
+                                count
+                            } else 0
+                            val segText = lineSegments.getOrElse(segIdx) { newLine }
+                            val segStartIdx = lineSegmentStarts.getOrElse(segIdx) { 0 }
+                            val sungInSeg = (sungInLine - segStartIdx).coerceIn(0, segText.length)
+                            showSegment(segText, sungInSeg)
                             updateVisibility()
                         }
                     } else if (currentLine.isNotEmpty()) {
@@ -353,7 +376,7 @@ class LyricsOverlayService : Service() {
                 } catch (e: Exception) {
                     // 読めないときは表示を維持する
                 }
-                delay(400)
+                delay(250)
             }
         }
     }
@@ -389,10 +412,11 @@ class LyricsOverlayService : Service() {
         val lyricChoice = pref.getLyricsPvFont()
         val enChoice = pref.getLyricsEnFont()
         val bold = pref.isLyricsBold()
-        val key = "$uiChoice|$lyricChoice|$enChoice|$bold|${pref.getCustomFontPath()}|${pref.getLyricsEnCustomFontPath()}"
+        val key = "$uiChoice|$lyricChoice|$enChoice|$bold|${pref.getCustomFontPath()}|${pref.getLyricsEnCustomFontPath()}|${pref.getAccentColorHex()}"
         if (key == appliedFontKey) return
         appliedFontKey = key
         segmentsDirty = true
+        accentColorInt = try { Color.parseColor(pref.getAccentColorHex()) } catch (e: Exception) { accentColorInt }
         clock.typeface = typefaceForChoice(uiChoice, pref.getCustomFontPath()) ?: Typeface.DEFAULT_BOLD
         val base = typefaceForChoice(lyricChoice, pref.getCustomFontPath()) ?: Typeface.DEFAULT
         lyricTypeface = if (bold) Typeface.create(base, Typeface.BOLD) else base
@@ -413,7 +437,16 @@ class LyricsOverlayService : Service() {
 
     // 英字フォントが別指定のとき、英語の範囲だけそのフォントで描く。
     // 半角記号だけの並びは直前の文のフォントに合わせる（日本語文中の記号は日本語フォントのまま）
-    private fun styledLine(line: String): CharSequence {
+    private fun styledLine(line: String, sungChars: Int = 0): CharSequence {
+        val base = styledLineBase(line)
+        if (sungChars <= 0) return base
+        // 文字同期がある行は、歌い終わった部分をアクセント色で塗る（カラオケのテロップ風）
+        val sp = SpannableString(base)
+        sp.setSpan(ForegroundColorSpan(accentColorInt), 0, sungChars.coerceIn(0, line.length), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        return sp
+    }
+
+    private fun styledLineBase(line: String): CharSequence {
         val en = enTypeface ?: return line
         if (line.none { it in ' '..'~' }) return line
         val runs = mutableListOf<Triple<Int, Int, Boolean>>()
@@ -445,54 +478,72 @@ class LyricsOverlayService : Service() {
     }
 
     /**
-     * 長い行は「約9文字まで」の断片へ分割する（半角は0.5文字換算。実測幅も併用する）。
+     * 長い行は「約11文字まで」の断片へ分割する（半角は0.5文字換算。実測幅も併用する）。
      * 記号類は禁則処理として、上限を超えても前の断片に付ける（文末の「。」が次の断片の先頭に来ないように）
      */
-    private fun splitSegments(text: String): List<String> {
-        if (text.isBlank() || text == "♪") return listOf(text)
+    private fun splitSegments(text: String): Pair<List<String>, List<Int>> {
+        if (text.isBlank() || text == "♪") return listOf(text) to listOf(0)
         val view = lyricView
         val avail = if (view != null) view.width - view.paddingLeft - view.paddingRight else 0
         val paint = view?.paint
         fun weightOf(s: CharSequence): Double = s.sumOf { if (it in ' '..'~') 0.5 else 1.0 }
         // 文字数も幅も収まる場合は分割しない
-        if (weightOf(text) <= 9.0 && (paint == null || avail <= 0 || paint.measureText(text) <= avail)) return listOf(text)
+        if (weightOf(text) <= 11.0 && (paint == null || avail <= 0 || paint.measureText(text) <= avail)) return listOf(text) to listOf(0)
         val noStart = "、。，．・：；！？!?）)】」』〕〉》ーぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶゝゞ々"
         val out = mutableListOf<String>()
+        val starts = mutableListOf<Int>()
         val cur = StringBuilder()
         var curWeight = 0.0
-        for (ch in text) {
+        var segStart = 0
+        for ((ci, ch) in text.withIndex()) {
             val w = if (ch in ' '..'~') 0.5 else 1.0
-            val overCap = curWeight + w > 9.0
+            val overCap = curWeight + w > 11.0
             val overWidth = paint != null && avail > 0 && cur.isNotEmpty() && paint.measureText(cur.toString() + ch) > avail
             if (cur.isNotEmpty() && (overCap || overWidth) && ch !in noStart) {
                 out.add(cur.toString())
+                starts.add(segStart)
                 cur.setLength(0)
                 curWeight = 0.0
+                segStart = ci
             }
             cur.append(ch)
             curWeight += w
         }
-        if (cur.isNotEmpty()) out.add(cur.toString())
-        return if (out.isEmpty()) listOf(text) else out
+        if (cur.isNotEmpty()) {
+            out.add(cur.toString())
+            starts.add(segStart)
+        }
+        return if (out.isEmpty()) listOf(text) to listOf(0) else out to starts
     }
 
-    private fun showSegment(seg: String) {
+    private fun showSegment(seg: String, sung: Int = 0) {
         val view = lyricView ?: return
-        if (shownSegment == seg) return
+        if (shownSegment == seg) {
+            // 同じ断片のままなら、カラオケの進みだけをアニメーションなしで反映する
+            if (sung != shownSungChars && !segmentAnimating) {
+                shownSungChars = sung
+                view.text = styledLine(seg, sung)
+            }
+            return
+        }
         shownSegment = seg
+        shownSungChars = sung
         shownLine = seg
         // フェードではなくスクロール: 表示中の断片が上へ抜け、次の断片が下から入ってくる。
         // 世代カウンタで古いアニメーションの後処理を無効化し、開始前に位置と透明度を戻して表示が壊れないようにする
         val gen = ++segmentAnimGen
+        segmentAnimating = true
         val h = (view.height.takeIf { it > 0 } ?: dp(14f)).toFloat()
         view.animate().cancel()
         view.translationY = 0f
         view.alpha = 1f
         view.animate().translationY(-h * 0.7f).alpha(0f).setDuration(130).withEndAction {
             if (gen != segmentAnimGen) return@withEndAction
-            view.text = styledLine(seg)
+            view.text = styledLine(seg, sung)
             view.translationY = h * 0.7f
-            view.animate().translationY(0f).alpha(1f).setDuration(180).start()
+            view.animate().translationY(0f).alpha(1f).setDuration(180).withEndAction {
+                if (gen == segmentAnimGen) segmentAnimating = false
+            }.start()
         }.start()
     }
 
