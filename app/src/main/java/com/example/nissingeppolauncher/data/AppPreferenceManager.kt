@@ -240,6 +240,11 @@ class AppPreferenceManager(private val context: Context) {
     fun setPvPartsEntryEnabled(value: Boolean) { prefs.edit().putBoolean("pv_parts_entry", value).apply() }
     fun isStatusBarLyricsEnabled(): Boolean = prefs.getBoolean("status_bar_lyrics", false)
     fun setStatusBarLyricsEnabled(value: Boolean) { prefs.edit().putBoolean("status_bar_lyrics", value).apply() }
+    // スリープタイマー: 終了時刻（epoch ms、0=無効）と選択中の分数
+    fun getSleepTimerEndMs(): Long = prefs.getLong("sleep_timer_end_ms", 0L)
+    fun setSleepTimerEndMs(value: Long) { prefs.edit().putLong("sleep_timer_end_ms", value).apply() }
+    fun getSleepTimerMinutes(): Int = prefs.getInt("sleep_timer_minutes", 0)
+    fun setSleepTimerMinutes(value: Int) { prefs.edit().putInt("sleep_timer_minutes", value).apply() }
 
     fun isLyricTranslationEnabled(): Boolean = prefs.getBoolean("lyric_translation", false)
     fun setLyricTranslationEnabled(value: Boolean) { prefs.edit().putBoolean("lyric_translation", value).apply() }
