@@ -146,10 +146,12 @@ fun MusicVinylWidget(
     var lastFlipKey by remember { mutableStateOf("") }
     LaunchedEffect(trackTitle, trackArtist) {
         val key = "$trackTitle|$trackArtist"
-        if (key != lastFlipKey) {
+        // 読み込み中はタイトルが一瞬空になることがある。空の状態は曲の切り替わりとみなさず、
+        // 前の曲のキーを保持したまま、新しい曲が来たときだけ回転させる
+        if (trackTitle.isNotBlank() && key != lastFlipKey) {
             val hadTrack = lastFlipKey.isNotBlank() && lastFlipKey != "|"
             lastFlipKey = key
-            if (hadTrack && trackTitle.isNotBlank()) {
+            if (hadTrack) {
                 flipAnim.snapTo(0f)
                 flipAnim.animateTo(1f, animationSpec = tween(durationMillis = 650, easing = FastOutSlowInEasing))
             }
