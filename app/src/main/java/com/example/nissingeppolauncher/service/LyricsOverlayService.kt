@@ -60,7 +60,11 @@ class LyricsOverlayService : Service() {
     private var overlayRoot: LinearLayout? = null
     private var clockView: TextView? = null
     private var lyricView: TextView? = null
+    private var progressView: View? = null
+    private var progressMaxWidth = 0
+    private var lastProgressW = -1
     private var attached = false
+    private var overlayBuiltAtMs = 0L
 
     private var statusBarVisible = true
     private var currentLine = ""
@@ -89,6 +93,8 @@ class LyricsOverlayService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        isAlive = true
+        lastHeartbeatMs = SystemClock.elapsedRealtime()
         startForegroundWithNotification()
         if (!Settings.canDrawOverlays(this)) {
             stopSelf()
@@ -100,10 +106,20 @@ class LyricsOverlayService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // 自己修復: サービスが生きていても窓だけ剥がれていることがある（HyperOS 等の独自制限）。
+        // start のたびに窓の付き具合を確認し、外れていたら作り直す（オンオフし直さなくて済むように）
+        val root = overlayRoot
+        val detached = root == null || !attached ||
+            (!root.isAttachedToWindow && SystemClock.elapsedRealtime() - overlayBuiltAtMs > 3000L)
+        if (detached && Settings.canDrawOverlays(this)) {
+            detachOverlay()
+            buildOverlay()
+        }
         return START_STICKY
     }
 
     override fun onDestroy() {
+        isAlive = false
         serviceScope.cancel()
         detachOverlay()
         super.onDestroy()
@@ -148,9 +164,12 @@ class LyricsOverlayService : Service() {
         val width = (resources.displayMetrics.widthPixels * 0.60f).toInt()
 
         val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = ColorDrawable(Color.argb(246, 6, 8, 14))
+        }
+        val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            background = ColorDrawable(Color.argb(246, 6, 8, 14))
             setPadding(dp(10f), 0, dp(8f), 0)
         }
         val clock = TextView(this).apply {
@@ -173,8 +192,15 @@ class LyricsOverlayService : Service() {
                 marginStart = dp(8f)
             }
         }
-        root.addView(clock)
-        root.addView(lyric)
+        row.addView(clock)
+        row.addView(lyric)
+        root.addView(row, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (statusBarHeight - dp(2f)).coerceAtLeast(1)))
+        // 進行バー: 帯の下端に、今の行の進み具合をアクセント色の細いバーで出す
+        val bar = View(this).apply { setBackgroundColor(accentColorInt) }
+        root.addView(bar, LinearLayout.LayoutParams(0, dp(2f)))
+        progressView = bar
+        progressMaxWidth = width
+        lastProgressW = -1
         clockView = clock
         lyricView = lyric
         overlayRoot = root
@@ -202,6 +228,7 @@ class LyricsOverlayService : Service() {
         try {
             wm.addView(root, params)
             attached = true
+            overlayBuiltAtMs = SystemClock.elapsedRealtime()
             applyFonts()
             root.visibility = View.INVISIBLE
             root.requestApplyInsets()
@@ -223,6 +250,8 @@ class LyricsOverlayService : Service() {
         overlayRoot = null
         clockView = null
         lyricView = null
+        progressView = null
+        lastProgressW = -1
     }
 
     private fun updateVisibility() {
@@ -230,6 +259,16 @@ class LyricsOverlayService : Service() {
         val show = statusBarVisible && !launcherInForeground && currentLine.isNotBlank()
         val target = if (show) View.VISIBLE else View.INVISIBLE
         if (root.visibility != target) root.visibility = target
+    }
+
+    private fun setProgress(frac: Float) {
+        val bar = progressView ?: return
+        val w = (progressMaxWidth * frac).toInt()
+        if (w == lastProgressW) return
+        lastProgressW = w
+        val lp = bar.layoutParams as? LinearLayout.LayoutParams ?: return
+        lp.width = w
+        bar.layoutParams = lp
     }
 
     private fun startClockLoop() {
@@ -303,6 +342,7 @@ class LyricsOverlayService : Service() {
         serviceScope.launch {
             while (true) {
                 try {
+                    lastHeartbeatMs = SystemClock.elapsedRealtime()
                     // ステータスバーの表示状態をポーリングでも確認する（インセット通知の保険）
                     overlayRoot?.rootWindowInsets?.let { insets ->
                         val vis = insets.isVisible(WindowInsets.Type.statusBars())
@@ -368,10 +408,21 @@ class LyricsOverlayService : Service() {
                             val sungInSeg = (sungInLine - segStartIdx).coerceIn(0, segText.length)
                             showSegment(segText, sungInSeg)
                             updateVisibility()
+                            // 進行バー: 現在行の表示区間に対する進み具合（間奏中は0に戻す）
+                            val lineProg = when {
+                                inInterlude || curLine == null -> 0f
+                                else -> {
+                                    val start = curLine.timeMs
+                                    val end = nextLine?.timeMs ?: trackDurationMs.takeIf { it > start } ?: (start + 5000L)
+                                    ((posMs - start).toFloat() / (end - start).coerceAtLeast(1L).toFloat()).coerceIn(0f, 1f)
+                                }
+                            }
+                            setProgress(lineProg)
                         }
                     } else if (currentLine.isNotEmpty()) {
                         currentLine = ""
                         updateVisibility()
+                        setProgress(0f)
                     }
                 } catch (e: Exception) {
                     // 読めないときは表示を維持する
@@ -417,6 +468,7 @@ class LyricsOverlayService : Service() {
         appliedFontKey = key
         segmentsDirty = true
         accentColorInt = try { Color.parseColor(pref.getAccentColorHex()) } catch (e: Exception) { accentColorInt }
+        progressView?.setBackgroundColor(accentColorInt)
         clock.typeface = typefaceForChoice(uiChoice, pref.getCustomFontPath()) ?: Typeface.DEFAULT_BOLD
         val base = typefaceForChoice(lyricChoice, pref.getCustomFontPath()) ?: Typeface.DEFAULT
         lyricTypeface = if (bold) Typeface.create(base, Typeface.BOLD) else base
@@ -551,6 +603,13 @@ class LyricsOverlayService : Service() {
         // ランチャー本体が前面にいる間はオーバーレイを隠す（本体側で同じ歌詞が見えているため）
         @Volatile
         var launcherInForeground: Boolean = false
+
+        // 自己修復用: サービスの生存と最終応答時刻（メイン側が再起動の要否を判断する）
+        @Volatile
+        var isAlive: Boolean = false
+
+        @Volatile
+        var lastHeartbeatMs: Long = 0L
 
         fun start(context: Context) {
             try {
