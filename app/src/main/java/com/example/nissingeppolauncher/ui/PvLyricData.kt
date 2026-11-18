@@ -136,6 +136,8 @@ val PILE_WORDS: List<String>
     get() = LyricEffectsData.pileWords
 val PARTS_WORDS: List<String>
     get() = LyricEffectsData.partsWords
+val BOUNCE_WORDS: List<String>
+    get() = LyricEffectsData.bounceWords
 val NEG_WORDS: List<String>
     get() = LyricEffectsData.negWords
 val GHOST_WORDS: List<String>

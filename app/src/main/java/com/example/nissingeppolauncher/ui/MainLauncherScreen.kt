@@ -257,7 +257,11 @@ fun MainLauncherScreen() {
     // ステータスバー歌詞オーバーレイ: 設定がONで権限があればサービスを起動しておく
     LaunchedEffect(Unit) {
         if (repo.prefManager.isStatusBarLyricsEnabled() && android.provider.Settings.canDrawOverlays(context)) {
-            com.example.nissingeppolauncher.service.LyricsOverlayService.start(context)
+            // 自己修復: サービスが死んでいる・応答していないときは、トグルし直さなくても再起動する
+            val svc = com.example.nissingeppolauncher.service.LyricsOverlayService
+            val stale = !svc.isAlive || (android.os.SystemClock.elapsedRealtime() - svc.lastHeartbeatMs > 4000L)
+            if (stale) svc.stop(context)
+            svc.start(context)
         }
     }
 
@@ -269,7 +273,10 @@ fun MainLauncherScreen() {
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 com.example.nissingeppolauncher.service.LyricsOverlayService.launcherInForeground = true
                 if (repo.prefManager.isStatusBarLyricsEnabled() && android.provider.Settings.canDrawOverlays(context)) {
-                    com.example.nissingeppolauncher.service.LyricsOverlayService.start(context)
+                    val svc = com.example.nissingeppolauncher.service.LyricsOverlayService
+                    val stale = !svc.isAlive || (android.os.SystemClock.elapsedRealtime() - svc.lastHeartbeatMs > 4000L)
+                    if (stale) svc.stop(context)
+                    svc.start(context)
                 }
             } else if (event == androidx.lifecycle.Lifecycle.Event.ON_PAUSE) {
                 com.example.nissingeppolauncher.service.LyricsOverlayService.launcherInForeground = false

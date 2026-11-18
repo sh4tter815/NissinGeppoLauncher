@@ -25,6 +25,7 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.animateFloat
 import android.view.HapticFeedbackConstants
@@ -588,6 +589,30 @@ fun PvInterludeArt(accentColor: Color, modifier: Modifier = Modifier) {
             }
             drawPath(path, colr, style = Stroke(width = 2.2f + (i % 3) * 0.9f, cap = StrokeCap.Round))
         }
+        // 漂う粒子: ゆっくり上昇しながら漂い、明滅する小さな点
+        for (i in 0 until 22) {
+            val s1 = ((i * 37) % 100) / 100f
+            val s2 = ((i * 53 + 17) % 100) / 100f
+            val driftX = sin(ph * 0.35f + i * 1.7f) * w * 0.03f
+            val rise = (s2 + t * (0.02f + 0.015f * (i % 4))) % 1f
+            val px = (s1 * w + driftX).coerceIn(0f, w)
+            val py = h * (1f - rise)
+            val tw = 0.5f + 0.5f * sin(ph * (0.8f + (i % 5) * 0.23f) + i * 2.1f)
+            val r = (1.3f + (i % 3) * 0.8f) * (0.7f + 0.5f * tw)
+            drawCircle(
+                color = (if (i % 4 == 0) Color.White else accentColor).copy(alpha = 0.10f + 0.30f * tw),
+                radius = r,
+                center = Offset(px, py)
+            )
+        }
+        // たまにキラッと光る星: 3点が順番に明滅する
+        for (i in 0 until 3) {
+            val sx = w * (0.22f + 0.27f * i)
+            val sy = h * (0.30f + 0.18f * ((i * 2) % 3))
+            val pulse = sin(ph * 0.9f + i * 2.1f) * 0.5f + 0.5f
+            val sa = pulse * pulse * pulse * 0.85f
+            if (sa > 0.03f) drawSparkle(sx, sy, 9f + 5f * pulse, Color(0xFFFFF2B0), sa)
+        }
         // 円は出さない（波の線だけにする）
     }
 }
@@ -1050,9 +1075,9 @@ fun PvLyricLine(
         label = "wavePhase"
     )
     // カメラワーク: 全行に、入場と退場がつながるカメラの流れを付ける。
-    // camFlow: 0=右へ流れる（退場は右へ・入場は左から） 1=左へ 2=上へ 3=下へ 4=押し込む（ズームイン系） 5=引く（ズームアウト系）
+    // camFlow: 0=右へ流れる（退場は右へ・入場は左から） 1=左へ 2=上へ 3=下へ 4=押し込む（ズームイン系） 5=引く（ズームアウト系） 6=回転（傾いて入ってまっすぐに戻る。退場は同じ向きに回転し続けて抜ける）
     // -1 のときは baseSeed から決める。入場はイーズアウト、退場はイーズインで、退場と次の入場が同じ流れを共有する
-    val camFlowEff = if (camFlow >= 0) camFlow else Math.floorMod(baseSeed * 13 + 7, 6)
+    val camFlowEff = if (camFlow >= 0) camFlow else Math.floorMod(baseSeed * 13 + 7, 7)
     val camAnim = remember { Animatable(if (exiting) 1f else 0f) }
     if (!exiting) {
         LaunchedEffect(Unit) {
@@ -1153,6 +1178,10 @@ fun PvLyricLine(
                     2 -> translationY = (if (exiting) -camP else 1f - camP) * camSlideYPx
                     3 -> translationY = (if (exiting) camP else camP - 1f) * camSlideYPx
                     4 -> { val s = if (exiting) 1f + 0.5f * camP else 0.72f + 0.28f * camP; scaleX = s; scaleY = s }
+                    6 -> {
+                        rotationZ = if (exiting) 10f * camP else -14f * (1f - camP)
+                        val s = if (exiting) 1f else 0.92f + 0.08f * camP; scaleX = s; scaleY = s
+                    }
                     else -> { val s = if (exiting) 1f - 0.3f * camP else 1.45f - 0.45f * camP; scaleX = s; scaleY = s }
                 }
                 // 手ブレ（サイン波の重ね合わせで、ゆるく漂い続ける）
@@ -1161,7 +1190,7 @@ fun PvLyricLine(
                 val driftY = (Math.sin(driftT * 0.938 + 0.6) * 0.7 + Math.sin(driftT * 0.556 + 3.1) * 0.3).toFloat()
                 translationX += driftX * camDriftAmpXPx
                 translationY += driftY * camDriftAmpYPx
-                rotationZ = (Math.sin(driftT * 0.647 + 2.0) * 0.35).toFloat()
+                rotationZ += (Math.sin(driftT * 0.647 + 2.0) * 0.35).toFloat()
                 // 3Dモード: 行全体を1枚の面として少し奥へ倒す
                 if (tilt3d) {
                     rotationX = 15f
@@ -1606,6 +1635,9 @@ fun PvLyricLine(
                 val chunkPartsStart = chunkPartsWord?.let { chunk.indexOf(it) } ?: -1
                 val chunkMosaicWord = MOSAIC_WORDS.firstOrNull { chunk.contains(it) }
                 val chunkMosaicStart = chunkMosaicWord?.let { chunk.indexOf(it) } ?: -1
+                // 跳ねる系の単語は、対象の文字だけスプリングで弾んで入場する（対象語はデータ配信側で管理）
+                val chunkBounceWord = BOUNCE_WORDS.firstOrNull { chunk.contains(it) }
+                val chunkBounceStart = chunkBounceWord?.let { chunk.indexOf(it) } ?: -1
                 // 複数文字の色ワード（希望・想い等）は塊単位で判定し、該当する文字だけに色を渡す
                 val chunkColorHit = (COLOR_WORDS + ASSOC_COLOR_WORDS).firstOrNull { (w, _) -> w.length > 1 && chunk.contains(w) }
                 val chunkColorStart = chunkColorHit?.let { chunk.indexOf(it.first) } ?: -1
@@ -1680,6 +1712,7 @@ fun PvLyricLine(
                     val unitPile = chunkPileWord != null && unitStart < chunkPileStart + chunkPileWord.length && unitStart + ru.length > chunkPileStart
                     val unitDrip = if (chunkDrip != null && unitStart < chunkDripStart + chunkDrip.first.length && unitStart + ru.length > chunkDripStart) chunkDrip.second else null
                     val unitParts = chunkPartsWord != null && unitStart < chunkPartsStart + chunkPartsWord.length && unitStart + ru.length > chunkPartsStart
+                    val unitBounce = chunkBounceWord != null && unitStart < chunkBounceStart + chunkBounceWord.length && unitStart + ru.length > chunkBounceStart
                     val unitChunkColor = if (chunkColorHit != null && unitStart < chunkColorStart + chunkColorHit.first.length && unitStart + ru.length > chunkColorStart) chunkColorHit.second else null
                     val censorStartHere = censorStartArr.getOrElse(rIdx) { 0f }
                     val censorEndHere = censorEndArr.getOrElse(rIdx) { 0f }
@@ -1713,6 +1746,7 @@ fun PvLyricLine(
                         entryDelayMs = unitDelayMs,
                         partsEntry = partsEntry,
                         wordParts = unitParts,
+                        bounce = unitBounce,
                         repeatIndex = repeatIdxHere,
                         repeatCount = repeatLenHere,
                         stretchKind = unitStretchKind,
@@ -1787,6 +1821,7 @@ fun PvLyricUnit(
     entryDelayMs: Long = -1L,
     partsEntry: Boolean = false,
     wordParts: Boolean = false,
+    bounce: Boolean = false,
     repeatIndex: Int = -1,
     repeatCount: Int = 0,
     stretchKind: Int = 0,
@@ -1809,6 +1844,14 @@ fun PvLyricUnit(
     val effDelayMs = if (entryDelayMs >= 0L) entryDelayMs else staggerIndex * 45L
     val uSeed = staggerIndex
     val uAnim = remember(staggerIndex) { Animatable(0f) }
+    // 跳ねる単語の文字は、少し上からスプリングで落ちてきて、着地で小さく跳ね返る
+    val bounceLift = remember(staggerIndex) { Animatable(1f) }
+    if (!exiting && bounce) {
+        LaunchedEffect(staggerIndex) {
+            delay(effDelayMs)
+            bounceLift.animateTo(0f, animationSpec = spring(dampingRatio = 0.32f, stiffness = 320f))
+        }
+    }
     // 表示中ずっと、位置がごく小さくぐらぐら揺れる（角度は変えない）
     // 退場用インスタンスでは揺れ時計を表示経過時間から逆算した位相で止める。
     // 位相が0に戻ると液体ドリップなどが退場の瞬間にパッと縮んで「外れた」ように見えるため
@@ -2004,6 +2047,7 @@ fun PvLyricUnit(
                     if (swayScale > 1f) rotationZ += sin(ph + 0.7f) * 2.4f * (swayScale - 1f)
                     translationX = dir.first * 52f * (1f - a) + swx * a + if (effectKind == 4 && fxT.value < 1f) sin(fxT.value * 55f + uSeed * 2.7f) * 5f * (1f - fxT.value) else 0f
                     translationY = dir.second * 52f * (1f - a) + swy * a + if (effectKind == 7) sin(a * 6.2832f + uSeed * 0.8f) * 15f * (1f - a) else 0f
+                    if (bounce) translationY -= bounceLift.value * uSize.value * 1.15f
                 }
                 // 句読点の扱い: ！？は大きく傾け、。、・…は小さくする
                 when (unitText) {
@@ -2953,9 +2997,9 @@ fun LyricsPvLayer(
         val pvCamMap = remember { mutableStateMapOf<Int, Int>() }
         fun pvCamFlowFor(idx: Int, text: String): Int {
             pvCamMap[idx]?.let { return it }
-            val raw = Math.floorMod(Math.floorMod(idx * 41 + text.hashCode(), 997), 6)
+            val raw = Math.floorMod(Math.floorMod(idx * 41 + text.hashCode(), 997), 7)
             val prev = pvCamMap[idx - 1]
-            val flow = if (prev != null && raw == prev) (raw + 1) % 6 else raw
+            val flow = if (prev != null && raw == prev) (raw + 1) % 7 else raw
             pvCamMap[idx] = flow
             return flow
         }
@@ -3663,9 +3707,9 @@ fun LyricsFullscreenOverlay(
                 val fsCamMap = remember { mutableStateMapOf<Int, Int>() }
                 fun fsCamFlowFor(idx: Int, text: String): Int {
                     fsCamMap[idx]?.let { return it }
-                    val raw = Math.floorMod(Math.floorMod(idx * 41 + text.hashCode(), 997), 6)
+                    val raw = Math.floorMod(Math.floorMod(idx * 41 + text.hashCode(), 997), 7)
                     val prev = fsCamMap[idx - 1]
-                    val flow = if (prev != null && raw == prev) (raw + 1) % 6 else raw
+                    val flow = if (prev != null && raw == prev) (raw + 1) % 7 else raw
                     fsCamMap[idx] = flow
                     return flow
                 }
