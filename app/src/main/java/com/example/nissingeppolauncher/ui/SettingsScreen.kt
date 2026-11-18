@@ -47,6 +47,7 @@ import com.example.nissingeppolauncher.data.AppRepository
 import com.example.nissingeppolauncher.service.LyricsOverlayService
 import com.example.nissingeppolauncher.ui.components.parseFontFamily
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import java.io.File
 import java.io.FileOutputStream
 import kotlin.math.roundToInt
@@ -491,6 +492,16 @@ fun SettingsScreen(
     var newPasscodeField by remember { mutableStateOf(repo.prefManager.getPasscode()) }
 
     var isReverseScroll by remember { mutableStateOf(repo.prefManager.isReverseScroll()) }
+    var sleepTimerEndMs by remember { mutableStateOf(repo.prefManager.getSleepTimerEndMs()) }
+    var sleepTimerMinutes by remember { mutableStateOf(repo.prefManager.getSleepTimerMinutes()) }
+    var sleepNowMs by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            sleepNowMs = System.currentTimeMillis()
+            if (sleepTimerEndMs > 0L && sleepTimerEndMs <= sleepNowMs) sleepTimerEndMs = 0L
+            delay(20000)
+        }
+    }
     var usePasscodeForHidden by remember { mutableStateOf(repo.prefManager.isUsePasscodeForHidden()) }
     var currentFontChoice by remember { mutableStateOf(repo.prefManager.getFontChoice()) }
     var lyricsDisplayMode by remember { mutableStateOf(repo.prefManager.getLyricsDisplayMode()) }
@@ -1099,6 +1110,53 @@ fun SettingsScreen(
                                                 },
                                                 colors = switchColors
                                             )
+                                        }
+                                    }
+                                }
+                            }
+                            item {
+                                Surface(
+                                    color = Color(0x99101728),
+                                    shape = RoundedCornerShape(20.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(20.dp),
+                                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                                    ) {
+                                        Text("スリープタイマー", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Normal)
+                                        Text("設定した時間が過ぎたら、再生中の音楽を自動で一時停止します", color = Color.Gray, fontSize = 12.sp)
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            for (min in listOf(0, 15, 30, 60)) {
+                                                val selected = if (min == 0) sleepTimerEndMs <= 0L else (sleepTimerEndMs > sleepNowMs && sleepTimerMinutes == min)
+                                                Surface(
+                                                    onClick = {
+                                                        sleepTimerMinutes = min
+                                                        repo.prefManager.setSleepTimerMinutes(min)
+                                                        val end = if (min == 0) 0L else System.currentTimeMillis() + min * 60000L
+                                                        sleepTimerEndMs = end
+                                                        repo.prefManager.setSleepTimerEndMs(end)
+                                                        onChanged()
+                                                    },
+                                                    color = if (selected) currentAccentColor else Color(0xFF1F293D),
+                                                    shape = RoundedCornerShape(12.dp),
+                                                    modifier = Modifier.weight(1f)
+                                                ) {
+                                                    Text(
+                                                        text = if (min == 0) "オフ" else "${min}分",
+                                                        color = Color.White,
+                                                        fontSize = 13.sp,
+                                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                                        modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        if (sleepTimerEndMs > sleepNowMs) {
+                                            Text("あと約 ${(sleepTimerEndMs - sleepNowMs + 59999L) / 60000L} 分で一時停止します", color = Color.Gray, fontSize = 12.sp)
                                         }
                                     }
                                 }

@@ -1085,10 +1085,10 @@ fun PvLyricLine(
         }
     }
     val camDensity = LocalDensity.current
-    val camSlideXPx = with(camDensity) { (screenWidthDp * 0.24f).dp.toPx() }
-    val camSlideYPx = with(camDensity) { (fitSize * 1.7f).dp.toPx() }
-    val camDriftAmpXPx = with(camDensity) { 5.dp.toPx() }
-    val camDriftAmpYPx = with(camDensity) { 3.5.dp.toPx() }
+    val camSlideXPx = with(camDensity) { (screenWidthDp * 0.24f * TUNE_CAM_SLIDE).dp.toPx() }
+    val camSlideYPx = with(camDensity) { (fitSize * 1.7f * TUNE_CAM_SLIDE).dp.toPx() }
+    val camDriftAmpXPx = with(camDensity) { (5f * TUNE_DRIFT_AMP).dp.toPx() }
+    val camDriftAmpYPx = with(camDensity) { (3.5f * TUNE_DRIFT_AMP).dp.toPx() }
     // 規制の白塗りは行全体で1つの時計を共有し、連なった伏せ字を一気に覆う
     val censorProgress = remember { Animatable(if (exiting) 1f else 0f) }
     if (!exiting) {
@@ -1638,6 +1638,9 @@ fun PvLyricLine(
                 // 跳ねる系の単語は、対象の文字だけスプリングで弾んで入場する（対象語はデータ配信側で管理）
                 val chunkBounceWord = BOUNCE_WORDS.firstOrNull { chunk.contains(it) }
                 val chunkBounceStart = chunkBounceWord?.let { chunk.indexOf(it) } ?: -1
+                // 震える系の単語は、対象の文字だけ表示中ずっと小刻みに震える（対象語はデータ配信側で管理）
+                val chunkQuakeWord = QUAKE_WORDS.firstOrNull { chunk.contains(it) }
+                val chunkQuakeStart = chunkQuakeWord?.let { chunk.indexOf(it) } ?: -1
                 // 複数文字の色ワード（希望・想い等）は塊単位で判定し、該当する文字だけに色を渡す
                 val chunkColorHit = (COLOR_WORDS + ASSOC_COLOR_WORDS).firstOrNull { (w, _) -> w.length > 1 && chunk.contains(w) }
                 val chunkColorStart = chunkColorHit?.let { chunk.indexOf(it.first) } ?: -1
@@ -1713,6 +1716,7 @@ fun PvLyricLine(
                     val unitDrip = if (chunkDrip != null && unitStart < chunkDripStart + chunkDrip.first.length && unitStart + ru.length > chunkDripStart) chunkDrip.second else null
                     val unitParts = chunkPartsWord != null && unitStart < chunkPartsStart + chunkPartsWord.length && unitStart + ru.length > chunkPartsStart
                     val unitBounce = chunkBounceWord != null && unitStart < chunkBounceStart + chunkBounceWord.length && unitStart + ru.length > chunkBounceStart
+                    val unitQuake = chunkQuakeWord != null && unitStart < chunkQuakeStart + chunkQuakeWord.length && unitStart + ru.length > chunkQuakeStart
                     val unitChunkColor = if (chunkColorHit != null && unitStart < chunkColorStart + chunkColorHit.first.length && unitStart + ru.length > chunkColorStart) chunkColorHit.second else null
                     val censorStartHere = censorStartArr.getOrElse(rIdx) { 0f }
                     val censorEndHere = censorEndArr.getOrElse(rIdx) { 0f }
@@ -1747,6 +1751,7 @@ fun PvLyricLine(
                         partsEntry = partsEntry,
                         wordParts = unitParts,
                         bounce = unitBounce,
+                        quake = unitQuake,
                         repeatIndex = repeatIdxHere,
                         repeatCount = repeatLenHere,
                         stretchKind = unitStretchKind,
@@ -1822,6 +1827,7 @@ fun PvLyricUnit(
     partsEntry: Boolean = false,
     wordParts: Boolean = false,
     bounce: Boolean = false,
+    quake: Boolean = false,
     repeatIndex: Int = -1,
     repeatCount: Int = 0,
     stretchKind: Int = 0,
@@ -1852,6 +1858,15 @@ fun PvLyricUnit(
             bounceLift.animateTo(0f, animationSpec = spring(dampingRatio = 0.32f, stiffness = 320f))
         }
     }
+    // 震える単語の文字だけ、速い周期の位相を共有する（対象ユニットが少ないのでコストは小さい）
+    val quakePhaseState = if (quake && !exiting) {
+        val quakeTransition = rememberInfiniteTransition(label = "quake")
+        quakeTransition.animateFloat(
+            initialValue = 0f, targetValue = 6.2832f,
+            animationSpec = infiniteRepeatable(tween(300, easing = LinearEasing), RepeatMode.Restart),
+            label = "quakePhase"
+        )
+    } else null
     // 表示中ずっと、位置がごく小さくぐらぐら揺れる（角度は変えない）
     // 退場用インスタンスでは揺れ時計を表示経過時間から逆算した位相で止める。
     // 位相が0に戻ると液体ドリップなどが退場の瞬間にパッと縮んで「外れた」ように見えるため
@@ -2042,12 +2057,17 @@ fun PvLyricUnit(
                     val dir = PV_ENTRY_DIRS[Math.floorMod(uSeed * 131 + 7, 8)]
                     // 波に乗るような揺れ: サイン波でなめらかに、位相は文字ごとにずらす
                     val ph = sway.value * 6.2832f + (uSeed % 7) * 0.9f
-                    val swx = sin(ph) * 3.4f * swayScale
-                    val swy = sin(ph + 1.3f) * 2.6f * swayScale
+                    val swx = sin(ph) * 3.4f * swayScale * TUNE_SWAY_AMP
+                    val swy = sin(ph + 1.3f) * 2.6f * swayScale * TUNE_SWAY_AMP
                     if (swayScale > 1f) rotationZ += sin(ph + 0.7f) * 2.4f * (swayScale - 1f)
                     translationX = dir.first * 52f * (1f - a) + swx * a + if (effectKind == 4 && fxT.value < 1f) sin(fxT.value * 55f + uSeed * 2.7f) * 5f * (1f - fxT.value) else 0f
                     translationY = dir.second * 52f * (1f - a) + swy * a + if (effectKind == 7) sin(a * 6.2832f + uSeed * 0.8f) * 15f * (1f - a) else 0f
                     if (bounce) translationY -= bounceLift.value * uSize.value * 1.15f
+                    if (quake) {
+                        val qp = quakePhaseState?.value ?: 0f
+                        translationX += sin(qp * 3f + uSeed * 2.2f) * 1.7f
+                        translationY += cos(qp * 4f + uSeed * 1.7f) * 1.4f
+                    }
                 }
                 // 句読点の扱い: ！？は大きく傾け、。、・…は小さくする
                 when (unitText) {
@@ -3035,9 +3055,29 @@ fun LyricsPvLayer(
         LaunchedEffect(darkTarget) {
             darkAlpha.animateTo(darkTarget, animationSpec = tween(durationMillis = 700))
         }
+        // サビ判定: 同じ歌詞行が2回以上出てくる行はサビとみなし、背景をほんのり明るくする
+        val chorusTexts = remember(lines) {
+            lines.map { it.text.trim() }.filter { it.isNotEmpty() }
+                .groupingBy { it }.eachCount().filterValues { it >= 2 }.keys
+        }
+        val chorusTarget = if (pvDisplayIndex >= 0 && chorusTexts.contains(lines.getOrNull(pvDisplayIndex)?.text?.trim())) 1f else 0f
+        val chorusGlow = remember { Animatable(0f) }
+        LaunchedEffect(chorusTarget) {
+            chorusGlow.animateTo(chorusTarget, animationSpec = tween(durationMillis = 900))
+        }
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             if (darkAlpha.value > 0.001f) {
                 Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = darkAlpha.value)))
+            }
+            if (chorusGlow.value > 0.001f) {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(top = (pvTopDp - 70.dp).coerceAtLeast(0.dp)).height(320.dp)
+                        .background(
+                            brush = Brush.radialGradient(
+                                colors = listOf(accentColor.copy(alpha = 0.20f * chorusGlow.value), Color.Transparent)
+                            )
+                        )
+                )
             }
             pvExiting?.let { (exIdx, exText) ->
                 key("pvexit$exIdx") {

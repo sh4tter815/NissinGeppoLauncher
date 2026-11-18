@@ -265,6 +265,28 @@ fun MainLauncherScreen() {
         }
     }
 
+    // スリープタイマー: 設定した時刻になったら、再生中のセッションを一時停止する
+    LaunchedEffect(Unit) {
+        while (true) {
+            try {
+                val endMs = repo.prefManager.getSleepTimerEndMs()
+                if (endMs > 0L && System.currentTimeMillis() >= endMs) {
+                    repo.prefManager.setSleepTimerEndMs(0L)
+                    val msmT = context.getSystemService(android.content.Context.MEDIA_SESSION_SERVICE) as? android.media.session.MediaSessionManager
+                    val compT = android.content.ComponentName(context, com.example.nissingeppolauncher.service.LauncherMediaListenerService::class.java)
+                    val ctrlsT = msmT?.getActiveSessions(compT)
+                    val activeT = ctrlsT?.firstOrNull {
+                        it.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING
+                    } ?: ctrlsT?.firstOrNull()
+                    activeT?.transportControls?.pause()
+                }
+            } catch (e: Exception) {
+                // セッションが取れないときは何もしない
+            }
+            delay(5000)
+        }
+    }
+
     // 権限画面から戻った直後など、画面が再表示されるタイミングでも起動を確認する
     // （初回起動チェックだけだと、許可した後にサービスが始まらないことがあった）
     val overlayLifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
