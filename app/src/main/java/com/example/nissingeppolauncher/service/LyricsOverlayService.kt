@@ -60,9 +60,6 @@ class LyricsOverlayService : Service() {
     private var overlayRoot: LinearLayout? = null
     private var clockView: TextView? = null
     private var lyricView: TextView? = null
-    private var progressView: View? = null
-    private var progressMaxWidth = 0
-    private var lastProgressW = -1
     private var attached = false
     private var overlayBuiltAtMs = 0L
 
@@ -204,13 +201,7 @@ class LyricsOverlayService : Service() {
         }
         row.addView(clock)
         row.addView(lyric)
-        root.addView(row, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (statusBarHeight - dp(2f)).coerceAtLeast(1)))
-        // 進行バー: 帯の下端に、今の行の進み具合をアクセント色の細いバーで出す
-        val bar = View(this).apply { setBackgroundColor(accentColorInt) }
-        root.addView(bar, LinearLayout.LayoutParams(0, dp(2f)))
-        progressView = bar
-        progressMaxWidth = width
-        lastProgressW = -1
+        root.addView(row, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, statusBarHeight))
         clockView = clock
         lyricView = lyric
         overlayRoot = root
@@ -260,8 +251,6 @@ class LyricsOverlayService : Service() {
         overlayRoot = null
         clockView = null
         lyricView = null
-        progressView = null
-        lastProgressW = -1
     }
 
     private fun updateVisibility() {
@@ -269,16 +258,6 @@ class LyricsOverlayService : Service() {
         val show = statusBarVisible && !launcherInForeground && currentLine.isNotBlank()
         val target = if (show) View.VISIBLE else View.INVISIBLE
         if (root.visibility != target) root.visibility = target
-    }
-
-    private fun setProgress(frac: Float) {
-        val bar = progressView ?: return
-        val w = (progressMaxWidth * frac).toInt()
-        if (w == lastProgressW) return
-        lastProgressW = w
-        val lp = bar.layoutParams as? LinearLayout.LayoutParams ?: return
-        lp.width = w
-        bar.layoutParams = lp
     }
 
     private fun startClockLoop() {
@@ -418,21 +397,10 @@ class LyricsOverlayService : Service() {
                             val sungInSeg = (sungInLine - segStartIdx).coerceIn(0, segText.length)
                             showSegment(segText, sungInSeg)
                             updateVisibility()
-                            // 進行バー: 現在行の表示区間に対する進み具合（間奏中は0に戻す）
-                            val lineProg = when {
-                                inInterlude || curLine == null -> 0f
-                                else -> {
-                                    val start = curLine.timeMs
-                                    val end = nextLine?.timeMs ?: trackDurationMs.takeIf { it > start } ?: (start + 5000L)
-                                    ((posMs - start).toFloat() / (end - start).coerceAtLeast(1L).toFloat()).coerceIn(0f, 1f)
-                                }
-                            }
-                            setProgress(lineProg)
                         }
                     } else if (currentLine.isNotEmpty()) {
                         currentLine = ""
                         updateVisibility()
-                        setProgress(0f)
                     }
                 } catch (e: Exception) {
                     // 読めないときは表示を維持する
@@ -478,7 +446,6 @@ class LyricsOverlayService : Service() {
         appliedFontKey = key
         segmentsDirty = true
         accentColorInt = try { Color.parseColor(pref.getAccentColorHex()) } catch (e: Exception) { accentColorInt }
-        progressView?.setBackgroundColor(accentColorInt)
         clock.typeface = typefaceForChoice(uiChoice, pref.getCustomFontPath()) ?: Typeface.DEFAULT_BOLD
         val base = typefaceForChoice(lyricChoice, pref.getCustomFontPath()) ?: Typeface.DEFAULT
         lyricTypeface = if (bold) Typeface.create(base, Typeface.BOLD) else base
