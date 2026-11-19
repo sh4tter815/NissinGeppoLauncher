@@ -2185,7 +2185,7 @@ fun PvLyricUnit(
                     )
                 }
             }
-            if ((partsEntry || wordParts) && !exiting) {
+            if ((partsEntry || wordParts) && !exiting && !dopagaki) {
                 // パーツ分解: 文字を縦3スライスに分ける。
                 // 単語由来（バラバラ等）は合体させず分解したまま揺らし、設定由来は入場時だけ分解して合体させる
                 val pa = uAnim.value
@@ -2227,20 +2227,20 @@ fun PvLyricUnit(
             } else if (dopagaki) {
                 // ドパガキ: パチンコ文字。赤→金の二重縁取りと下方向の押し出しで立体にし、中は虹色グラデーション
                 val layerAlpha = if (dimmed) 0.40f else 0.92f
-                val rOut = uSize.value * 0.085f
-                val rIn = uSize.value * 0.048f
+                val rOut = uSize.value * 0.10f
+                val rIn = uSize.value * 0.058f
                 val ringDirs = listOf(-1f to 0f, 1f to 0f, 0f to -1f, 0f to 1f, -0.7f to -0.7f, 0.7f to -0.7f, -0.7f to 0.7f, 0.7f to 0.7f)
                 Box {
-                    for (i in 2 downTo 1) {
+                    for (i in 4 downTo 1) {
                         Text(
                             text = annotatedUnit,
                             color = Color(0xFF8A5A00).copy(alpha = layerAlpha),
                             fontSize = uSize,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.Black,
                             textAlign = TextAlign.Center,
                             overflow = TextOverflow.Visible,
                             style = LocalTextStyle.current.copy(fontFamily = fontFamily, lineHeight = uSize * 1.02f),
-                            modifier = Modifier.offset(y = (uSize.value * 0.055f * i).dp)
+                            modifier = Modifier.offset(y = (uSize.value * 0.06f * i).dp)
                         )
                     }
                     for ((ox, oy) in ringDirs) {
@@ -2248,7 +2248,7 @@ fun PvLyricUnit(
                             text = annotatedUnit,
                             color = Color(0xFFC4001B).copy(alpha = layerAlpha),
                             fontSize = uSize,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.Black,
                             textAlign = TextAlign.Center,
                             overflow = TextOverflow.Visible,
                             style = LocalTextStyle.current.copy(fontFamily = fontFamily, lineHeight = uSize * 1.02f),
@@ -2260,7 +2260,7 @@ fun PvLyricUnit(
                             text = annotatedUnit,
                             color = Color(0xFFFFC400).copy(alpha = layerAlpha),
                             fontSize = uSize,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.Black,
                             textAlign = TextAlign.Center,
                             overflow = TextOverflow.Visible,
                             style = LocalTextStyle.current.copy(fontFamily = fontFamily, lineHeight = uSize * 1.02f),
@@ -2268,16 +2268,26 @@ fun PvLyricUnit(
                         )
                     }
                     Text(
+                        text = annotatedUnit,
+                        color = Color.White.copy(alpha = 0.28f * layerAlpha),
+                        fontSize = uSize,
+                        fontWeight = FontWeight.Black,
+                        textAlign = TextAlign.Center,
+                        overflow = TextOverflow.Visible,
+                        style = LocalTextStyle.current.copy(fontFamily = fontFamily, lineHeight = uSize * 1.02f),
+                        modifier = Modifier.offset(x = (-(uSize.value * 0.022f)).dp, y = (-(uSize.value * 0.022f)).dp)
+                    )
+                    Text(
                         text = dopaAnnotated,
                         color = Color.White.copy(alpha = if (dimmed) 0.55f else 1f),
                         fontSize = uSize,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.Black,
                         textAlign = TextAlign.Center,
                         overflow = TextOverflow.Visible,
                         style = LocalTextStyle.current.copy(
                             fontFamily = fontFamily,
                             lineHeight = uSize * 1.02f,
-                            shadow = Shadow(color = Color(0xFFFFD700).copy(alpha = 0.9f), blurRadius = 26f)
+                            shadow = Shadow(color = Color(0xFFFFD700).copy(alpha = 0.9f), blurRadius = 30f)
                         )
                     )
                 }
@@ -2406,7 +2416,7 @@ fun PvLyricUnit(
                     }
                 }
             }
-            if (colorHit != null) {
+            if (colorHit != null && !dopagaki) {
                 val cWord = colorHit.first
                 // 原色そのままではなく、アクセントカラーに色相を寄せて白で薄めた淡い色にする
                 val base = colorHit.second
