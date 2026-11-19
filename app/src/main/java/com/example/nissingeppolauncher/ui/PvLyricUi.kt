@@ -2176,15 +2176,10 @@ fun PvLyricUnit(
             }
             // ドパガキ: 中の虹色グラデーション（位相を36段階に量子化して作り直しを抑える）
             val hueStep = if (dopagaki) ((dopaPhase?.value ?: 0f) * 36f).toInt() else 0
-            val dopaGold = dopagaki && Math.floorMod(unitText.hashCode() + staggerIndex * 7, 2) == 0
-            val dopaAnnotated = remember(annotatedUnit, hueStep, dopaGold) {
+            val dopaAnnotated = remember(annotatedUnit, hueStep) {
                 if (dopagaki) {
-                    val cols = if (dopaGold) {
-                        // 金の文字: 金属っぽい縦グラデーション
-                        listOf(Color(0xFFFFF6C8), Color(0xFFFFD700), Color(0xFFC9930A), Color(0xFFFFE97A))
-                    } else {
-                        (0..4).map { i -> Color.hsv((hueStep * 10f + i * 72f + staggerIndex * 24f) % 360f, 0.62f, 1f) }
-                    }
+                    // 金背景の上では金文字が埋もれるので、塗りは全部虹色にする
+                    val cols = (0..4).map { i -> Color.hsv((hueStep * 10f + i * 72f + staggerIndex * 24f) % 360f, 0.62f, 1f) }
                     AnnotatedString(
                         text = annotatedUnit.text,
                         spanStyles = annotatedUnit.spanStyles + listOf(
@@ -2256,7 +2251,7 @@ fun PvLyricUnit(
                 val ringDirs = listOf(-1f to 0f, 1f to 0f, 0f to -1f, 0f to 1f, -0.7f to -0.7f, 0.7f to -0.7f, -0.7f to 0.7f, 0.7f to 0.7f)
                 Box {
                     // 立体の一番奥にも縁取りを入れて、ブロック全体が縁取られた形にする（赤が影に見えないように）
-                    val deepX = uSize.value * 0.045f * 6
+                    val deepX = uSize.value * 0.012f * 6
                     val deepY = uSize.value * 0.075f * 6
                     for ((ox, oy) in ringDirs) {
                         Text(
@@ -2283,7 +2278,7 @@ fun PvLyricUnit(
                         )
                     }
                     // ブロックみたいに厚く押し出す。段ごとに濃さを交互に変えて、金属の反射の縞に見せる
-                    val depthBand = listOf(0.92f, 0.66f, 1.0f, 0.60f, 0.85f, 0.52f)
+                    val depthBand = listOf(1.0f, 0.82f, 0.88f, 0.66f, 0.72f, 0.50f)
                     for (i in 6 downTo 4) {
                         val b = depthBand[i - 1]
                         Text(
@@ -2294,7 +2289,7 @@ fun PvLyricUnit(
                             textAlign = TextAlign.Center,
                             overflow = TextOverflow.Visible,
                             style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily, lineHeight = uSize * 1.02f),
-                            modifier = Modifier.offset(x = (uSize.value * 0.045f * i).dp, y = (uSize.value * 0.075f * i).dp)
+                            modifier = Modifier.offset(x = (uSize.value * 0.012f * i).dp, y = (uSize.value * 0.075f * i).dp)
                         )
                     }
                     // 反射の明るい帯: 側面の途中に1本、薄く光る帯を入れる
@@ -2306,7 +2301,7 @@ fun PvLyricUnit(
                         textAlign = TextAlign.Center,
                         overflow = TextOverflow.Visible,
                         style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily, lineHeight = uSize * 1.02f),
-                        modifier = Modifier.offset(x = (uSize.value * 0.045f * 3.5f).dp, y = (uSize.value * 0.075f * 3.5f).dp)
+                        modifier = Modifier.offset(x = (uSize.value * 0.012f * 3.5f).dp, y = (uSize.value * 0.075f * 3.5f).dp)
                     )
                     for (i in 3 downTo 1) {
                         val b = depthBand[i - 1]
@@ -2318,7 +2313,7 @@ fun PvLyricUnit(
                             textAlign = TextAlign.Center,
                             overflow = TextOverflow.Visible,
                             style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily, lineHeight = uSize * 1.02f),
-                            modifier = Modifier.offset(x = (uSize.value * 0.045f * i).dp, y = (uSize.value * 0.075f * i).dp)
+                            modifier = Modifier.offset(x = (uSize.value * 0.012f * i).dp, y = (uSize.value * 0.075f * i).dp)
                         )
                     }
                     for ((ox, oy) in ringDirs) {
