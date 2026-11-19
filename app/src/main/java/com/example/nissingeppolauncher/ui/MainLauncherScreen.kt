@@ -837,16 +837,21 @@ fun MainLauncherScreen() {
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
-            WallpaperBackground(
-                customPath = customBackgroundPath,
-                updateKey = backgroundUpdateKey,
-                isHome = (currentLauncherPage == 1),
-                currentAlbumArt = if (matchArtwork || useArtworkBg) sessionAlbumArt else null,
-                dynamicBackground = if (matchArtwork || useArtworkBg) artworkBackground else null,
-                artworkBackgroundStyle = if (bgMode == "artwork_blur") "blur" else "solid",
-                liquidEnabled = liquidBackground,
-                liquidAccent = effectiveAccent
-            )
+            if (dopagakiMode && currentLauncherPage == 1) {
+                // ドパガキ中はホームの背景も金ピカにする（壁紙・アートワーク・液体の代わり）
+                PvDopagakiBackground(Modifier.fillMaxSize())
+            } else {
+                WallpaperBackground(
+                    customPath = customBackgroundPath,
+                    updateKey = backgroundUpdateKey,
+                    isHome = (currentLauncherPage == 1),
+                    currentAlbumArt = if (matchArtwork || useArtworkBg) sessionAlbumArt else null,
+                    dynamicBackground = if (matchArtwork || useArtworkBg) artworkBackground else null,
+                    artworkBackgroundStyle = if (bgMode == "artwork_blur") "blur" else "solid",
+                    liquidEnabled = liquidBackground,
+                    liquidAccent = effectiveAccent
+                )
+            }
 
             // ===== 歌詞の読み込み中表示 =====
             if (lyricsLoading && currentLauncherPage == 1) {

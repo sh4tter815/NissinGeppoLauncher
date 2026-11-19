@@ -2237,16 +2237,22 @@ fun PvLyricUnit(
                 val rIn = uSize.value * 0.058f
                 val ringDirs = listOf(-1f to 0f, 1f to 0f, 0f to -1f, 0f to 1f, -0.7f to -0.7f, 0.7f to -0.7f, -0.7f to 0.7f, 0.7f to 0.7f)
                 Box {
-                    for (i in 4 downTo 1) {
+                    for (i in 6 downTo 1) {
+                        // ブロックみたいに厚く: 大きめの段で、奥へ行くほど暗くしながら斜め下へ押し出す
+                        val depthCol = Color(
+                            red = 0.85f - 0.13f * (i / 6f),
+                            green = 0.62f - 0.14f * (i / 6f),
+                            blue = 0.05f - 0.03f * (i / 6f)
+                        )
                         Text(
                             text = annotatedUnit,
-                            color = Color(0xFF8A5A00).copy(alpha = layerAlpha),
+                            color = depthCol.copy(alpha = layerAlpha),
                             fontSize = uSize,
                             fontWeight = FontWeight.Black,
                             textAlign = TextAlign.Center,
                             overflow = TextOverflow.Visible,
                             style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily, lineHeight = uSize * 1.02f),
-                            modifier = Modifier.offset(y = (uSize.value * 0.06f * i).dp)
+                            modifier = Modifier.offset(x = (uSize.value * 0.045f * i).dp, y = (uSize.value * 0.075f * i).dp)
                         )
                     }
                     for ((ox, oy) in ringDirs) {
@@ -3052,6 +3058,61 @@ fun LyricTagSearchDialog(
 
 /** PVレイヤー: 現在の行を文字PVで表示し、前行を退場アニメーションで消す。対訳もここに出す */
 @Composable
+@Composable
+fun PvDopagakiBackground(modifier: Modifier = Modifier) {
+    // ドパガキ専用背景: 金のグラデーション＋回る放射光＋キラキラ
+    val tr = rememberInfiniteTransition(label = "dopaBgSpin")
+    val rotState = tr.animateFloat(
+        initialValue = 0f, targetValue = 360f,
+        animationSpec = infiniteRepeatable(tween(26000, easing = LinearEasing), RepeatMode.Restart),
+        label = "dopaBgRot"
+    )
+    val twkState = tr.animateFloat(
+        initialValue = 0f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(1500, easing = LinearEasing), RepeatMode.Restart),
+        label = "dopaBgTwk"
+    )
+    Box(
+        modifier = modifier.background(
+            Brush.verticalGradient(listOf(Color(0xFF8A5A00), Color(0xFFD9A41B), Color(0xFF7A4D00)))
+        )
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val cx = size.width / 2f
+            val cy = size.height / 2f
+            val maxR = sqrt(cx * cx + cy * cy)
+            val rot = rotState.value
+            for (k in 0 until 12) {
+                val a0 = Math.toRadians((rot + k * 30f).toDouble())
+                val a1 = Math.toRadians((rot + k * 30f + 13f).toDouble())
+                val path = Path().apply {
+                    moveTo(cx, cy)
+                    lineTo(cx + (cos(a0) * maxR).toFloat(), cy + (sin(a0) * maxR).toFloat())
+                    lineTo(cx + (cos(a1) * maxR).toFloat(), cy + (sin(a1) * maxR).toFloat())
+                    close()
+                }
+                drawPath(path, color = Color(0xFFFFE97A).copy(alpha = 0.15f))
+            }
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(Color(0xFFFFF6C8).copy(alpha = 0.8f), Color.Transparent),
+                    center = Offset(cx, cy),
+                    radius = maxR * 0.55f
+                ),
+                radius = maxR * 0.55f,
+                center = Offset(cx, cy)
+            )
+            val twk = twkState.value
+            for (k in 0 until 16) {
+                val sx = ((k * 373) % 100) / 100f * size.width
+                val sy = ((k * 619) % 100) / 100f * size.height
+                val al = 0.3f + 0.7f * abs(sin(twk * 6.2832f + k * 1.7f))
+                drawSparkle(sx, sy, 9f + (k % 3) * 4f, Color(0xFFFFF2B0), al)
+            }
+        }
+    }
+}
+
 fun LyricsPvLayer(
     lines: List<LyricLine>,
     positionMs: Long,
@@ -3183,7 +3244,7 @@ fun LyricsPvLayer(
                     modifier = Modifier.fillMaxWidth().padding(top = (pvTopDp - 70.dp).coerceAtLeast(0.dp)).height(320.dp)
                         .background(
                             brush = Brush.radialGradient(
-                                colors = listOf(Color.hsv((dopaBgPhaseState?.value ?: 0f) * 360f, 0.85f, 1f).copy(alpha = 0.30f), Color.Transparent)
+                                colors = listOf(Color(0xFFFFD700).copy(alpha = 0.30f + 0.14f * sin((dopaBgPhaseState?.value ?: 0f) * 6.2832f)), Color.Transparent)
                             )
                         )
                 )
@@ -3820,7 +3881,10 @@ fun LyricsFullscreenOverlay(
     BoxWithConstraints(modifier = Modifier.fillMaxSize().zIndex(96f)) {
         val fsWidth = maxWidth.value
         val fsLines = lines ?: emptyList()
-        if (artwork != null) {
+        if (dopagaki) {
+            // ドパガキ中はぼかしアートワークも液体も使わず、金色ビカビカ背景にする
+            PvDopagakiBackground(Modifier.fillMaxSize())
+        } else if (artwork != null) {
             Image(
                 bitmap = artwork!!.asImageBitmap(),
                 contentDescription = null,
@@ -3832,7 +3896,7 @@ fun LyricsFullscreenOverlay(
             Box(Modifier.fillMaxSize().background(Color.Black))
         }
         // 横画面でも液体グラデーションを流す（設定ONのとき）
-        if (liquidEnabled) {
+        if (liquidEnabled && !dopagaki) {
             LiquidGradientBackground(baseColor = accentColor, onBlack = false, layerAlpha = 1f, alphaBoost = 1.9f)
         }
         if (fsLines.isEmpty()) {
