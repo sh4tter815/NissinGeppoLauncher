@@ -100,20 +100,30 @@ class LyricsOverlayService : Service() {
             stopSelf()
             return
         }
-        buildOverlay()
-        startClockLoop()
-        startSessionLoops()
+        try {
+            buildOverlay()
+            startClockLoop()
+            startSessionLoops()
+        } catch (e: Exception) {
+            // 窓やセッションの初期化に失敗しても、前景化したサービス自体は生かしておく（次回 start で修復する）
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // 前景化を最初に済ませる（startForegroundService の制限時間に間に合わせるため、修復より先に呼ぶ）
+        startForegroundWithNotification()
         // 自己修復: サービスが生きていても窓だけ剥がれていることがある（HyperOS 等の独自制限）。
         // start のたびに窓の付き具合を確認し、外れていたら作り直す（オンオフし直さなくて済むように）
-        val root = overlayRoot
-        val detached = root == null || !attached ||
-            (!root.isAttachedToWindow && SystemClock.elapsedRealtime() - overlayBuiltAtMs > 3000L)
-        if (detached && Settings.canDrawOverlays(this)) {
-            detachOverlay()
-            buildOverlay()
+        try {
+            val root = overlayRoot
+            val detached = root == null || !attached ||
+                (!root.isAttachedToWindow && SystemClock.elapsedRealtime() - overlayBuiltAtMs > 3000L)
+            if (detached && Settings.canDrawOverlays(this)) {
+                detachOverlay()
+                buildOverlay()
+            }
+        } catch (e: Exception) {
+            // 修復に失敗してもサービスは続ける
         }
         return START_STICKY
     }
