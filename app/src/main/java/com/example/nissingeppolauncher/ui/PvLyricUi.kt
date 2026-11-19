@@ -1136,8 +1136,8 @@ fun PvLyricLine(
                 3 -> ty = (if (ex) camP else camP - 1f) * camSlideYPx
             }
             val driftT = camDriftMs.value / 1000f
-            val driftX = (Math.sin(driftT * 1.185) * 0.7 + Math.sin(driftT * 0.706 + 1.7) * 0.3).toFloat()
-            val driftY = (Math.sin(driftT * 0.938 + 0.6) * 0.7 + Math.sin(driftT * 0.556 + 3.1) * 0.3).toFloat()
+            val driftX = (Math.sin(driftT * 1.185) * 0.7 + Math.sin(driftT * 0.706 + 1.7) * 0.3).toFloat() * (if (dopagaki) 0f else 1f)
+            val driftY = (Math.sin(driftT * 0.938 + 0.6) * 0.7 + Math.sin(driftT * 0.556 + 3.1) * 0.3).toFloat() * (if (dopagaki) 0f else 1f)
             tx += driftX * camDriftAmpXPx
             ty += driftY * camDriftAmpYPx
             Offset(tx, ty)
@@ -1197,11 +1197,11 @@ fun PvLyricLine(
                 }
                 // 手ブレ（サイン波の重ね合わせで、ゆるく漂い続ける）
                 val driftT = camDriftMs.value / 1000f
-                val driftX = (Math.sin(driftT * 1.185) * 0.7 + Math.sin(driftT * 0.706 + 1.7) * 0.3).toFloat()
-                val driftY = (Math.sin(driftT * 0.938 + 0.6) * 0.7 + Math.sin(driftT * 0.556 + 3.1) * 0.3).toFloat()
+                val driftX = (Math.sin(driftT * 1.185) * 0.7 + Math.sin(driftT * 0.706 + 1.7) * 0.3).toFloat() * (if (dopagaki) 0f else 1f)
+                val driftY = (Math.sin(driftT * 0.938 + 0.6) * 0.7 + Math.sin(driftT * 0.556 + 3.1) * 0.3).toFloat() * (if (dopagaki) 0f else 1f)
                 translationX += driftX * camDriftAmpXPx
                 translationY += driftY * camDriftAmpYPx
-                rotationZ += (Math.sin(driftT * 0.647 + 2.0) * 0.35).toFloat()
+                rotationZ += (Math.sin(driftT * 0.647 + 2.0) * 0.35).toFloat() * (if (dopagaki) 0f else 1f)
                 // 3Dモード: 行全体を1枚の面として少し奥へ倒す
                 if (tilt3d) {
                     rotationX = 15f
@@ -1345,18 +1345,36 @@ fun PvLyricLine(
                     val pe = 1f - (1f - ft) * (1f - ft) * (1f - ft)
                     val bcx = size.width / 2f
                     val bcy = size.height / 2f
-                    for (i in 0 until 12) {
+                    for (i in 0 until if (dopagaki) 42 else 12) {
                         val ang = (i * 137.5f + baseSeed * 7f) * 0.0174533f
                         val dist = pe * size.width * (0.16f + (i % 4) * 0.05f)
                         val px = bcx + kotlin.math.cos(ang.toDouble()).toFloat() * dist
                         val py = bcy + kotlin.math.sin(ang.toDouble()).toFloat() * dist * 0.6f
                         val pa = (1f - ft) * 0.8f
                         if (i % 3 == 0) {
-                            drawSparkle(px, py, (1f - ft * 0.5f) * 13f, accentColor, pa)
+                            drawSparkle(px, py, (1f - ft * 0.5f) * 13f, if (dopagaki) Color(0xFFFFE97A) else accentColor, pa)
                         } else {
-                            drawCircle(color = accentColor.copy(alpha = pa), radius = 3.2f, center = Offset(px, py))
+                            drawCircle(color = (if (dopagaki) Color(0xFFFFF2B0) else accentColor).copy(alpha = pa), radius = if (dopagaki) 4.6f else 3.2f, center = Offset(px, py))
                         }
                     }
+                }
+            }
+        }
+        if (dopagaki && !exiting) {
+            // ドパガキ中は常時キラキラ: 行のまわりに星屑が瞬き続ける
+            val dopaTwk = rememberInfiniteTransition(label = "dopaLineSparkle")
+            val dopaTwkV = dopaTwk.animateFloat(
+                initialValue = 0f, targetValue = 1f,
+                animationSpec = infiniteRepeatable(tween(1400, easing = LinearEasing), RepeatMode.Restart),
+                label = "dopaLineSparkleV"
+            )
+            Canvas(modifier = Modifier.matchParentSize().zIndex(6f)) {
+                val phv = dopaTwkV.value
+                for (i in 0 until 26) {
+                    val sx = ((i * 389 + baseSeed * 53) % 100) / 100f * size.width
+                    val sy = ((i * 641 + baseSeed * 29) % 100) / 100f * size.height
+                    val al = 0.25f + 0.75f * abs(sin(phv * 6.2832f + i * 1.93f))
+                    drawSparkle(sx, sy, 7f + (i % 3) * 3.5f, Color(0xFFFFF2B0), al * 0.9f)
                 }
             }
         }
@@ -2072,8 +2090,8 @@ fun PvLyricUnit(
                     val dir = PV_ENTRY_DIRS[Math.floorMod(uSeed * 131 + 7, 8)]
                     // 波に乗るような揺れ: サイン波でなめらかに、位相は文字ごとにずらす
                     val ph = sway.value * 6.2832f + (uSeed % 7) * 0.9f
-                    val swx = sin(ph) * 3.4f * swayScale * TUNE_SWAY_AMP
-                    val swy = sin(ph + 1.3f) * 2.6f * swayScale * TUNE_SWAY_AMP
+                    val swx = sin(ph) * 3.4f * swayScale * TUNE_SWAY_AMP * (if (dopagaki) 0f else 1f)
+                    val swy = sin(ph + 1.3f) * 2.6f * swayScale * TUNE_SWAY_AMP * (if (dopagaki) 0f else 1f)
                     if (swayScale > 1f) rotationZ += sin(ph + 0.7f) * 2.4f * (swayScale - 1f)
                     translationX = dir.first * 52f * (1f - a) + swx * a + if (effectKind == 4 && fxT.value < 1f) sin(fxT.value * 55f + uSeed * 2.7f) * 5f * (1f - fxT.value) else 0f
                     translationY = dir.second * 52f * (1f - a) + swy * a + if (effectKind == 7) sin(a * 6.2832f + uSeed * 0.8f) * 15f * (1f - a) else 0f
@@ -2158,7 +2176,7 @@ fun PvLyricUnit(
             }
             // ドパガキ: 中の虹色グラデーション（位相を36段階に量子化して作り直しを抑える）
             val hueStep = if (dopagaki) ((dopaPhase?.value ?: 0f) * 36f).toInt() else 0
-            val dopaGold = dopagaki && Math.floorMod(uSeed * 31 + staggerIndex * 13, 2) == 0
+            val dopaGold = dopagaki && Math.floorMod(unitText.hashCode() + staggerIndex * 7, 2) == 0
             val dopaAnnotated = remember(annotatedUnit, hueStep, dopaGold) {
                 if (dopagaki) {
                     val cols = if (dopaGold) {
@@ -2233,10 +2251,37 @@ fun PvLyricUnit(
             } else if (dopagaki) {
                 // ドパガキ: パチンコ文字。赤→金の二重縁取りと下方向の押し出しで立体にし、中は虹色グラデーション
                 val layerAlpha = if (dimmed) 0.40f else 0.92f
-                val rOut = uSize.value * 0.10f
-                val rIn = uSize.value * 0.058f
+                val rOut = uSize.value * 0.052f
+                val rIn = uSize.value * 0.030f
                 val ringDirs = listOf(-1f to 0f, 1f to 0f, 0f to -1f, 0f to 1f, -0.7f to -0.7f, 0.7f to -0.7f, -0.7f to 0.7f, 0.7f to 0.7f)
                 Box {
+                    // 立体の一番奥にも縁取りを入れて、ブロック全体が縁取られた形にする（赤が影に見えないように）
+                    val deepX = uSize.value * 0.045f * 6
+                    val deepY = uSize.value * 0.075f * 6
+                    for ((ox, oy) in ringDirs) {
+                        Text(
+                            text = annotatedUnit,
+                            color = Color(0xFFC4001B).copy(alpha = layerAlpha),
+                            fontSize = uSize,
+                            fontWeight = FontWeight.Normal,
+                            textAlign = TextAlign.Center,
+                            overflow = TextOverflow.Visible,
+                            style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily, lineHeight = uSize * 1.02f),
+                            modifier = Modifier.offset(x = (deepX + rOut * ox).dp, y = (deepY + rOut * oy).dp)
+                        )
+                    }
+                    for ((ox, oy) in ringDirs) {
+                        Text(
+                            text = annotatedUnit,
+                            color = Color(0xFFFFC400).copy(alpha = layerAlpha),
+                            fontSize = uSize,
+                            fontWeight = FontWeight.Normal,
+                            textAlign = TextAlign.Center,
+                            overflow = TextOverflow.Visible,
+                            style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily, lineHeight = uSize * 1.02f),
+                            modifier = Modifier.offset(x = (deepX + rIn * ox).dp, y = (deepY + rIn * oy).dp)
+                        )
+                    }
                     for (i in 6 downTo 1) {
                         // ブロックみたいに厚く: 大きめの段で、奥へ行くほど暗くしながら斜め下へ押し出す
                         val depthCol = Color(
@@ -2248,7 +2293,7 @@ fun PvLyricUnit(
                             text = annotatedUnit,
                             color = depthCol.copy(alpha = layerAlpha),
                             fontSize = uSize,
-                            fontWeight = FontWeight.Black,
+                            fontWeight = FontWeight.Normal,
                             textAlign = TextAlign.Center,
                             overflow = TextOverflow.Visible,
                             style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily, lineHeight = uSize * 1.02f),
@@ -2260,7 +2305,7 @@ fun PvLyricUnit(
                             text = annotatedUnit,
                             color = Color(0xFFC4001B).copy(alpha = layerAlpha),
                             fontSize = uSize,
-                            fontWeight = FontWeight.Black,
+                            fontWeight = FontWeight.Normal,
                             textAlign = TextAlign.Center,
                             overflow = TextOverflow.Visible,
                             style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily, lineHeight = uSize * 1.02f),
@@ -2272,7 +2317,7 @@ fun PvLyricUnit(
                             text = annotatedUnit,
                             color = Color(0xFFFFC400).copy(alpha = layerAlpha),
                             fontSize = uSize,
-                            fontWeight = FontWeight.Black,
+                            fontWeight = FontWeight.Normal,
                             textAlign = TextAlign.Center,
                             overflow = TextOverflow.Visible,
                             style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily, lineHeight = uSize * 1.02f),
@@ -2283,7 +2328,7 @@ fun PvLyricUnit(
                         text = annotatedUnit,
                         color = Color.White.copy(alpha = 0.28f * layerAlpha),
                         fontSize = uSize,
-                        fontWeight = FontWeight.Black,
+                        fontWeight = FontWeight.Normal,
                         textAlign = TextAlign.Center,
                         overflow = TextOverflow.Visible,
                         style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily, lineHeight = uSize * 1.02f),
@@ -2293,7 +2338,7 @@ fun PvLyricUnit(
                         text = dopaAnnotated,
                         color = Color.White.copy(alpha = if (dimmed) 0.55f else 1f),
                         fontSize = uSize,
-                        fontWeight = FontWeight.Black,
+                        fontWeight = FontWeight.Normal,
                         textAlign = TextAlign.Center,
                         overflow = TextOverflow.Visible,
                         style = LocalTextStyle.current.copy(
@@ -3058,7 +3103,6 @@ fun LyricTagSearchDialog(
 
 /** PVレイヤー: 現在の行を文字PVで表示し、前行を退場アニメーションで消す。対訳もここに出す */
 @Composable
-@Composable
 fun PvDopagakiBackground(modifier: Modifier = Modifier) {
     // ドパガキ専用背景: 金のグラデーション＋回る放射光＋キラキラ
     val tr = rememberInfiniteTransition(label = "dopaBgSpin")
@@ -3113,6 +3157,7 @@ fun PvDopagakiBackground(modifier: Modifier = Modifier) {
     }
 }
 
+@Composable
 fun LyricsPvLayer(
     lines: List<LyricLine>,
     positionMs: Long,
