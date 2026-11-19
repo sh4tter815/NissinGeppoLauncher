@@ -260,8 +260,8 @@ fun MainLauncherScreen() {
         if (repo.prefManager.isStatusBarLyricsEnabled() && android.provider.Settings.canDrawOverlays(context)) {
             // 自己修復: サービスが死んでいる・応答していないときは、トグルし直さなくても再起動する
             val svc = com.example.nissingeppolauncher.service.LyricsOverlayService
-            val stale = !svc.isAlive || (android.os.SystemClock.elapsedRealtime() - svc.lastHeartbeatMs > 4000L)
-            if (stale) svc.stop(context)
+            // 再起動は start の呼び直しだけで行う。stop を挟むと前景サービスの開始が競合し、
+            // 制限時間内に前景化できずアプリごと落ちることがあるため、ここでは止めない
             svc.start(context)
         }
     }
@@ -297,8 +297,6 @@ fun MainLauncherScreen() {
                 com.example.nissingeppolauncher.service.LyricsOverlayService.launcherInForeground = true
                 if (repo.prefManager.isStatusBarLyricsEnabled() && android.provider.Settings.canDrawOverlays(context)) {
                     val svc = com.example.nissingeppolauncher.service.LyricsOverlayService
-                    val stale = !svc.isAlive || (android.os.SystemClock.elapsedRealtime() - svc.lastHeartbeatMs > 4000L)
-                    if (stale) svc.stop(context)
                     svc.start(context)
                 }
             } else if (event == androidx.lifecycle.Lifecycle.Event.ON_PAUSE) {
