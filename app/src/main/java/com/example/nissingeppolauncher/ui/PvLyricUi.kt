@@ -2190,7 +2190,7 @@ fun PvLyricUnit(
             val dopaAnnotated = remember(annotatedUnit) {
                 if (dopagaki) {
                     // 赤金属グラデーション: 上に白いツヤ、下へ深い赤
-                    val cols = listOf(Color(0xFFFFF1F1), Color(0xFFFF4040), Color(0xFFE60012), Color(0xFF8F0000))
+                    val cols = listOf(Color(0xFFFFE3E3), Color(0xFFFF5A4E), Color(0xFFD90015), Color(0xFF8F0010), Color(0xFF4D000A))
                     AnnotatedString(
                         text = annotatedUnit.text,
                         spanStyles = annotatedUnit.spanStyles + listOf(
@@ -2255,104 +2255,49 @@ fun PvLyricUnit(
                     }
                 }
             } else if (dopagaki) {
-                // ドパガキ: パチンコ文字。赤→金の二重縁取りと下方向の押し出しで立体にし、中は虹色グラデーション
+                // ドパガキ: 立体はなし。暗めの赤金属＋テカテカのツヤ＋文字の上のキラキラに全振り
                 val layerAlpha = if (dimmed) 0.40f else 0.92f
-                val rOut = uSize.value * 0.052f
-                val rIn = uSize.value * 0.030f
+                val rOut = uSize.value * 0.062f
+                val rIn = uSize.value * 0.036f
                 val ringDirs = listOf(-1f to 0f, 1f to 0f, 0f to -1f, 0f to 1f, -0.7f to -0.7f, 0.7f to -0.7f, -0.7f to 0.7f, 0.7f to 0.7f)
-                Box {
-                    Box(
-                        modifier = Modifier
-                            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-                            .drawWithContent {
-                                drawContent()
-                                // 立体部分に縦縞（金属の反射の溝）を重ねる。SrcAtopで立体の形の中だけに効かせる
-                                val stripeW = size.height * 0.11f
-                                var sx = -size.height * 0.25f
-                                var k = 0
-                                while (sx < size.width + size.height * 0.35f) {
-                                    drawRect(
-                                        color = if (k % 2 == 0) Color(0xFF5F3D00).copy(alpha = 0.30f) else Color(0xFFFFF6C8).copy(alpha = 0.20f),
-                                        topLeft = Offset(sx, -size.height * 0.15f),
-                                        size = Size(stripeW, size.height * 1.75f),
-                                        blendMode = BlendMode.SrcAtop
+                val sheenPx = with(LocalDensity.current) { uSize.toPx() }
+                val sheenAnnotated = remember(annotatedUnit, sheenPx) {
+                    AnnotatedString(
+                        text = annotatedUnit.text,
+                        spanStyles = annotatedUnit.spanStyles + listOf(
+                            AnnotatedString.Range(
+                                SpanStyle(
+                                    brush = Brush.linearGradient(
+                                        colors = listOf(Color.White.copy(alpha = 0.95f), Color.White.copy(alpha = 0.20f), Color.Transparent),
+                                        start = Offset(0f, 0f),
+                                        end = Offset(sheenPx * 0.35f, sheenPx * 0.85f)
                                     )
-                                    sx += stripeW
-                                    k++
-                                }
+                                ),
+                                0, annotatedUnit.text.length
+                            )
+                        ),
+                        paragraphStyles = annotatedUnit.paragraphStyles
+                    )
+                }
+                Box(
+                    modifier = Modifier.drawWithContent {
+                        drawContent()
+                        // 文字の上に星のキラキラを散らす
+                        if (!exiting) {
+                            val tw = sway.value
+                            for (k in 0 until 3) {
+                                val fx = ((uSeed * 37 + k * 41) % 72 + 14) / 100f * size.width
+                                val fy = ((uSeed * 53 + k * 29) % 60 + 12) / 100f * size.height
+                                val al = 0.35f + 0.65f * abs(sin(tw * 6.2832f + k * 2.1f + uSeed * 1.3f))
+                                drawSparkle(fx, fy, (5f + (k % 2) * 3f) * (size.height / 60f), Color.White, al)
                             }
-                    ) {
-                    // 立体の一番奥にも縁取りを入れて、ブロック全体が縁取られた形にする（赤が影に見えないように）
-                    val deepX = uSize.value * 0.012f * 6
-                    val deepY = uSize.value * 0.075f * 6
-                    for ((ox, oy) in ringDirs) {
-                        Text(
-                            text = annotatedUnit,
-                            color = Color(0xFFC4001B).copy(alpha = layerAlpha),
-                            fontSize = uSize,
-                            fontWeight = FontWeight.Normal,
-                            textAlign = TextAlign.Center,
-                            overflow = TextOverflow.Visible,
-                            style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily, lineHeight = uSize * 1.02f),
-                            modifier = Modifier.offset(x = (deepX + rOut * ox).dp, y = (deepY + rOut * oy).dp)
-                        )
+                        }
                     }
+                ) {
                     for ((ox, oy) in ringDirs) {
                         Text(
                             text = annotatedUnit,
                             color = Color(0xFFFFC400).copy(alpha = layerAlpha),
-                            fontSize = uSize,
-                            fontWeight = FontWeight.Normal,
-                            textAlign = TextAlign.Center,
-                            overflow = TextOverflow.Visible,
-                            style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily, lineHeight = uSize * 1.02f),
-                            modifier = Modifier.offset(x = (deepX + rIn * ox).dp, y = (deepY + rIn * oy).dp)
-                        )
-                    }
-                    // ブロックみたいに厚く押し出す。段ごとに濃さを交互に変えて、金属の反射の縞に見せる
-                    val depthBand = listOf(1.0f, 0.82f, 0.88f, 0.66f, 0.72f, 0.50f)
-                    for (i in 6 downTo 4) {
-                        val b = depthBand[i - 1]
-                        Text(
-                            text = annotatedUnit,
-                            color = Color(red = 0.85f * b, green = 0.62f * b, blue = 0.05f * b).copy(alpha = layerAlpha),
-                            fontSize = uSize,
-                            fontWeight = FontWeight.Normal,
-                            textAlign = TextAlign.Center,
-                            overflow = TextOverflow.Visible,
-                            style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily, lineHeight = uSize * 1.02f),
-                            modifier = Modifier.offset(x = (uSize.value * 0.012f * i).dp, y = (uSize.value * 0.075f * i).dp)
-                        )
-                    }
-                    // 反射の明るい帯: 側面の途中に1本、薄く光る帯を入れる
-                    Text(
-                        text = annotatedUnit,
-                        color = Color(0xFFFFF0B8).copy(alpha = 0.38f * layerAlpha),
-                        fontSize = uSize,
-                        fontWeight = FontWeight.Normal,
-                        textAlign = TextAlign.Center,
-                        overflow = TextOverflow.Visible,
-                        style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily, lineHeight = uSize * 1.02f),
-                        modifier = Modifier.offset(x = (uSize.value * 0.012f * 3.5f).dp, y = (uSize.value * 0.075f * 3.5f).dp)
-                    )
-                    for (i in 3 downTo 1) {
-                        val b = depthBand[i - 1]
-                        Text(
-                            text = annotatedUnit,
-                            color = Color(red = 0.85f * b, green = 0.62f * b, blue = 0.05f * b).copy(alpha = layerAlpha),
-                            fontSize = uSize,
-                            fontWeight = FontWeight.Normal,
-                            textAlign = TextAlign.Center,
-                            overflow = TextOverflow.Visible,
-                            style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily, lineHeight = uSize * 1.02f),
-                            modifier = Modifier.offset(x = (uSize.value * 0.012f * i).dp, y = (uSize.value * 0.075f * i).dp)
-                        )
-                    }
-                    }
-                    for ((ox, oy) in ringDirs) {
-                        Text(
-                            text = annotatedUnit,
-                            color = Color(0xFFC4001B).copy(alpha = layerAlpha),
                             fontSize = uSize,
                             fontWeight = FontWeight.Normal,
                             textAlign = TextAlign.Center,
@@ -2364,7 +2309,7 @@ fun PvLyricUnit(
                     for ((ox, oy) in ringDirs) {
                         Text(
                             text = annotatedUnit,
-                            color = Color(0xFFFFC400).copy(alpha = layerAlpha),
+                            color = Color.White.copy(alpha = layerAlpha),
                             fontSize = uSize,
                             fontWeight = FontWeight.Normal,
                             textAlign = TextAlign.Center,
@@ -2373,16 +2318,6 @@ fun PvLyricUnit(
                             modifier = Modifier.offset(x = (rIn * ox).dp, y = (rIn * oy).dp)
                         )
                     }
-                    Text(
-                        text = annotatedUnit,
-                        color = Color.White.copy(alpha = (if (exiting) 0.28f else 0.28f + (1f - uAnim.value) * 0.5f) * layerAlpha),
-                        fontSize = uSize,
-                        fontWeight = FontWeight.Normal,
-                        textAlign = TextAlign.Center,
-                        overflow = TextOverflow.Visible,
-                        style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily, lineHeight = uSize * 1.02f),
-                        modifier = Modifier.offset(x = (-(uSize.value * 0.022f)).dp, y = (-(uSize.value * 0.022f)).dp)
-                    )
                     Text(
                         text = dopaAnnotated,
                         color = Color.White.copy(alpha = if (dimmed) 0.55f else 1f),
@@ -2393,10 +2328,20 @@ fun PvLyricUnit(
                         style = LocalTextStyle.current.copy(
                             fontFamily = DopagakiFontFamily,
                             lineHeight = uSize * 1.02f,
-                            shadow = Shadow(color = Color(0xFFFFD700).copy(alpha = 0.9f), blurRadius = 30f)
+                            shadow = Shadow(color = Color(0xFFFF3050).copy(alpha = 0.75f), blurRadius = 24f)
                         )
                     )
+                    Text(
+                        text = sheenAnnotated,
+                        color = Color.White.copy(alpha = if (dimmed) 0.4f else 0.9f),
+                        fontSize = uSize,
+                        fontWeight = FontWeight.Normal,
+                        textAlign = TextAlign.Center,
+                        overflow = TextOverflow.Visible,
+                        style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily, lineHeight = uSize * 1.02f)
+                    )
                 }
+
             } else {
             Text(
                 text = annotatedUnit,
@@ -3167,7 +3112,7 @@ fun PvDopagakiBackground(modifier: Modifier = Modifier) {
     )
     Box(
         modifier = modifier.background(
-            Brush.verticalGradient(listOf(Color(0xFF8A5A00), Color(0xFFD9A41B), Color(0xFF7A4D00)))
+            Brush.verticalGradient(listOf(Color(0xFF8A5A00), Color(0xFFF0B41F), Color(0xFF7A4D00)))
         )
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
@@ -3175,20 +3120,20 @@ fun PvDopagakiBackground(modifier: Modifier = Modifier) {
             val cy = size.height / 2f
             val maxR = sqrt(cx * cx + cy * cy)
             val rot = rotState.value
-            for (k in 0 until 12) {
-                val a0 = Math.toRadians((rot + k * 30f).toDouble())
-                val a1 = Math.toRadians((rot + k * 30f + 13f).toDouble())
+            for (k in 0 until 16) {
+                val a0 = Math.toRadians((rot + k * 22.5f).toDouble())
+                val a1 = Math.toRadians((rot + k * 22.5f + 10f).toDouble())
                 val path = Path().apply {
                     moveTo(cx, cy)
                     lineTo(cx + (cos(a0) * maxR).toFloat(), cy + (sin(a0) * maxR).toFloat())
                     lineTo(cx + (cos(a1) * maxR).toFloat(), cy + (sin(a1) * maxR).toFloat())
                     close()
                 }
-                drawPath(path, color = Color(0xFFFFE97A).copy(alpha = 0.15f))
+                drawPath(path, color = Color(0xFFFFE97A).copy(alpha = 0.20f))
             }
             drawCircle(
                 brush = Brush.radialGradient(
-                    colors = listOf(Color(0xFFFFF6C8).copy(alpha = 0.8f), Color.Transparent),
+                    colors = listOf(Color(0xFFFFF6C8).copy(alpha = 0.95f), Color.Transparent),
                     center = Offset(cx, cy),
                     radius = maxR * 0.55f
                 ),
@@ -3197,7 +3142,7 @@ fun PvDopagakiBackground(modifier: Modifier = Modifier) {
             )
             val twk = twkState.value
             // スパンコール: 小さな四角が一面に瞬く
-            for (k in 0 until 42) {
+            for (k in 0 until 80) {
                 val qx = ((k * 271) % 100) / 100f * size.width
                 val qy = ((k * 389) % 100) / 100f * size.height
                 val qa = 0.15f + 0.5f * abs(sin(twk * 6.2832f + k * 2.3f))
@@ -3208,7 +3153,7 @@ fun PvDopagakiBackground(modifier: Modifier = Modifier) {
                     size = Size(qs, qs)
                 )
             }
-            for (k in 0 until 16) {
+            for (k in 0 until 34) {
                 val sx = ((k * 373) % 100) / 100f * size.width
                 val sy = ((k * 619) % 100) / 100f * size.height
                 val al = 0.3f + 0.7f * abs(sin(twk * 6.2832f + k * 1.7f))
