@@ -187,6 +187,7 @@ fun MainLauncherScreen() {
     var lyricsEnCustomPath by remember { mutableStateOf(repo.prefManager.getLyricsEnCustomFontPath()) }
     var lyricsBold by remember { mutableStateOf(repo.prefManager.isLyricsBold()) }
     var pvPartsEntry by remember { mutableStateOf(repo.prefManager.isPvPartsEntryEnabled()) }
+    var dopagakiMode by remember { mutableStateOf(repo.prefManager.isDopagakiEnabled()) }
     // 色塗り行でのアクセントフラッシュ（液体背景とPVのグローが一瞬その色になる）。一定時間で自動で戻る
     var pvFlashColor by remember { mutableStateOf<Color?>(null) }
     LaunchedEffect(pvFlashColor) {
@@ -888,6 +889,7 @@ fun MainLauncherScreen() {
                     interludeTopDp = topPaddingDp + 145.dp,
                     translationTopDp = topPaddingDp + 320.dp,
                     partsEntry = pvPartsEntry,
+                    dopagaki = dopagakiMode,
                     enFontFamily = lyricsEnFontArg,
                     onAccentFlash = { pvFlashColor = it }
                 )
@@ -936,6 +938,7 @@ fun MainLauncherScreen() {
                                 lyricsEnFont = repo.prefManager.getLyricsEnFont()
                                 lyricsEnCustomPath = repo.prefManager.getLyricsEnCustomFontPath()
                                 lyricsBold = repo.prefManager.isLyricsBold()
+                                dopagakiMode = repo.prefManager.isDopagakiEnabled()
                             },
                             onAppsUpdated = {
                                 refreshApps()
@@ -1939,6 +1942,7 @@ fun MainLauncherScreen() {
                 artist = sessionTrackArtist,
                 album = sessionTrackAlbum,
                 partsEntry = pvPartsEntry,
+                dopagaki = dopagakiMode,
                 onClose = { pvFullscreen = false }
             )
         }
