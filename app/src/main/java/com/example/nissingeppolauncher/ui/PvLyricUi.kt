@@ -3724,8 +3724,8 @@ fun LyricsBrowseOverlay(
                         )
                     )
                 }
-                if (idx == browsePlayingIdx && lines[idx].words.isEmpty()) {
-                    // 行同期の行には進行バーを付ける（文字同期の行はカラオケ色付けが進み具合を見せる）
+                if (idx == browsePlayingIdx) {
+                    // 再生中の行には進行バーを付ける（文字同期の行も、カラオケ色付けと併せて出す）
                     val lineStartP = lines[idx].timeMs
                     val lineEndP = lines.getOrNull(idx + 1)?.timeMs ?: (lineStartP + 10000L)
                     val progP = ((positionMs + lyricOffsetMs - lineStartP).toFloat() / (lineEndP - lineStartP).coerceAtLeast(1L).toFloat()).coerceIn(0f, 1f)
