@@ -238,6 +238,8 @@ class AppPreferenceManager(private val context: Context) {
     fun setLyricsBold(value: Boolean) { prefs.edit().putBoolean("lyrics_bold", value).apply() }
     fun isPvPartsEntryEnabled(): Boolean = prefs.getBoolean("pv_parts_entry", false)
     fun setPvPartsEntryEnabled(value: Boolean) { prefs.edit().putBoolean("pv_parts_entry", value).apply() }
+    fun isDopagakiEnabled(): Boolean = prefs.getBoolean("dopagaki_mode", false)
+    fun setDopagakiEnabled(value: Boolean) { prefs.edit().putBoolean("dopagaki_mode", value).apply() }
     fun isStatusBarLyricsEnabled(): Boolean = prefs.getBoolean("status_bar_lyrics", false)
     fun setStatusBarLyricsEnabled(value: Boolean) { prefs.edit().putBoolean("status_bar_lyrics", value).apply() }
     // スリープタイマー: 終了時刻（epoch ms、0=無効）と選択中の分数
