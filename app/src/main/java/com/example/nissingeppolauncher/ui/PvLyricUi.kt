@@ -97,6 +97,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -1873,10 +1874,6 @@ fun PvLyricUnit(
         }
     }
     // 震える単語の文字だけ、速い周期の位相を共有する（対象ユニットが少ないのでコストは小さい）
-    // ドパガキモード: 文字色が虹色に回り、グローは金色になる
-    val dopaColor: Color? = if (dopagaki) {
-        Color.hsv(((dopaPhase?.value ?: 0f) * 360f + staggerIndex * 24f) % 360f, 0.75f, 1f)
-    } else null
     val quakePhaseState = if (quake && !exiting) {
         val quakeTransition = rememberInfiniteTransition(label = "quake")
         quakeTransition.animateFloat(
@@ -2086,14 +2083,6 @@ fun PvLyricUnit(
                         translationX += sin(qp * 3f + uSeed * 2.2f) * 1.7f
                         translationY += cos(qp * 4f + uSeed * 1.7f) * 1.4f
                     }
-                    if (dopagaki) {
-                        // パチンコみたいにチカチカ点滅させ、ビートっぽく脈動させる
-                        val dpv = dopaPhase?.value ?: 0f
-                        if (sin(dpv * 6.2832f * 3f + uSeed * 1.7f) <= -0.55f) alpha *= 0.45f
-                        val pulse = 1f + 0.07f * sin(dpv * 6.2832f * 2f + uSeed * 0.9f)
-                        scaleX *= pulse
-                        scaleY *= pulse
-                    }
                 }
                 // 句読点の扱い: ！？は大きく傾け、。、・…は小さくする
                 when (unitText) {
@@ -2167,6 +2156,20 @@ fun PvLyricUnit(
                     modifier = Modifier.offset(x = (-3.5).dp)
                 )
             }
+            // ドパガキ: 中の虹色グラデーション（位相を36段階に量子化して作り直しを抑える）
+            val hueStep = if (dopagaki) ((dopaPhase?.value ?: 0f) * 36f).toInt() else 0
+            val dopaAnnotated = remember(annotatedUnit, hueStep) {
+                if (dopagaki) {
+                    val cols = (0..4).map { i -> Color.hsv((hueStep * 10f + i * 72f + staggerIndex * 24f) % 360f, 0.62f, 1f) }
+                    AnnotatedString(
+                        text = annotatedUnit.text,
+                        spanStyles = annotatedUnit.spanStyles + listOf(
+                            AnnotatedString.Range(SpanStyle(brush = Brush.verticalGradient(colors = cols)), 0, annotatedUnit.text.length)
+                        ),
+                        paragraphStyles = annotatedUnit.paragraphStyles
+                    )
+                } else annotatedUnit
+            }
             if (pile) {
                 // 積もる・重なる系の文字: 同じ文字を上に何枚も重ねて、積み重なりを表現する（上ほど薄く）
                 for (layer in 2 downTo 1) {
@@ -2221,10 +2224,67 @@ fun PvLyricUnit(
                         )
                     }
                 }
+            } else if (dopagaki) {
+                // ドパガキ: パチンコ文字。赤→金の二重縁取りと下方向の押し出しで立体にし、中は虹色グラデーション
+                val layerAlpha = if (dimmed) 0.40f else 0.92f
+                val rOut = uSize.value * 0.085f
+                val rIn = uSize.value * 0.048f
+                val ringDirs = listOf(-1f to 0f, 1f to 0f, 0f to -1f, 0f to 1f, -0.7f to -0.7f, 0.7f to -0.7f, -0.7f to 0.7f, 0.7f to 0.7f)
+                Box {
+                    for (i in 2 downTo 1) {
+                        Text(
+                            text = annotatedUnit,
+                            color = Color(0xFF8A5A00).copy(alpha = layerAlpha),
+                            fontSize = uSize,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            overflow = TextOverflow.Visible,
+                            style = LocalTextStyle.current.copy(fontFamily = fontFamily, lineHeight = uSize * 1.02f),
+                            modifier = Modifier.offset(y = (uSize.value * 0.055f * i).dp)
+                        )
+                    }
+                    for ((ox, oy) in ringDirs) {
+                        Text(
+                            text = annotatedUnit,
+                            color = Color(0xFFC4001B).copy(alpha = layerAlpha),
+                            fontSize = uSize,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            overflow = TextOverflow.Visible,
+                            style = LocalTextStyle.current.copy(fontFamily = fontFamily, lineHeight = uSize * 1.02f),
+                            modifier = Modifier.offset(x = (rOut * ox).dp, y = (rOut * oy).dp)
+                        )
+                    }
+                    for ((ox, oy) in ringDirs) {
+                        Text(
+                            text = annotatedUnit,
+                            color = Color(0xFFFFC400).copy(alpha = layerAlpha),
+                            fontSize = uSize,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            overflow = TextOverflow.Visible,
+                            style = LocalTextStyle.current.copy(fontFamily = fontFamily, lineHeight = uSize * 1.02f),
+                            modifier = Modifier.offset(x = (rIn * ox).dp, y = (rIn * oy).dp)
+                        )
+                    }
+                    Text(
+                        text = dopaAnnotated,
+                        color = Color.White.copy(alpha = if (dimmed) 0.55f else 1f),
+                        fontSize = uSize,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        overflow = TextOverflow.Visible,
+                        style = LocalTextStyle.current.copy(
+                            fontFamily = fontFamily,
+                            lineHeight = uSize * 1.02f,
+                            shadow = Shadow(color = Color(0xFFFFD700).copy(alpha = 0.9f), blurRadius = 26f)
+                        )
+                    )
+                }
             } else {
             Text(
                 text = annotatedUnit,
-            color = if (dopaColor != null) dopaColor.copy(alpha = if (dimmed) 0.55f else 1f) else Color.White.copy(alpha = if (dimmed) 0.40f else 0.92f),
+            color = Color.White.copy(alpha = if (dimmed) 0.40f else 0.92f),
             fontSize = uSize,
             fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
             textAlign = TextAlign.Center,
@@ -2232,7 +2292,7 @@ fun PvLyricUnit(
             style = LocalTextStyle.current.copy(
                 fontFamily = fontFamily,
                 lineHeight = uSize * 1.02f,
-                    shadow = Shadow(color = if (dopaColor != null) Color(0xFFFFD700).copy(alpha = 0.95f) else accentColor.copy(alpha = if (dimmed) 0.35f else 0.85f), blurRadius = if (dopaColor != null) 30f else 22f)
+                    shadow = Shadow(color = accentColor.copy(alpha = if (dimmed) 0.35f else 0.85f), blurRadius = 22f)
                 )
             )
             }

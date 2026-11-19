@@ -994,7 +994,7 @@ fun SettingsScreen(
                                         ) {
                                             Column(modifier = Modifier.weight(1f)) {
                                                 Text("ドパガキモード", color = Color.White, fontSize = 14.sp)
-                                                Text("リリックビデオがパチンコみたいに虹色チカチカになります", color = Color.Gray, fontSize = 12.sp)
+                                                Text("リリックビデオの文字がパチンコみたいな立体文字になります", color = Color.Gray, fontSize = 12.sp)
                                             }
                                             Switch(
                                                 checked = dopagakiMode,
