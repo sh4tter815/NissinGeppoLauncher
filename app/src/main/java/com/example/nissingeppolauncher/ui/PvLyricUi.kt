@@ -2158,9 +2158,15 @@ fun PvLyricUnit(
             }
             // ドパガキ: 中の虹色グラデーション（位相を36段階に量子化して作り直しを抑える）
             val hueStep = if (dopagaki) ((dopaPhase?.value ?: 0f) * 36f).toInt() else 0
-            val dopaAnnotated = remember(annotatedUnit, hueStep) {
+            val dopaGold = dopagaki && Math.floorMod(uSeed * 31 + staggerIndex * 13, 2) == 0
+            val dopaAnnotated = remember(annotatedUnit, hueStep, dopaGold) {
                 if (dopagaki) {
-                    val cols = (0..4).map { i -> Color.hsv((hueStep * 10f + i * 72f + staggerIndex * 24f) % 360f, 0.62f, 1f) }
+                    val cols = if (dopaGold) {
+                        // 金の文字: 金属っぽい縦グラデーション
+                        listOf(Color(0xFFFFF6C8), Color(0xFFFFD700), Color(0xFFC9930A), Color(0xFFFFE97A))
+                    } else {
+                        (0..4).map { i -> Color.hsv((hueStep * 10f + i * 72f + staggerIndex * 24f) % 360f, 0.62f, 1f) }
+                    }
                     AnnotatedString(
                         text = annotatedUnit.text,
                         spanStyles = annotatedUnit.spanStyles + listOf(
@@ -2239,7 +2245,7 @@ fun PvLyricUnit(
                             fontWeight = FontWeight.Black,
                             textAlign = TextAlign.Center,
                             overflow = TextOverflow.Visible,
-                            style = LocalTextStyle.current.copy(fontFamily = fontFamily, lineHeight = uSize * 1.02f),
+                            style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily, lineHeight = uSize * 1.02f),
                             modifier = Modifier.offset(y = (uSize.value * 0.06f * i).dp)
                         )
                     }
@@ -2251,7 +2257,7 @@ fun PvLyricUnit(
                             fontWeight = FontWeight.Black,
                             textAlign = TextAlign.Center,
                             overflow = TextOverflow.Visible,
-                            style = LocalTextStyle.current.copy(fontFamily = fontFamily, lineHeight = uSize * 1.02f),
+                            style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily, lineHeight = uSize * 1.02f),
                             modifier = Modifier.offset(x = (rOut * ox).dp, y = (rOut * oy).dp)
                         )
                     }
@@ -2263,7 +2269,7 @@ fun PvLyricUnit(
                             fontWeight = FontWeight.Black,
                             textAlign = TextAlign.Center,
                             overflow = TextOverflow.Visible,
-                            style = LocalTextStyle.current.copy(fontFamily = fontFamily, lineHeight = uSize * 1.02f),
+                            style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily, lineHeight = uSize * 1.02f),
                             modifier = Modifier.offset(x = (rIn * ox).dp, y = (rIn * oy).dp)
                         )
                     }
@@ -2274,7 +2280,7 @@ fun PvLyricUnit(
                         fontWeight = FontWeight.Black,
                         textAlign = TextAlign.Center,
                         overflow = TextOverflow.Visible,
-                        style = LocalTextStyle.current.copy(fontFamily = fontFamily, lineHeight = uSize * 1.02f),
+                        style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily, lineHeight = uSize * 1.02f),
                         modifier = Modifier.offset(x = (-(uSize.value * 0.022f)).dp, y = (-(uSize.value * 0.022f)).dp)
                     )
                     Text(
@@ -2285,7 +2291,7 @@ fun PvLyricUnit(
                         textAlign = TextAlign.Center,
                         overflow = TextOverflow.Visible,
                         style = LocalTextStyle.current.copy(
-                            fontFamily = fontFamily,
+                            fontFamily = DopagakiFontFamily,
                             lineHeight = uSize * 1.02f,
                             shadow = Shadow(color = Color(0xFFFFD700).copy(alpha = 0.9f), blurRadius = 30f)
                         )
@@ -3205,7 +3211,7 @@ fun LyricsPvLayer(
                         accentColor = accentColor,
                         screenWidthDp = screenWidthDp,
                         exiting = true,
-                        effectKind = pvKindFor(exIdx, exText),
+                        effectKind = if (dopagaki) 6 else pvKindFor(exIdx, exText),
                         lineDurationMs = lines.getOrNull(exIdx + 1)?.let { it.timeMs - lines[exIdx].timeMs } ?: Long.MAX_VALUE,
                         startsInParen = pvStartsInParen(lines, exIdx),
                         partsEntry = partsEntry,
@@ -3234,7 +3240,7 @@ fun LyricsPvLayer(
                         enFontFamily = enFontFamily,
                                 camFlow = pvCamFlowFor(curIdx, curText),
                                 tilt3d = pvTilt3d, dopagaki = dopagaki,
-                                effectKind = pvKindFor(curIdx, curText),
+                                effectKind = if (dopagaki) 6 else pvKindFor(curIdx, curText),
                                 lineDurationMs = lines.getOrNull(curIdx + 1)?.let { it.timeMs - lines[curIdx].timeMs } ?: Long.MAX_VALUE,
                                 startsInParen = pvStartsInParen(lines, curIdx),
                                 modifier = Modifier
@@ -3925,7 +3931,7 @@ fun LyricsFullscreenOverlay(
                                 camFlow = fsCurrent?.let { fsCamFlowFor(it.first, it.second) } ?: fsCamFlowFor(exIdx + 1, fsLines.getOrNull(exIdx + 1)?.text ?: ""),
                                 tilt3d = pvTilt3d, dopagaki = dopagaki,
                                 exiting = true,
-                                effectKind = Math.floorMod(Math.floorMod(exIdx * 31 + exText.hashCode(), 997), 8),
+                                effectKind = if (dopagaki) 6 else Math.floorMod(Math.floorMod(exIdx * 31 + exText.hashCode(), 997), 8),
                                 modifier = Modifier
                             )
                         }
@@ -3949,7 +3955,7 @@ fun LyricsFullscreenOverlay(
                                 exiting = false,
                                 words = fsLines[curIdx].words,
                                 lineStartMs = fsLines[curIdx].timeMs,
-                                effectKind = Math.floorMod(Math.floorMod(curIdx * 31 + curText.hashCode(), 997), 8),
+                                effectKind = if (dopagaki) 6 else Math.floorMod(Math.floorMod(curIdx * 31 + curText.hashCode(), 997), 8),
                                 modifier = Modifier
                             )
                         }
