@@ -38,6 +38,9 @@ val MontserratBoldItalicFontFamily = FontFamily(Font(R.font.montserrat_bold_ital
 
 val KaibunshoFontFamily = FontFamily(Font(R.font.kaibunsyo_font))
 
+/** ドパガキモード専用フォント: 玉ねぎ楷書「激」。収録されていない文字はシステムフォント（ゴシック）へ自動でフォールバックする */
+val DopagakiFontFamily = FontFamily(Font(R.font.dopagaki_font))
+
 fun parseFontFamily(fontChoice: String, customPath: String?): FontFamily {
     return when (fontChoice) {
         "receipt" -> ReceiptFontFamily
