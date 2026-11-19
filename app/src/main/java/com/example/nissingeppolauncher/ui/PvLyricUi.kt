@@ -2282,16 +2282,37 @@ fun PvLyricUnit(
                             modifier = Modifier.offset(x = (deepX + rIn * ox).dp, y = (deepY + rIn * oy).dp)
                         )
                     }
-                    for (i in 6 downTo 1) {
-                        // ブロックみたいに厚く: 大きめの段で、奥へ行くほど暗くしながら斜め下へ押し出す
-                        val depthCol = Color(
-                            red = 0.85f - 0.13f * (i / 6f),
-                            green = 0.62f - 0.14f * (i / 6f),
-                            blue = 0.05f - 0.03f * (i / 6f)
-                        )
+                    // ブロックみたいに厚く押し出す。段ごとに濃さを交互に変えて、金属の反射の縞に見せる
+                    val depthBand = listOf(0.92f, 0.66f, 1.0f, 0.60f, 0.85f, 0.52f)
+                    for (i in 6 downTo 4) {
+                        val b = depthBand[i - 1]
                         Text(
                             text = annotatedUnit,
-                            color = depthCol.copy(alpha = layerAlpha),
+                            color = Color(red = 0.85f * b, green = 0.62f * b, blue = 0.05f * b).copy(alpha = layerAlpha),
+                            fontSize = uSize,
+                            fontWeight = FontWeight.Normal,
+                            textAlign = TextAlign.Center,
+                            overflow = TextOverflow.Visible,
+                            style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily, lineHeight = uSize * 1.02f),
+                            modifier = Modifier.offset(x = (uSize.value * 0.045f * i).dp, y = (uSize.value * 0.075f * i).dp)
+                        )
+                    }
+                    // 反射の明るい帯: 側面の途中に1本、薄く光る帯を入れる
+                    Text(
+                        text = annotatedUnit,
+                        color = Color(0xFFFFF0B8).copy(alpha = 0.38f * layerAlpha),
+                        fontSize = uSize,
+                        fontWeight = FontWeight.Normal,
+                        textAlign = TextAlign.Center,
+                        overflow = TextOverflow.Visible,
+                        style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily, lineHeight = uSize * 1.02f),
+                        modifier = Modifier.offset(x = (uSize.value * 0.045f * 3.5f).dp, y = (uSize.value * 0.075f * 3.5f).dp)
+                    )
+                    for (i in 3 downTo 1) {
+                        val b = depthBand[i - 1]
+                        Text(
+                            text = annotatedUnit,
+                            color = Color(red = 0.85f * b, green = 0.62f * b, blue = 0.05f * b).copy(alpha = layerAlpha),
                             fontSize = uSize,
                             fontWeight = FontWeight.Normal,
                             textAlign = TextAlign.Center,
