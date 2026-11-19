@@ -2261,7 +2261,27 @@ fun PvLyricUnit(
                 val rIn = uSize.value * 0.030f
                 val ringDirs = listOf(-1f to 0f, 1f to 0f, 0f to -1f, 0f to 1f, -0.7f to -0.7f, 0.7f to -0.7f, -0.7f to 0.7f, 0.7f to 0.7f)
                 Box {
-                    Box(modifier = Modifier.graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }) {
+                    Box(
+                        modifier = Modifier
+                            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                            .drawWithContent {
+                                drawContent()
+                                // 立体部分に縦縞（金属の反射の溝）を重ねる。SrcAtopで立体の形の中だけに効かせる
+                                val stripeW = size.height * 0.11f
+                                var sx = -size.height * 0.25f
+                                var k = 0
+                                while (sx < size.width + size.height * 0.35f) {
+                                    drawRect(
+                                        color = if (k % 2 == 0) Color(0xFF5F3D00).copy(alpha = 0.30f) else Color(0xFFFFF6C8).copy(alpha = 0.20f),
+                                        topLeft = Offset(sx, -size.height * 0.15f),
+                                        size = Size(stripeW, size.height * 1.75f),
+                                        blendMode = BlendMode.SrcAtop
+                                    )
+                                    sx += stripeW
+                                    k++
+                                }
+                            }
+                    ) {
                     // 立体の一番奥にも縁取りを入れて、ブロック全体が縁取られた形にする（赤が影に見えないように）
                     val deepX = uSize.value * 0.012f * 6
                     val deepY = uSize.value * 0.075f * 6
@@ -2327,26 +2347,6 @@ fun PvLyricUnit(
                             style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily, lineHeight = uSize * 1.02f),
                             modifier = Modifier.offset(x = (uSize.value * 0.012f * i).dp, y = (uSize.value * 0.075f * i).dp)
                         )
-                    }
-                    // 立体部分に縦縞（金属の反射の溝）を重ねる。SrcAtopで立体の形の中だけに効かせる
-                    Canvas(
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .size(width = (uSize.value * (unitText.length.coerceAtLeast(1) * 1.35f + 0.7f)).dp, height = (uSize.value * 1.8f).dp)
-                    ) {
-                        val stripeW = size.height * 0.11f
-                        var sx = 0f
-                        var k = 0
-                        while (sx < size.width) {
-                            drawRect(
-                                color = if (k % 2 == 0) Color(0xFF5F3D00).copy(alpha = 0.30f) else Color(0xFFFFF6C8).copy(alpha = 0.20f),
-                                topLeft = Offset(sx, 0f),
-                                size = Size(stripeW, size.height),
-                                blendMode = BlendMode.SrcAtop
-                            )
-                            sx += stripeW
-                            k++
-                        }
                     }
                     }
                     for ((ox, oy) in ringDirs) {
