@@ -768,6 +768,7 @@ fun PvLyricLine(
     enFontFamily: FontFamily? = null,
     camFlow: Int = -1,
     tilt3d: Boolean = false,
+    dopagaki: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val pvEaseIn = CubicBezierEasing(0.42f, 0f, 1f, 1f)
@@ -1090,6 +1091,15 @@ fun PvLyricLine(
     val camDriftAmpXPx = with(camDensity) { (5f * TUNE_DRIFT_AMP).dp.toPx() }
     val camDriftAmpYPx = with(camDensity) { (3.5f * TUNE_DRIFT_AMP).dp.toPx() }
     // 規制の白塗りは行全体で1つの時計を共有し、連なった伏せ字を一気に覆う
+    // ドパガキモード: 行全体で共有する虹色の位相（約1.4秒で色相が一周する）
+    val dopaPhaseState = if (dopagaki) {
+        val dopaTransition = rememberInfiniteTransition(label = "dopa")
+        dopaTransition.animateFloat(
+            initialValue = 0f, targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(1400, easing = LinearEasing), RepeatMode.Restart),
+            label = "dopaPhase"
+        )
+    } else null
     val censorProgress = remember { Animatable(if (exiting) 1f else 0f) }
     if (!exiting) {
         LaunchedEffect(Unit) {
@@ -1752,6 +1762,8 @@ fun PvLyricLine(
                         wordParts = unitParts,
                         bounce = unitBounce,
                         quake = unitQuake,
+                        dopagaki = dopagaki,
+                        dopaPhase = dopaPhaseState,
                         repeatIndex = repeatIdxHere,
                         repeatCount = repeatLenHere,
                         stretchKind = unitStretchKind,
@@ -1828,6 +1840,8 @@ fun PvLyricUnit(
     wordParts: Boolean = false,
     bounce: Boolean = false,
     quake: Boolean = false,
+    dopagaki: Boolean = false,
+    dopaPhase: State<Float>? = null,
     repeatIndex: Int = -1,
     repeatCount: Int = 0,
     stretchKind: Int = 0,
@@ -1859,6 +1873,10 @@ fun PvLyricUnit(
         }
     }
     // 震える単語の文字だけ、速い周期の位相を共有する（対象ユニットが少ないのでコストは小さい）
+    // ドパガキモード: 文字色が虹色に回り、グローは金色になる
+    val dopaColor: Color? = if (dopagaki) {
+        Color.hsv(((dopaPhase?.value ?: 0f) * 360f + staggerIndex * 24f) % 360f, 0.75f, 1f)
+    } else null
     val quakePhaseState = if (quake && !exiting) {
         val quakeTransition = rememberInfiniteTransition(label = "quake")
         quakeTransition.animateFloat(
@@ -2068,6 +2086,14 @@ fun PvLyricUnit(
                         translationX += sin(qp * 3f + uSeed * 2.2f) * 1.7f
                         translationY += cos(qp * 4f + uSeed * 1.7f) * 1.4f
                     }
+                    if (dopagaki) {
+                        // パチンコみたいにチカチカ点滅させ、ビートっぽく脈動させる
+                        val dpv = dopaPhase?.value ?: 0f
+                        if (sin(dpv * 6.2832f * 3f + uSeed * 1.7f) <= -0.55f) alpha *= 0.45f
+                        val pulse = 1f + 0.07f * sin(dpv * 6.2832f * 2f + uSeed * 0.9f)
+                        scaleX *= pulse
+                        scaleY *= pulse
+                    }
                 }
                 // 句読点の扱い: ！？は大きく傾け、。、・…は小さくする
                 when (unitText) {
@@ -2198,7 +2224,7 @@ fun PvLyricUnit(
             } else {
             Text(
                 text = annotatedUnit,
-            color = Color.White.copy(alpha = if (dimmed) 0.40f else 0.92f),
+            color = if (dopaColor != null) dopaColor.copy(alpha = if (dimmed) 0.55f else 1f) else Color.White.copy(alpha = if (dimmed) 0.40f else 0.92f),
             fontSize = uSize,
             fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
             textAlign = TextAlign.Center,
@@ -2206,7 +2232,7 @@ fun PvLyricUnit(
             style = LocalTextStyle.current.copy(
                 fontFamily = fontFamily,
                 lineHeight = uSize * 1.02f,
-                    shadow = Shadow(color = accentColor.copy(alpha = if (dimmed) 0.35f else 0.85f), blurRadius = 22f)
+                    shadow = Shadow(color = if (dopaColor != null) Color(0xFFFFD700).copy(alpha = 0.95f) else accentColor.copy(alpha = if (dimmed) 0.35f else 0.85f), blurRadius = if (dopaColor != null) 30f else 22f)
                 )
             )
             }
@@ -2967,6 +2993,7 @@ fun LyricsPvLayer(
     enFontFamily: FontFamily? = null,
     onAccentFlash: (Color?) -> Unit = {},
     pvTilt3d: Boolean = false,
+    dopagaki: Boolean = false
 ) {
     val pvPos = positionMs + lyricOffsetMs
     val pvIndex = lines.indexOfLast { it.timeMs <= pvPos }
@@ -3065,7 +3092,26 @@ fun LyricsPvLayer(
         LaunchedEffect(chorusTarget) {
             chorusGlow.animateTo(chorusTarget, animationSpec = tween(durationMillis = 900))
         }
+        // ドパガキモード: 背景の虹色の光も一緒に回す
+        val dopaBgPhaseState = if (dopagaki) {
+            val dopaBgTransition = rememberInfiniteTransition(label = "dopaBg")
+            dopaBgTransition.animateFloat(
+                initialValue = 0f, targetValue = 1f,
+                animationSpec = infiniteRepeatable(tween(2000, easing = LinearEasing), RepeatMode.Restart),
+                label = "dopaBgPhase"
+            )
+        } else null
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+            if (dopagaki) {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(top = (pvTopDp - 70.dp).coerceAtLeast(0.dp)).height(320.dp)
+                        .background(
+                            brush = Brush.radialGradient(
+                                colors = listOf(Color.hsv((dopaBgPhaseState?.value ?: 0f) * 360f, 0.85f, 1f).copy(alpha = 0.30f), Color.Transparent)
+                            )
+                        )
+                )
+            }
             if (darkAlpha.value > 0.001f) {
                 Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = darkAlpha.value)))
             }
@@ -3095,7 +3141,7 @@ fun LyricsPvLayer(
                         partsEntry = partsEntry,
                         enFontFamily = enFontFamily,
                         camFlow = pvCurrent?.let { pvCamFlowFor(it.first, it.second) } ?: pvCamFlowFor(exIdx + 1, lines.getOrNull(exIdx + 1)?.text ?: ""),
-                        tilt3d = pvTilt3d,
+                        tilt3d = pvTilt3d, dopagaki = dopagaki,
                         modifier = Modifier.padding(top = pvTopDp)
                     )
                 }
@@ -3117,7 +3163,7 @@ fun LyricsPvLayer(
                                 partsEntry = partsEntry,
                         enFontFamily = enFontFamily,
                                 camFlow = pvCamFlowFor(curIdx, curText),
-                                tilt3d = pvTilt3d,
+                                tilt3d = pvTilt3d, dopagaki = dopagaki,
                                 effectKind = pvKindFor(curIdx, curText),
                                 lineDurationMs = lines.getOrNull(curIdx + 1)?.let { it.timeMs - lines[curIdx].timeMs } ?: Long.MAX_VALUE,
                                 startsInParen = pvStartsInParen(lines, curIdx),
@@ -3677,7 +3723,8 @@ fun LyricsFullscreenOverlay(
     onClose: () -> Unit,
     partsEntry: Boolean = false,
     enFontFamily: FontFamily? = null,
-    pvTilt3d: Boolean = false
+    pvTilt3d: Boolean = false,
+    dopagaki: Boolean = false
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize().zIndex(96f)) {
         val fsWidth = maxWidth.value
@@ -3791,7 +3838,7 @@ fun LyricsFullscreenOverlay(
                                 partsEntry = partsEntry,
                                 enFontFamily = enFontFamily,
                                 camFlow = fsCurrent?.let { fsCamFlowFor(it.first, it.second) } ?: fsCamFlowFor(exIdx + 1, fsLines.getOrNull(exIdx + 1)?.text ?: ""),
-                                tilt3d = pvTilt3d,
+                                tilt3d = pvTilt3d, dopagaki = dopagaki,
                                 exiting = true,
                                 effectKind = Math.floorMod(Math.floorMod(exIdx * 31 + exText.hashCode(), 997), 8),
                                 modifier = Modifier
@@ -3813,7 +3860,7 @@ fun LyricsFullscreenOverlay(
                                 partsEntry = partsEntry,
                                 enFontFamily = enFontFamily,
                                 camFlow = fsCamFlowFor(curIdx, curText),
-                                tilt3d = pvTilt3d,
+                                tilt3d = pvTilt3d, dopagaki = dopagaki,
                                 exiting = false,
                                 words = fsLines[curIdx].words,
                                 lineStartMs = fsLines[curIdx].timeMs,

@@ -511,6 +511,7 @@ fun SettingsScreen(
     var lyricsEnCustomPath by remember { mutableStateOf(repo.prefManager.getLyricsEnCustomFontPath()) }
     var lyricsBold by remember { mutableStateOf(repo.prefManager.isLyricsBold()) }
     var pvPartsEntry by remember { mutableStateOf(repo.prefManager.isPvPartsEntryEnabled()) }
+    var dopagakiMode by remember { mutableStateOf(repo.prefManager.isDopagakiEnabled()) }
     var statusBarLyrics by remember { mutableStateOf(repo.prefManager.isStatusBarLyricsEnabled()) }
         var pageSwitchStyle by remember { mutableStateOf(repo.prefManager.getPageSwitchStyle()) }
     var appsUpdateStatus by remember { mutableStateOf("") }
@@ -981,6 +982,25 @@ fun SettingsScreen(
                                                 onCheckedChange = {
                                                     pvPartsEntry = it
                                                     repo.prefManager.setPvPartsEntryEnabled(it)
+                                                    onChanged()
+                                                },
+                                                colors = switchColors
+                                            )
+                                        }
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text("ドパガキモード", color = Color.White, fontSize = 14.sp)
+                                                Text("リリックビデオがパチンコみたいに虹色チカチカになります", color = Color.Gray, fontSize = 12.sp)
+                                            }
+                                            Switch(
+                                                checked = dopagakiMode,
+                                                onCheckedChange = {
+                                                    dopagakiMode = it
+                                                    repo.prefManager.setDopagakiEnabled(it)
                                                     onChanged()
                                                 },
                                                 colors = switchColors
