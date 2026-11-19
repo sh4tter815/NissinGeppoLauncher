@@ -77,7 +77,9 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.layer.drawLayer
@@ -2250,6 +2252,7 @@ fun PvLyricUnit(
                 val rIn = uSize.value * 0.030f
                 val ringDirs = listOf(-1f to 0f, 1f to 0f, 0f to -1f, 0f to 1f, -0.7f to -0.7f, 0.7f to -0.7f, -0.7f to 0.7f, 0.7f to 0.7f)
                 Box {
+                    Box(modifier = Modifier.graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }) {
                     // 立体の一番奥にも縁取りを入れて、ブロック全体が縁取られた形にする（赤が影に見えないように）
                     val deepX = uSize.value * 0.012f * 6
                     val deepY = uSize.value * 0.075f * 6
@@ -2315,6 +2318,27 @@ fun PvLyricUnit(
                             style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily, lineHeight = uSize * 1.02f),
                             modifier = Modifier.offset(x = (uSize.value * 0.012f * i).dp, y = (uSize.value * 0.075f * i).dp)
                         )
+                    }
+                    // 立体部分に縦縞（金属の反射の溝）を重ねる。SrcAtopで立体の形の中だけに効かせる
+                    Canvas(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .size(width = uSize * (unitText.length.coerceAtLeast(1) * 1.35f + 0.7f), height = uSize * 1.8f)
+                    ) {
+                        val stripeW = size.height * 0.11f
+                        var sx = 0f
+                        var k = 0
+                        while (sx < size.width) {
+                            drawRect(
+                                color = if (k % 2 == 0) Color(0xFF5F3D00).copy(alpha = 0.30f) else Color(0xFFFFF6C8).copy(alpha = 0.20f),
+                                topLeft = Offset(sx, 0f),
+                                size = Size(stripeW, size.height),
+                                blendMode = BlendMode.SrcAtop
+                            )
+                            sx += stripeW
+                            k++
+                        }
+                    }
                     }
                     for ((ox, oy) in ringDirs) {
                         Text(
