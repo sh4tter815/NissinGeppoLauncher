@@ -77,7 +77,6 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -1085,7 +1084,7 @@ fun PvLyricLine(
     val camAnim = remember { Animatable(if (exiting) 1f else 0f) }
     if (!exiting) {
         LaunchedEffect(Unit) {
-            camAnim.animateTo(1f, animationSpec = tween(durationMillis = if (camFlowEff >= 4) 1100 else 800, easing = FastOutSlowInEasing))
+            if (dopagaki) camAnim.snapTo(1f) else camAnim.animateTo(1f, animationSpec = tween(durationMillis = if (camFlowEff >= 4) 1100 else 800, easing = FastOutSlowInEasing))
         }
     }
     val camDensity = LocalDensity.current
@@ -1882,7 +1881,7 @@ fun PvLyricUnit(
 ) {
     val pvEaseIn = CubicBezierEasing(0.42f, 0f, 1f, 1f)
     // 文字同期がある行では実時刻ディレイ、無い行では従来の等間隔ディレイで入場する
-    val effDelayMs = if (entryDelayMs >= 0L) entryDelayMs else staggerIndex * 45L
+    val effDelayMs = if (entryDelayMs >= 0L) entryDelayMs else staggerIndex * (if (dopagaki) 130L else 45L)
     val uSeed = staggerIndex
     val uAnim = remember(staggerIndex) { Animatable(0f) }
     // 跳ねる単語の文字は、少し上からスプリングで落ちてきて、着地で小さく跳ね返る
@@ -1914,7 +1913,7 @@ fun PvLyricUnit(
     if (!exiting) {
         LaunchedEffect(staggerIndex) {
             delay(effDelayMs)
-            uAnim.animateTo(1f, animationSpec = tween(durationMillis = 380, easing = FastOutSlowInEasing))
+            uAnim.animateTo(1f, animationSpec = if (dopagaki) tween(durationMillis = 110, easing = LinearEasing) else tween(durationMillis = 380, easing = FastOutSlowInEasing))
         }
         LaunchedEffect(staggerIndex) {
             sway.animateTo(
@@ -2079,7 +2078,7 @@ fun PvLyricUnit(
                     rotationZ = uRot * (2f - a)
                     translationY = (1f - a) * 30f
                 } else {
-                    val a = if (partsEntry || wordParts) 1f else uAnim.value
+                    val a = if ((partsEntry || wordParts) && !dopagaki) 1f else uAnim.value
                     val blinkF = if (effectKind == 3 && fxT.value < 1f) {
                         if (sin(fxT.value * 21.99f + uSeed * 1.3f) > -0.2f) 1f else 0.12f
                     } else 1f
@@ -2102,6 +2101,16 @@ fun PvLyricUnit(
                         val qp = quakePhaseState?.value ?: 0f
                         translationX += sin(qp * 3f + uSeed * 2.2f) * 1.7f
                         translationY += cos(qp * 4f + uSeed * 1.7f) * 1.4f
+                    }
+                    if (dopagaki) {
+                        // パチンコみたいに1文字ずつガチンと止まる: フェードも飛来もなく、大きい状態から一気に縮んで止まる
+                        alpha = if (a <= 0f) 0f else (if (ghost) 0.38f else 1f) * repeatAlphaF
+                        val slamS = 1.5f - 0.5f * a
+                        scaleX = slamS
+                        scaleY = slamS
+                        rotationZ = uRot
+                        translationX = 0f
+                        translationY = 0f
                     }
                 }
                 // 句読点の扱い: ！？は大きく傾け、。、・…は小さくする
@@ -2178,10 +2187,10 @@ fun PvLyricUnit(
             }
             // ドパガキ: 中の虹色グラデーション（位相を36段階に量子化して作り直しを抑える）
             val hueStep = if (dopagaki) ((dopaPhase?.value ?: 0f) * 36f).toInt() else 0
-            val dopaAnnotated = remember(annotatedUnit, hueStep) {
+            val dopaAnnotated = remember(annotatedUnit) {
                 if (dopagaki) {
-                    // 金背景の上では金文字が埋もれるので、塗りは全部虹色にする
-                    val cols = (0..4).map { i -> Color.hsv((hueStep * 10f + i * 72f + staggerIndex * 24f) % 360f, 0.62f, 1f) }
+                    // 赤金属グラデーション: 上に白いツヤ、下へ深い赤
+                    val cols = listOf(Color(0xFFFFF1F1), Color(0xFFFF4040), Color(0xFFE60012), Color(0xFF8F0000))
                     AnnotatedString(
                         text = annotatedUnit.text,
                         spanStyles = annotatedUnit.spanStyles + listOf(
@@ -2323,7 +2332,7 @@ fun PvLyricUnit(
                     Canvas(
                         modifier = Modifier
                             .align(Alignment.Center)
-                            .size(width = uSize * (unitText.length.coerceAtLeast(1) * 1.35f + 0.7f), height = uSize * 1.8f)
+                            .size(width = (uSize.value * (unitText.length.coerceAtLeast(1) * 1.35f + 0.7f)).dp, height = (uSize.value * 1.8f).dp)
                     ) {
                         val stripeW = size.height * 0.11f
                         var sx = 0f
@@ -2366,7 +2375,7 @@ fun PvLyricUnit(
                     }
                     Text(
                         text = annotatedUnit,
-                        color = Color.White.copy(alpha = 0.28f * layerAlpha),
+                        color = Color.White.copy(alpha = (if (exiting) 0.28f else 0.28f + (1f - uAnim.value) * 0.5f) * layerAlpha),
                         fontSize = uSize,
                         fontWeight = FontWeight.Normal,
                         textAlign = TextAlign.Center,
@@ -3187,6 +3196,18 @@ fun PvDopagakiBackground(modifier: Modifier = Modifier) {
                 center = Offset(cx, cy)
             )
             val twk = twkState.value
+            // スパンコール: 小さな四角が一面に瞬く
+            for (k in 0 until 42) {
+                val qx = ((k * 271) % 100) / 100f * size.width
+                val qy = ((k * 389) % 100) / 100f * size.height
+                val qa = 0.15f + 0.5f * abs(sin(twk * 6.2832f + k * 2.3f))
+                val qs = 5f + (k % 4) * 2.2f
+                drawRect(
+                    color = (if (k % 3 == 0) Color(0xFFFFF6C8) else if (k % 3 == 1) Color(0xFFFFD700) else Color(0xFFFFA500)).copy(alpha = qa),
+                    topLeft = Offset(qx, qy),
+                    size = Size(qs, qs)
+                )
+            }
             for (k in 0 until 16) {
                 val sx = ((k * 373) % 100) / 100f * size.width
                 val sy = ((k * 619) % 100) / 100f * size.height
@@ -3194,6 +3215,39 @@ fun PvDopagakiBackground(modifier: Modifier = Modifier) {
                 drawSparkle(sx, sy, 9f + (k % 3) * 4f, Color(0xFFFFF2B0), al)
             }
         }
+    }
+}
+
+@Composable
+fun PvDopagakiFrame(modifier: Modifier = Modifier) {
+    // 画面の縁を虹色がぐるぐる回る枠
+    val tr = rememberInfiniteTransition(label = "dopaFrame")
+    val phState = tr.animateFloat(
+        initialValue = 0f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(3600, easing = LinearEasing), RepeatMode.Restart),
+        label = "dopaFramePh"
+    )
+    Canvas(modifier = modifier) {
+        val step = (phState.value * 24f).toInt() / 24f
+        val center = Offset(size.width / 2f, size.height / 2f)
+        val sw = 9.dp.toPx()
+        val cols = (0..7).map { i -> Color.hsv((step * 360f + i * 45f) % 360f, 0.75f, 1f) } + Color.hsv((step * 360f) % 360f, 0.75f, 1f)
+        drawRoundRect(
+            brush = Brush.sweepGradient(colors = cols, center = center),
+            topLeft = Offset(sw / 2f, sw / 2f),
+            size = Size(size.width - sw, size.height - sw),
+            cornerRadius = CornerRadius(18.dp.toPx(), 18.dp.toPx()),
+            style = Stroke(width = sw)
+        )
+        val sw2 = 3.dp.toPx()
+        val cols2 = (0..7).map { i -> Color.hsv((step * 360f + 180f + i * 45f) % 360f, 0.75f, 1f) } + Color.hsv((step * 360f + 180f) % 360f, 0.75f, 1f)
+        drawRoundRect(
+            brush = Brush.sweepGradient(colors = cols2, center = center),
+            topLeft = Offset(sw + sw2, sw + sw2),
+            size = Size(size.width - (sw + sw2) * 2f, size.height - (sw + sw2) * 2f),
+            cornerRadius = CornerRadius(14.dp.toPx(), 14.dp.toPx()),
+            style = Stroke(width = sw2)
+        )
     }
 }
 
@@ -3983,6 +4037,9 @@ fun LyricsFullscreenOverlay(
         // 横画面でも液体グラデーションを流す（設定ONのとき）
         if (liquidEnabled && !dopagaki) {
             LiquidGradientBackground(baseColor = accentColor, onBlack = false, layerAlpha = 1f, alphaBoost = 1.9f)
+        }
+        if (dopagaki) {
+            PvDopagakiFrame(Modifier.fillMaxSize().zIndex(95f))
         }
         if (fsLines.isEmpty()) {
             // 歌詞が無い曲: 左にアートワーク、右に曲名などの情報だけを出す

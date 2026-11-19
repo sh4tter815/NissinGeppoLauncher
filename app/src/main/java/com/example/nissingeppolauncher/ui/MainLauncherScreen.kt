@@ -853,6 +853,11 @@ fun MainLauncherScreen() {
                 )
             }
 
+            if (dopagakiMode && currentLauncherPage == 1) {
+                // ドパガキ中は画面の縁に虹色の回る枠を出す
+                PvDopagakiFrame(Modifier.fillMaxSize().zIndex(90f))
+            }
+
             // ===== 歌詞の読み込み中表示 =====
             if (lyricsLoading && currentLauncherPage == 1) {
                 Column(
