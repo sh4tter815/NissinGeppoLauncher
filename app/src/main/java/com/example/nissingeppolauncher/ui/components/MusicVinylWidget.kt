@@ -283,7 +283,8 @@ fun MusicVinylWidget(
     }
 
     // タップ: 再生中のプレイヤーアプリを開く
-    fun openPlayerApp() {                    if (!isNotificationServiceEnabled(context)) {
+    fun openPlayerApp() {
+                    if (!isNotificationServiceEnabled(context)) {
                         showPermissionDialog = true
                     } else {
                         var launched = false
@@ -375,7 +376,9 @@ fun MusicVinylWidget(
                                     }
                                 }
                             }
-                        }    }
+                        }
+                    }
+    }
 
     Box(
         modifier = modifier.fillMaxSize()
@@ -458,8 +461,7 @@ fun MusicVinylWidget(
                         }
                     }
                 }
-                .graphicsLayer { alpha = if (rackShow) 0f else 1f }
-                },
+                .graphicsLayer { alpha = if (rackShow) 0f else 1f },
             contentAlignment = Alignment.Center
         ) {
             Canvas(modifier = Modifier.fillMaxSize()) {
