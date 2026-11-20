@@ -3208,6 +3208,45 @@ fun PvDopagakiBackground(modifier: Modifier = Modifier, rotate90: Boolean = fals
 }
 
 @Composable
+private fun PvSkipInterludeButton(label: String, onClick: () -> Unit) {
+    // 間奏スキップ: 金フチ＋虹色グラデのギラギラ文字を、半透明の黒ピルに載せる
+    val rainbowBrush = remember {
+        Brush.linearGradient(listOf(Color(0xFFFF5DA2), Color(0xFFD633FF), Color(0xFF7A5CFF), Color(0xFF33B5FF), Color(0xFFFFD93B), Color(0xFFFF8A3B)))
+    }
+    val rainbowText = remember {
+        buildAnnotatedString {
+            withStyle(SpanStyle(brush = rainbowBrush)) { append(label) }
+        }
+    }
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(Color(0xD90A0A14))
+            .border(2.dp, Color(0xFFFFC400), RoundedCornerShape(999.dp))
+            .clickable { onClick() }
+            .padding(horizontal = 24.dp, vertical = 13.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Box {
+            for ((ox, oy) in listOf(-1f to 0f, 1f to 0f, 0f to -1f, 0f to 1f)) {
+                Text(
+                    text = label,
+                    color = Color(0xFFFFC400),
+                    fontSize = 19.sp,
+                    style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily),
+                    modifier = Modifier.offset(x = (0.95f * ox).dp, y = (0.95f * oy).dp)
+                )
+            }
+            Text(
+                text = rainbowText,
+                fontSize = 19.sp,
+                style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily)
+            )
+        }
+    }
+}
+
+@Composable
 fun LyricsPvLayer(
     lines: List<LyricLine>,
     positionMs: Long,
@@ -3227,7 +3266,9 @@ fun LyricsPvLayer(
     pvTilt3d: Boolean = false,
     dopagaki: Boolean = false,
     tiltX: State<Float>? = null,
-    tiltY: State<Float>? = null
+    tiltY: State<Float>? = null,
+    onSeek: (Long) -> Unit = {},
+    onNextTrack: () -> Unit = {}
 ) {
     val pvPos = positionMs + lyricOffsetMs
     val pvIndex = lines.indexOfLast { it.timeMs <= pvPos }
@@ -3418,6 +3459,17 @@ fun LyricsPvLayer(
         }
         if (pvDisplayIndex == -2) {
             PvInterludeArt(accentColor = accentColor, modifier = Modifier.fillMaxWidth().padding(top = interludeTopDp).height(230.dp))
+            // ドパガキモードの間奏中だけ、ギラギラボタンを出す（通常は次の行へスキップ、ラストの間奏は次の曲へ）
+            val pvSkipTarget = if (dopagaki) pvNextLine?.let { (it.timeMs - lyricOffsetMs - 300L).coerceAtLeast(0L) } else null
+            if (pvSkipTarget != null) {
+                Box(Modifier.fillMaxWidth().padding(top = interludeTopDp + 252.dp), contentAlignment = Alignment.Center) {
+                    PvSkipInterludeButton("間奏をスキップする？") { onSeek(pvSkipTarget) }
+                }
+            } else if (dopagaki && pvCurLine != null) {
+                Box(Modifier.fillMaxWidth().padding(top = interludeTopDp + 252.dp), contentAlignment = Alignment.Center) {
+                    PvSkipInterludeButton("次の曲に行く？") { onNextTrack() }
+                }
+            }
         }
         // 対訳: PVの3行目として、現在の行の日本語訳を小さく出す
         if (translationEnabled && pvDisplayIndex >= 0) {
@@ -4000,7 +4052,9 @@ fun LyricsFullscreenOverlay(
     pvTilt3d: Boolean = false,
     dopagaki: Boolean = false,
     tiltX: State<Float>? = null,
-    tiltY: State<Float>? = null
+    tiltY: State<Float>? = null,
+    onSeek: (Long) -> Unit = {},
+    onNextTrack: () -> Unit = {}
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize().zIndex(96f)) {
         val fsWidth = maxWidth.value
@@ -4161,6 +4215,18 @@ fun LyricsFullscreenOverlay(
                 }
                 if (fsDisplayIndex == -2) {
                     PvInterludeArt(accentColor = accentColor, modifier = Modifier.fillMaxSize().padding(60.dp))
+                    if (dopagaki) {
+                        val fsSkipTarget = fsNextLine?.let { (it.timeMs - lyricOffsetMs - 300L).coerceAtLeast(0L) }
+                        if (fsSkipTarget != null) {
+                            Box(Modifier.fillMaxSize().padding(bottom = 84.dp), contentAlignment = Alignment.BottomCenter) {
+                                PvSkipInterludeButton("間奏をスキップする？") { onSeek(fsSkipTarget) }
+                            }
+                        } else if (fsCurLine != null) {
+                            Box(Modifier.fillMaxSize().padding(bottom = 84.dp), contentAlignment = Alignment.BottomCenter) {
+                                PvSkipInterludeButton("次の曲に行く？") { onNextTrack() }
+                            }
+                        }
+                    }
                 }
                 fsCurrent?.let { (_, curText) ->
                     val ambKind = when {

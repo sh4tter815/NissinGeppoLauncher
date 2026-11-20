@@ -255,6 +255,21 @@ fun MainLauncherScreen() {
         }
     }
 
+    // 再生中セッションの次の曲へ進む（対応していないプレイヤーでは何も起きない）
+    fun skipToNextTrack() {
+        try {
+            val msm = context.getSystemService(android.content.Context.MEDIA_SESSION_SERVICE) as? android.media.session.MediaSessionManager
+            val comp = android.content.ComponentName(context, com.example.nissingeppolauncher.service.LauncherMediaListenerService::class.java)
+            val controllers = msm?.getActiveSessions(comp)
+            val active = controllers?.firstOrNull {
+                it.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING
+            } ?: controllers?.firstOrNull()
+            active?.transportControls?.skipToNext()
+        } catch (e: Exception) {
+            // 次へ進めないセッションでは何もしない
+        }
+    }
+
     // ステータスバー歌詞オーバーレイ: 設定がONで権限があればサービスを起動しておく
     LaunchedEffect(Unit) {
         if (repo.prefManager.isStatusBarLyricsEnabled() && android.provider.Settings.canDrawOverlays(context)) {
@@ -909,7 +924,9 @@ fun MainLauncherScreen() {
                     enFontFamily = lyricsEnFontArg,
                     tiltX = discTiltX,
                     tiltY = discTiltY,
-                    onAccentFlash = { pvFlashColor = it }
+                    onAccentFlash = { pvFlashColor = it },
+                    onSeek = { pos -> seekSessionTo(pos) },
+                    onNextTrack = { skipToNextTrack() }
                 )
             }
 
@@ -1968,7 +1985,9 @@ fun MainLauncherScreen() {
                 dopagaki = dopagakiMode,
                 tiltX = discTiltX,
                 tiltY = discTiltY,
-                onClose = { pvFullscreen = false }
+                onClose = { pvFullscreen = false },
+                onSeek = { pos -> seekSessionTo(pos) },
+                onNextTrack = { skipToNextTrack() }
             )
         }
 
