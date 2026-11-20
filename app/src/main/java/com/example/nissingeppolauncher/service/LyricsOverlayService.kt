@@ -20,6 +20,7 @@ import android.os.IBinder
 import android.os.SystemClock
 import android.provider.Settings
 import android.text.TextUtils
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.WindowInsets
@@ -66,14 +67,11 @@ class LyricsOverlayService : Service() {
     private var statusBarVisible = true
     private var currentLine = ""
     private var shownLine: String? = null
-    // 長い行は表示幅に収まる断片へ分割し、行の表示時間を等分して順にスクロール表示する
-    private var lineSegments: List<String> = listOf("")
-    private var segmentLineText: String? = null
-    private var shownSegment: String? = null
+    // 行は分割せず、1行に収まらなければ2行に折り返して表示する
     private var segmentAnimGen = 0
-    private var lineSegmentStarts: List<Int> = listOf(0)
     private var shownSungChars: Int = 0
     private var segmentAnimating: Boolean = false
+    private var fittedLine: String? = null
     private var accentColorInt: Int = Color.rgb(229, 57, 53)
     private var segmentsDirty = false
 
@@ -192,7 +190,8 @@ class LyricsOverlayService : Service() {
             setTextColor(Color.WHITE)
             textSize = 12f
             includeFontPadding = false
-            maxLines = 1
+            maxLines = 2
+            setLineSpacing(0f, 0.92f)
             ellipsize = TextUtils.TruncateAt.END
             setShadowLayer(7f, 0f, 0f, Color.argb(200, 30, 30, 30))
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
@@ -368,23 +367,7 @@ class LyricsOverlayService : Service() {
                             if (newLine != currentLine) {
                                 currentLine = newLine
                             }
-                            // 行が変わった（またはフォントが変わった）ら、表示幅に合わせて分割し直す
-                            if (newLine != segmentLineText || segmentsDirty) {
-                                segmentLineText = newLine
-                                segmentsDirty = false
-                                val segs = splitSegments(newLine)
-                                lineSegments = segs.first
-                                lineSegmentStarts = segs.second
-                            }
-                            // 行の表示時間をセグメント数で等分し、現在のセグメントを選ぶ
-                            val segIdx = if (lineSegments.size <= 1 || curLine == null) 0 else {
-                                val start = curLine.timeMs
-                                val end = nextLine?.timeMs ?: trackDurationMs.takeIf { it > start } ?: (start + 5000L)
-                                val total = (end - start).coerceAtLeast(1L)
-                                (((posMs - start).coerceAtLeast(0L) * lineSegments.size) / total).toInt()
-                                    .coerceIn(0, lineSegments.size - 1)
-                            }
-                            // 文字同期がある行は、歌い終わった文字数を数えてセグメント内の色付けに使う
+                            // 文字同期がある行は、歌い終わった文字数を数えて色付けに使う
                             val sungInLine = if (curLine != null && curLine.words.isNotEmpty()) {
                                 var count = 0
                                 for (w in curLine.words) {
@@ -392,10 +375,7 @@ class LyricsOverlayService : Service() {
                                 }
                                 count
                             } else 0
-                            val segText = lineSegments.getOrElse(segIdx) { newLine }
-                            val segStartIdx = lineSegmentStarts.getOrElse(segIdx) { 0 }
-                            val sungInSeg = (sungInLine - segStartIdx).coerceIn(0, segText.length)
-                            showSegment(segText, sungInSeg)
+                            showLine(newLine, sungInLine)
                             updateVisibility()
                         }
                     } else if (currentLine.isNotEmpty()) {
@@ -506,60 +486,38 @@ class LyricsOverlayService : Service() {
         return sp
     }
 
-    /**
-     * 長い行は「約11文字まで」の断片へ分割する（半角は0.5文字換算。実測幅も併用する）。
-     * 記号類は禁則処理として、上限を超えても前の断片に付ける（文末の「。」が次の断片の先頭に来ないように）
-     */
-    private fun splitSegments(text: String): Pair<List<String>, List<Int>> {
-        if (text.isBlank() || text == "♪") return listOf(text) to listOf(0)
-        val view = lyricView
-        val avail = if (view != null) view.width - view.paddingLeft - view.paddingRight else 0
-        val paint = view?.paint
-        fun weightOf(s: CharSequence): Double = s.sumOf { if (it in ' '..'~') 0.5 else 1.0 }
-        // 文字数も幅も収まる場合は分割しない
-        if (weightOf(text) <= 11.0 && (paint == null || avail <= 0 || paint.measureText(text) <= avail)) return listOf(text) to listOf(0)
-        val noStart = "、。，．・：；！？!?）)】」』〕〉》ーぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶゝゞ々"
-        val out = mutableListOf<String>()
-        val starts = mutableListOf<Int>()
-        val cur = StringBuilder()
-        var curWeight = 0.0
-        var segStart = 0
-        for ((ci, ch) in text.withIndex()) {
-            val w = if (ch in ' '..'~') 0.5 else 1.0
-            val overCap = curWeight + w > 11.0
-            val overWidth = paint != null && avail > 0 && cur.isNotEmpty() && paint.measureText(cur.toString() + ch) > avail
-            if (cur.isNotEmpty() && (overCap || overWidth) && ch !in noStart) {
-                out.add(cur.toString())
-                starts.add(segStart)
-                cur.setLength(0)
-                curWeight = 0.0
-                segStart = ci
-            }
-            cur.append(ch)
-            curWeight += w
-        }
-        if (cur.isNotEmpty()) {
-            out.add(cur.toString())
-            starts.add(segStart)
-        }
-        return if (out.isEmpty()) listOf(text) to listOf(0) else out to starts
+    // 1行に収まるなら12spのまま、収まらなければステータスバーの高さに収まる大きさにして2行で出す
+    private fun fitTextSize(view: TextView, line: String) {
+        if (fittedLine == line && !segmentsDirty) return
+        val avail = view.width - view.paddingLeft - view.paddingRight
+        if (avail <= 0) return
+        fittedLine = line
+        view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+        if (view.paint.measureText(line) <= avail) return
+        val barH = overlayRoot?.height ?: 0
+        val maxSp = if (barH > 0) (barH / 2f / 1.18f) / resources.displayMetrics.scaledDensity else 10.5f
+        view.setTextSize(TypedValue.COMPLEX_UNIT_SP, maxSp.coerceIn(8f, 11.5f))
     }
 
-    private fun showSegment(seg: String, sung: Int = 0) {
+    private fun showLine(line: String, sung: Int = 0) {
         val view = lyricView ?: return
-        if (shownSegment == seg) {
-            // 同じ断片のままなら、カラオケの進みだけをアニメーションなしで反映する
+        if (segmentsDirty) {
+            fittedLine = null
+            segmentsDirty = false
+        }
+        if (shownLine == line) {
+            // 同じ行のままなら、大きさの再計算（初回レイアウト後など）とカラオケの進みだけ反映する
+            fitTextSize(view, line)
             if (sung != shownSungChars && !segmentAnimating) {
                 shownSungChars = sung
-                view.text = styledLine(seg, sung)
+                view.text = styledLine(line, sung)
             }
             return
         }
-        shownSegment = seg
+        shownLine = line
         shownSungChars = sung
-        shownLine = seg
-        // フェードではなくスクロール: 表示中の断片が上へ抜け、次の断片が下から入ってくる。
-        // 世代カウンタで古いアニメーションの後処理を無効化し、開始前に位置と透明度を戻して表示が壊れないようにする
+        fitTextSize(view, line)
+        // 行が変わったときはスクロールで切り替える（フェードではなく上下のスライド）
         val gen = ++segmentAnimGen
         segmentAnimating = true
         val h = (view.height.takeIf { it > 0 } ?: dp(14f)).toFloat()
@@ -568,7 +526,7 @@ class LyricsOverlayService : Service() {
         view.alpha = 1f
         view.animate().translationY(-h * 0.7f).alpha(0f).setDuration(130).withEndAction {
             if (gen != segmentAnimGen) return@withEndAction
-            view.text = styledLine(seg, sung)
+            view.text = styledLine(line, sung)
             view.translationY = h * 0.7f
             view.animate().translationY(0f).alpha(1f).setDuration(180).withEndAction {
                 if (gen == segmentAnimGen) segmentAnimating = false
