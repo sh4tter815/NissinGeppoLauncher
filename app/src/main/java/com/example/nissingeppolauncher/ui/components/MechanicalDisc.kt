@@ -70,7 +70,8 @@ fun RotatableIndexWheel(
     isHolding: Boolean = false,
     stepAngle: Float = 360f / INDEX_ITEMS.size,
     accentColor: Color = Color(0xFFE53935),
-    centerIcon: @Composable (() -> Unit)? = { WhiteSearchIcon(size = 22.dp) }
+    centerIcon: @Composable (() -> Unit)? = { WhiteSearchIcon(size = 22.dp) },
+    dopagaki: Boolean = false
 ) {
     val configuration = LocalConfiguration.current
     val screenWidthDp = configuration.screenWidthDp.toFloat()
@@ -178,13 +179,17 @@ fun RotatableIndexWheel(
                             .size(40.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = char,
-                            color = if (isHolding && isSelected) accentColor else Color.White.copy(alpha = charAlpha),
-                            fontSize = if (isHolding && isSelected) 22.sp else 13.sp,
-                            fontWeight = if (isHolding && isSelected) FontWeight.Bold else FontWeight.Medium,
-                            textAlign = TextAlign.Center
-                        )
+                        if (dopagaki) {
+                            DopaFlashText(text = char, fontSize = if (isHolding && isSelected) 22.sp else 13.sp, textAlign = TextAlign.Center, modifier = Modifier.graphicsLayer { alpha = if (isHolding && isSelected) 1f else charAlpha })
+                        } else {
+                            Text(
+                                text = char,
+                                color = if (isHolding && isSelected) accentColor else Color.White.copy(alpha = charAlpha),
+                                fontSize = if (isHolding && isSelected) 22.sp else 13.sp,
+                                fontWeight = if (isHolding && isSelected) FontWeight.Bold else FontWeight.Medium,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
                 }
             }
@@ -207,7 +212,8 @@ fun RotatableFolderWheel(
     letterSpacingSp: Float = 1.2f,
     accentColor: Color = Color(0xFFE53935),
     onNewFolderClick: () -> Unit = {},
-    onRenameFolderClick: (String, String) -> Unit = { _, _ -> }
+    onRenameFolderClick: (String, String) -> Unit = { _, _ -> },
+    dopagaki: Boolean = false
 ) {
     val configuration = LocalConfiguration.current
     val screenWidthDp = configuration.screenWidthDp.toFloat()
@@ -317,14 +323,18 @@ fun RotatableFolderWheel(
                                 .height(40.dp),
                             contentAlignment = Alignment.CenterStart
                         ) {
-                            Text(
-                                text = item.second,
-                                color = if (isSelected) accentColor else Color.White.copy(alpha = 0.7f * edgeFade),
-                                fontSize = textSizeSp.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                letterSpacing = letterSpacingSp.sp,
-                                textAlign = TextAlign.Start
-                            )
+                            if (dopagaki) {
+                                DopaFlashText(text = item.second, fontSize = textSizeSp.sp, letterSpacing = letterSpacingSp.sp, textAlign = TextAlign.Start, modifier = Modifier.graphicsLayer { alpha = if (isSelected) 1f else 0.7f * edgeFade })
+                            } else {
+                                Text(
+                                    text = item.second,
+                                    color = if (isSelected) accentColor else Color.White.copy(alpha = 0.7f * edgeFade),
+                                    fontSize = textSizeSp.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    letterSpacing = letterSpacingSp.sp,
+                                    textAlign = TextAlign.Start
+                                )
+                            }
                         }
                     }
                 }

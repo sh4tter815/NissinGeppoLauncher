@@ -53,7 +53,8 @@ fun ClockWidget(
     translationText: String = "",
     // 歌詞行のフォント（歌詞設定のフォント）と、英字だけ別にする場合のフォント
     lyricFontFamily: FontFamily? = null,
-    lyricEnFontFamily: FontFamily? = null
+    lyricEnFontFamily: FontFamily? = null,
+    dopagaki: Boolean = false
 ) {
     val context = LocalContext.current
     var currentTime by remember { mutableStateOf(Date()) }
@@ -132,20 +133,32 @@ fun ClockWidget(
                             indication = null
                         ) { openClock() }
                 ) {
-                    Text(
-                        text = hourText,
-                        color = Color.White,
-                        fontSize = 54.sp,
-                        fontWeight = FontWeight.Bold,
-                        lineHeight = 54.sp
-                    )
-                    Text(
-                        text = minuteText,
-                        color = Color.White,
-                        fontSize = 54.sp,
-                        fontWeight = FontWeight.Bold,
-                        lineHeight = 54.sp
-                    )
+                    if (dopagaki) {
+                        DopaFlashText(text = hourText, fontSize = 54.sp, lineHeight = 54.sp)
+                    } else {
+                        Text(
+                            text = hourText,
+                            color = Color.White,
+                            fontSize = 54.sp,
+                            fontWeight = FontWeight.Bold,
+                            lineHeight = 54.sp
+                        )
+                    }
+                    if (dopagaki) {
+                        DopaFlashText(text = minuteText, fontSize = 54.sp, lineHeight = 54.sp)
+                    } else {
+                        if (dopagaki) {
+                            DopaFlashText(text = dateText, fontSize = 17.sp, modifier = Modifier.padding(top = 16.dp).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { openCalendar() })
+                        } else {
+                            Text(
+                                text = minuteText,
+                                color = Color.White,
+                                fontSize = 54.sp,
+                                fontWeight = FontWeight.Bold,
+                                lineHeight = 54.sp
+                            )
+                        }
+                    }
                 }
 
                 // 日付ブロック (時刻の右に横倒しで表示。タップでカレンダーアプリ起動)
@@ -160,16 +173,20 @@ fun ClockWidget(
                         ) { openCalendar() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = dateText,
-                        color = Color.White.copy(alpha = 0.75f),
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        modifier = Modifier
-                            .wrapContentSize(unbounded = true)
-                            .graphicsLayer { rotationZ = 90f }
-                    )
+                    if (dopagaki) {
+                        DopaFlashText(text = dateText, fontSize = 17.sp, maxLines = 1, modifier = Modifier.wrapContentSize(unbounded = true).graphicsLayer { rotationZ = 90f })
+                    } else {
+                        Text(
+                            text = dateText,
+                            color = Color.White.copy(alpha = 0.75f),
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            modifier = Modifier
+                                .wrapContentSize(unbounded = true)
+                                .graphicsLayer { rotationZ = 90f }
+                        )
+                    }
                 }
             }
 
@@ -185,7 +202,9 @@ fun ClockWidget(
                         .widthIn(max = 250.dp)
                 ) { line ->
                     val kLine = karaokeLine
-                    if (kLine != null && kLine.text == line && kLine.words.isNotEmpty()) {
+                    if (dopagaki) {
+                        DopaFlashText(text = line, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    } else if (kLine != null && kLine.text == line && kLine.words.isNotEmpty()) {
                         KaraokeLyricText(
                             line = kLine,
                             positionMs = karaokePositionMs,
@@ -229,20 +248,28 @@ fun ClockWidget(
                         indication = null
                     ) { openClock() }
             ) {
-                Text(
-                    text = hourText,
-                    color = Color.White,
-                    fontSize = 54.sp,
-                    fontWeight = FontWeight.Bold,
-                    lineHeight = 54.sp
-                )
-                Text(
-                    text = minuteText,
-                    color = Color.White,
-                    fontSize = 54.sp,
-                    fontWeight = FontWeight.Bold,
-                    lineHeight = 54.sp
-                )
+                if (dopagaki) {
+                    DopaFlashText(text = hourText, fontSize = 54.sp, lineHeight = 54.sp)
+                } else {
+                    Text(
+                        text = hourText,
+                        color = Color.White,
+                        fontSize = 54.sp,
+                        fontWeight = FontWeight.Bold,
+                        lineHeight = 54.sp
+                    )
+                }
+                if (dopagaki) {
+                    DopaFlashText(text = minuteText, fontSize = 54.sp, lineHeight = 54.sp)
+                } else {
+                    Text(
+                        text = minuteText,
+                        color = Color.White,
+                        fontSize = 54.sp,
+                        fontWeight = FontWeight.Bold,
+                        lineHeight = 54.sp
+                    )
+                }
             }
 
             // 日付ブロック (時計の下・横書き。タップでカレンダーアプリ起動)
@@ -270,7 +297,9 @@ fun ClockWidget(
                         .widthIn(max = 250.dp)
                 ) { line ->
                     val kLine = karaokeLine
-                    if (kLine != null && kLine.text == line && kLine.words.isNotEmpty()) {
+                    if (dopagaki) {
+                        DopaFlashText(text = line, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    } else if (kLine != null && kLine.text == line && kLine.words.isNotEmpty()) {
                         KaraokeLyricText(
                             line = kLine,
                             positionMs = karaokePositionMs,

@@ -57,7 +57,8 @@ fun PeekPageDial(
     currentPage: Int,
     onPageSelected: (Int) -> Unit,
     accentColor: Color = Color(0xFFE53935),
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    dopagaki: Boolean = false
 ) {
     val view = LocalView.current
     // すべてのスクロールに共通の反転オプション（リスト円盤と同じ設定を読む）
@@ -259,14 +260,18 @@ fun PeekPageDial(
             // 現在のページ名を円の外側に小さく表示。
             // 押して円が拡大したときも内側に入らないよう、円の大きさに合わせて位置も一緒に動かす
             val labelOffsetYDp = (discCenterYDp - discRadiusDp * expandScale) - 18f
-            Text(
-                text = pageLabels[targetPage],
-                color = Color.White.copy(alpha = 0.9f),
-                fontSize = 11.sp,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .offset(y = labelOffsetYDp.dp)
-            )
+            if (dopagaki) {
+                DopaFlashText(text = pageLabels[targetPage], fontSize = 11.sp, modifier = Modifier.align(Alignment.TopCenter).offset(y = labelOffsetYDp.dp))
+            } else {
+                Text(
+                    text = pageLabels[targetPage],
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontSize = 11.sp,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .offset(y = labelOffsetYDp.dp)
+                )
+            }
         }
     }
 }
