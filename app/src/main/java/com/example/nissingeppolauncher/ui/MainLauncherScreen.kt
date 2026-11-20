@@ -240,6 +240,8 @@ fun MainLauncherScreen() {
         }
     }
     var lyricsLoading by remember { mutableStateOf(false) }
+    // 左円のディスクラック表示中は右円と下ダイヤルを隠す
+    var vinylRackOpen by remember { mutableStateOf(false) }
     // 再生中セッションへシークする（対応していないプレイヤーでは何も起きない）
     fun seekSessionTo(posMs: Long) {
         try {
@@ -267,6 +269,22 @@ fun MainLauncherScreen() {
             active?.transportControls?.skipToNext()
         } catch (e: Exception) {
             // 次へ進めないセッションでは何もしない
+        }
+    }
+
+    // 再生中セッションの再生／一時停止を切り替える（右円の空き場所タップ用）
+    fun toggleSessionPlayback() {
+        try {
+            val msm = context.getSystemService(android.content.Context.MEDIA_SESSION_SERVICE) as? android.media.session.MediaSessionManager
+            val comp = android.content.ComponentName(context, com.example.nissingeppolauncher.service.LauncherMediaListenerService::class.java)
+            val controllers = msm?.getActiveSessions(comp)
+            val active = controllers?.firstOrNull {
+                it.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING
+            } ?: controllers?.firstOrNull()
+            val tc = active?.transportControls ?: return
+            if (active.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING) tc.pause() else tc.play()
+        } catch (e: Exception) {
+            // 操作できないセッションでは何もしない
         }
     }
 
@@ -1007,6 +1025,7 @@ fun MainLauncherScreen() {
                         glowColor = accentColor
                     )
 
+                    if (!vinylRackOpen) {
                     RotatableAppDisc(
                         iconTilt3d = disc3d,
                         modifier = Modifier
@@ -1040,8 +1059,10 @@ fun MainLauncherScreen() {
                         accentColor = accentColor,
                         onAppClick = { onAppClick(it.packageName) },
                         onLongClick = { selectedAppForOption = it },
-                        onHoldingChanged = { isHoldingRight = it }
+                        onHoldingChanged = { isHoldingRight = it },
+                        onEmptyTap = { toggleSessionPlayback() }
                     )
+                    }
 
                     Box(
                         modifier = Modifier
@@ -1067,7 +1088,8 @@ fun MainLauncherScreen() {
                             discRadiusDp = disc1RadiusDp,
                             accentColor = accentColor,
                             textStartAngle = lyricsTextAngle,
-                            artworkTilt3d = disc3d
+                            artworkTilt3d = disc3d,
+                            onRackVisibilityChanged = { vinylRackOpen = it }
                         )
                     }
                 }
@@ -1282,7 +1304,7 @@ fun MainLauncherScreen() {
         }
 
                 // --- 画面下部 ページ切り替え (ボタン式 / ダイヤル式を設定で切替) ---
-        if (!isLyricsBrowsing && !pvFullscreen && repo.prefManager.getPageSwitchStyle() == "dial") {
+        if (!isLyricsBrowsing && !pvFullscreen && !vinylRackOpen && repo.prefManager.getPageSwitchStyle() == "dial") {
             PeekPageDial(
                 currentPage = currentLauncherPage,
                 onPageSelected = { targetPage ->

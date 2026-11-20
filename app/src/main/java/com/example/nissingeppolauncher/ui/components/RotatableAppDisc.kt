@@ -9,6 +9,9 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -63,7 +66,8 @@ fun RotatableAppDisc(
     onAppClick: (AppInfo) -> Unit,
     onLongClick: (AppInfo) -> Unit,
     onHoldingChanged: (Boolean) -> Unit = {},
-    iconTilt3d: Boolean = false
+    iconTilt3d: Boolean = false,
+    onEmptyTap: (() -> Unit)? = null
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val prefManager = remember { com.example.nissingeppolauncher.data.AppPreferenceManager(context) }
@@ -279,6 +283,21 @@ fun RotatableAppDisc(
             }
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
+            // アイコン以外の円盤部分をタップしたときのコールバック（ホーム右円では再生コントロールに使う）。
+            // アイコンはこの上に描かれるので、アイコンのタップは今までどおりアプリ起動になる
+            if (onEmptyTap != null) {
+                Box(
+                    modifier = Modifier
+                        .offset(x = (discCenterXDp - discRadiusDp).dp, y = (discCenterYDp - discRadiusDp).dp)
+                        .size((discRadiusDp * 2f).dp)
+                        .clip(CircleShape)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { onEmptyTap() }
+                )
+            }
+
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val center = Offset(discCenterXDp.dp.toPx(), discCenterYDp.dp.toPx())
                 drawCircle(
