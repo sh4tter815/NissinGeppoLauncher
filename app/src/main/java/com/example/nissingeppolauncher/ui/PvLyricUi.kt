@@ -34,6 +34,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.example.nissingeppolauncher.R
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
@@ -3121,88 +3123,13 @@ fun LyricTagSearchDialog(
 /** PVレイヤー: 現在の行を文字PVで表示し、前行を退場アニメーションで消す。対訳もここに出す */
 @Composable
 fun PvDopagakiBackground(modifier: Modifier = Modifier) {
-    // ドパガキ専用背景: 黒地に金の爆発バースト。アニメーションなしの静止画にして軽くし、密度で目がチカチカするくらい盛る
-    Box(modifier = modifier.background(Color.Black)) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val cx = size.width / 2f
-            val cy = size.height / 2f
-            val maxR = sqrt(cx * cx + cy * cy)
-            drawRect(
-                brush = Brush.radialGradient(
-                    colors = listOf(Color(0xFF8A5200).copy(alpha = 0.55f), Color.Transparent),
-                    center = Offset(cx, cy),
-                    radius = maxR * 0.95f
-                ),
-                size = size
-            )
-            for (k in 0 until 14) {
-                val a0 = Math.toRadians((8f + k * 25.7f).toDouble())
-                val a1 = Math.toRadians((8f + k * 25.7f + 11f).toDouble())
-                val path = Path().apply {
-                    moveTo(cx, cy)
-                    lineTo(cx + (cos(a0) * maxR).toFloat(), cy + (sin(a0) * maxR).toFloat())
-                    lineTo(cx + (cos(a1) * maxR).toFloat(), cy + (sin(a1) * maxR).toFloat())
-                    close()
-                }
-                drawPath(path, color = Color(0xFFFFE97A).copy(alpha = 0.16f))
-            }
-            val streakCols = listOf(Color(0xFFFFF6C8), Color(0xFFFFC93C), Color(0xFFFF9E1B), Color(0xFFFFE97A))
-            for (k in 0 until 240) {
-                val ang = Math.toRadians((k * 1.5f + ((k * 37) % 10 - 5) * 0.35f).toDouble())
-                val r0 = maxR * (0.03f + ((k * 53) % 10) / 100f)
-                val r1 = maxR * (0.55f + ((k * 29) % 45) / 100f)
-                drawLine(
-                    color = streakCols[k % 4].copy(alpha = 0.16f + 0.38f * ((k * 31) % 10) / 10f),
-                    start = Offset(cx + (cos(ang) * r0).toFloat(), cy + (sin(ang) * r0).toFloat()),
-                    end = Offset(cx + (cos(ang) * r1).toFloat(), cy + (sin(ang) * r1).toFloat()),
-                    strokeWidth = 1f + (k % 4) * 0.9f
-                )
-            }
-            for (k in 0 until 130) {
-                val ang = Math.toRadians((k * 2.77f + ((k * 41) % 10 - 5) * 0.5f).toDouble())
-                val r0 = maxR * (0.15f + ((k * 67) % 65) / 100f)
-                val r1 = r0 + maxR * (0.03f + ((k * 23) % 8) / 100f)
-                drawLine(
-                    color = streakCols[(k + 1) % 4].copy(alpha = 0.5f + 0.35f * ((k * 17) % 10) / 10f),
-                    start = Offset(cx + (cos(ang) * r0).toFloat(), cy + (sin(ang) * r0).toFloat()),
-                    end = Offset(cx + (cos(ang) * r1).toFloat(), cy + (sin(ang) * r1).toFloat()),
-                    strokeWidth = 1.5f + (k % 3) * 0.8f
-                )
-            }
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(Color(0xFFFFF6C8).copy(alpha = 0.95f), Color.Transparent),
-                    center = Offset(cx, cy),
-                    radius = maxR * 0.55f
-                ),
-                radius = maxR * 0.55f,
-                center = Offset(cx, cy)
-            )
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(Color.White.copy(alpha = 0.98f), Color.Transparent),
-                    center = Offset(cx, cy),
-                    radius = maxR * 0.16f
-                ),
-                radius = maxR * 0.16f,
-                center = Offset(cx, cy)
-            )
-            for (k in 0 until 300) {
-                val px = (((k * 197) % 100) / 100f * size.width + ((k * 31) % 17)) % size.width
-                val py = (((k * 331) % 100) / 100f * size.height + ((k * 43) % 13)) % size.height
-                drawCircle(
-                    color = (if (k % 3 == 0) Color.White else if (k % 3 == 1) Color(0xFFFFD700) else Color(0xFFFFA500)).copy(alpha = 0.3f + 0.65f * ((k * 19) % 10) / 10f),
-                    radius = 0.9f + (k % 4) * 0.8f,
-                    center = Offset(px, py)
-                )
-            }
-            for (k in 0 until 120) {
-                val sx = (((k * 373) % 100) / 100f * size.width + ((k * 59) % 23)) % size.width
-                val sy = (((k * 619) % 100) / 100f * size.height + ((k * 71) % 19)) % size.height
-                drawSparkle(sx, sy, 5f + (k % 5) * 4.5f, if (k % 4 == 0) Color.White else Color(0xFFFFF2B0), 0.35f + 0.6f * ((k * 13) % 10) / 10f)
-            }
-        }
-    }
+    // ドパガキ専用背景: 爆発バーストの画像をそのまま敷く（ベクター描画よりずっと軽い）
+    Image(
+        painter = painterResource(id = R.drawable.dopagaki_bg),
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        modifier = modifier
+    )
 }
 
 @Composable
