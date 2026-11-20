@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -67,7 +68,8 @@ fun RotatableAppDisc(
     onLongClick: (AppInfo) -> Unit,
     onHoldingChanged: (Boolean) -> Unit = {},
     iconTilt3d: Boolean = false,
-    onEmptyTap: (() -> Unit)? = null
+    onEmptyTap: (() -> Unit)? = null,
+    dopagaki: Boolean = false
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val prefManager = remember { com.example.nissingeppolauncher.data.AppPreferenceManager(context) }
@@ -349,7 +351,8 @@ fun RotatableAppDisc(
                             onAppClick = onAppClick,
                             onLongClick = onLongClick,
                             showLabels = showLabels,
-                            iconTilt3d = iconTilt3d
+                            iconTilt3d = iconTilt3d,
+                            dopagaki = dopagaki
                         )
                     }
                 }
@@ -383,7 +386,8 @@ fun RotatableAppDisc(
                             onAppClick = onAppClick,
                             onLongClick = onLongClick,
                             showLabels = showLabels,
-                            iconTilt3d = iconTilt3d
+                            iconTilt3d = iconTilt3d,
+                            dopagaki = dopagaki
                         )
                     }
                 }
@@ -411,7 +415,8 @@ private fun RenderDiscItem(
     onAppClick: (AppInfo) -> Unit,
     onLongClick: (AppInfo) -> Unit,
     showLabels: Boolean = true,
-    iconTilt3d: Boolean = false
+    iconTilt3d: Boolean = false,
+    dopagaki: Boolean = false
 ) {
     when (discItem) {
         is DiscItem.IndexEntry -> {
@@ -424,14 +429,18 @@ private fun RenderDiscItem(
                     .height(44.dp),
                 contentAlignment = Alignment.CenterEnd
             ) {
-                Text(
-                    text = discItem.char,
-                    color = accentColor.copy(alpha = textAlpha),
-                    fontSize = textSizeSp.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = letterSpacingSp.sp,
-                    textAlign = TextAlign.End
-                )
+                if (dopagaki) {
+                    DopaFlashText(text = discItem.char, fontSize = textSizeSp.sp, letterSpacing = letterSpacingSp.sp, textAlign = TextAlign.End, modifier = Modifier.graphicsLayer { alpha = textAlpha })
+                } else {
+                    Text(
+                        text = discItem.char,
+                        color = accentColor.copy(alpha = textAlpha),
+                        fontSize = textSizeSp.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = letterSpacingSp.sp,
+                        textAlign = TextAlign.End
+                    )
+                }
             }
         }
         is DiscItem.AppEntry -> {
@@ -501,17 +510,21 @@ private fun RenderDiscItem(
                             )
                             .padding(horizontal = 4.dp, vertical = 2.dp)
                     ) {
-                        Text(
-                            text = displayText,
-                            modifier = Modifier.widthIn(max = 140.dp),
-                            color = textColor,
-                            fontSize = textSizeSp.sp,
-                            fontWeight = textWeight,
-                            letterSpacing = letterSpacingSp.sp,
-                            textAlign = TextAlign.End,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        if (dopagaki) {
+                            DopaFlashText(text = displayText, fontSize = textSizeSp.sp, letterSpacing = letterSpacingSp.sp, textAlign = TextAlign.End, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 140.dp).graphicsLayer { alpha = textAlpha })
+                        } else {
+                            Text(
+                                text = displayText,
+                                modifier = Modifier.widthIn(max = 140.dp),
+                                color = textColor,
+                                fontSize = textSizeSp.sp,
+                                fontWeight = textWeight,
+                                letterSpacing = letterSpacingSp.sp,
+                                textAlign = TextAlign.End,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
             } else if (showLabels) {
@@ -535,16 +548,20 @@ private fun RenderDiscItem(
                             )
                             .padding(horizontal = 4.dp, vertical = 2.dp)
                     ) {
-                        Text(
-                            text = displayText,
-                            color = textColor,
-                            fontSize = textSizeSp.sp,
-                            fontWeight = textWeight,
-                            letterSpacing = letterSpacingSp.sp,
-                            textAlign = TextAlign.Start,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        if (dopagaki) {
+                            DopaFlashText(text = displayText, fontSize = textSizeSp.sp, letterSpacing = letterSpacingSp.sp, textAlign = TextAlign.End, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 140.dp).graphicsLayer { alpha = textAlpha })
+                        } else {
+                            Text(
+                                text = displayText,
+                                color = textColor,
+                                fontSize = textSizeSp.sp,
+                                fontWeight = textWeight,
+                                letterSpacing = letterSpacingSp.sp,
+                                textAlign = TextAlign.Start,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
             }

@@ -71,7 +71,8 @@ fun MusicVinylWidget(
     accentColor: Color = Color(0xFFE53935),
     textStartAngle: Float = -90f,
     artworkTilt3d: Boolean = false,
-    onRackVisibilityChanged: (Boolean) -> Unit = {}
+    onRackVisibilityChanged: (Boolean) -> Unit = {},
+    dopagaki: Boolean = false
 ) {
     val context = LocalContext.current
     val prefManager = remember { AppPreferenceManager(context) }
@@ -648,6 +649,24 @@ fun MusicVinylWidget(
                 letterSpacing = 0.15f
                 textAlign = android.graphics.Paint.Align.LEFT
                 setShadowLayer(4f, 0f, 0f, android.graphics.Color.BLACK)
+                if (dopagaki) {
+                    // ドパガキモード: 円周テキストも虹色グラデ＋金のグローにする
+                    shader = android.graphics.LinearGradient(
+                        0f, 0f, size.width, size.height,
+                        intArrayOf(
+                            android.graphics.Color.rgb(255, 93, 162),
+                            android.graphics.Color.rgb(214, 51, 255),
+                            android.graphics.Color.rgb(122, 92, 255),
+                            android.graphics.Color.rgb(51, 181, 255),
+                            android.graphics.Color.rgb(63, 224, 197),
+                            android.graphics.Color.rgb(255, 217, 59),
+                            android.graphics.Color.rgb(255, 138, 59)
+                        ),
+                        null,
+                        android.graphics.Shader.TileMode.CLAMP
+                    )
+                    setShadowLayer(6f, 0f, 0f, android.graphics.Color.rgb(255, 196, 0))
+                }
                 if (customTypeface != null) {
                     typeface = customTypeface
                 }
