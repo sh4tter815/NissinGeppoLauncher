@@ -1022,7 +1022,8 @@ fun MainLauncherScreen() {
                         lyricFontFamily = lyricsFontFamily,
                         lyricEnFontFamily = lyricsEnFontArg,
                         dateMode = if (lyricsDisplayMode == "video" && syncedLyricLines.isNotEmpty()) "sideways" else dateDisplayMode,
-                        glowColor = accentColor
+                        glowColor = accentColor,
+                        dopagaki = dopagakiMode
                     )
 
                     if (!vinylRackOpen) {
@@ -1060,7 +1061,8 @@ fun MainLauncherScreen() {
                         onAppClick = { onAppClick(it.packageName) },
                         onLongClick = { selectedAppForOption = it },
                         onHoldingChanged = { isHoldingRight = it },
-                        onEmptyTap = { toggleSessionPlayback() }
+                        onEmptyTap = { toggleSessionPlayback() },
+                        dopagaki = dopagakiMode
                     )
                     }
 
@@ -1089,7 +1091,8 @@ fun MainLauncherScreen() {
                             accentColor = accentColor,
                             textStartAngle = lyricsTextAngle,
                             artworkTilt3d = disc3d,
-                            onRackVisibilityChanged = { vinylRackOpen = it }
+                            onRackVisibilityChanged = { vinylRackOpen = it },
+                            dopagaki = dopagakiMode
                         )
                     }
                 }
@@ -1113,6 +1116,7 @@ fun MainLauncherScreen() {
                         discCenterYDp = disc1CenterY,
                         discRadiusDp = disc1RadiusDp,
                         currentRotation = leftRotation,
+                        dopagaki = dopagakiMode,
                         isHolding = isHoldingLeft,
                         stepAngle = stepAngle,
                         accentColor = accentColor,
@@ -1172,7 +1176,8 @@ fun MainLauncherScreen() {
                         accentColor = accentColor,
                         onAppClick = { onAppClick(it.packageName) },
                         onLongClick = { selectedAppForOption = it },
-                        onHoldingChanged = { isHoldingRight = it }
+                        onHoldingChanged = { isHoldingRight = it },
+                        dopagaki = dopagakiMode
                     )
                 }
                 3 -> {
@@ -1192,6 +1197,7 @@ fun MainLauncherScreen() {
                             discCenterYDp = disc1CenterY,
                             discRadiusDp = disc1RadiusDp,
                             currentRotation = leftRotation,
+                            dopagaki = dopagakiMode,
                             isHolding = isHoldingLeft,
                             stepAngle = stepAngle,
                             accentColor = accentColor,
@@ -1214,6 +1220,7 @@ fun MainLauncherScreen() {
                             discCenterYDp = disc1CenterY,
                             discRadiusDp = disc1RadiusDp,
                             currentRotation = folderWheelRotation,
+                            dopagaki = dopagakiMode,
                             isHolding = isHoldingFolderWheel,
                             stepAngle = folderStepAngle,
                             textSizeSp = appDiscTextSize,
@@ -1297,7 +1304,8 @@ fun MainLauncherScreen() {
                                 selectedAppForOption = app
                             }
                         },
-                        onHoldingChanged = { isHoldingRight = it }
+                        onHoldingChanged = { isHoldingRight = it },
+                        dopagaki = dopagakiMode
                     )
                 }
             }
@@ -1306,6 +1314,7 @@ fun MainLauncherScreen() {
                 // --- 画面下部 ページ切り替え (ボタン式 / ダイヤル式を設定で切替) ---
         if (!isLyricsBrowsing && !pvFullscreen && !vinylRackOpen && repo.prefManager.getPageSwitchStyle() == "dial") {
             PeekPageDial(
+                dopagaki = dopagakiMode,
                 currentPage = currentLauncherPage,
                 onPageSelected = { targetPage ->
                     changePageWithTransition(targetPage)
