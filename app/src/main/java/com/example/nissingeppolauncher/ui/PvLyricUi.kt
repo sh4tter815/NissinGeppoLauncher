@@ -3209,6 +3209,7 @@ fun PvDopagakiBackground(modifier: Modifier = Modifier, rotate90: Boolean = fals
 
 @Composable
 private fun PvSkipInterludeButton(label: String, dopagaki: Boolean, fontFamily: FontFamily?, accentColor: Color, onClick: () -> Unit) {
+    val skipCtx = LocalContext.current
     // 間奏スキップ: 金フチ＋虹色グラデのギラギラ文字を、半透明の黒ピルに載せる
     val rainbowBrush = remember {
         Brush.linearGradient(listOf(Color(0xFFFF5DA2), Color(0xFFD633FF), Color(0xFF7A5CFF), Color(0xFF33B5FF), Color(0xFFFFD93B), Color(0xFFFF8A3B)))
@@ -3223,7 +3224,10 @@ private fun PvSkipInterludeButton(label: String, dopagaki: Boolean, fontFamily: 
             .clip(RoundedCornerShape(999.dp))
             .background(Color(0xD90A0A14))
             .border(2.dp, if (dopagaki) Color(0xFFFFC400) else accentColor, RoundedCornerShape(999.dp))
-            .clickable { onClick() }
+            .clickable {
+                Toast.makeText(skipCtx, if (label.contains("次の曲")) "次の曲へ" else "間奏をスキップ", Toast.LENGTH_SHORT).show()
+                onClick()
+            }
             .padding(horizontal = 24.dp, vertical = 13.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -3258,6 +3262,7 @@ private fun PvSkipInterludeButton(label: String, dopagaki: Boolean, fontFamily: 
 // 通常モード用: 小さな文字だけの控えめなスキップ表示
 @Composable
 private fun PvSkipInterludeText(label: String, fontFamily: FontFamily?, onClick: () -> Unit) {
+    val skipCtx = LocalContext.current
     Text(
         text = label,
         color = Color.White.copy(alpha = 0.85f),
@@ -3265,8 +3270,11 @@ private fun PvSkipInterludeText(label: String, fontFamily: FontFamily?, onClick:
         style = LocalTextStyle.current.copy(fontFamily = fontFamily),
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
-            .clickable { onClick() }
-            .padding(horizontal = 10.dp, vertical = 6.dp)
+            .clickable {
+                Toast.makeText(skipCtx, if (label.contains("次の曲")) "次の曲へ" else "間奏をスキップ", Toast.LENGTH_SHORT).show()
+                onClick()
+            }
+            .padding(horizontal = 12.dp, vertical = 10.dp)
     )
 }
 
@@ -3487,21 +3495,21 @@ fun LyricsPvLayer(
             val pvSkipTarget = pvNextLine?.let { (it.timeMs - lyricOffsetMs - 300L).coerceAtLeast(0L) }
             if (pvSkipTarget != null) {
                 if (dopagaki) {
-                    Box(Modifier.fillMaxWidth().padding(top = interludeTopDp - 60.dp), contentAlignment = Alignment.Center) {
+                    Box(Modifier.fillMaxWidth().padding(top = interludeTopDp - 20.dp).zIndex(999f), contentAlignment = Alignment.Center) {
                         PvSkipInterludeButton("間奏をスキップする？", dopagaki, fontFamily, accentColor) { onSeek(pvSkipTarget) }
                     }
                 } else {
-                    Box(Modifier.fillMaxWidth().padding(top = interludeTopDp + 44.dp, end = 16.dp), contentAlignment = Alignment.CenterEnd) {
+                    Box(Modifier.fillMaxWidth().padding(top = interludeTopDp + 44.dp, end = 16.dp).zIndex(999f), contentAlignment = Alignment.CenterEnd) {
                         PvSkipInterludeText("間奏をスキップ▷", fontFamily) { onSeek(pvSkipTarget) }
                     }
                 }
             } else if (pvCurLine != null) {
                 if (dopagaki) {
-                    Box(Modifier.fillMaxWidth().padding(top = interludeTopDp - 60.dp), contentAlignment = Alignment.Center) {
+                    Box(Modifier.fillMaxWidth().padding(top = interludeTopDp - 20.dp).zIndex(999f), contentAlignment = Alignment.Center) {
                         PvSkipInterludeButton("次の曲に行く？", dopagaki, fontFamily, accentColor) { onNextTrack() }
                     }
                 } else {
-                    Box(Modifier.fillMaxWidth().padding(top = interludeTopDp + 44.dp, end = 16.dp), contentAlignment = Alignment.CenterEnd) {
+                    Box(Modifier.fillMaxWidth().padding(top = interludeTopDp + 44.dp, end = 16.dp).zIndex(999f), contentAlignment = Alignment.CenterEnd) {
                         PvSkipInterludeText("次の曲へ▷", fontFamily) { onNextTrack() }
                     }
                 }
@@ -4254,21 +4262,21 @@ fun LyricsFullscreenOverlay(
                     val fsSkipTarget = fsNextLine?.let { (it.timeMs - lyricOffsetMs - 300L).coerceAtLeast(0L) }
                     if (fsSkipTarget != null) {
                         if (dopagaki) {
-                            Box(Modifier.fillMaxSize().padding(bottom = 84.dp), contentAlignment = Alignment.BottomCenter) {
+                            Box(Modifier.fillMaxSize().padding(bottom = 84.dp).zIndex(999f), contentAlignment = Alignment.BottomCenter) {
                                 PvSkipInterludeButton("間奏をスキップする？", dopagaki, fontFamily, accentColor) { onSeek(fsSkipTarget) }
                             }
                         } else {
-                            Box(Modifier.fillMaxSize().padding(end = 20.dp, bottom = 24.dp), contentAlignment = Alignment.BottomEnd) {
+                            Box(Modifier.fillMaxSize().padding(end = 20.dp, bottom = 24.dp).zIndex(999f), contentAlignment = Alignment.BottomEnd) {
                                 PvSkipInterludeText("間奏をスキップ▷", fontFamily) { onSeek(fsSkipTarget) }
                             }
                         }
                     } else if (fsCurLine != null) {
                         if (dopagaki) {
-                            Box(Modifier.fillMaxSize().padding(bottom = 84.dp), contentAlignment = Alignment.BottomCenter) {
+                            Box(Modifier.fillMaxSize().padding(bottom = 84.dp).zIndex(999f), contentAlignment = Alignment.BottomCenter) {
                                 PvSkipInterludeButton("次の曲に行く？", dopagaki, fontFamily, accentColor) { onNextTrack() }
                             }
                         } else {
-                            Box(Modifier.fillMaxSize().padding(end = 20.dp, bottom = 24.dp), contentAlignment = Alignment.BottomEnd) {
+                            Box(Modifier.fillMaxSize().padding(end = 20.dp, bottom = 24.dp).zIndex(999f), contentAlignment = Alignment.BottomEnd) {
                                 PvSkipInterludeText("次の曲へ▷", fontFamily) { onNextTrack() }
                             }
                         }
