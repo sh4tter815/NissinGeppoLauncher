@@ -166,7 +166,8 @@ class LyricsOverlayService : Service() {
         windowManager = wm
         val statusBarHeight = resources.getIdentifier("status_bar_height", "dimen", "android")
             .takeIf { it > 0 }?.let { resources.getDimensionPixelSize(it) } ?: dp(24f)
-        val width = (resources.displayMetrics.widthPixels * 0.60f).toInt()
+        // ダイナミックアイランド（中央のピル）に歌詞の末尾が隠れないよう、帯は左45%までにして早めに折り返す
+        val width = (resources.displayMetrics.widthPixels * 0.45f).toInt()
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
