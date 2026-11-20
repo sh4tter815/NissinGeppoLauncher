@@ -3255,6 +3255,21 @@ private fun PvSkipInterludeButton(label: String, dopagaki: Boolean, fontFamily: 
     }
 }
 
+// 通常モード用: 小さな文字だけの控えめなスキップ表示
+@Composable
+private fun PvSkipInterludeText(label: String, fontFamily: FontFamily?, onClick: () -> Unit) {
+    Text(
+        text = label,
+        color = Color.White.copy(alpha = 0.85f),
+        fontSize = 13.sp,
+        style = LocalTextStyle.current.copy(fontFamily = fontFamily),
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable { onClick() }
+            .padding(horizontal = 10.dp, vertical = 6.dp)
+    )
+}
+
 @Composable
 fun LyricsPvLayer(
     lines: List<LyricLine>,
@@ -3471,12 +3486,24 @@ fun LyricsPvLayer(
             // ドパガキモードの間奏中だけ、ギラギラボタンを出す（通常は次の行へスキップ、ラストの間奏は次の曲へ）
             val pvSkipTarget = pvNextLine?.let { (it.timeMs - lyricOffsetMs - 300L).coerceAtLeast(0L) }
             if (pvSkipTarget != null) {
-                Box(Modifier.fillMaxWidth().padding(top = interludeTopDp + 252.dp), contentAlignment = Alignment.Center) {
-                    PvSkipInterludeButton("間奏をスキップする？", dopagaki, fontFamily, accentColor) { onSeek(pvSkipTarget) }
+                if (dopagaki) {
+                    Box(Modifier.fillMaxWidth().padding(top = interludeTopDp - 60.dp), contentAlignment = Alignment.Center) {
+                        PvSkipInterludeButton("間奏をスキップする？", dopagaki, fontFamily, accentColor) { onSeek(pvSkipTarget) }
+                    }
+                } else {
+                    Box(Modifier.fillMaxWidth().padding(top = interludeTopDp + 44.dp, end = 16.dp), contentAlignment = Alignment.CenterEnd) {
+                        PvSkipInterludeText("間奏をスキップ▷", fontFamily) { onSeek(pvSkipTarget) }
+                    }
                 }
             } else if (pvCurLine != null) {
-                Box(Modifier.fillMaxWidth().padding(top = interludeTopDp + 252.dp), contentAlignment = Alignment.Center) {
-                    PvSkipInterludeButton("次の曲に行く？", dopagaki, fontFamily, accentColor) { onNextTrack() }
+                if (dopagaki) {
+                    Box(Modifier.fillMaxWidth().padding(top = interludeTopDp - 60.dp), contentAlignment = Alignment.Center) {
+                        PvSkipInterludeButton("次の曲に行く？", dopagaki, fontFamily, accentColor) { onNextTrack() }
+                    }
+                } else {
+                    Box(Modifier.fillMaxWidth().padding(top = interludeTopDp + 44.dp, end = 16.dp), contentAlignment = Alignment.CenterEnd) {
+                        PvSkipInterludeText("次の曲へ▷", fontFamily) { onNextTrack() }
+                    }
                 }
             }
         }
@@ -4226,12 +4253,24 @@ fun LyricsFullscreenOverlay(
                     PvInterludeArt(accentColor = accentColor, modifier = Modifier.fillMaxSize().padding(60.dp))
                     val fsSkipTarget = fsNextLine?.let { (it.timeMs - lyricOffsetMs - 300L).coerceAtLeast(0L) }
                     if (fsSkipTarget != null) {
-                        Box(Modifier.fillMaxSize().padding(bottom = 84.dp), contentAlignment = Alignment.BottomCenter) {
-                            PvSkipInterludeButton("間奏をスキップする？", dopagaki, fontFamily, accentColor) { onSeek(fsSkipTarget) }
+                        if (dopagaki) {
+                            Box(Modifier.fillMaxSize().padding(bottom = 84.dp), contentAlignment = Alignment.BottomCenter) {
+                                PvSkipInterludeButton("間奏をスキップする？", dopagaki, fontFamily, accentColor) { onSeek(fsSkipTarget) }
+                            }
+                        } else {
+                            Box(Modifier.fillMaxSize().padding(end = 20.dp, bottom = 24.dp), contentAlignment = Alignment.BottomEnd) {
+                                PvSkipInterludeText("間奏をスキップ▷", fontFamily) { onSeek(fsSkipTarget) }
+                            }
                         }
                     } else if (fsCurLine != null) {
-                        Box(Modifier.fillMaxSize().padding(bottom = 84.dp), contentAlignment = Alignment.BottomCenter) {
-                            PvSkipInterludeButton("次の曲に行く？", dopagaki, fontFamily, accentColor) { onNextTrack() }
+                        if (dopagaki) {
+                            Box(Modifier.fillMaxSize().padding(bottom = 84.dp), contentAlignment = Alignment.BottomCenter) {
+                                PvSkipInterludeButton("次の曲に行く？", dopagaki, fontFamily, accentColor) { onNextTrack() }
+                            }
+                        } else {
+                            Box(Modifier.fillMaxSize().padding(end = 20.dp, bottom = 24.dp), contentAlignment = Alignment.BottomEnd) {
+                                PvSkipInterludeText("次の曲へ▷", fontFamily) { onNextTrack() }
+                            }
                         }
                     }
                 }
