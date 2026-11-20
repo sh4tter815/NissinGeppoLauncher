@@ -3232,7 +3232,9 @@ fun LyricsPvLayer(
     enFontFamily: FontFamily? = null,
     onAccentFlash: (Color?) -> Unit = {},
     pvTilt3d: Boolean = false,
-    dopagaki: Boolean = false
+    dopagaki: Boolean = false,
+    tiltX: State<Float>? = null,
+    tiltY: State<Float>? = null
 ) {
     val pvPos = positionMs + lyricOffsetMs
     val pvIndex = lines.indexOfLast { it.timeMs <= pvPos }
@@ -3340,7 +3342,15 @@ fun LyricsPvLayer(
                 label = "dopaBgPhase"
             )
         } else null
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        Box(modifier = Modifier.fillMaxSize().graphicsLayer {
+                        val tx = tiltX?.value ?: 0f
+                        val ty = tiltY?.value ?: 0f
+                        rotationX = tx * 0.38f
+                        rotationY = ty * 0.38f
+                        cameraDistance = 9f * density
+                        translationX = ty * 1.15f
+                        translationY = -tx * 1.15f
+                    }, contentAlignment = Alignment.TopCenter) {
             if (dopagaki) {
                 Box(
                     modifier = Modifier.fillMaxWidth().padding(top = (pvTopDp - 70.dp).coerceAtLeast(0.dp)).height(320.dp)
@@ -3991,7 +4001,9 @@ fun LyricsFullscreenOverlay(
     partsEntry: Boolean = false,
     enFontFamily: FontFamily? = null,
     pvTilt3d: Boolean = false,
-    dopagaki: Boolean = false
+    dopagaki: Boolean = false,
+    tiltX: State<Float>? = null,
+    tiltY: State<Float>? = null
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize().zIndex(96f)) {
         val fsWidth = maxWidth.value
@@ -4092,7 +4104,15 @@ fun LyricsFullscreenOverlay(
                 LaunchedEffect(fsDarkTarget) {
                     fsDarkAlpha.animateTo(fsDarkTarget, animationSpec = tween(durationMillis = 700))
                 }
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier.fillMaxSize().graphicsLayer {
+                        val tx = tiltX?.value ?: 0f
+                        val ty = tiltY?.value ?: 0f
+                        rotationX = tx * 0.38f
+                        rotationY = ty * 0.38f
+                        cameraDistance = 9f * density
+                        translationX = ty * 1.15f
+                        translationY = -tx * 1.15f
+                    }, contentAlignment = Alignment.Center) {
                     if (fsDarkAlpha.value > 0.001f) {
                         Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = fsDarkAlpha.value)))
                     }

@@ -145,7 +145,7 @@ fun MainLauncherScreen() {
     val discTiltX = remember { mutableFloatStateOf(0f) }
     val discTiltY = remember { mutableFloatStateOf(0f) }
     DisposableEffect(disc3d, disc3dTilt, currentLauncherPage) {
-        if (!disc3d || !disc3dTilt || currentLauncherPage !in 1..3) {
+        if (!disc3dTilt || currentLauncherPage !in 1..3) {
             discTiltX.value = 0f
             discTiltY.value = 0f
             return@DisposableEffect onDispose { }
@@ -155,15 +155,15 @@ fun MainLauncherScreen() {
         if (sm == null || sensor == null) return@DisposableEffect onDispose { }
         val listener = object : SensorEventListener {
             override fun onSensorChanged(e: SensorEvent) {
-                val k = 0.14f
-                val targetY = (e.values[0] / 9.8f * 14f).coerceIn(-14f, 14f)
-                val targetX = ((e.values[1] - 9.8f) / 9.8f * 14f).coerceIn(-14f, 14f)
+                val k = 0.30f
+                val targetY = (e.values[0] / 9.8f * 22f).coerceIn(-22f, 22f)
+                val targetX = ((e.values[1] - 9.8f) / 9.8f * 22f).coerceIn(-22f, 22f)
                 discTiltY.value += (targetY - discTiltY.value) * k
                 discTiltX.value += (targetX - discTiltX.value) * k
             }
             override fun onAccuracyChanged(s: Sensor?, accuracy: Int) { }
         }
-        sm.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_UI)
+        sm.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_GAME)
         onDispose { sm.unregisterListener(listener) }
     }
     var dateDisplayMode by remember { mutableStateOf(repo.prefManager.getDateDisplayMode()) }
@@ -839,7 +839,16 @@ fun MainLauncherScreen() {
         ) {
             if (dopagakiMode && currentLauncherPage == 1) {
                 // ドパガキ中はホームの背景も金ピカにする（壁紙・アートワーク・液体の代わり）
-                PvDopagakiBackground(Modifier.fillMaxSize(), rotate90 = true)
+                Box(
+                    modifier = Modifier.fillMaxSize().graphicsLayer {
+                        scaleX = 1.07f
+                        scaleY = 1.07f
+                        translationX = discTiltY.value * 0.55f
+                        translationY = -discTiltX.value * 0.55f
+                    }
+                ) {
+                    PvDopagakiBackground(Modifier.fillMaxSize(), rotate90 = true)
+                }
             } else {
                 WallpaperBackground(
                     customPath = customBackgroundPath,
@@ -899,6 +908,8 @@ fun MainLauncherScreen() {
                     partsEntry = pvPartsEntry,
                     dopagaki = dopagakiMode,
                     enFontFamily = lyricsEnFontArg,
+                    tiltX = discTiltX,
+                    tiltY = discTiltY,
                     onAccentFlash = { pvFlashColor = it }
                 )
             }
@@ -1956,6 +1967,8 @@ fun MainLauncherScreen() {
                 album = sessionTrackAlbum,
                 partsEntry = pvPartsEntry,
                 dopagaki = dopagakiMode,
+                tiltX = discTiltX,
+                tiltY = discTiltY,
                 onClose = { pvFullscreen = false }
             )
         }
