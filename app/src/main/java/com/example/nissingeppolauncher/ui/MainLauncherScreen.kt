@@ -1926,6 +1926,11 @@ fun MainLauncherScreen() {
                         report(if (err == null) "OK" else err)
                     }
                 },
+                dopagaki = dopagakiMode,
+                onToggleDopagaki = {
+                    dopagakiMode = !dopagakiMode
+                    repo.prefManager.setDopagakiEnabled(dopagakiMode)
+                },
                 onClose = { isLyricsBrowsing = false }
             )
         }

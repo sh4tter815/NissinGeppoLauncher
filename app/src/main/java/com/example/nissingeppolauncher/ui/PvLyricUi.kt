@@ -139,6 +139,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.key
@@ -1362,19 +1363,12 @@ fun PvLyricLine(
             }
         }
         if (dopagaki && !exiting) {
-            // ドパガキ中は常時キラキラ: 行のまわりに星屑が瞬き続ける
-            val dopaTwk = rememberInfiniteTransition(label = "dopaLineSparkle")
-            val dopaTwkV = dopaTwk.animateFloat(
-                initialValue = 0f, targetValue = 1f,
-                animationSpec = infiniteRepeatable(tween(1400, easing = LinearEasing), RepeatMode.Restart),
-                label = "dopaLineSparkleV"
-            )
+            // ドパガキ中は行のまわりに星屑を散らす（軽量化のため瞬きはなしの静止画）
             Canvas(modifier = Modifier.matchParentSize().zIndex(6f)) {
-                val phv = dopaTwkV.value
                 for (i in 0 until 40) {
                     val sx = ((i * 389 + baseSeed * 53) % 100) / 100f * size.width
                     val sy = ((i * 641 + baseSeed * 29) % 100) / 100f * size.height
-                    val al = 0.25f + 0.75f * abs(sin(phv * 6.2832f + i * 1.93f))
+                    val al = 0.35f + 0.6f * ((i * 29) % 10) / 10f
                     drawSparkle(sx, sy, 7f + (i % 3) * 3.5f, Color(0xFFFFF2B0), al * 0.9f)
                 }
             }
@@ -2269,6 +2263,7 @@ fun PvLyricUnit(
                 val rOut = uSize.value * 0.062f
                 val rIn = uSize.value * 0.036f
                 val ringDirs = listOf(-1f to 0f, 1f to 0f, 0f to -1f, 0f to 1f, -0.7f to -0.7f, 0.7f to -0.7f, -0.7f to 0.7f, 0.7f to 0.7f)
+                val ringDirs4 = listOf(-1f to 0f, 1f to 0f, 0f to -1f, 0f to 1f)
                 val sheenPx = with(LocalDensity.current) { uSize.toPx() }
                 val sheenAnnotated = remember(annotatedUnit, sheenPx) {
                     AnnotatedString(
@@ -2293,11 +2288,10 @@ fun PvLyricUnit(
                         drawContent()
                         // 文字の上に星のキラキラを散らす
                         if (!exiting) {
-                            val tw = sway.value
                             for (k in 0 until 5) {
                                 val fx = ((uSeed * 37 + k * 41) % 72 + 14) / 100f * size.width
                                 val fy = ((uSeed * 53 + k * 29) % 60 + 12) / 100f * size.height
-                                val al = 0.35f + 0.65f * abs(sin(tw * 6.2832f + k * 2.1f + uSeed * 1.3f))
+                                val al = 0.45f + 0.5f * ((uSeed * 7 + k * 3) % 10) / 10f
                                 drawSparkle(fx, fy, (5f + (k % 3) * 2.5f) * (size.height / 60f), Color.White, al)
                             }
                         }
@@ -2325,7 +2319,7 @@ fun PvLyricUnit(
                             modifier = Modifier.offset(x = (rOut * ox).dp, y = (rOut * oy).dp)
                         )
                     }
-                    for ((ox, oy) in ringDirs) {
+                    for ((ox, oy) in ringDirs4) {
                         Text(
                             text = annotatedUnit,
                             color = Color.White.copy(alpha = layerAlpha),
@@ -3127,46 +3121,52 @@ fun LyricTagSearchDialog(
 /** PVレイヤー: 現在の行を文字PVで表示し、前行を退場アニメーションで消す。対訳もここに出す */
 @Composable
 fun PvDopagakiBackground(modifier: Modifier = Modifier) {
-    // ドパガキ専用背景: 金のグラデーション＋回る放射光＋キラキラ
-    val tr = rememberInfiniteTransition(label = "dopaBgSpin")
-    val rotState = tr.animateFloat(
-        initialValue = 0f, targetValue = 360f,
-        animationSpec = infiniteRepeatable(tween(26000, easing = LinearEasing), RepeatMode.Restart),
-        label = "dopaBgRot"
-    )
-    val twkState = tr.animateFloat(
-        initialValue = 0f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1500, easing = LinearEasing), RepeatMode.Restart),
-        label = "dopaBgTwk"
-    )
-    Box(
-        modifier = modifier.background(
-            Color.Black
-        )
-    ) {
+    // ドパガキ専用背景: 黒地に金の爆発バースト。アニメーションなしの静止画にして軽くし、密度で目がチカチカするくらい盛る
+    Box(modifier = modifier.background(Color.Black)) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val cx = size.width / 2f
             val cy = size.height / 2f
             val maxR = sqrt(cx * cx + cy * cy)
-            val rot = rotState.value
-            for (k in 0 until 16) {
-                val a0 = Math.toRadians((rot + k * 22.5f).toDouble())
-                val a1 = Math.toRadians((rot + k * 22.5f + 10f).toDouble())
+            drawRect(
+                brush = Brush.radialGradient(
+                    colors = listOf(Color(0xFF8A5200).copy(alpha = 0.55f), Color.Transparent),
+                    center = Offset(cx, cy),
+                    radius = maxR * 0.95f
+                ),
+                size = size
+            )
+            for (k in 0 until 14) {
+                val a0 = Math.toRadians((8f + k * 25.7f).toDouble())
+                val a1 = Math.toRadians((8f + k * 25.7f + 11f).toDouble())
                 val path = Path().apply {
                     moveTo(cx, cy)
                     lineTo(cx + (cos(a0) * maxR).toFloat(), cy + (sin(a0) * maxR).toFloat())
                     lineTo(cx + (cos(a1) * maxR).toFloat(), cy + (sin(a1) * maxR).toFloat())
                     close()
                 }
-                drawPath(path, color = Color(0xFFFFE97A).copy(alpha = 0.22f))
+                drawPath(path, color = Color(0xFFFFE97A).copy(alpha = 0.16f))
             }
-            for (k in 0 until 48) {
-                val ang = Math.toRadians((rot * 0.5f + k * 7.5f + ((k * 37) % 10 - 5) * 0.4f).toDouble())
+            val streakCols = listOf(Color(0xFFFFF6C8), Color(0xFFFFC93C), Color(0xFFFF9E1B), Color(0xFFFFE97A))
+            for (k in 0 until 240) {
+                val ang = Math.toRadians((k * 1.5f + ((k * 37) % 10 - 5) * 0.35f).toDouble())
+                val r0 = maxR * (0.03f + ((k * 53) % 10) / 100f)
+                val r1 = maxR * (0.55f + ((k * 29) % 45) / 100f)
                 drawLine(
-                    color = (if (k % 4 == 0) Color(0xFFFFF6C8) else Color(0xFFFFC93C)).copy(alpha = 0.10f + 0.16f * ((k * 29) % 10) / 10f),
-                    start = Offset(cx + (cos(ang) * maxR * 0.05f).toFloat(), cy + (sin(ang) * maxR * 0.05f).toFloat()),
-                    end = Offset(cx + (cos(ang) * maxR).toFloat(), cy + (sin(ang) * maxR).toFloat()),
-                    strokeWidth = 1.5f + (k % 3) * 1.3f
+                    color = streakCols[k % 4].copy(alpha = 0.16f + 0.38f * ((k * 31) % 10) / 10f),
+                    start = Offset(cx + (cos(ang) * r0).toFloat(), cy + (sin(ang) * r0).toFloat()),
+                    end = Offset(cx + (cos(ang) * r1).toFloat(), cy + (sin(ang) * r1).toFloat()),
+                    strokeWidth = 1f + (k % 4) * 0.9f
+                )
+            }
+            for (k in 0 until 130) {
+                val ang = Math.toRadians((k * 2.77f + ((k * 41) % 10 - 5) * 0.5f).toDouble())
+                val r0 = maxR * (0.15f + ((k * 67) % 65) / 100f)
+                val r1 = r0 + maxR * (0.03f + ((k * 23) % 8) / 100f)
+                drawLine(
+                    color = streakCols[(k + 1) % 4].copy(alpha = 0.5f + 0.35f * ((k * 17) % 10) / 10f),
+                    start = Offset(cx + (cos(ang) * r0).toFloat(), cy + (sin(ang) * r0).toFloat()),
+                    end = Offset(cx + (cos(ang) * r1).toFloat(), cy + (sin(ang) * r1).toFloat()),
+                    strokeWidth = 1.5f + (k % 3) * 0.8f
                 )
             }
             drawCircle(
@@ -3180,41 +3180,26 @@ fun PvDopagakiBackground(modifier: Modifier = Modifier) {
             )
             drawCircle(
                 brush = Brush.radialGradient(
-                    colors = listOf(Color.White.copy(alpha = 0.95f), Color.Transparent),
+                    colors = listOf(Color.White.copy(alpha = 0.98f), Color.Transparent),
                     center = Offset(cx, cy),
                     radius = maxR * 0.16f
                 ),
                 radius = maxR * 0.16f,
                 center = Offset(cx, cy)
             )
-            val twk = twkState.value
-            // スパンコール: 小さな四角が一面に瞬く
-            for (k in 0 until 80) {
-                val qx = ((k * 271) % 100) / 100f * size.width
-                val qy = ((k * 389) % 100) / 100f * size.height
-                val qa = 0.15f + 0.5f * abs(sin(twk * 6.2832f + k * 2.3f))
-                val qs = 5f + (k % 4) * 2.2f
-                drawRect(
-                    color = (if (k % 3 == 0) Color(0xFFFFF6C8) else if (k % 3 == 1) Color(0xFFFFD700) else Color(0xFFFFA500)).copy(alpha = qa),
-                    topLeft = Offset(qx, qy),
-                    size = Size(qs, qs)
-                )
-            }
-            for (k in 0 until 90) {
-                val px = ((k * 197) % 100) / 100f * size.width
-                val py = ((k * 331) % 100) / 100f * size.height
-                val pa = 0.25f + 0.65f * abs(sin(twk * 6.2832f + k * 1.9f))
+            for (k in 0 until 300) {
+                val px = (((k * 197) % 100) / 100f * size.width + ((k * 31) % 17)) % size.width
+                val py = (((k * 331) % 100) / 100f * size.height + ((k * 43) % 13)) % size.height
                 drawCircle(
-                    color = (if (k % 3 == 0) Color.White else Color(0xFFFFD700)).copy(alpha = pa),
-                    radius = 1.6f + (k % 3) * 1.2f,
+                    color = (if (k % 3 == 0) Color.White else if (k % 3 == 1) Color(0xFFFFD700) else Color(0xFFFFA500)).copy(alpha = 0.3f + 0.65f * ((k * 19) % 10) / 10f),
+                    radius = 0.9f + (k % 4) * 0.8f,
                     center = Offset(px, py)
                 )
             }
-            for (k in 0 until 52) {
-                val sx = ((k * 373) % 100) / 100f * size.width
-                val sy = ((k * 619) % 100) / 100f * size.height
-                val al = 0.3f + 0.7f * abs(sin(twk * 6.2832f + k * 1.7f))
-                drawSparkle(sx, sy, 10f + (k % 4) * 4f, Color(0xFFFFF2B0), al)
+            for (k in 0 until 120) {
+                val sx = (((k * 373) % 100) / 100f * size.width + ((k * 59) % 23)) % size.width
+                val sy = (((k * 619) % 100) / 100f * size.height + ((k * 71) % 19)) % size.height
+                drawSparkle(sx, sy, 5f + (k % 5) * 4.5f, if (k % 4 == 0) Color.White else Color(0xFFFFF2B0), 0.35f + 0.6f * ((k * 13) % 10) / 10f)
             }
         }
     }
@@ -3511,7 +3496,9 @@ fun LyricsBrowseOverlay(
     onSaveEditedLyrics: ((String) -> Unit)? = null,
     onPublishLyrics: ((String, (String) -> Unit) -> Unit)? = null,
     onClose: () -> Unit,
-    enFontFamily: FontFamily? = null
+    enFontFamily: FontFamily? = null,
+    dopagaki: Boolean = false,
+    onToggleDopagaki: () -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
@@ -3977,6 +3964,17 @@ fun LyricsBrowseOverlay(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Default.Translate, contentDescription = "翻訳", tint = Color.White, modifier = Modifier.size(24.dp))
+            }
+            // ドパガキモードON/OFF
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(if (dopagaki) Color(0xFFFFB300) else Color(0xFF263238))
+                    .clickable { onToggleDopagaki() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Star, contentDescription = "ドパガキモード", tint = Color.White, modifier = Modifier.size(24.dp))
             }
         }
     }
