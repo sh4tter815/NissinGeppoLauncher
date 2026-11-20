@@ -155,15 +155,19 @@ fun MainLauncherScreen() {
         if (sm == null || sensor == null) return@DisposableEffect onDispose { }
         val listener = object : SensorEventListener {
             override fun onSensorChanged(e: SensorEvent) {
-                val k = 0.30f
-                val targetY = (e.values[0] / 9.8f * 22f).coerceIn(-22f, 22f)
-                val targetX = ((e.values[1] - 9.8f) / 9.8f * 22f).coerceIn(-22f, 22f)
+                // 手ブレ対策: ローパスを強め＋小さな傾きはデッドゾーンで0にする
+                val k = 0.10f
+                val dz = 2.5f
+                val rawY = (e.values[0] / 9.8f * 22f).coerceIn(-22f, 22f)
+                val rawX = ((e.values[1] - 9.8f) / 9.8f * 22f).coerceIn(-22f, 22f)
+                val targetY = if (kotlin.math.abs(rawY) < dz) 0f else rawY
+                val targetX = if (kotlin.math.abs(rawX) < dz) 0f else rawX
                 discTiltY.value += (targetY - discTiltY.value) * k
                 discTiltX.value += (targetX - discTiltX.value) * k
             }
             override fun onAccuracyChanged(s: Sensor?, accuracy: Int) { }
         }
-        sm.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_GAME)
+        sm.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_UI)
         onDispose { sm.unregisterListener(listener) }
     }
     var dateDisplayMode by remember { mutableStateOf(repo.prefManager.getDateDisplayMode()) }
