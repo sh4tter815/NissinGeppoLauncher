@@ -839,7 +839,7 @@ fun MainLauncherScreen() {
         ) {
             if (dopagakiMode && currentLauncherPage == 1) {
                 // ドパガキ中はホームの背景も金ピカにする（壁紙・アートワーク・液体の代わり）
-                PvDopagakiBackground(Modifier.fillMaxSize())
+                PvDopagakiBackground(Modifier.fillMaxSize(), rotate90 = true)
             } else {
                 WallpaperBackground(
                     customPath = customBackgroundPath,
