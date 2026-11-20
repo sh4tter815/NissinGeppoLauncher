@@ -1108,7 +1108,7 @@ fun PvLyricLine(
         val dopaTransition = rememberInfiniteTransition(label = "dopa")
         dopaTransition.animateFloat(
             initialValue = 0f, targetValue = 1f,
-            animationSpec = infiniteRepeatable(tween(1400, easing = LinearEasing), RepeatMode.Restart),
+            animationSpec = infiniteRepeatable(tween(2800, easing = LinearEasing), RepeatMode.Restart),
             label = "dopaPhase"
         )
     } else null
@@ -1356,7 +1356,7 @@ fun PvLyricLine(
                     val pe = 1f - (1f - ft) * (1f - ft) * (1f - ft)
                     val bcx = size.width / 2f
                     val bcy = size.height / 2f
-                    for (i in 0 until if (dopagaki) 42 else 12) {
+                    for (i in 0 until if (dopagaki) 26 else 12) {
                         val ang = (i * 137.5f + baseSeed * 7f) * 0.0174533f
                         val dist = pe * size.width * (0.16f + (i % 4) * 0.05f)
                         val px = bcx + kotlin.math.cos(ang.toDouble()).toFloat() * dist
@@ -2189,7 +2189,7 @@ fun PvLyricUnit(
                 )
             }
             // ドパガキ: 中の虹色グラデーション（位相を36段階に量子化して作り直しを抑える）
-            val hueStep = if (dopagaki) ((dopaPhase?.value ?: 0f) * 36f).toInt() else 0
+            val hueStep = if (dopagaki) ((dopaPhase?.value ?: 0f) * 24f).toInt() else 0
             val dopaAnnotated = remember(annotatedUnit) {
                 if (dopagaki) {
                     // 虹色グラデーション（ピンク寄り）: LUSTRのRainbowプリセット風
@@ -2269,10 +2269,10 @@ fun PvLyricUnit(
             } else if (dopagaki) {
                 // ドパガキ: 立体はなし。暗めの赤金属＋テカテカのツヤ＋文字の上のキラキラに全振り
                 val layerAlpha = if (dimmed) 0.40f else 0.92f
-                val rOut = uSize.value * 0.062f
+                val rOut = uSize.value * 0.070f
                 val rIn = uSize.value * 0.036f
-                val ringDirs = listOf(-1f to 0f, 1f to 0f, 0f to -1f, 0f to 1f, -0.7f to -0.7f, 0.7f to -0.7f, -0.7f to 0.7f, 0.7f to 0.7f)
-                val ringDirs4 = listOf(-1f to 0f, 1f to 0f, 0f to -1f, 0f to 1f)
+                val ringDirs = listOf(-0.7f to -0.7f, 0.7f to -0.7f, -0.7f to 0.7f, 0.7f to 0.7f)
+                val ringDirs4 = listOf(-0.7f to -0.7f, 0.7f to 0.7f)
                 val sheenPx = with(LocalDensity.current) { uSize.toPx() }
                 val sheenAnnotated = remember(annotatedUnit, sheenPx) {
                     AnnotatedString(
@@ -2350,7 +2350,7 @@ fun PvLyricUnit(
                         style = LocalTextStyle.current.copy(
                             fontFamily = DopagakiFontFamily,
                             lineHeight = uSize * 1.02f,
-                            shadow = Shadow(color = Color(0xFFFF4FD8).copy(alpha = 0.7f), blurRadius = 24f)
+                            shadow = Shadow(color = Color(0xFFFF4FD8).copy(alpha = 0.55f), blurRadius = 8f)
                         )
                     )
                     Text(
@@ -3182,39 +3182,6 @@ fun PvDopagakiBackground(modifier: Modifier = Modifier, rotate90: Boolean = fals
 }
 
 @Composable
-fun PvDopagakiFrame(modifier: Modifier = Modifier) {
-    // 画面の縁を虹色がぐるぐる回る枠
-    val tr = rememberInfiniteTransition(label = "dopaFrame")
-    val phState = tr.animateFloat(
-        initialValue = 0f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(3600, easing = LinearEasing), RepeatMode.Restart),
-        label = "dopaFramePh"
-    )
-    Canvas(modifier = modifier) {
-        val step = (phState.value * 24f).toInt() / 24f
-        val center = Offset(size.width / 2f, size.height / 2f)
-        val sw = 9.dp.toPx()
-        val cols = (0..7).map { i -> Color.hsv((step * 360f + i * 45f) % 360f, 0.75f, 1f) } + Color.hsv((step * 360f) % 360f, 0.75f, 1f)
-        drawRoundRect(
-            brush = Brush.sweepGradient(colors = cols, center = center),
-            topLeft = Offset(sw / 2f, sw / 2f),
-            size = Size(size.width - sw, size.height - sw),
-            cornerRadius = CornerRadius(18.dp.toPx(), 18.dp.toPx()),
-            style = Stroke(width = sw)
-        )
-        val sw2 = 3.dp.toPx()
-        val cols2 = (0..7).map { i -> Color.hsv((step * 360f + 180f + i * 45f) % 360f, 0.75f, 1f) } + Color.hsv((step * 360f + 180f) % 360f, 0.75f, 1f)
-        drawRoundRect(
-            brush = Brush.sweepGradient(colors = cols2, center = center),
-            topLeft = Offset(sw + sw2, sw + sw2),
-            size = Size(size.width - (sw + sw2) * 2f, size.height - (sw + sw2) * 2f),
-            cornerRadius = CornerRadius(14.dp.toPx(), 14.dp.toPx()),
-            style = Stroke(width = sw2)
-        )
-    }
-}
-
-@Composable
 fun LyricsPvLayer(
     lines: List<LyricLine>,
     positionMs: Long,
@@ -3338,7 +3305,7 @@ fun LyricsPvLayer(
             val dopaBgTransition = rememberInfiniteTransition(label = "dopaBg")
             dopaBgTransition.animateFloat(
                 initialValue = 0f, targetValue = 1f,
-                animationSpec = infiniteRepeatable(tween(2000, easing = LinearEasing), RepeatMode.Restart),
+                animationSpec = infiniteRepeatable(tween(4000, easing = LinearEasing), RepeatMode.Restart),
                 label = "dopaBgPhase"
             )
         } else null
@@ -4027,7 +3994,6 @@ fun LyricsFullscreenOverlay(
             LiquidGradientBackground(baseColor = accentColor, onBlack = false, layerAlpha = 1f, alphaBoost = 1.9f)
         }
         if (dopagaki) {
-            PvDopagakiFrame(Modifier.fillMaxSize().zIndex(95f))
         }
         if (fsLines.isEmpty()) {
             // 歌詞が無い曲: 左にアートワーク、右に曲名などの情報だけを出す
