@@ -35,6 +35,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
+import android.graphics.SurfaceTexture
+import android.media.MediaPlayer
+import android.view.Surface
+import android.view.TextureView
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.viewinterop.AndroidView
 import com.example.nissingeppolauncher.R
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.layout.ContentScale
@@ -3122,14 +3129,56 @@ fun LyricTagSearchDialog(
 
 /** PVレイヤー: 現在の行を文字PVで表示し、前行を退場アニメーションで消す。対訳もここに出す */
 @Composable
-fun PvDopagakiBackground(modifier: Modifier = Modifier) {
-    // ドパガキ専用背景: 爆発バーストの画像をそのまま敷く（ベクター描画よりずっと軽い）
-    Image(
-        painter = painterResource(id = R.drawable.dopagaki_bg),
-        contentDescription = null,
-        contentScale = ContentScale.Crop,
-        modifier = modifier
-    )
+fun PvDopagakiBackground(modifier: Modifier = Modifier, rotate90: Boolean = false) {
+    // ドパガキ専用背景: 金の渦の動画をループ再生する。ホーム（縦画面）では90度回して敷き、フルスクリーン（横画面）ではそのまま流す
+    val videoAspect = 16f / 9f
+    BoxWithConstraints(modifier = modifier.background(Color.Black), contentAlignment = Alignment.Center) {
+        val areaW = if (rotate90) maxHeight.value else maxWidth.value
+        val areaH = if (rotate90) maxWidth.value else maxHeight.value
+        val viewW: Float
+        val viewH: Float
+        if (areaW / areaH > videoAspect) {
+            viewW = areaW
+            viewH = areaW / videoAspect
+        } else {
+            viewH = areaH
+            viewW = areaH * videoAspect
+        }
+        AndroidView(
+            factory = { ctx ->
+                TextureView(ctx).apply {
+                    var mp: MediaPlayer? = null
+                    surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+                        override fun onSurfaceTextureAvailable(st: SurfaceTexture, width: Int, height: Int) {
+                            val player = MediaPlayer()
+                            mp = player
+                            try {
+                                player.setSurface(Surface(st))
+                                player.setDataSource(ctx, Uri.parse("android.resource://" + ctx.packageName + "/" + R.raw.dopagaki_bg))
+                                player.isLooping = true
+                                player.setVolume(0f, 0f)
+                                player.setOnPreparedListener { it.start() }
+                                player.prepareAsync()
+                            } catch (e: Exception) {
+                            }
+                        }
+                        override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, width: Int, height: Int) {}
+                        override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
+                            try { mp?.stop() } catch (e: Exception) {
+                            }
+                            mp?.release()
+                            mp = null
+                            return true
+                        }
+                        override fun onSurfaceTextureUpdated(st: SurfaceTexture) {}
+                    }
+                }
+            },
+            modifier = Modifier
+                .requiredSize(viewW.dp, viewH.dp)
+                .then(if (rotate90) Modifier.rotate(90f) else Modifier)
+        )
+    }
 }
 
 @Composable
