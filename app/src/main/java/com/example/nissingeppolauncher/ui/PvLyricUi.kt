@@ -1112,6 +1112,15 @@ fun PvLyricLine(
             label = "dopaPhase"
         )
     } else null
+    // ドパガキモード: 鼓動の位相（約1.05秒周期、行全体で共有する）
+    val dopaBeatState = if (dopagaki) {
+        val beatTransition = rememberInfiniteTransition(label = "dopaBeat")
+        beatTransition.animateFloat(
+            initialValue = 0f, targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(1050, easing = LinearEasing), RepeatMode.Restart),
+            label = "dopaBeatPh"
+        )
+    } else null
     val censorProgress = remember { Animatable(if (exiting) 1f else 0f) }
     if (!exiting) {
         LaunchedEffect(Unit) {
@@ -1787,6 +1796,7 @@ fun PvLyricLine(
                         quake = unitQuake,
                         dopagaki = dopagaki,
                         dopaPhase = dopaPhaseState,
+                        dopaBeat = dopaBeatState,
                         repeatIndex = repeatIdxHere,
                         repeatCount = repeatLenHere,
                         stretchKind = unitStretchKind,
@@ -1865,6 +1875,7 @@ fun PvLyricUnit(
     quake: Boolean = false,
     dopagaki: Boolean = false,
     dopaPhase: State<Float>? = null,
+    dopaBeat: State<Float>? = null,
     repeatIndex: Int = -1,
     repeatCount: Int = 0,
     stretchKind: Int = 0,
@@ -1884,7 +1895,7 @@ fun PvLyricUnit(
 ) {
     val pvEaseIn = CubicBezierEasing(0.42f, 0f, 1f, 1f)
     // 文字同期がある行では実時刻ディレイ、無い行では従来の等間隔ディレイで入場する
-    val effDelayMs = if (entryDelayMs >= 0L) entryDelayMs else staggerIndex * (if (dopagaki) 130L else 45L)
+    val effDelayMs = if (entryDelayMs >= 0L) entryDelayMs else staggerIndex * (if (dopagaki) 100L else 45L)
     val uSeed = staggerIndex
     val uAnim = remember(staggerIndex) { Animatable(0f) }
     // 跳ねる単語の文字は、少し上からスプリングで落ちてきて、着地で小さく跳ね返る
@@ -1916,7 +1927,7 @@ fun PvLyricUnit(
     if (!exiting) {
         LaunchedEffect(staggerIndex) {
             delay(effDelayMs)
-            uAnim.animateTo(1f, animationSpec = if (dopagaki) tween(durationMillis = 110, easing = LinearEasing) else tween(durationMillis = 380, easing = FastOutSlowInEasing))
+            uAnim.animateTo(1f, animationSpec = if (dopagaki) tween(durationMillis = 360, easing = FastOutSlowInEasing) else tween(durationMillis = 380, easing = FastOutSlowInEasing))
         }
         LaunchedEffect(staggerIndex) {
             sway.animateTo(
@@ -2080,6 +2091,17 @@ fun PvLyricUnit(
                     scaleY = es
                     rotationZ = uRot * (2f - a)
                     translationY = (1f - a) * 30f
+                    if (dopagaki) {
+                        // 左から右へイージングでスライドアウト（左の文字から順に、加速しながら右へ抜ける）
+                        val dx = ((exitProgressValue * 720f - staggerIndex * 30f) / 300f).coerceIn(0f, 1f)
+                        val ex = pvEaseIn.transform(dx)
+                        alpha = (1f - ((dx - 0.5f).coerceAtLeast(0f) / 0.5f)) * (if (ghost) 0.38f else 1f) * repeatAlphaF
+                        scaleX = 1f
+                        scaleY = 1f
+                        rotationZ = uRot
+                        translationX = uSize.value * 2.4f * ex
+                        translationY = 0f
+                    }
                 } else {
                     val a = if ((partsEntry || wordParts) && !dopagaki) 1f else uAnim.value
                     val blinkF = if (effectKind == 3 && fxT.value < 1f) {
@@ -2106,13 +2128,17 @@ fun PvLyricUnit(
                         translationY += cos(qp * 4f + uSeed * 1.7f) * 1.4f
                     }
                     if (dopagaki) {
-                        // パチンコみたいに1文字ずつガチンと止まる: フェードも飛来もなく、大きい状態から一気に縮んで止まる
+                        // 左から右へイージングでスライドイン（減速しながら定位置に収まる）
                         alpha = if (a <= 0f) 0f else (if (ghost) 0.38f else 1f) * repeatAlphaF
-                        val slamS = 1.5f - 0.5f * a
-                        scaleX = slamS
-                        scaleY = slamS
+                        // 心臓みたいにドクドク鼓動: 周期の頭で2回続けて一瞬膨らんで戻る（位相は行全体で共有）
+                        val bt = dopaBeat?.value ?: 0f
+                        val bump1 = if (bt < 0.18f) sin(bt / 0.18f * 3.14159f) else 0f
+                        val bump2 = if (bt >= 0.24f && bt < 0.42f) sin((bt - 0.24f) / 0.18f * 3.14159f) else 0f
+                        val pulseS = 1f + 0.10f * bump1 + 0.07f * bump2
+                        scaleX = pulseS
+                        scaleY = pulseS
                         rotationZ = uRot
-                        translationX = 0f
+                        translationX = -(uSize.value * 2.4f) * (1f - a)
                         translationY = 0f
                     }
                 }
@@ -3454,6 +3480,7 @@ fun LyricsBrowseOverlay(
     onToggleDopagaki: () -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
+    val toastCtx = LocalContext.current
     val haptic = LocalHapticFeedback.current
     var follow by remember { mutableStateOf(true) }
     var showOffsetPanel by remember { mutableStateOf(false) }
@@ -3852,7 +3879,7 @@ fun LyricsBrowseOverlay(
             Spacer(modifier = Modifier.height(10.dp))
         }
         Row(
-            horizontalArrangement = Arrangement.spacedBy(24.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 左: 歌詞の再取得
@@ -3924,7 +3951,10 @@ fun LyricsBrowseOverlay(
                     .size(48.dp)
                     .clip(CircleShape)
                     .background(if (dopagaki) Color(0xFFFFB300) else Color(0xFF263238))
-                    .clickable { onToggleDopagaki() },
+                    .clickable {
+                        if (!dopagaki) Toast.makeText(toastCtx, "ドパガキモード始動", Toast.LENGTH_SHORT).show()
+                        onToggleDopagaki()
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Default.Star, contentDescription = "ドパガキモード", tint = Color.White, modifier = Modifier.size(24.dp))
