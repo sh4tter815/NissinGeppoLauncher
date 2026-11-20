@@ -2189,14 +2189,16 @@ fun PvLyricUnit(
             val hueStep = if (dopagaki) ((dopaPhase?.value ?: 0f) * 36f).toInt() else 0
             val dopaAnnotated = remember(annotatedUnit) {
                 if (dopagaki) {
-                    // 赤金属グラデーション: 上に白いツヤ、下へ深い赤
+                    // 虹色グラデーション（ピンク寄り）: LUSTRのRainbowプリセット風
                     val cols = listOf(
-                        0f to Color(0xFFFFF3F3),
-                        0.18f to Color(0xFFFF8A7A),
-                        0.38f to Color(0xFFE60012),
-                        0.52f to Color(0xFFFF6B57),
-                        0.68f to Color(0xFFB00010),
-                        1f to Color(0xFF5A000A)
+                        0f to Color(0xFFFFF0F7),
+                        0.15f to Color(0xFFFF5DA2),
+                        0.32f to Color(0xFFD633FF),
+                        0.48f to Color(0xFF7A5CFF),
+                        0.62f to Color(0xFF33B5FF),
+                        0.76f to Color(0xFF3FE0C5),
+                        0.88f to Color(0xFFFFD93B),
+                        1f to Color(0xFFFF8A3B)
                     )
                     AnnotatedString(
                         text = annotatedUnit.text,
@@ -2264,7 +2266,6 @@ fun PvLyricUnit(
             } else if (dopagaki) {
                 // ドパガキ: 立体はなし。暗めの赤金属＋テカテカのツヤ＋文字の上のキラキラに全振り
                 val layerAlpha = if (dimmed) 0.40f else 0.92f
-                val rBlk = uSize.value * 0.088f
                 val rOut = uSize.value * 0.062f
                 val rIn = uSize.value * 0.036f
                 val ringDirs = listOf(-1f to 0f, 1f to 0f, 0f to -1f, 0f to 1f, -0.7f to -0.7f, 0.7f to -0.7f, -0.7f to 0.7f, 0.7f to 0.7f)
@@ -2304,7 +2305,7 @@ fun PvLyricUnit(
                 ) {
                     Text(
                         text = annotatedUnit,
-                        color = Color(0xFF2A0005).copy(alpha = layerAlpha),
+                        color = Color(0xFF1A0A2E).copy(alpha = layerAlpha),
                         fontSize = uSize,
                         fontWeight = FontWeight.Normal,
                         textAlign = TextAlign.Center,
@@ -2312,18 +2313,6 @@ fun PvLyricUnit(
                         style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily, lineHeight = uSize * 1.02f),
                         modifier = Modifier.offset(x = (uSize.value * 0.030f).dp, y = (uSize.value * 0.042f).dp)
                     )
-                    for ((ox, oy) in ringDirs) {
-                        Text(
-                            text = annotatedUnit,
-                            color = Color(0xFF1A0500).copy(alpha = layerAlpha),
-                            fontSize = uSize,
-                            fontWeight = FontWeight.Normal,
-                            textAlign = TextAlign.Center,
-                            overflow = TextOverflow.Visible,
-                            style = LocalTextStyle.current.copy(fontFamily = DopagakiFontFamily, lineHeight = uSize * 1.02f),
-                            modifier = Modifier.offset(x = (rBlk * ox).dp, y = (rBlk * oy).dp)
-                        )
-                    }
                     for ((ox, oy) in ringDirs) {
                         Text(
                             text = annotatedUnit,
@@ -2358,7 +2347,7 @@ fun PvLyricUnit(
                         style = LocalTextStyle.current.copy(
                             fontFamily = DopagakiFontFamily,
                             lineHeight = uSize * 1.02f,
-                            shadow = Shadow(color = Color(0xFFFF3050).copy(alpha = 0.75f), blurRadius = 24f)
+                            shadow = Shadow(color = Color(0xFFFF4FD8).copy(alpha = 0.7f), blurRadius = 24f)
                         )
                     )
                     Text(
@@ -3152,7 +3141,7 @@ fun PvDopagakiBackground(modifier: Modifier = Modifier) {
     )
     Box(
         modifier = modifier.background(
-            Brush.verticalGradient(listOf(Color(0xFF8A5A00), Color(0xFFF0B41F), Color(0xFF7A4D00)))
+            Color.Black
         )
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
@@ -3160,14 +3149,6 @@ fun PvDopagakiBackground(modifier: Modifier = Modifier) {
             val cy = size.height / 2f
             val maxR = sqrt(cx * cx + cy * cy)
             val rot = rotState.value
-            drawRect(
-                brush = Brush.radialGradient(
-                    colors = listOf(Color.Transparent, Color(0xFF3A2400).copy(alpha = 0.55f)),
-                    center = Offset(cx, cy),
-                    radius = maxR
-                ),
-                size = size
-            )
             for (k in 0 until 16) {
                 val a0 = Math.toRadians((rot + k * 22.5f).toDouble())
                 val a1 = Math.toRadians((rot + k * 22.5f + 10f).toDouble())
@@ -3177,7 +3158,7 @@ fun PvDopagakiBackground(modifier: Modifier = Modifier) {
                     lineTo(cx + (cos(a1) * maxR).toFloat(), cy + (sin(a1) * maxR).toFloat())
                     close()
                 }
-                drawPath(path, color = Color(0xFFFFE97A).copy(alpha = 0.16f))
+                drawPath(path, color = Color(0xFFFFE97A).copy(alpha = 0.22f))
             }
             for (k in 0 until 48) {
                 val ang = Math.toRadians((rot * 0.5f + k * 7.5f + ((k * 37) % 10 - 5) * 0.4f).toDouble())
