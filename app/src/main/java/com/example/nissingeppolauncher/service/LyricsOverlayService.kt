@@ -508,16 +508,18 @@ class LyricsOverlayService : Service() {
         }
         if (shownLine == line) {
             // 同じ行のままなら、大きさの再計算（初回レイアウト後など）とカラオケの進みだけ反映する
-            fitTextSize(view, line)
-            if (sung != shownSungChars && !segmentAnimating) {
-                shownSungChars = sung
-                view.text = styledLine(line, sung)
+            // ただしスクロールアニメーション中は、表示中の旧テキストに触らない（サイズが変わって一瞬折り返すため）
+            if (!segmentAnimating) {
+                fitTextSize(view, line)
+                if (sung != shownSungChars) {
+                    shownSungChars = sung
+                    view.text = styledLine(line, sung)
+                }
             }
             return
         }
         shownLine = line
         shownSungChars = sung
-        fitTextSize(view, line)
         // 行が変わったときはスクロールで切り替える（フェードではなく上下のスライド）
         val gen = ++segmentAnimGen
         segmentAnimating = true
@@ -527,6 +529,8 @@ class LyricsOverlayService : Service() {
         view.alpha = 1f
         view.animate().translationY(-h * 0.7f).alpha(0f).setDuration(130).withEndAction {
             if (gen != segmentAnimGen) return@withEndAction
+            // サイズ変更はテキストの差し替えと同時に行う（先に変えると旧テキストが一瞬折り返す）
+            fitTextSize(view, line)
             view.text = styledLine(line, sung)
             view.translationY = h * 0.7f
             view.animate().translationY(0f).alpha(1f).setDuration(180).withEndAction {
