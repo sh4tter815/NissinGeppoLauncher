@@ -74,9 +74,11 @@ fun MusicVinylWidget(
     textStartAngle: Float = -90f,
     artworkTilt3d: Boolean = false,
     onRackVisibilityChanged: (Boolean) -> Unit = {},
-    dopagaki: Boolean = false
+    dopagaki: Boolean = false,
+    rainbowGlow: Boolean = false
 ) {
     val context = LocalContext.current
+    val effAccent = if (rainbowGlow) dopaRainbowColor(seed = 13) else accentColor
     val prefManager = remember { AppPreferenceManager(context) }
     var isPlaying by remember { mutableStateOf(false) }
     var albumArtBitmap by remember { mutableStateOf<Bitmap?>(null) }
@@ -562,7 +564,7 @@ fun MusicVinylWidget(
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val center = Offset(size.width / 2f, size.height / 2f)
                     drawCircle(
-                        color = if (isFocused) accentColor else Color.White.copy(alpha = 0.5f),
+                        color = if (isFocused) effAccent else Color.White.copy(alpha = 0.5f),
                         radius = size.width / 2f,
                         center = center,
                         style = Stroke(width = if (isFocused) 3f else 1.5f)
@@ -583,7 +585,7 @@ fun MusicVinylWidget(
                         )
                     } else {
                         Canvas(modifier = Modifier.fillMaxSize()) {
-                            drawCircle(color = accentColor.copy(alpha = 0.5f))
+                            drawCircle(color = effAccent.copy(alpha = 0.5f))
                         }
                     }
                 }

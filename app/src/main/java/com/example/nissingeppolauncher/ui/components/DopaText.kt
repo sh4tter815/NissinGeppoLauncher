@@ -3,7 +3,14 @@ package com.example.nissingeppolauncher.ui.components
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -71,4 +78,18 @@ fun DopaFlashText(
             lineHeight = lineHeight
         )
     }
+}
+
+// ドパガキモードのUI共用: ゆっくり虹色に巡るグロー色（PV歌詞のグローと同じ 24 段階量子化）
+@Composable
+fun dopaRainbowColor(seed: Int): Color {
+    val trans = rememberInfiniteTransition(label = "dopaRainbow")
+    val phase by trans.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(5200, easing = LinearEasing), RepeatMode.Restart),
+        label = "dopaRainbowPhase"
+    )
+    val step = (phase * 24f).toInt()
+    return Color.hsv(((step * 15 + seed * 47) % 360).toFloat(), 0.62f, 1f)
 }

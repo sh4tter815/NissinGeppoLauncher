@@ -58,9 +58,11 @@ fun PeekPageDial(
     onPageSelected: (Int) -> Unit,
     accentColor: Color = Color(0xFFE53935),
     modifier: Modifier = Modifier,
-    dopagaki: Boolean = false
+    dopagaki: Boolean = false,
+    rainbowGlow: Boolean = false
 ) {
     val view = LocalView.current
+    val effAccent = if (rainbowGlow) dopaRainbowColor(seed = 7) else accentColor
     // すべてのスクロールに共通の反転オプション（リスト円盤と同じ設定を読む）
     val context = LocalContext.current
     val prefManager = remember { com.example.nissingeppolauncher.data.AppPreferenceManager(context) }
@@ -221,7 +223,7 @@ fun PeekPageDial(
                         .coerceIn(0f, 1f)
                     val isSelected = index == selectedIndex
                     val iconColor = if (isSelected) {
-                        accentColor.copy(alpha = edgeFade)
+                        effAccent.copy(alpha = edgeFade)
                     } else {
                         Color.White.copy(alpha = 0.6f * edgeFade)
                     }
