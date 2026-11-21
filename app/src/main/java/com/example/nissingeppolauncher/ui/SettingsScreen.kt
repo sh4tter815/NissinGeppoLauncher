@@ -1367,7 +1367,7 @@ fun SettingsScreen(
                                                     label = choice.label,
                                                     selected = choice.checked,
                                                     accentColor = currentAccentColor,
-                                                    modifier = Modifier.width(118.dp)
+                                                    modifier = Modifier.width(100.dp)
                                                 ) { choice.onSelect() }
                                                 cIllo2 != null -> Box(modifier = Modifier.graphicsLayer { scaleX = 2.2f; scaleY = 2.2f }) {
                                                     ChoiceIllustration(cIllo2, currentAccentColor, true)
