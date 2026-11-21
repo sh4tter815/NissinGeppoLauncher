@@ -69,11 +69,13 @@ fun RotatableAppDisc(
     onHoldingChanged: (Boolean) -> Unit = {},
     iconTilt3d: Boolean = false,
     onEmptyTap: (() -> Unit)? = null,
-    dopagaki: Boolean = false
+    dopagaki: Boolean = false,
+    rainbowGlow: Boolean = false
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val prefManager = remember { com.example.nissingeppolauncher.data.AppPreferenceManager(context) }
     val isReverseScroll = prefManager.isReverseScroll()
+    val effAccent = if (rainbowGlow) dopaRainbowColor(seed = 9) else accentColor
 
     val density = LocalDensity.current
     val haptic = LocalHapticFeedback.current
@@ -346,7 +348,7 @@ fun RotatableAppDisc(
                             textSizeSp = textSizeSp,
                             iconSizeDp = iconSizeDp,
                             letterSpacingSp = letterSpacingSp,
-                            accentColor = accentColor,
+                            accentColor = effAccent,
                             selectedPackages = selectedPackages,
                             onAppClick = onAppClick,
                             onLongClick = onLongClick,
@@ -381,7 +383,7 @@ fun RotatableAppDisc(
                             textSizeSp = textSizeSp,
                             iconSizeDp = iconSizeDp,
                             letterSpacingSp = letterSpacingSp,
-                            accentColor = accentColor,
+                            accentColor = effAccent,
                             selectedPackages = selectedPackages,
                             onAppClick = onAppClick,
                             onLongClick = onLongClick,

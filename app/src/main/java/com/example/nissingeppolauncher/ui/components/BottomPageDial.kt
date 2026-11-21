@@ -21,8 +21,10 @@ fun BottomPageDial(
     currentPage: Int,
     onPageSelected: (Int) -> Unit,
     accentColor: Color = Color(0xFFE53935),
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    rainbowGlow: Boolean = false
 ) {
+    val effAccent = if (rainbowGlow) dopaRainbowColor(seed = 21) else accentColor
     val view = LocalView.current
     val haptic = LocalHapticFeedback.current
     val totalPages = 4
@@ -47,14 +49,14 @@ fun BottomPageDial(
         ) {
             for (index in 0 until totalPages) {
                 val isSelected = (index == currentPage)
-                val iconColor = if (isSelected) accentColor else Color.White.copy(alpha = 0.6f)
+                val iconColor = if (isSelected) effAccent else Color.White.copy(alpha = 0.6f)
 
                 Box(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(RoundedCornerShape(22.dp))
                         .background(
-                            if (isSelected) accentColor.copy(alpha = 0.2f) else Color.Transparent
+                            if (isSelected) effAccent.copy(alpha = 0.2f) else Color.Transparent
                         )
                         .clickable {
                             if (currentPage != index) {
@@ -80,7 +82,7 @@ fun BottomPageDial(
                                 .padding(bottom = 4.dp)
                                 .size(4.dp)
                                 .clip(CircleShape)
-                                .background(accentColor)
+                                .background(effAccent)
                         )
                     }
                 }

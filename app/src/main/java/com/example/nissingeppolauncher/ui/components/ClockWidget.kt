@@ -54,9 +54,11 @@ fun ClockWidget(
     // 歌詞行のフォント（歌詞設定のフォント）と、英字だけ別にする場合のフォント
     lyricFontFamily: FontFamily? = null,
     lyricEnFontFamily: FontFamily? = null,
-    dopagaki: Boolean = false
+    dopagaki: Boolean = false,
+    rainbowGlow: Boolean = false
 ) {
     val context = LocalContext.current
+    val effGlow = if (rainbowGlow) dopaRainbowColor(seed = 5) else glowColor
     var currentTime by remember { mutableStateOf(Date()) }
 
     // 1秒毎にシステム時刻を更新
@@ -116,7 +118,7 @@ fun ClockWidget(
     val lyricsStyle = LocalTextStyle.current.copy(
         fontFamily = lyricFontFamily,
         shadow = Shadow(
-            color = glowColor.copy(alpha = 0.9f),
+            color = effGlow.copy(alpha = 0.9f),
             offset = Offset(0f, 0f),
             blurRadius = 16f
         )
@@ -214,7 +216,7 @@ fun ClockWidget(
                             fontWeight = FontWeight.Medium,
                             fontFamily = lyricFontFamily,
                             enFontFamily = lyricEnFontFamily,
-                            shadow = Shadow(color = glowColor.copy(alpha = 0.9f), offset = Offset(0f, 0f), blurRadius = 16f)
+                            shadow = Shadow(color = effGlow.copy(alpha = 0.9f), offset = Offset(0f, 0f), blurRadius = 16f)
                         )
                     } else {
                         Text(
@@ -309,7 +311,7 @@ fun ClockWidget(
                             fontWeight = FontWeight.Medium,
                             fontFamily = lyricFontFamily,
                             enFontFamily = lyricEnFontFamily,
-                            shadow = Shadow(color = glowColor.copy(alpha = 0.9f), offset = Offset(0f, 0f), blurRadius = 16f)
+                            shadow = Shadow(color = effGlow.copy(alpha = 0.9f), offset = Offset(0f, 0f), blurRadius = 16f)
                         )
                     } else {
                         Text(

@@ -1021,12 +1021,14 @@ fun MainLauncherScreen() {
                         lyricFontFamily = lyricsFontFamily,
                         lyricEnFontFamily = lyricsEnFontArg,
                         dateMode = if (lyricsDisplayMode == "video" && syncedLyricLines.isNotEmpty()) "sideways" else dateDisplayMode,
-                        glowColor = accentColor
+                        glowColor = accentColor,
+                        rainbowGlow = dopagakiMode
                     )
 
                     if (!vinylRackOpen) {
                     RotatableAppDisc(
                         iconTilt3d = disc3d,
+                        rainbowGlow = dopagakiMode,
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer {
@@ -1086,6 +1088,7 @@ fun MainLauncherScreen() {
                             discCenterYDp = disc1CenterY + lyricsDiscDrop,
                             discRadiusDp = disc1RadiusDp,
                             accentColor = accentColor,
+                            rainbowGlow = dopagakiMode,
                             textStartAngle = lyricsTextAngle,
                             artworkTilt3d = disc3d,
                             onRackVisibilityChanged = { vinylRackOpen = it }
@@ -1147,6 +1150,7 @@ fun MainLauncherScreen() {
 
                     RotatableAppDisc(
                         iconTilt3d = disc3d,
+                        rainbowGlow = dopagakiMode,
                         modifier = Modifier.fillMaxSize()
                                 .graphicsLayer {
                                     if (disc3d) {
@@ -1255,6 +1259,7 @@ fun MainLauncherScreen() {
 
                     RotatableAppDisc(
                         iconTilt3d = disc3d,
+                        rainbowGlow = dopagakiMode,
                         modifier = Modifier.fillMaxSize()
                                 .graphicsLayer {
                                     if (disc3d) {
@@ -1310,6 +1315,7 @@ fun MainLauncherScreen() {
                     changePageWithTransition(targetPage)
                 },
                 accentColor = accentColor,
+                rainbowGlow = dopagakiMode,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = bottomPaddingDp + 4.dp)
@@ -1330,6 +1336,7 @@ fun MainLauncherScreen() {
                     changePageWithTransition(targetPage)
                 },
                 accentColor = accentColor,
+                rainbowGlow = dopagakiMode,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = bottomPaddingDp + 4.dp)
