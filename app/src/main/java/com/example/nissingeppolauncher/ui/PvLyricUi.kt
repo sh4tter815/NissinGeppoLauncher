@@ -3149,7 +3149,7 @@ private fun PvSkipInterludeButton(label: String, dopagaki: Boolean, fontFamily: 
             .background(Color(0xD90A0A14))
             .border(2.dp, accentColor, RoundedCornerShape(999.dp))
             .clickable {
-                Toast.makeText(skipCtx, if (label.contains("次の曲")) "次の曲へ" else "間奏をスキップ", Toast.LENGTH_SHORT).show()
+                Toast.makeText(skipCtx, if (label.contains("次の曲")) "次の曲へ" else if (label.contains("前奏")) "前奏をスキップ" else "間奏をスキップ", Toast.LENGTH_SHORT).show()
                 onClick()
             }
             .padding(horizontal = if (big) 38.dp else 24.dp, vertical = if (big) 21.dp else 13.dp),
@@ -3178,7 +3178,7 @@ private fun PvSkipInterludeText(label: String, fontFamily: FontFamily?, big: Boo
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
             .clickable {
-                Toast.makeText(skipCtx, if (label.contains("次の曲")) "次の曲へ" else "間奏をスキップ", Toast.LENGTH_SHORT).show()
+                Toast.makeText(skipCtx, if (label.contains("次の曲")) "次の曲へ" else if (label.contains("前奏")) "前奏をスキップ" else "間奏をスキップ", Toast.LENGTH_SHORT).show()
                 onClick()
             }
             .padding(horizontal = if (big) 28.dp else 12.dp, vertical = if (big) 18.dp else 10.dp)
@@ -3423,6 +3423,7 @@ fun LyricsPvLayer(
             PvInterludeArt(accentColor = accentColor, modifier = Modifier.fillMaxWidth().padding(top = interludeTopDp).height(230.dp))
             // ドパガキモードの間奏中だけ、ギラギラボタンを出す（通常は次の行へスキップ、ラストの間奏は次の曲へ）
             val pvSkipTarget = pvNextLine?.let { (it.timeMs - lyricOffsetMs - 300L).coerceAtLeast(0L) }
+            val pvSkipLabel = if (pvCurLine == null) "前奏をスキップ▷" else "間奏をスキップ▷"
             if (dopagaki) {
                 // 行の入退場に合わせてキラキラが流れる（位相は描画時にだけ読む）
                 Canvas(modifier = Modifier.fillMaxSize()) {
@@ -3441,11 +3442,11 @@ fun LyricsPvLayer(
             if (pvSkipTarget != null) {
                 if (dopagaki) {
                     Box(Modifier.fillMaxSize().zIndex(999f), contentAlignment = Alignment.Center) {
-                        PvSkipInterludeText("間奏をスキップ▷", fontFamily, big = true, accentColor = accentColor) { onSeek(pvSkipTarget) }
+                        PvSkipInterludeText(pvSkipLabel, fontFamily, big = true, accentColor = accentColor) { onSeek(pvSkipTarget) }
                     }
                 } else {
                     Box(Modifier.fillMaxWidth().padding(top = interludeTopDp + 44.dp, end = 16.dp).zIndex(999f), contentAlignment = Alignment.CenterEnd) {
-                        PvSkipInterludeText("間奏をスキップ▷", fontFamily) { onSeek(pvSkipTarget) }
+                        PvSkipInterludeText(pvSkipLabel, fontFamily) { onSeek(pvSkipTarget) }
                     }
                 }
             } else if (pvCurLine != null) {
@@ -4255,14 +4256,15 @@ fun LyricsFullscreenOverlay(
                 if (fsDisplayIndex == -2) {
                     PvInterludeArt(accentColor = accentColor, modifier = Modifier.fillMaxSize().padding(60.dp))
                     val fsSkipTarget = fsNextLine?.let { (it.timeMs - lyricOffsetMs - 300L).coerceAtLeast(0L) }
+                    val fsSkipLabel = if (fsCurLine == null) "前奏をスキップ▷" else "間奏をスキップ▷"
                     if (fsSkipTarget != null) {
                         if (dopagaki) {
                             Box(Modifier.fillMaxSize().zIndex(999f), contentAlignment = Alignment.Center) {
-                                PvSkipInterludeText("間奏をスキップ▷", fontFamily, big = true, accentColor = accentColor) { onSeek(fsSkipTarget) }
+                                PvSkipInterludeText(fsSkipLabel, fontFamily, big = true, accentColor = accentColor) { onSeek(fsSkipTarget) }
                             }
                         } else {
                             Box(Modifier.fillMaxSize().padding(end = 20.dp, bottom = 24.dp).zIndex(999f), contentAlignment = Alignment.BottomEnd) {
-                                PvSkipInterludeText("間奏をスキップ▷", fontFamily) { onSeek(fsSkipTarget) }
+                                PvSkipInterludeText(fsSkipLabel, fontFamily) { onSeek(fsSkipTarget) }
                             }
                         }
                     } else if (fsCurLine != null) {

@@ -44,6 +44,8 @@ import com.example.nissingeppolauncher.data.AppPreferenceManager
 import com.example.nissingeppolauncher.service.LauncherMediaListenerService
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -87,6 +89,24 @@ fun MusicVinylWidget(
 
     // ディスクラック用: セッションの再生キューと操作状態
     var sessionQueue by remember { mutableStateOf<List<MediaSession.QueueItem>>(emptyList()) }
+    // キュー項目のアートワークキャッシュ（iconUri → Bitmap）。Spotifyは iconBitmap を入れないため、iconUri を辿って取得する
+    var queueArtCache by remember { mutableStateOf<Map<String, Bitmap>>(emptyMap()) }
+    LaunchedEffect(sessionQueue) {
+        val missing = sessionQueue.mapNotNull { it.description?.iconUri?.toString() }.distinct().filter { it !in queueArtCache }
+        for (uriStr in missing) {
+            val bmp = withContext(Dispatchers.IO) {
+                runCatching {
+                    val uri = android.net.Uri.parse(uriStr)
+                    val raw = when (uri.scheme) {
+                        "http", "https" -> java.net.URL(uriStr).openStream().use { android.graphics.BitmapFactory.decodeStream(it) }
+                        else -> context.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it) }
+                    }
+                    raw?.let { if (it.width > 256) Bitmap.createScaledBitmap(it, 256, (it.height * 256f / it.width).toInt().coerceAtLeast(1), true) else it }
+                }.getOrNull()
+            }
+            if (bmp != null) queueArtCache = queueArtCache + (uriStr to bmp)
+        }
+    }
     var rackOpen by remember { mutableStateOf(false) }
     var rackShow by remember { mutableStateOf(false) }
     val widgetScope = rememberCoroutineScope()
@@ -229,7 +249,7 @@ fun MusicVinylWidget(
         else -> "次の曲"
     }
     fun rackArtAt(index: Int): Bitmap? = when {
-        queueMode -> sessionQueue.getOrNull(index)?.description?.iconBitmap ?: if (index == rackCurrentIndex) albumArtBitmap else null
+        queueMode -> sessionQueue.getOrNull(index)?.description?.let { d -> d.iconBitmap ?: d.iconUri?.toString()?.let { queueArtCache[it] } } ?: if (index == rackCurrentIndex) albumArtBitmap else null
         index == rackCurrentIndex -> albumArtBitmap
         else -> null
     }

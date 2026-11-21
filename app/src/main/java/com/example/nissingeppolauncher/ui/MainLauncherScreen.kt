@@ -953,12 +953,13 @@ fun MainLauncherScreen() {
                     lyricOffsetMs = lyricOffsetMs,
                     translationEnabled = translationEnabled,
                     translations = lyricTranslations,
-                    fontFamily = lyricsFontFamily,
+                    fontFamily = pvFontFamily,
                     enFontFamily = lyricsEnFontArg,
                     lyricWeight = lyricWeight,
                     accentColor = accentColor,
                     screenWidthDp = screenWidthDp,
-                    topPaddingDp = topPaddingDp
+                    topPaddingDp = topPaddingDp,
+                    dopagaki = dopagakiMode
                 )
             }
 
@@ -2271,9 +2272,15 @@ private fun LauncherMultiLineLyrics(
     lyricWeight: FontWeight,
     accentColor: Color,
     screenWidthDp: Float,
-    topPaddingDp: Dp
+    topPaddingDp: Dp,
+    dopagaki: Boolean = false
 ) {
     val multiLines = lines
+    // ドパガキ中は全行が主張する: 今の行は画面幅いっぱい、前後の行も大きめ＋強めのグロー
+    val curBase = if (dopagaki) 56f else 30f
+    val curWidth = if (dopagaki) screenWidthDp - 24f else screenWidthDp - 80f
+    val sideBase = if (dopagaki) 32f else 18f
+    val curShadow = Shadow(color = accentColor.copy(alpha = if (dopagaki) 0.95f else 0.8f), blurRadius = if (dopagaki) 26f else 16f)
     val mPos = positionMs + lyricOffsetMs
     val mRaw = multiLines.indexOfLast { it.timeMs <= mPos }
     val mCur = multiLines.getOrNull(mRaw)
@@ -2293,7 +2300,7 @@ private fun LauncherMultiLineLyrics(
             val curText = multiLines.getOrNull(rawIdx)?.text
             val nextText = multiLines.getOrNull(rawIdx + 1)?.text
             if (prevText != null) {
-                Text(lyricMixedFontText(prevText, enFontFamily), color = Color.White.copy(alpha = 0.45f), fontSize = fitFontSizeSp(prevText, 18f, screenWidthDp - 52f).sp, letterSpacing = 2.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = fontFamily), modifier = Modifier.padding(start = 0.dp))
+                Text(lyricMixedFontText(prevText, enFontFamily), color = Color.White.copy(alpha = if (dopagaki) 0.7f else 0.45f), fontSize = fitFontSizeSp(prevText, sideBase, screenWidthDp - if (dopagaki) 24f else 52f).sp, letterSpacing = 2.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = if (dopagaki) LocalTextStyle.current.copy(fontFamily = fontFamily, shadow = Shadow(color = accentColor.copy(alpha = 0.6f), blurRadius = 18f)) else LocalTextStyle.current.copy(fontFamily = fontFamily), modifier = Modifier.padding(start = 0.dp))
                 if (translationEnabled) {
                     val trP = translations?.getOrNull(rawIdx - 1)
                     if (!trP.isNullOrBlank()) {
@@ -2311,24 +2318,24 @@ private fun LauncherMultiLineLyrics(
                     positionMs = positionMs + lyricOffsetMs,
                     sungColor = accentColor,
                     baseColor = Color.White,
-                    fontSize = fitFontSizeSp(curLineObj.text, 30f, screenWidthDp - 80f).sp,
+                    fontSize = fitFontSizeSp(curLineObj.text, curBase, curWidth).sp,
                     fontWeight = lyricWeight,
                     fontFamily = fontFamily,
                     enFontFamily = enFontFamily,
                     letterSpacing = 3.sp,
-                    shadow = Shadow(color = accentColor.copy(alpha = 0.8f), blurRadius = 16f),
+                    shadow = curShadow,
                     modifier = Modifier.padding(start = 28.dp)
                 )
             } else {
                 Text(
                     text = lyricMixedFontText(if (mInterlude) "♪" else (curText ?: ""), enFontFamily),
                     color = Color.White,
-                    fontSize = fitFontSizeSp(if (mInterlude) "♪" else (curText ?: ""), 30f, screenWidthDp - 80f).sp,
+                    fontSize = fitFontSizeSp(if (mInterlude) "♪" else (curText ?: ""), curBase, curWidth).sp,
                     fontWeight = lyricWeight,
                     letterSpacing = 3.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    style = LocalTextStyle.current.copy(fontFamily = fontFamily, shadow = Shadow(color = accentColor.copy(alpha = 0.8f), blurRadius = 16f)),
+                    style = LocalTextStyle.current.copy(fontFamily = fontFamily, shadow = curShadow),
                     modifier = Modifier.padding(start = 28.dp)
                 )
             }
@@ -2340,7 +2347,7 @@ private fun LauncherMultiLineLyrics(
             }
             Spacer(Modifier.height(16.dp))
             if (nextText != null) {
-                Text(lyricMixedFontText(nextText, enFontFamily), color = Color.White.copy(alpha = 0.45f), fontSize = fitFontSizeSp(nextText, 18f, screenWidthDp - 108f).sp, letterSpacing = 2.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = fontFamily), modifier = Modifier.padding(start = 56.dp))
+                Text(lyricMixedFontText(nextText, enFontFamily), color = Color.White.copy(alpha = if (dopagaki) 0.7f else 0.45f), fontSize = fitFontSizeSp(nextText, sideBase, screenWidthDp - if (dopagaki) 24f else 108f).sp, letterSpacing = 2.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = if (dopagaki) LocalTextStyle.current.copy(fontFamily = fontFamily, shadow = Shadow(color = accentColor.copy(alpha = 0.6f), blurRadius = 18f)) else LocalTextStyle.current.copy(fontFamily = fontFamily), modifier = Modifier.padding(start = 56.dp))
                 if (translationEnabled) {
                     val trN = translations?.getOrNull(rawIdx + 1)
                     if (!trN.isNullOrBlank()) {
