@@ -16,6 +16,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -50,7 +54,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import java.io.File
 import java.io.FileOutputStream
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import kotlin.math.cos
 import kotlin.math.roundToInt
+import kotlin.math.sin
 import androidx.core.graphics.toColorInt
 
 val ACCENT_PRESETS = listOf(
@@ -386,6 +394,138 @@ fun SettingsCategoryIcon(kind: String, accentColor: Color) {
     }
 }
 
+
+// 設定トップのカテゴリ円盤: ホームの円盤と同じ骨格で、左の円を回してカテゴリを選ぶ。
+// 円の右端（画面中央向き）がフォーカス位置。右のパネルで内容を確認し、「開く」で詳細へ進む
+@Composable
+fun SettingsCategoryDisc(
+    categories: List<Triple<String, String, String>>,
+    accentColor: Color,
+    onOpen: (String) -> Unit
+) {
+    val count = categories.size
+    val stepDeg = 360f / count
+    val scope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
+    val rotation = remember { Animatable(0f) }
+    fun focusFor(rot: Float): Int {
+        val k = Math.round(-rot / stepDeg)
+        return ((k % count) + count) % count
+    }
+    val focused = focusFor(rotation.value)
+    LaunchedEffect(focused) { haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove) }
+    fun snapNow() {
+        val target = Math.round(rotation.value / stepDeg) * stepDeg
+        scope.launch { rotation.animateTo(target, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessLow)) }
+    }
+    fun rotateToIndex(idx: Int) {
+        val cur = rotation.value
+        val base = -idx * stepDeg
+        val target = base + Math.round((cur - base) / 360f) * 360f
+        scope.launch { rotation.animateTo(target, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessLow)) }
+    }
+    val focusedCat = categories[focused]
+    Row(
+        modifier = Modifier.fillMaxWidth().height(336.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // 左: 回る円盤
+        Box(
+            modifier = Modifier.weight(1.2f).fillMaxHeight(),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(300.dp)
+                    .offset(x = (-56).dp)
+                    .clip(CircleShape)
+                    .background(Color(0x99101728))
+                    .border(1.5.dp, Color.White.copy(alpha = 0.22f), CircleShape)
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragEnd = { snapNow() },
+                            onDragCancel = { snapNow() }
+                        ) { change, dragAmount ->
+                            change.consume()
+                            val delta = (dragAmount.y + dragAmount.x) * 0.22f
+                            scope.launch { rotation.snapTo(rotation.value + delta) }
+                        }
+                    }
+            ) {
+                // 縁のカテゴリアイコン（角度0=右端がフォーカス）
+                categories.forEachIndexed { i, cat ->
+                    val angRad = Math.toRadians((rotation.value + i * stepDeg).toDouble())
+                    val rim = 112f
+                    val badge = if (i == focused) 62f else 52f
+                    val cx = 150f + rim * cos(angRad).toFloat() - badge / 2f
+                    val cy = 150f + rim * sin(angRad).toFloat() - badge / 2f
+                    Box(
+                        modifier = Modifier
+                            .offset(x = cx.dp, y = cy.dp)
+                            .size(badge.dp)
+                            .clip(CircleShape)
+                            .background(if (i == focused) accentColor.copy(alpha = 0.25f) else Color(0xFF1F293D))
+                            .border(if (i == focused) 2.dp else 1.dp, if (i == focused) accentColor else Color.White.copy(alpha = 0.18f), CircleShape)
+                            .clickable { if (i == focused) onOpen(cat.first) else rotateToIndex(i) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        SettingsCategoryIcon(kind = cat.first, accentColor = accentColor)
+                    }
+                }
+                // 中心: フォーカス中のカテゴリ
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.align(Alignment.Center)
+                ) {
+                    Box(modifier = Modifier.graphicsLayer { scaleX = 1.35f; scaleY = 1.35f }) {
+                        SettingsCategoryIcon(kind = focusedCat.first, accentColor = accentColor)
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(focusedCat.second, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+        // 右: 選択中カテゴリの説明と全カテゴリのミニリスト
+        Column(modifier = Modifier.weight(1f)) {
+            Text(focusedCat.second, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(focusedCat.third, color = Color.Gray, fontSize = 12.5.sp, fontWeight = FontWeight.Light)
+            Spacer(modifier = Modifier.height(14.dp))
+            Surface(
+                color = accentColor.copy(alpha = 0.22f),
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, accentColor),
+                modifier = Modifier.clickable { onOpen(focusedCat.first) }
+            ) {
+                Text("開く ›", color = Color.White, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp))
+            }
+            Spacer(modifier = Modifier.height(18.dp))
+            categories.forEachIndexed { i, cat ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clickable { rotateToIndex(i) }
+                        .padding(vertical = 3.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(if (i == focused) accentColor else Color.White.copy(alpha = 0.25f))
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        cat.second,
+                        color = if (i == focused) Color.White else Color.Gray,
+                        fontSize = if (i == focused) 13.sp else 12.5.sp,
+                        fontWeight = if (i == focused) FontWeight.Bold else FontWeight.Normal
+                    )
+                }
+            }
+        }
+    }
+}
+
 // フォント選択カード: 閉じた状態では「現在のフォント名＋見本文字」だけを見せ、タップで候補リストを展開する
 @Composable
 fun FontPickerCard(
@@ -714,44 +854,12 @@ fun SettingsScreen(
             ) {
                 if (selectedCategory == null) {
                     // --- 1段階目: ジャンル選択リスト ---
-                    items(categories) { (id, title, subtitle) ->
-                        Surface(
-                            color = Color(0x99101728),
-                            shape = RoundedCornerShape(20.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { selectedCategory = id }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(20.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                SettingsCategoryIcon(kind = id, accentColor = currentAccentColor)
-                                Spacer(modifier = Modifier.width(14.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = title,
-                                        color = Color.White,
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Normal
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = subtitle,
-                                        color = Color.Gray,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Light
-                                    )
-                                }
-                                Text(
-                                    text = "›",
-                                    color = Color.Gray,
-                                    fontSize = 22.sp,
-                                    fontWeight = FontWeight.Light
-                                )
-                            }
-                        }
+                    item {
+                        SettingsCategoryDisc(
+                            categories = categories,
+                            accentColor = currentAccentColor,
+                            onOpen = { selectedCategory = it }
+                        )
                     }
                     // アップデート確認（カテゴリ外の単独行）
                     item {

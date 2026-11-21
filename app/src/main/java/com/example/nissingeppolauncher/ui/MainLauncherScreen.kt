@@ -69,6 +69,7 @@ import android.view.HapticFeedbackConstants
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.*
@@ -893,6 +894,21 @@ fun MainLauncherScreen() {
                     liquidAccent = if (dopagakiMode) Color.hsv(Math.floorMod(pvLineIndex * 47, 360).toFloat(), 0.72f, 1f) else effectiveAccent
                 )
 
+            // 右の円の外・画面右半分のタップは再生/一時停止。円の中はアイコンのタップだけにして判定をはっきり分ける
+            // （最背面に置くので、円盤・歌詞・ダイヤルなど上に描かれる要素のタップはそちらが優先される）
+            if (currentLauncherPage == 1 && !isLyricsBrowsing && !pvFullscreen) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(0.5f)
+                        .align(Alignment.CenterEnd)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { toggleSessionPlayback() }
+                )
+            }
+
             if (dopagakiMode && currentLauncherPage == 1) {
                 // ドパガキ中は画面の縁に虹色の回る枠を出す
             }
@@ -1065,7 +1081,7 @@ fun MainLauncherScreen() {
                         onAppClick = { onAppClick(it.packageName) },
                         onLongClick = { selectedAppForOption = it },
                         onHoldingChanged = { isHoldingRight = it },
-                        onEmptyTap = { toggleSessionPlayback() }
+                        onEmptyTap = { } // 円の中のタップは消費だけする（再生操作は円の外・右半分のレイヤーに分離）
                     )
                     }
 
@@ -2287,11 +2303,11 @@ private fun LauncherMultiLineLyrics(
     dopagaki: Boolean = false
 ) {
     val multiLines = lines
-    // ドパガキ中は全行が主張する: 今の行は画面幅いっぱい、前後の行も大きめ＋強めのグロー
-    val curBase = if (dopagaki) 56f else 30f
-    val curWidth = if (dopagaki) screenWidthDp - 24f else screenWidthDp - 80f
-    val sideBase = if (dopagaki) 32f else 18f
-    val curShadow = Shadow(color = accentColor.copy(alpha = if (dopagaki) 0.95f else 0.8f), blurRadius = if (dopagaki) 26f else 16f)
+    // ドパガキ中もサイズは通常のまま。今の行にだけ虹色グローをかける
+    val curBase = 30f
+    val curWidth = screenWidthDp - 80f
+    val sideBase = 18f
+    val curShadow = if (dopagaki) Shadow(color = dopaRainbowColor(seed = 17).copy(alpha = 0.9f), blurRadius = 26f) else Shadow(color = accentColor.copy(alpha = 0.8f), blurRadius = 16f)
     val mPos = positionMs + lyricOffsetMs
     val mRaw = multiLines.indexOfLast { it.timeMs <= mPos }
     val mCur = multiLines.getOrNull(mRaw)
@@ -2311,7 +2327,7 @@ private fun LauncherMultiLineLyrics(
             val curText = multiLines.getOrNull(rawIdx)?.text
             val nextText = multiLines.getOrNull(rawIdx + 1)?.text
             if (prevText != null) {
-                Text(lyricMixedFontText(prevText, enFontFamily), color = Color.White.copy(alpha = if (dopagaki) 0.7f else 0.45f), fontSize = fitFontSizeSp(prevText, sideBase, screenWidthDp - if (dopagaki) 24f else 52f).sp, letterSpacing = 2.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = if (dopagaki) LocalTextStyle.current.copy(fontFamily = fontFamily, shadow = Shadow(color = accentColor.copy(alpha = 0.6f), blurRadius = 18f)) else LocalTextStyle.current.copy(fontFamily = fontFamily), modifier = Modifier.padding(start = 0.dp))
+                Text(lyricMixedFontText(prevText, enFontFamily), color = Color.White.copy(alpha = 0.45f), fontSize = fitFontSizeSp(prevText, sideBase, screenWidthDp - 52f).sp, letterSpacing = 2.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = fontFamily), modifier = Modifier.padding(start = 0.dp))
                 if (translationEnabled) {
                     val trP = translations?.getOrNull(rawIdx - 1)
                     if (!trP.isNullOrBlank()) {
@@ -2358,7 +2374,7 @@ private fun LauncherMultiLineLyrics(
             }
             Spacer(Modifier.height(16.dp))
             if (nextText != null) {
-                Text(lyricMixedFontText(nextText, enFontFamily), color = Color.White.copy(alpha = if (dopagaki) 0.7f else 0.45f), fontSize = fitFontSizeSp(nextText, sideBase, screenWidthDp - if (dopagaki) 24f else 108f).sp, letterSpacing = 2.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = if (dopagaki) LocalTextStyle.current.copy(fontFamily = fontFamily, shadow = Shadow(color = accentColor.copy(alpha = 0.6f), blurRadius = 18f)) else LocalTextStyle.current.copy(fontFamily = fontFamily), modifier = Modifier.padding(start = 56.dp))
+                Text(lyricMixedFontText(nextText, enFontFamily), color = Color.White.copy(alpha = 0.45f), fontSize = fitFontSizeSp(nextText, sideBase, screenWidthDp - 108f).sp, letterSpacing = 2.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = fontFamily), modifier = Modifier.padding(start = 56.dp))
                 if (translationEnabled) {
                     val trN = translations?.getOrNull(rawIdx + 1)
                     if (!trN.isNullOrBlank()) {
