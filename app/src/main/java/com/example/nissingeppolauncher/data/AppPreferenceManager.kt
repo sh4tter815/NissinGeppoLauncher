@@ -240,6 +240,8 @@ class AppPreferenceManager(private val context: Context) {
     fun setPvPartsEntryEnabled(value: Boolean) { prefs.edit().putBoolean("pv_parts_entry", value).apply() }
     fun isDopagakiEnabled(): Boolean = prefs.getBoolean("dopagaki_mode", false)
     fun setDopagakiEnabled(value: Boolean) { prefs.edit().putBoolean("dopagaki_mode", value).apply() }
+    fun isDopaBlackFontEnabled(): Boolean = prefs.getBoolean("dopagaki_black_font", true)
+    fun setDopaBlackFontEnabled(value: Boolean) { prefs.edit().putBoolean("dopagaki_black_font", value).apply() }
     fun isStatusBarLyricsEnabled(): Boolean = prefs.getBoolean("status_bar_lyrics", false)
     fun setStatusBarLyricsEnabled(value: Boolean) { prefs.edit().putBoolean("status_bar_lyrics", value).apply() }
     // スリープタイマー: 終了時刻（epoch ms、0=無効）と選択中の分数

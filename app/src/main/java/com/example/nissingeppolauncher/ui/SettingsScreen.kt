@@ -165,6 +165,7 @@ fun FontSelectionSection(
         "denkichip" to "でんきチップ (DenkiChip)",
         "tsukuhou" to "築豊明朝 (Tsukuhou Mincho)",
         "kaibunsho" to "怪聞書フォント (Kaibunsho)",
+        "zenkaku" to "Zen Kaku Gothic New (Medium)",
         "custom" to "カスタムフォント (.ttf/.otf)"
     )
     val currentLabel = fontOptions[currentFontChoice] ?: "システムフォント"
@@ -512,6 +513,7 @@ fun SettingsScreen(
     var lyricsBold by remember { mutableStateOf(repo.prefManager.isLyricsBold()) }
     var pvPartsEntry by remember { mutableStateOf(repo.prefManager.isPvPartsEntryEnabled()) }
     var dopagakiMode by remember { mutableStateOf(repo.prefManager.isDopagakiEnabled()) }
+    var dopaBlackFont by remember { mutableStateOf(repo.prefManager.isDopaBlackFontEnabled()) }
     var statusBarLyrics by remember { mutableStateOf(repo.prefManager.isStatusBarLyricsEnabled()) }
         var pageSwitchStyle by remember { mutableStateOf(repo.prefManager.getPageSwitchStyle()) }
     var appsUpdateStatus by remember { mutableStateOf("") }
@@ -876,6 +878,7 @@ fun SettingsScreen(
                                         "denkichip" to "でんきチップ (DenkiChip)",
                                         "tsukuhou" to "築豊明朝 (Tsukuhou Mincho)",
                                         "kaibunsho" to "怪聞書フォント (Kaibunsho)",
+                                        "zenkaku" to "Zen Kaku Gothic New (Medium)",
                                         "custom" to "カスタムフォント (.ttf/.otf)"
                                     ),
                                     selected = lyricsPvFont,
@@ -906,6 +909,7 @@ fun SettingsScreen(
                                         "denkichip" to "でんきチップ (DenkiChip)",
                                         "tsukuhou" to "築豊明朝 (Tsukuhou Mincho)",
                                         "kaibunsho" to "怪聞書フォント (Kaibunsho)",
+                                        "zenkaku" to "Zen Kaku Gothic New (Medium)",
                                         "custom" to "カスタムフォント (.ttf/.otf)"
                                     ),
                                     selected = lyricsEnFont,
@@ -994,13 +998,32 @@ fun SettingsScreen(
                                         ) {
                                             Column(modifier = Modifier.weight(1f)) {
                                                 Text("ドパガキモード", color = Color.White, fontSize = 14.sp)
-                                                Text("リリックビデオの文字がパチンコみたいな立体文字になります", color = Color.Gray, fontSize = 12.sp)
+                                                Text("リリックビデオにエフェクトを大量に重ねて派手にします", color = Color.Gray, fontSize = 12.sp)
                                             }
                                             Switch(
                                                 checked = dopagakiMode,
                                                 onCheckedChange = {
                                                     dopagakiMode = it
                                                     repo.prefManager.setDopagakiEnabled(it)
+                                                    onChanged()
+                                                },
+                                                colors = switchColors
+                                            )
+                                        }
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text("ドパガキ中は極太フォント", color = Color.White, fontSize = 14.sp)
+                                                Text("ドパガキモードのとき、歌詞を Zen Kaku Gothic New の極太（Black）で表示します", color = Color.Gray, fontSize = 12.sp)
+                                            }
+                                            Switch(
+                                                checked = dopaBlackFont,
+                                                onCheckedChange = {
+                                                    dopaBlackFont = it
+                                                    repo.prefManager.setDopaBlackFontEnabled(it)
                                                     onChanged()
                                                 },
                                                 colors = switchColors
@@ -1577,6 +1600,7 @@ fun SettingsScreen(
                                                 "denkichip" to "でんきチップ (DenkiChip)",
                                                 "tsukuhou" to "築豊明朝 (Tsukuhou Mincho)",
                                                 "kaibunsho" to "怪聞書フォント (Kaibunsho)",
+                                                "zenkaku" to "Zen Kaku Gothic New (Medium)",
                                                 "custom" to "カスタムフォント (.ttf/.otf)"
                                             ),
                                             selected = currentFontChoice,
