@@ -41,6 +41,12 @@ val KaibunshoFontFamily = FontFamily(Font(R.font.kaibunsyo_font))
 /** ドパガキモード専用フォント: 玉ねぎ楷書「激」。収録されていない文字はシステムフォント（ゴシック）へ自動でフォールバックする */
 val DopagakiFontFamily = FontFamily(Font(R.font.dopagaki_font))
 
+/** Zen Kaku Gothic New Medium: 通常のUI・歌詞フォント一覧用 */
+val ZenKakuMediumFontFamily = FontFamily(Font(R.font.zenkaku_medium))
+
+/** Zen Kaku Gothic New Black（極太）: ドパガキモードの歌詞用 */
+val ZenKakuBlackFontFamily = FontFamily(Font(R.font.zenkaku_black))
+
 fun parseFontFamily(fontChoice: String, customPath: String?): FontFamily {
     return when (fontChoice) {
         "receipt" -> ReceiptFontFamily
@@ -49,6 +55,7 @@ fun parseFontFamily(fontChoice: String, customPath: String?): FontFamily {
         "freelicense" -> FreeLicenseFontFamily
         "montserratbi" -> MontserratBoldItalicFontFamily
         "kaibunsho" -> KaibunshoFontFamily
+        "zenkaku" -> ZenKakuMediumFontFamily
         "custom" -> loadCustomFontFamily(customPath) ?: FontFamily.Default
         else -> {
             if (!customPath.isNullOrBlank()) {
