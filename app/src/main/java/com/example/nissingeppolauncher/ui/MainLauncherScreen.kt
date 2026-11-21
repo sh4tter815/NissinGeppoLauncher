@@ -192,8 +192,10 @@ fun MainLauncherScreen() {
     var lyricsBold by remember { mutableStateOf(repo.prefManager.isLyricsBold()) }
     var pvPartsEntry by remember { mutableStateOf(repo.prefManager.isPvPartsEntryEnabled()) }
     var dopagakiMode by remember { mutableStateOf(repo.prefManager.isDopagakiEnabled()) }
+    var dopaBlackFont by remember { mutableStateOf(repo.prefManager.isDopaBlackFontEnabled()) }
     // 色塗り行でのアクセントフラッシュ（液体背景とPVのグローが一瞬その色になる）。一定時間で自動で戻る
     var pvFlashColor by remember { mutableStateOf<Color?>(null) }
+    var pvLineIndex by remember { mutableStateOf(0) }
     LaunchedEffect(pvFlashColor) {
         if (pvFlashColor != null) {
             delay(2400)
@@ -862,6 +864,8 @@ fun MainLauncherScreen() {
     }
 
     val lyricsFontFamily = parseFontFamily(lyricsPvFont, if (lyricsPvFont == "custom") customFontPath else null)
+    // ドパガキ中（設定ON時）は歌詞を Zen Kaku Gothic New の極太で出す
+    val pvFontFamily = if (dopagakiMode && dopaBlackFont) ZenKakuBlackFontFamily else lyricsFontFamily
     // 英字フォント: "same" のときは日本語フォントと同じ（=混合しないので null を渡す）
     val lyricsEnFontFamily = if (lyricsEnFont == "same") lyricsFontFamily else parseFontFamily(lyricsEnFont, if (lyricsEnFont == "custom") lyricsEnCustomPath else null)
     val lyricsEnFontArg = if (lyricsEnFont == "same") null else lyricsEnFontFamily
@@ -882,7 +886,7 @@ fun MainLauncherScreen() {
                     dynamicBackground = if (matchArtwork || useArtworkBg) artworkBackground else null,
                     artworkBackgroundStyle = if (bgMode == "artwork_blur") "blur" else "solid",
                     liquidEnabled = liquidBackground,
-                    liquidAccent = effectiveAccent
+                    liquidAccent = if (dopagakiMode) Color.hsv(Math.floorMod(pvLineIndex * 47, 360).toFloat(), 0.72f, 1f) else effectiveAccent
                 )
 
             if (dopagakiMode && currentLauncherPage == 1) {
@@ -913,13 +917,14 @@ fun MainLauncherScreen() {
 
             // リリックビデオ（文字PV）: 再生中セッション（Spotify等も含む）の歌詞を大きく散らして表示する
             if (lyricsDisplayMode == "video" && currentLauncherPage == 1 && !isLyricsBrowsing && syncedLyricLines.isNotEmpty()) {
+              Box(Modifier.fillMaxSize().zIndex(if (dopagakiMode) 60f else 0f)) {
                 LyricsPvLayer(
                     pvTilt3d = disc3d,
                     lines = syncedLyricLines,
                     positionMs = sessionPositionMs,
                     lyricOffsetMs = lyricOffsetMs,
                     bold = lyricsBold,
-                    fontFamily = lyricsFontFamily,
+                    fontFamily = pvFontFamily,
                     accentColor = effectiveAccent,
                     screenWidthDp = screenWidthDp,
                     translationEnabled = translationEnabled,
@@ -934,8 +939,10 @@ fun MainLauncherScreen() {
                     tiltY = discTiltY,
                     onAccentFlash = { pvFlashColor = it },
                     onSeek = { pos -> seekSessionTo(pos) },
-                    onNextTrack = { skipToNextTrack() }
+                    onNextTrack = { skipToNextTrack() },
+                    onLineChange = { pvLineIndex = it }
                 )
+              }
             }
 
             // 複数行モード: 時計の下に前・今・次の3行を表示（今の行が大きめ）
@@ -982,6 +989,7 @@ fun MainLauncherScreen() {
                                 lyricsEnCustomPath = repo.prefManager.getLyricsEnCustomFontPath()
                                 lyricsBold = repo.prefManager.isLyricsBold()
                                 dopagakiMode = repo.prefManager.isDopagakiEnabled()
+                                dopaBlackFont = repo.prefManager.isDopaBlackFontEnabled()
                             },
                             onAppsUpdated = {
                                 refreshApps()
@@ -1983,7 +1991,7 @@ fun MainLauncherScreen() {
                 lyricOffsetMs = lyricOffsetMs,
                 displayMode = lyricsDisplayMode,
                 bold = lyricsBold,
-                fontFamily = lyricsFontFamily,
+                fontFamily = pvFontFamily,
                 enFontFamily = lyricsEnFontArg,
                 lyricWeight = lyricWeight,
                 accentColor = effectiveAccent,
