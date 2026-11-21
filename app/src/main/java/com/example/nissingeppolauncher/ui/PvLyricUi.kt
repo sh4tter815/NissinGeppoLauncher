@@ -1607,6 +1607,26 @@ fun PvLyricLine(
                 }
                 i++
             }
+            // ルビのかなは Row の中で実幅を取ってしまうため、かなの後ろのユニットを
+            // かな幅の累計分だけ引き戻し、漢字の次の文字との間隔が空かないようにする
+            run {
+                var pullAcc = 0f
+                val pullArr = FloatArray(rowUnitTexts.size)
+                var u = 0
+                while (u < rowUnitTexts.size) {
+                    if (rubyModeArr[u] == 2) {
+                        var kanaTotal = 0f
+                        var v = u
+                        while (v < rowUnitTexts.size && rubyModeArr[v] == 2) { kanaTotal += unitAdvance(v); v++ }
+                        pullAcc += kanaTotal
+                        u = v
+                    } else {
+                        pullArr[u] = pullAcc
+                        u++
+                    }
+                }
+                for (w in rowUnitTexts.indices) rubyShiftArr[w] -= pullArr[w]
+            }
         }
         val stretchPushArr = FloatArray(rowUnitTexts.size) { r ->
             var f = 0f
@@ -2222,7 +2242,7 @@ fun PvLyricUnit(
                 // （sp の数値をそのまま px として使うと、持ち上げが足りず漢字に被ってしまう）
                 if (rubyKana) {
                     val baseSp = if (rubyBaseSizeSp > 0f) rubyBaseSizeSp else uSize.value / 0.52f
-                    translationY -= (0.45f * (baseSp + uSize.value) + 2f) * density
+                    translationY -= (0.40f * (baseSp + uSize.value) + 2f) * density
                 }
                 // 疑似視差: カメラの平行移動に対し、文字の大きさ（奥行き）ぶんだけズレを足す。
                 // 大きい文字（手前）ほど大きく、小さい文字（奥）ほど小さくズレる。
