@@ -36,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -99,7 +100,8 @@ fun DiscWheel(
         val wDp = maxWidth.value
         val hDp = maxHeight.value
         val rDp = 165f
-        val centerX = if (side == DiscSide.LEFT) 0f else wDp - 62f
+        // 配置はランチャーのフォルダ/アプリページと同一: 中心は画面の外80dp、半径165dp
+        val centerX = if (side == DiscSide.LEFT) -80f else wDp + 80f
         val centerY = hDp / 2f
         Canvas(modifier = Modifier.fillMaxSize()) {
             val c = Offset(centerX.dp.toPx(), centerY.dp.toPx())
@@ -138,16 +140,15 @@ fun DiscWheel(
                 modifier = Modifier
                     .offset(x = (iconCenterX - iconSize / 2f).dp, y = (centerY + yOff - iconSize / 2f).dp)
                     .size(iconSize.dp)
-                    .clip(CircleShape)
-                    .background(if (i == focused) accentColor.copy(alpha = 0.22f) else Color(0xFF1B2436).copy(alpha = 0.85f))
-                    .border(if (i == focused) 2.dp else 1.dp, if (i == focused) accentColor else Color.White.copy(alpha = 0.20f), CircleShape)
                     .clickable {
                         if (i == focused) onEntryClick(i)
                         else scope.launch { anim.animateTo(i.toFloat(), spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessLow)) }
                     },
                 contentAlignment = Alignment.Center
             ) {
-                entry.icon()
+                Box(modifier = Modifier.graphicsLayer { val sc = if (i == focused) 1.12f else 1f; scaleX = sc; scaleY = sc }) {
+                    entry.icon()
+                }
             }
             // ラベル（左円はアイコンの右、右円はアイコンの左に置く）
             val labelW = 168f
@@ -183,10 +184,11 @@ fun DiscWheel(
         }
         // 円の中央のプレビュー（主に右円用）
         if (centerContent != null) {
+            val previewCx = if (side == DiscSide.RIGHT) centerX - 128f else centerX
             Box(
                 modifier = Modifier
-                    .offset(x = (centerX - 61f).dp, y = (centerY - 61f).dp)
-                    .size(122.dp),
+                    .offset(x = (previewCx - 52f).dp, y = (centerY - 52f).dp)
+                    .size(104.dp),
                 contentAlignment = Alignment.Center,
                 content = centerContent
             )
@@ -215,7 +217,7 @@ fun DiscGauge(
         val wDp = maxWidth.value
         val hDp = maxHeight.value
         val rDp = 165f
-        val centerX = wDp - 62f
+        val centerX = wDp + 80f
         val centerY = hDp / 2f
         Canvas(modifier = Modifier.fillMaxSize()) {
             val c = Offset(centerX.dp.toPx(), centerY.dp.toPx())
@@ -261,8 +263,8 @@ fun DiscGauge(
         // 中央: 値と決定ボタン
         Box(
             modifier = Modifier
-                .offset(x = (centerX - 61f).dp, y = (centerY - 61f).dp)
-                .size(122.dp),
+                .offset(x = (centerX - 128f - 52f).dp, y = (centerY - 52f).dp)
+                .size(104.dp),
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
