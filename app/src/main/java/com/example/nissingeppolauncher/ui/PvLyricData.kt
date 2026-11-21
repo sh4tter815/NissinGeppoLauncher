@@ -185,7 +185,8 @@ fun segmentLyricLines(lines: List<LyricLine>): Pair<List<LyricLine>, List<Int>> 
             i += Character.charCount(cp)
         }
         val total = units.size
-        if (total <= 5) {
+        // 自動分割は単語同期（文字ごとのタイミング）がある行だけ。行同期の行は丸ごと大きく表示する
+        if (line.words.isEmpty() || total <= 5) {
             out.add(line)
             parents.add(idx)
             return@forEachIndexed
