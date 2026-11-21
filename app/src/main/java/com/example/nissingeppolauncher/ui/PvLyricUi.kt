@@ -1498,6 +1498,7 @@ fun PvLyricLine(
         // （例: 「恋情（イエス）」のようなカナだけのコーラスは誤判定しうるが、それは仕様として許容する）
         val rubyModeArr = IntArray(rowUnitTexts.size) // 0=なし 1=括弧（表示しない） 2=ルビのかな
         val rubyShiftArr = FloatArray(rowUnitTexts.size)
+        val rubyBaseSizeArr = FloatArray(rowUnitTexts.size)
         run {
             val rowText = rowUnitTexts.joinToString("")
             val unitStartArr = IntArray(rowUnitTexts.size)
@@ -1542,7 +1543,7 @@ fun PvLyricLine(
                 if (rubyModeArr[u] == 1) return 0f
                 val ru = rowUnitTexts[u]
                 val seed = Math.floorMod(baseSeed * 7 + effGiArr[u] * 131, 997)
-                val rand = 0.92f + (seed % 22) / 100f
+                val rand = if (rubyModeArr[u] == 2) 1f else 0.92f + (seed % 22) / 100f
                 var sz = (fitSize * rand * sizeFactorArr[u]).coerceIn(fitSize * 0.55f, fitSize * 1.35f)
                 if (rubyModeArr[u] == 2) sz *= 0.52f
                 var adv = 0f
@@ -1582,6 +1583,16 @@ fun PvLyricLine(
                                 val baseVisualRight = flowLeft(baseLast) + unitAdvance(baseLast) + uXShiftOf(baseLast)
                                 val baseVisualWidth = baseVisualRight - baseVisualLeft
                                 val rubyCount = lastRubyUnit - firstRubyUnit + 1
+                                if (rubyCount > 0) {
+                                    var baseSizeSum = 0f
+                                    for (u in baseFirst..baseLast) {
+                                        val bSeed = Math.floorMod(baseSeed * 7 + effGiArr[u] * 131, 997)
+                                        val bRand = 0.92f + (bSeed % 22) / 100f
+                                        baseSizeSum += (fitSize * bRand * sizeFactorArr[u]).coerceIn(fitSize * 0.55f, fitSize * 1.35f)
+                                    }
+                                    val baseAvg = baseSizeSum / (baseLast - baseFirst + 1)
+                                    for (u in firstRubyUnit..lastRubyUnit) rubyBaseSizeArr[u] = baseAvg
+                                }
                                 if (rubyCount > 0 && baseVisualWidth > 0f) {
                                     for (j in 0 until rubyCount) {
                                         val u = firstRubyUnit + j
@@ -1819,9 +1830,9 @@ fun PvLyricLine(
                     PvLyricUnit(
                         bold = bold,
                         unitText = if (rubyModeHere == 1) "" else ru,
-                        uSize = ((fitSize * (0.92f + (uSeed % 22) / 100f) * sizeFactor).coerceIn(fitSize * 0.55f, fitSize * 1.35f) * (if (rubyModeHere == 2) 0.52f else 1f)).sp,
-                        uRot = if (unitCensored) 0f else ((uSeed / 3) % 29 - 14).toFloat(),
-                        uYOffset = if (unitCensored) 0.dp else ((uSeed / 5) % 17 - 8).dp,
+                        uSize = if (rubyModeHere == 2) ((fitSize * sizeFactor).coerceIn(fitSize * 0.55f, fitSize * 1.35f) * 0.52f).sp else ((fitSize * (0.92f + (uSeed % 22) / 100f) * sizeFactor).coerceIn(fitSize * 0.55f, fitSize * 1.35f)).sp,
+                        uRot = if (unitCensored || rubyModeHere == 2) 0f else ((uSeed / 3) % 29 - 14).toFloat(),
+                        uYOffset = if (unitCensored || rubyModeHere == 2) 0.dp else ((uSeed / 5) % 17 - 8).dp,
                         uXShiftDp = if (unitCensored) 0f else uXShiftTotal,
                         staggerIndex = effGi,
                         exiting = exiting,
@@ -1841,7 +1852,7 @@ fun PvLyricLine(
                         crumbleExit = if (fallLine) 0 else if (sandLine) 1 else if (windLine) 2 else 0,
                         chunkColor = unitChunkColor,
                         arrowUnder = chunkArrow && ru == "行",
-                        swayScale = if (unitCensored) 0f else if (bigText) 2.8f else 1f,
+                        swayScale = if (unitCensored || rubyModeHere == 2) 0f else if (bigText) 2.8f else 1f,
                         entryDelayMs = unitDelayMs,
                         partsEntry = partsEntry,
                         wordParts = unitParts,
@@ -1864,8 +1875,9 @@ fun PvLyricLine(
                         censorT = censorProgress.value,
                         lineDurationMs = lineDurationMs,
                         rubyKana = rubyModeHere == 2,
+                        rubyBaseSizeSp = rubyBaseSizeArr.getOrElse(rIdx) { 0f },
                         parallaxState = camTransState,
-                        parallaxDepth = effCharFactor - 1f
+                        parallaxDepth = if (rubyModeHere == 2) 0.25f else effCharFactor - 1f
                     )
                 }
             }
@@ -1943,6 +1955,7 @@ fun PvLyricUnit(
     censorBandSp: Float = 0f,
     lineDurationMs: Long = 0L,
     rubyKana: Boolean = false,
+    rubyBaseSizeSp: Float = 0f,
     parallaxState: State<Offset>? = null,
     parallaxDepth: Float = 0f
 ) {
@@ -2178,6 +2191,11 @@ fun PvLyricUnit(
                         scaleX *= pulseS
                         scaleY *= pulseS
                     }
+                    if (rubyKana) {
+                        // ルビは散らさない: 入場の飛来と揺れを消して、定位置にすっと出す
+                        translationX = 0f
+                        translationY = 0f
+                    }
                 }
                 // 句読点の扱い: ！？は大きく傾け、。、・…は小さくする
                 when (unitText) {
@@ -2192,11 +2210,15 @@ fun PvLyricUnit(
                 if (stretchKind == 2) {
                     scaleX *= 1f + 0.7f * stretchProgress
                 }
-                if (pushXFactor != 0f) {
+                if (pushXFactor != 0f && !rubyKana) {
                     translationX += pushXFactor * stretchProgress * uSize.value * 1.05f
                 }
-                // ルビのかなは漢字の真上に来るよう持ち上げる（uSize はルビ側の小さいサイズ基準）
-                if (rubyKana) translationY -= uSize.value * 1.55f
+                // ルビのかなは漢字の真上に確実に置く。持ち上げ量は密度込みで計算する
+                // （sp の数値をそのまま px として使うと、持ち上げが足りず漢字に被ってしまう）
+                if (rubyKana) {
+                    val baseSp = if (rubyBaseSizeSp > 0f) rubyBaseSizeSp else uSize.value / 0.52f
+                    translationY -= (0.55f * (baseSp + uSize.value) + 4f) * density
+                }
                 // 疑似視差: カメラの平行移動に対し、文字の大きさ（奥行き）ぶんだけズレを足す。
                 // 大きい文字（手前）ほど大きく、小さい文字（奥）ほど小さくズレる。
                 // 落下・風・粒子化の退場中は専用の動きが付いているので足さない
