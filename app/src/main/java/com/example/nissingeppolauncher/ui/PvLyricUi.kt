@@ -1509,6 +1509,52 @@ fun PvLyricLine(
                 return lo
             }
             fun isKanjiCh(c: Char): Boolean = c in '一'..'鿿' || c == '々' || c == '〆'
+            // 各ユニットの実効シードとサイズ係数を、レイアウト側の uSize 計算とまったく同じ手順で再現する。
+            // ルビの位置はこの「実際の送り幅」の見積もり精度で決まるため、ランダムな大きさの係数まで一致させる
+            val rowGiStart = globalIndex
+            val effGiArr = IntArray(rowUnitTexts.size)
+            val sizeFactorArr = FloatArray(rowUnitTexts.size)
+            run {
+                var prevGi = -1
+                var prevFactor = 1f
+                for (u in rowUnitTexts.indices) {
+                    val ru = rowUnitTexts[u]
+                    val gi = rowGiStart + u
+                    val eGi = if (ru == "ー" && prevGi >= 0) prevGi else gi
+                    effGiArr[u] = eGi
+                    val cf = when {
+                        ru.length > 1 && ru.all { it in '゠'..'ヿ' } -> 1.05f
+                        ru.length > 1 -> 0.98f
+                        ru.isNotEmpty() && ru[0] in "ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ" -> 1.0f
+                        ru.isNotEmpty() && (ru[0] in '一'..'鿿' || ru[0] == '々' || ru[0] == '〆' || ru[0] == 'ヶ') -> 1.25f
+                        ru.isNotEmpty() && ru[0] in 'ぁ'..'ゟ' -> 0.82f
+                        ru.isNotEmpty() && ru[0] in '゠'..'ヿ' -> 1.05f
+                        else -> 0.98f
+                    }
+                    val ecf = if (ru == "ー" && eGi != gi) prevFactor else cf
+                    sizeFactorArr[u] = if (gi == 0 && leadHiraganaBoost) 1.25f else ecf
+                    prevGi = gi
+                    prevFactor = ecf
+                }
+            }
+            // ユニットの送り幅（フォントサイズ×グリフ幅。全角は1em、小書きかなはスパンで0.6倍、括弧ユニットは非表示で0）
+            fun unitAdvance(u: Int): Float {
+                if (rubyModeArr[u] == 1) return 0f
+                val ru = rowUnitTexts[u]
+                val seed = Math.floorMod(baseSeed * 7 + effGiArr[u] * 131, 997)
+                val rand = 0.92f + (seed % 22) / 100f
+                var sz = (fitSize * rand * sizeFactorArr[u]).coerceIn(fitSize * 0.55f, fitSize * 1.35f)
+                if (rubyModeArr[u] == 2) sz *= 0.52f
+                var adv = 0f
+                for (ch in ru) adv += sz * (if (ch in "ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ") 0.6f else 1f)
+                return adv
+            }
+            fun flowLeft(u: Int): Float {
+                var acc = 0f
+                for (k in 0 until u) acc += unitAdvance(k)
+                return acc
+            }
+            fun uXShiftOf(u: Int): Float = ((unitsInRow - 1) / 2f - u) * fitSize * 0.05f
             var i = 0
             while (i < rowText.length) {
                 val open = rowText[i]
@@ -1525,18 +1571,24 @@ fun PvLyricLine(
                             if (baseLen in 1..6 && content.length >= baseLen) {
                                 rubyModeArr[unitIndexAt(i)] = 1
                                 rubyModeArr[unitIndexAt(close)] = 1
-                                var baseEm = 0f
-                                for (u in unitIndexAt(b)..unitIndexAt(i - 1)) baseEm += rowUnitTexts[u].sumOf { ch -> charEm(ch).toDouble() }.toFloat()
-                                var rubyEm = 0f
+                                val baseFirst = unitIndexAt(b)
+                                val baseLast = unitIndexAt(i - 1)
                                 val firstRubyUnit = unitIndexAt(i + 1)
                                 val lastRubyUnit = unitIndexAt(close - 1)
-                                for (u in firstRubyUnit..lastRubyUnit) {
-                                    rubyModeArr[u] = 2
-                                    rubyEm += rowUnitTexts[u].sumOf { ch -> charEm(ch).toDouble() }.toFloat()
+                                for (u in firstRubyUnit..lastRubyUnit) rubyModeArr[u] = 2
+                                // グループルビ: 漢字全体の見た目の幅をルビのユニット数で等分し、各かなをその区間の中央に置く。
+                                // 送り幅と寄せ量（uXShift）まで含めて実レイアウトと一致させるので、漢字の大きさがバラついてもずれない
+                                val baseVisualLeft = flowLeft(baseFirst) + uXShiftOf(baseFirst)
+                                val baseVisualRight = flowLeft(baseLast) + unitAdvance(baseLast) + uXShiftOf(baseLast)
+                                val baseVisualWidth = baseVisualRight - baseVisualLeft
+                                val rubyCount = lastRubyUnit - firstRubyUnit + 1
+                                if (rubyCount > 0 && baseVisualWidth > 0f) {
+                                    for (j in 0 until rubyCount) {
+                                        val u = firstRubyUnit + j
+                                        val targetCenter = baseVisualLeft + (j + 0.5f) * baseVisualWidth / rubyCount
+                                        rubyShiftArr[u] = targetCenter - unitAdvance(u) / 2f - flowLeft(u) - uXShiftOf(u)
+                                    }
                                 }
-                                // ルビ全体が漢字の真上に来るよう、全ルビ文字を同じ量だけ左へ寄せる
-                                val shift = -(baseEm + rubyEm * 0.52f) / 2f * fitSize
-                                for (u in firstRubyUnit..lastRubyUnit) rubyShiftArr[u] = shift
                                 i = close
                             }
                         }
@@ -2144,7 +2196,7 @@ fun PvLyricUnit(
                     translationX += pushXFactor * stretchProgress * uSize.value * 1.05f
                 }
                 // ルビのかなは漢字の真上に来るよう持ち上げる（uSize はルビ側の小さいサイズ基準）
-                if (rubyKana) translationY -= uSize.value * 1.25f
+                if (rubyKana) translationY -= uSize.value * 1.55f
                 // 疑似視差: カメラの平行移動に対し、文字の大きさ（奥行き）ぶんだけズレを足す。
                 // 大きい文字（手前）ほど大きく、小さい文字（奥）ほど小さくズレる。
                 // 落下・風・粒子化の退場中は専用の動きが付いているので足さない
