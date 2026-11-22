@@ -88,135 +88,80 @@ fun DiscWheel(
     centerContent: (@Composable BoxScope.() -> Unit)? = null
 ) {
     if (entries.isEmpty()) return
-    val scope = rememberCoroutineScope()
-    // 配置計算はランチャーのアプリ円盤（RotatableAppDisc）と同一:
-    // 中心は画面の外80dp・半径165dp、輪郭は1本線、アイコンは輪郭の内側（半径-18）、
-    // ラベルは輪郭の外側（半径+8）を起点に円の外へ向けて置く。項目は角度で配置する。
-    val stepDeg = 20f
-    val rot = remember { Animatable(-initialFocus.coerceIn(0, entries.size - 1) * stepDeg) }
-    val focused = ((-rot.value / stepDeg).roundToInt()).coerceIn(0, entries.size - 1)
-    LaunchedEffect(focused) { onFocusChange(focused) }
-    fun snapTo(idx: Int) {
-        scope.launch { rot.animateTo(-idx * stepDeg, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessLow)) }
-    }
-
+    // 中身だけを設定用に入れ替えて、円盤のエンジン自体はアプリ円盤と共通の DiscCarousel を使う
     BoxWithConstraints(modifier = modifier) {
-        val wDp = maxWidth.value
-        val hDp = maxHeight.value
-        val centerX = if (side == DiscSide.LEFT) -80f else wDp + 80f
-        val centerY = hDp / 2f
-        val radius = 165f
-        val density = LocalDensity.current
-        val radiusPx = with(density) { radius.dp.toPx() }
-        val baseDeg = if (side == DiscSide.LEFT) 0f else 180f
-
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            drawCircle(
-                color = Color.White.copy(alpha = 0.85f),
-                radius = radius.dp.toPx(),
-                center = Offset(centerX.dp.toPx(), centerY.dp.toPx()),
-                style = Stroke(width = 1.5f)
-            )
-        }
-
-        // ドラッグは自分の側の55%だけ受ける（左右の円が重なっても競合しない）
-        Box(
-            modifier = Modifier
-                .align(if (side == DiscSide.LEFT) Alignment.CenterStart else Alignment.CenterEnd)
-                .fillMaxWidth(0.55f)
-                .fillMaxHeight()
-                .pointerInput(entries.size) {
-                    detectDragGestures(
-                        onDragEnd = { snapTo(focused) },
-                        onDragCancel = { snapTo(focused) },
-                        onDrag = { change, dragAmount ->
-                            change.consume()
-                            val delta = -(dragAmount.y / radiusPx) * (180f / PI.toFloat()) *
-                                (if (side == DiscSide.RIGHT) 1.2f else -1.2f)
-                            scope.launch {
-                                rot.snapTo((rot.value + delta).coerceIn(-(entries.size - 1) * stepDeg, 0f))
-                            }
-                        }
-                    )
+        val centerX = if (side == DiscSide.LEFT) -80f else maxWidth.value + 80f
+        val centerY = maxHeight.value / 2f
+        val carouselState = rememberDiscCarouselState(initialFocus.coerceIn(0, entries.size - 1), 20f)
+        DiscCarousel(
+            itemCount = entries.size,
+            discCenterXDp = centerX,
+            discCenterYDp = centerY,
+            discRadiusDp = 165f,
+            stepAngle = 20f,
+            isRightDisc = side == DiscSide.RIGHT,
+            isLoopable = false,
+            state = carouselState,
+            onSelectedIndexChange = onFocusChange,
+            centerContent = centerContent,
+            modifier = Modifier.fillMaxSize()
+        ) { index, rad, alpha, isSelected ->
+            val entry = entries[index]
+            // アイコン: アプリ円盤と同じく輪郭の内側（半径-18）
+            val iconX = centerX + 147f * cos(rad)
+            val iconY = centerY + 147f * sin(rad)
+            val iconSize = 46f
+            Box(
+                modifier = Modifier
+                    .offset(x = (iconX - iconSize / 2f).dp, y = (iconY - iconSize / 2f).dp)
+                    .size(iconSize.dp)
+                    .graphicsLayer { this.alpha = alpha }
+                    .clickable {
+                        if (isSelected) onEntryClick(index) else carouselState.animateToIndex(index)
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(modifier = Modifier.graphicsLayer { val sc = (if (isSelected) 1.12f else 1f) * 0.8f; scaleX = sc; scaleY = sc }) {
+                    entry.icon()
                 }
-        )
-
-        entries.forEachIndexed { i, entry ->
-            val angDeg = baseDeg + i * stepDeg + rot.value
-            val diff = kotlin.math.abs(angDeg - baseDeg)
-            if (diff <= 82f) {
-                val rad = angDeg * (PI.toFloat() / 180f)
-                val edgeFade = (1f - (diff / 80f).coerceIn(0f, 1f).pow(2)).coerceIn(0f, 1f)
-                val isF = i == focused
-                // アイコン: 輪郭の内側（半径-18）
-                val iconR = radius - 18f
-                val iconX = centerX + iconR * cos(rad)
-                val iconY = centerY + iconR * sin(rad)
-                val iconSize = 46f
-                Box(
-                    modifier = Modifier
-                        .offset(x = (iconX - iconSize / 2f).dp, y = (iconY - iconSize / 2f).dp)
-                        .size(iconSize.dp)
-                        .graphicsLayer { alpha = edgeFade }
-                        .clickable {
-                            if (isF) onEntryClick(i) else snapTo(i)
-                        },
-                    contentAlignment = Alignment.Center
+            }
+            // ラベル: アプリ円盤と同じく輪郭の外側（半径+8）を起点に置く
+            val ax = centerX + 173f * cos(rad)
+            val ay = centerY + 173f * sin(rad)
+            Box(
+                modifier = Modifier
+                    .offset(x = (if (side == DiscSide.LEFT) ax else ax - 240f).dp, y = (ay - 22f).dp)
+                    .width(240.dp)
+                    .height(44.dp)
+                    .graphicsLayer { this.alpha = alpha }
+                    .clickable {
+                        if (isSelected) onEntryClick(index) else carouselState.animateToIndex(index)
+                    },
+                contentAlignment = if (side == DiscSide.LEFT) Alignment.CenterStart else Alignment.CenterEnd
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = if (side == DiscSide.LEFT) Arrangement.Start else Arrangement.End
                 ) {
-                    Box(modifier = Modifier.graphicsLayer { val sc = if (isF) 1.12f else 1f; scaleX = sc; scaleY = sc }) {
-                        entry.icon()
+                    if (side == DiscSide.RIGHT && entry.valueText != null) {
+                        Text(entry.valueText, color = accentColor.copy(alpha = 0.75f), fontSize = 10.sp, maxLines = 1)
+                        Spacer(modifier = Modifier.width(6.dp))
                     }
-                }
-                // ラベル: 輪郭の外側（半径+8）を起点に、円から離れる方向へ
-                val anchorR = radius + 8f
-                val ax = centerX + anchorR * cos(rad)
-                val ay = centerY + anchorR * sin(rad)
-                Box(
-                    modifier = Modifier
-                        .offset(x = (if (side == DiscSide.LEFT) ax else ax - 240f).dp, y = (ay - 22f).dp)
-                        .width(240.dp)
-                        .height(44.dp)
-                        .graphicsLayer { alpha = edgeFade }
-                        .clickable {
-                            if (isF) onEntryClick(i) else snapTo(i)
-                        },
-                    contentAlignment = if (side == DiscSide.LEFT) Alignment.CenterStart else Alignment.CenterEnd
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = if (side == DiscSide.LEFT) Arrangement.Start else Arrangement.End
-                    ) {
-                        if (side == DiscSide.RIGHT && entry.valueText != null) {
-                            Text(entry.valueText, color = accentColor.copy(alpha = 0.75f), fontSize = 10.sp, maxLines = 1)
-                            Spacer(modifier = Modifier.width(6.dp))
-                        }
-                        Text(
-                            text = entry.label + if (entry.checked) "  ✓" else "",
-                            color = if (entry.checked) accentColor else if (isF) Color.White else Color.White.copy(alpha = 0.55f),
-                            fontSize = if (isF) 15.sp else 13.5.sp,
-                            fontWeight = if (isF || entry.checked) FontWeight.Bold else FontWeight.Medium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.widthIn(max = 150.dp)
-                        )
-                        if (side == DiscSide.LEFT && entry.valueText != null) {
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(entry.valueText, color = accentColor.copy(alpha = 0.75f), fontSize = 10.sp, maxLines = 1)
-                        }
+                    Text(
+                        text = entry.label + if (entry.checked) "  ✓" else "",
+                        color = if (entry.checked) accentColor else Color.White.copy(alpha = 0.9f),
+                        fontSize = 15.sp,
+                        fontWeight = if (isSelected || entry.checked) FontWeight.Bold else FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.widthIn(max = 150.dp)
+                    )
+                    if (side == DiscSide.LEFT && entry.valueText != null) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(entry.valueText, color = accentColor.copy(alpha = 0.75f), fontSize = 10.sp, maxLines = 1)
                     }
                 }
             }
-        }
-
-        if (centerContent != null) {
-            val previewCx = if (side == DiscSide.RIGHT) centerX - 128f else centerX
-            Box(
-                modifier = Modifier
-                    .offset(x = (previewCx - 52f).dp, y = (centerY - 52f).dp)
-                    .size(104.dp),
-                contentAlignment = Alignment.Center,
-                content = centerContent
-            )
         }
     }
 }
