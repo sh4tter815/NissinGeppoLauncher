@@ -36,6 +36,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
@@ -520,7 +521,10 @@ fun SettingsScreen(
     onChanged: () -> Unit = {},
     onAppsUpdated: () -> Unit = {},
     // 画面側で算出された現在のアクセント色（アートワーク連動時はその抽出色）
-    accentColor: Color = Color(0xFFE53935)
+    accentColor: Color = Color(0xFFE53935),
+    disc3d: Boolean = false,
+    tiltX: State<Float>? = null,
+    tiltY: State<Float>? = null
 ) {
     val context = LocalContext.current
     var accentHex by remember { mutableStateOf(repo.prefManager.getAccentColorHex()) }
@@ -1200,7 +1204,18 @@ fun SettingsScreen(
             .background(Color(0x330B101D))
     ) {
             // --- 2つの円 ---
-            Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(
+                        if (disc3d) Modifier.graphicsLayer {
+                            transformOrigin = TransformOrigin(0.5f, 0.5f)
+                            rotationX = 27f + (tiltX?.value ?: 0f)
+                            rotationY = tiltY?.value ?: 0f
+                            cameraDistance = 6.5f * LocalDensity.current.density
+                        } else Modifier
+                    )
+            ) {
                 if (discLevel == 1) {
                     key("disc-cats") {
                         val catState = rememberDiscCarouselState(discCategories.indexOfFirst { it.first == catFocusId }.coerceAtLeast(0), 20f)
@@ -1231,7 +1246,7 @@ fun SettingsScreen(
                             side = DiscSide.RIGHT,
                             accentColor = currentAccentColor,
                             modifier = Modifier.fillMaxSize(),
-                            state = itemState, gesturesEnabled = false,
+                            state = itemState, gesturesEnabled = true,
                             initialFocus = 0,
                             onFocusChange = { rightFocus = it },
                             onEntryClick = { idx -> openItem(levelItems[idx]) },
@@ -1309,7 +1324,7 @@ fun SettingsScreen(
                                 side = DiscSide.RIGHT,
                                 accentColor = currentAccentColor,
                                 modifier = Modifier.fillMaxSize(),
-                                state = choiceState, gesturesEnabled = false,
+                                state = choiceState, gesturesEnabled = true,
                                 initialFocus = currentItem.choices.indexOfFirst { it.checked }.coerceAtLeast(0),
                                 onFocusChange = { rightFocus = it },
                                 onEntryClick = { idx -> currentItem.choices[idx].onSelect() },
@@ -1321,7 +1336,6 @@ fun SettingsScreen(
 
         // --- タッチ操作パネル（フォルダページと同じ3分割: ヘッダー帯とダイヤル帯を除き、左右で円盤を回す） ---
         val panelRadiusPx = with(LocalDensity.current) { 165.dp.toPx() }
-        val rightPanelActive = discLevel == 1 || (currentItem != null && currentItem.slider == null)
         Row(
             modifier = Modifier
                 .fillMaxSize()
@@ -1336,17 +1350,7 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxSize()
                 )
             }
-            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                if (rightPanelActive) {
-                    DiscTouchHalf(
-                        state = rightDiscState,
-                        isRight = true,
-                        radiusPx = panelRadiusPx,
-                        isReverseScroll = { isReverseScroll },
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-            }
+            Box(modifier = Modifier.weight(1f).fillMaxHeight())
         }
 
         Column(modifier = Modifier.fillMaxSize().padding(top = 40.dp)) {
