@@ -85,14 +85,16 @@ fun DiscWheel(
     initialFocus: Int = 0,
     onFocusChange: (Int) -> Unit = {},
     onEntryClick: (Int) -> Unit = {},
-    centerContent: (@Composable BoxScope.() -> Unit)? = null
+    centerContent: (@Composable BoxScope.() -> Unit)? = null,
+    state: DiscCarouselState,
+    gesturesEnabled: Boolean = true
 ) {
     if (entries.isEmpty()) return
     // 中身だけを設定用に入れ替えて、円盤のエンジン自体はアプリ円盤と共通の DiscCarousel を使う
     BoxWithConstraints(modifier = modifier) {
         val centerX = if (side == DiscSide.LEFT) -80f else maxWidth.value + 80f
         val centerY = maxHeight.value / 2f
-        val carouselState = rememberDiscCarouselState(initialFocus.coerceIn(0, entries.size - 1), 20f)
+        val carouselState = state
         DiscCarousel(
             itemCount = entries.size,
             discCenterXDp = centerX,
@@ -101,6 +103,7 @@ fun DiscWheel(
             stepAngle = 20f,
             isRightDisc = side == DiscSide.RIGHT,
             isLoopable = false,
+            gesturesEnabled = gesturesEnabled,
             state = carouselState,
             onSelectedIndexChange = onFocusChange,
             centerContent = centerContent,
@@ -133,13 +136,13 @@ fun DiscWheel(
                     .offset(x = (if (side == DiscSide.LEFT) ax else ax - 240f).dp, y = (ay - 22f).dp)
                     .width(240.dp)
                     .height(44.dp)
-                    .graphicsLayer { this.alpha = alpha }
-                    .clickable {
-                        if (isSelected) onEntryClick(index) else carouselState.animateToIndex(index)
-                    },
+                    .graphicsLayer { this.alpha = alpha },
                 contentAlignment = if (side == DiscSide.LEFT) Alignment.CenterStart else Alignment.CenterEnd
             ) {
                 Row(
+                    modifier = Modifier.clickable {
+                        if (isSelected) onEntryClick(index) else carouselState.animateToIndex(index)
+                    },
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = if (side == DiscSide.LEFT) Arrangement.Start else Arrangement.End
                 ) {
