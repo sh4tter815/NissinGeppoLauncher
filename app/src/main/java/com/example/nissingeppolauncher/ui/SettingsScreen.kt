@@ -615,6 +615,11 @@ fun SettingsScreen(
     var focusId by remember { mutableStateOf<String?>(null) }
     var leftDiscState by remember { mutableStateOf<DiscCarouselState?>(null) }
     var rightDiscState by remember { mutableStateOf<DiscCarouselState?>(null) }
+    fun goBack() {
+        val dropped = navPath.lastOrNull() ?: return
+        navPath = navPath.dropLast(1)
+        focusId = dropped
+    }
     var updateChecking by remember { mutableStateOf(false) }
     var updateMessage by remember { mutableStateOf<String?>(null) }
     var updateInfo by remember { mutableStateOf<com.example.nissingeppolauncher.data.UpdateChecker.LatestRelease?>(null) }
@@ -1240,11 +1245,6 @@ fun SettingsScreen(
         }
         node
     }
-    fun goBack() {
-        val dropped = navPath.lastOrNull() ?: return
-        navPath = navPath.dropLast(1)
-        focusId = dropped
-    }
 
     Box(
         modifier = Modifier
@@ -1362,7 +1362,7 @@ key("disc-choices-${currentItem.id}") {
                         modifier = Modifier.fillMaxSize(),
                         state = choiceState, gesturesEnabled = true, iconSizeDp = iconSize,
                         initialFocus = currentItem.choices.indexOfFirst { it.checked }.coerceAtLeast(0),
-                        onFocusChange = { rightFocus = it },
+                        onFocusChange = { },
                         onEntryClick = { idx -> currentItem.choices[idx].onSelect() },
                     )
                 }
