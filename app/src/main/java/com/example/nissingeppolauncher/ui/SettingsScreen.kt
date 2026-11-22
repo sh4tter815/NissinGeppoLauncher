@@ -1192,43 +1192,9 @@ fun SettingsScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0x330B101D))
-            .padding(top = 40.dp)
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // --- 上部 タイトルバー（フォルダページと同じ浮いたピル型） ---
-            Surface(
-                color = Color(0x99101728),
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (discLevel == 2) {
-                        Text(
-                            text = "‹ 戻る",
-                            color = currentAccentColor,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Normal,
-                            modifier = Modifier
-                                .clickable { discLevel = 1; discItemId = null }
-                                .padding(end = 16.dp)
-                        )
-                    }
-                    Text(
-                        text = if (discLevel == 2) (currentItem?.label ?: "設定") else "環境設定",
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Normal
-                    )
-                }
-            }
-
             // --- 2つの円 ---
-            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            Box(modifier = Modifier.fillMaxSize()) {
                 if (discLevel == 1) {
                     key("disc-cats") {
                         DiscWheel(
@@ -1394,6 +1360,41 @@ fun SettingsScreen(
                     }
                 }
             }
+
+        Column(modifier = Modifier.fillMaxSize().padding(top = 40.dp)) {
+            // --- 上部 タイトルバー（フォルダページと同じ浮いたピル型） ---
+            Surface(
+                color = Color(0x99101728),
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (discLevel == 2) {
+                        Text(
+                            text = "‹ 戻る",
+                            color = currentAccentColor,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Normal,
+                            modifier = Modifier
+                                .clickable { discLevel = 1; discItemId = null }
+                                .padding(end = 16.dp)
+                        )
+                    }
+                    Text(
+                        text = if (discLevel == 2) (currentItem?.label ?: "設定") else "環境設定",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Normal
+                    )
+                }
+            }
+
+
         }
 
         if (showPasscodeChangeDialog) {

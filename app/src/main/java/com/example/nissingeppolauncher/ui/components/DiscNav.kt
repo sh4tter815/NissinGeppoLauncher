@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
@@ -48,10 +49,13 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
@@ -79,110 +83,129 @@ fun DiscWheel(
     initialFocus: Int = 0,
     onFocusChange: (Int) -> Unit = {},
     onEntryClick: (Int) -> Unit = {},
-    centerContent: (@Composable BoxScope.() -> Unit)? = null
+    centerContent: (@Composable () -> Unit)? = null
 ) {
-    val safeSize = entries.size.coerceAtLeast(1)
+    if (entries.isEmpty()) return
     val scope = rememberCoroutineScope()
-    val haptics = LocalHapticFeedback.current
-    val anim = remember(safeSize) {
-        Animatable(initialFocus.coerceIn(0, safeSize - 1).toFloat())
+    // 配置計算はランチャーのアプリ円盤（RotatableAppDisc）と同一:
+    // 中心は画面の外80dp・半径165dp、輪郭は1本線、アイコンは輪郭の内側（半径-18）、
+    // ラベルは輪郭の外側（半径+8）を起点に円の外へ向けて置く。項目は角度で配置する。
+    val stepDeg = 20f
+    val rot = remember { Animatable(-initialFocus.coerceIn(0, entries.size - 1) * stepDeg) }
+    val focused = ((-rot.value / stepDeg).roundToInt()).coerceIn(0, entries.size - 1)
+    LaunchedEffect(focused) { onFocusChange(focused) }
+    fun snapTo(idx: Int) {
+        scope.launch { rot.animateTo(-idx * stepDeg, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessLow)) }
     }
-    val focused = anim.value.roundToInt().coerceIn(0, safeSize - 1)
-    LaunchedEffect(focused) {
-        onFocusChange(focused)
-        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-    }
-    fun snapToNearest() {
-        val target = anim.value.roundToInt().coerceIn(0, safeSize - 1).toFloat()
-        scope.launch { anim.animateTo(target, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessLow)) }
-    }
+
     BoxWithConstraints(modifier = modifier) {
         val wDp = maxWidth.value
         val hDp = maxHeight.value
-        val rDp = 165f
-        // 配置はランチャーのフォルダ/アプリページと同一: 中心は画面の外80dp、半径165dp
         val centerX = if (side == DiscSide.LEFT) -80f else wDp + 80f
         val centerY = hDp / 2f
+        val radius = 165f
+        val density = LocalDensity.current
+        val radiusPx = with(density) { radius.dp.toPx() }
+        val baseDeg = if (side == DiscSide.LEFT) 0f else 180f
+
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val c = Offset(centerX.dp.toPx(), centerY.dp.toPx())
-            drawCircle(color = Color.White.copy(alpha = 0.40f), radius = rDp.dp.toPx(), center = c, style = Stroke(width = 1.5.dp.toPx()))
-            drawCircle(color = Color.White.copy(alpha = 0.13f), radius = (rDp - 27f).dp.toPx(), center = c, style = Stroke(width = 1.dp.toPx()))
+            drawCircle(
+                color = Color.White.copy(alpha = 0.85f),
+                radius = radius.dp.toPx(),
+                center = Offset(centerX.dp.toPx(), centerY.dp.toPx()),
+                style = Stroke(width = 1.5f)
+            )
         }
-        // ドラッグで回す層（項目の下）。左右の円を重ねて使うため、自分の側の半分だけを受ける
+
+        // ドラッグは自分の側の55%だけ受ける（左右の円が重なっても競合しない）
         Box(
             modifier = Modifier
-                .fillMaxHeight()
-                .fillMaxWidth(0.55f)
                 .align(if (side == DiscSide.LEFT) Alignment.CenterStart else Alignment.CenterEnd)
+                .fillMaxWidth(0.55f)
+                .fillMaxHeight()
                 .pointerInput(entries.size) {
-                    val spacingPx = 58.dp.toPx()
                     detectDragGestures(
-                        onDragEnd = { snapToNearest() },
-                        onDragCancel = { snapToNearest() }
-                    ) { change, dragAmount ->
-                        change.consume()
-                        scope.launch {
-                            anim.snapTo((anim.value - dragAmount.y / spacingPx).coerceIn(-0.45f, safeSize - 0.55f))
+                        onDragEnd = { snapTo(focused) },
+                        onDragCancel = { snapTo(focused) },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            val delta = -(dragAmount.y / radiusPx) * (180f / PI.toFloat()) *
+                                (if (side == DiscSide.RIGHT) 1.2f else -1.2f)
+                            scope.launch {
+                                rot.snapTo((rot.value + delta).coerceIn(-(entries.size - 1) * stepDeg, 0f))
+                            }
                         }
-                    }
+                    )
                 }
         )
-        // 項目（縁の上にアイコン＋ラベル）
+
         entries.forEachIndexed { i, entry ->
-            val rel = i - anim.value
-            val yOff = rel * 58f
-            if (kotlin.math.abs(yOff) > rDp - 16f) return@forEachIndexed
-            val arcX = sqrt((rDp * rDp - yOff * yOff).coerceAtLeast(0f))
-            val iconSize = if (i == focused) 52f else 45f
-            val iconCenterX = if (side == DiscSide.LEFT) centerX + arcX else centerX - arcX
-            val fade = (1f - kotlin.math.abs(rel) / 3.4f).coerceIn(0.12f, 1f)
-            Box(
-                modifier = Modifier
-                    .offset(x = (iconCenterX - iconSize / 2f).dp, y = (centerY + yOff - iconSize / 2f).dp)
-                    .size(iconSize.dp)
-                    .clickable {
-                        if (i == focused) onEntryClick(i)
-                        else scope.launch { anim.animateTo(i.toFloat(), spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessLow)) }
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Box(modifier = Modifier.graphicsLayer { val sc = if (i == focused) 1.12f else 1f; scaleX = sc; scaleY = sc }) {
-                    entry.icon()
-                }
-            }
-            // ラベル（左円はアイコンの右、右円はアイコンの左に置く）
-            val labelW = 168f
-            val labelX = if (side == DiscSide.LEFT) iconCenterX + iconSize / 2f + 10f else iconCenterX - iconSize / 2f - 10f - labelW
-            Box(
-                modifier = Modifier
-                    .offset(x = labelX.dp, y = (centerY + yOff - 22f).dp)
-                    .width(labelW.dp)
-            ) {
-                Column(
-                    horizontalAlignment = if (side == DiscSide.LEFT) Alignment.Start else Alignment.End
+            val angDeg = baseDeg + i * stepDeg + rot.value
+            val diff = kotlin.math.abs(angDeg - baseDeg)
+            if (diff <= 82f) {
+                val rad = angDeg * (PI.toFloat() / 180f)
+                val edgeFade = (1f - (diff / 80f).coerceIn(0f, 1f).pow(2)).coerceIn(0f, 1f)
+                val isF = i == focused
+                // アイコン: 輪郭の内側（半径-18）
+                val iconR = radius - 18f
+                val iconX = centerX + iconR * cos(rad)
+                val iconY = centerY + iconR * sin(rad)
+                val iconSize = 46f
+                Box(
+                    modifier = Modifier
+                        .offset(x = (iconX - iconSize / 2f).dp, y = (iconY - iconSize / 2f).dp)
+                        .size(iconSize.dp)
+                        .graphicsLayer { alpha = edgeFade }
+                        .clickable {
+                            if (isF) onEntryClick(i) else snapTo(i)
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (side == DiscSide.RIGHT && entry.checked) {
-                            Text("✓ ", color = accentColor.copy(alpha = fade), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Box(modifier = Modifier.graphicsLayer { val sc = if (isF) 1.12f else 1f; scaleX = sc; scaleY = sc }) {
+                        entry.icon()
+                    }
+                }
+                // ラベル: 輪郭の外側（半径+8）を起点に、円から離れる方向へ
+                val anchorR = radius + 8f
+                val ax = centerX + anchorR * cos(rad)
+                val ay = centerY + anchorR * sin(rad)
+                Box(
+                    modifier = Modifier
+                        .offset(x = (if (side == DiscSide.LEFT) ax else ax - 240f).dp, y = (ay - 22f).dp)
+                        .width(240.dp)
+                        .height(44.dp)
+                        .graphicsLayer { alpha = edgeFade }
+                        .clickable {
+                            if (isF) onEntryClick(i) else snapTo(i)
+                        },
+                    contentAlignment = if (side == DiscSide.LEFT) Alignment.CenterStart else Alignment.CenterEnd
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = if (side == DiscSide.LEFT) Arrangement.Start else Arrangement.End
+                    ) {
+                        if (side == DiscSide.RIGHT && entry.valueText != null) {
+                            Text(entry.valueText, color = accentColor.copy(alpha = 0.75f), fontSize = 10.sp, maxLines = 1)
+                            Spacer(modifier = Modifier.width(6.dp))
                         }
                         Text(
-                            entry.label,
-                            color = (if (i == focused) accentColor else Color.White).copy(alpha = if (i == focused) 1f else fade),
-                            fontSize = if (i == focused) 15.sp else 13.5.sp,
-                            fontWeight = if (i == focused) FontWeight.Bold else FontWeight.Normal,
-                            maxLines = 1
+                            text = entry.label + if (entry.checked) "  ✓" else "",
+                            color = if (entry.checked) accentColor else if (isF) Color.White else Color.White.copy(alpha = 0.55f),
+                            fontSize = if (isF) 15.sp else 13.5.sp,
+                            fontWeight = if (isF || entry.checked) FontWeight.Bold else FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.widthIn(max = 150.dp)
                         )
-                        if (side == DiscSide.LEFT && entry.checked) {
-                            Text(" ✓", color = accentColor.copy(alpha = fade), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        if (side == DiscSide.LEFT && entry.valueText != null) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(entry.valueText, color = accentColor.copy(alpha = 0.75f), fontSize = 10.sp, maxLines = 1)
                         }
-                    }
-                    if (entry.valueText != null) {
-                        Text(entry.valueText, color = Color.White.copy(alpha = 0.55f * fade + 0.2f), fontSize = 11.sp, maxLines = 1)
                     }
                 }
             }
         }
-        // 円の中央のプレビュー（主に右円用）
+
         if (centerContent != null) {
             val previewCx = if (side == DiscSide.RIGHT) centerX - 128f else centerX
             Box(
