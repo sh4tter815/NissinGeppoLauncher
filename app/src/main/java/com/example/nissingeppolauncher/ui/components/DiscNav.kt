@@ -174,6 +174,40 @@ fun DiscWheel(
     }
 }
 
+// 共通チップ（音楽アプリの絞り込みチップと同じ形）: ラベル＋任意で✕。タイトル表示と戻る/クリアの役割を持たせる
+@Composable
+fun DiscInfoChip(
+    label: String,
+    accentColor: Color,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    onClear: (() -> Unit)? = null
+) {
+    Row(
+        modifier = modifier
+            .background(accentColor, RoundedCornerShape(999.dp))
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
+            .padding(horizontal = 14.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = label,
+            color = Color.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold
+        )
+        if (onClear != null) {
+            Text(
+                text = "✕",
+                color = Color.White,
+                fontSize = 13.sp,
+                modifier = Modifier.clickable { onClear() }
+            )
+        }
+    }
+}
+
 // スライダー用の円: 目盛りの外側に数値ラベルを出し、現在値は円の中、決定は円の左に置く
 @Composable
 fun DiscGauge(
@@ -297,6 +331,11 @@ fun DiscGlyph(kind: String, accentColor: Color) {
                 drawLine(color = ink, start = Offset(w * 0.24f, h * 0.80f), end = Offset(w * 0.50f, h * 0.20f), strokeWidth = w * 0.06f, cap = StrokeCap.Round)
                 drawLine(color = ink, start = Offset(w * 0.50f, h * 0.20f), end = Offset(w * 0.76f, h * 0.80f), strokeWidth = w * 0.06f, cap = StrokeCap.Round)
                 drawLine(color = accentColor, start = Offset(w * 0.35f, h * 0.60f), end = Offset(w * 0.65f, h * 0.60f), strokeWidth = w * 0.06f, cap = StrokeCap.Round)
+            }
+            "back" -> {
+                drawLine(color = accentColor, start = Offset(w * 0.60f, h * 0.22f), end = Offset(w * 0.34f, h * 0.50f), strokeWidth = w * 0.07f, cap = StrokeCap.Round)
+                drawLine(color = accentColor, start = Offset(w * 0.34f, h * 0.50f), end = Offset(w * 0.60f, h * 0.78f), strokeWidth = w * 0.07f, cap = StrokeCap.Round)
+                drawLine(color = ink, start = Offset(w * 0.36f, h * 0.50f), end = Offset(w * 0.82f, h * 0.50f), strokeWidth = w * 0.07f, cap = StrokeCap.Round)
             }
             "palette" -> {
                 drawCircle(color = ink, radius = w * 0.34f, center = Offset(w * 0.50f, h * 0.50f), style = thin)
