@@ -111,7 +111,9 @@ fun DiscWheel(
     contentKey: Any? = null,
     forceSlideOut: Boolean = false,
     holdExpand: Boolean = false,
-    holdActive: Boolean? = null
+    holdActive: Boolean? = null,
+    focusedLabelOnly: Boolean = false,
+    fadeLabelsOnScroll: Boolean = true
 ) {
     if (entries.isEmpty()) return
     // 中身だけを設定用に入れ替えて、円盤のエンジン自体はアプリ円盤と共通の DiscCarousel を使う
@@ -132,6 +134,7 @@ fun DiscWheel(
         forceSlideOut = forceSlideOut,
         holdExpand = holdExpand,
         holdActive = holdActive,
+        fadeLabelsOnScroll = fadeLabelsOnScroll,
             state = carouselState,
             onSelectedIndexChange = onFocusChange,
             centerContent = centerContent,
@@ -163,7 +166,7 @@ fun DiscWheel(
                     .offset(x = (if (side == DiscSide.LEFT) ax else ax - 240f).dp, y = (ay - 22f).dp)
                     .width(240.dp)
                     .height(44.dp)
-                    .graphicsLayer { this.alpha = labelAlpha },
+                    .graphicsLayer { this.alpha = if (focusedLabelOnly && !isSelected && !carouselState.isScrolling) 0f else labelAlpha },
                 contentAlignment = if (side == DiscSide.LEFT) Alignment.CenterStart else Alignment.CenterEnd
             ) {
                 Row(
@@ -179,7 +182,7 @@ fun DiscWheel(
                     }
                     Text(
                         text = entry.label + if (entry.checked) "  ✓" else "",
-                        color = if (entry.checked) accentColor else Color.White.copy(alpha = 0.9f),
+                        color = if (entry.checked || (focusedLabelOnly && isSelected)) accentColor else Color.White.copy(alpha = 0.9f),
                         fontSize = 15.sp,
                         fontWeight = if (isSelected || entry.checked) FontWeight.Bold else FontWeight.Medium,
                         maxLines = 1,
