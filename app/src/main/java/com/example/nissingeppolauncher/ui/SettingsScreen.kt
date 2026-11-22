@@ -1176,6 +1176,7 @@ fun SettingsScreen(
                 fun nodeEntry(node: SettingNode): DiscEntry = DiscEntry(
                     id = node.id, label = node.label,
                     valueText = node.item?.valueText?.ifEmpty { null },
+                    toggleState = node.item?.let { item -> if (item.onToggle != null) item.valueText == "オン" else null },
                     icon = {
                         if (node.catIcon) SettingsCategoryIcon(kind = node.id, accentColor = currentAccentColor)
                         else DiscGlyph(node.glyph ?: node.item?.glyph ?: "toggle", currentAccentColor)
