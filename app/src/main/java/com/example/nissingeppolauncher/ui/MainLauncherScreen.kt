@@ -49,6 +49,9 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.asAndroidPath
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.TransformOrigin
 import android.content.Context
@@ -92,6 +95,8 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -147,7 +152,7 @@ fun MainLauncherScreen() {
     val discTiltX = remember { mutableFloatStateOf(0f) }
     val discTiltY = remember { mutableFloatStateOf(0f) }
     DisposableEffect(disc3d, disc3dTilt, currentLauncherPage) {
-        if (!disc3dTilt || currentLauncherPage !in 1..3) {
+        if (!disc3dTilt || currentLauncherPage !in 0..3) {
             discTiltX.value = 0f
             discTiltY.value = 0f
             return@DisposableEffect onDispose { }
@@ -998,7 +1003,10 @@ fun MainLauncherScreen() {
                             onAppsUpdated = {
                                 refreshApps()
                             },
-                            accentColor = accentColor
+                            accentColor = accentColor,
+                            disc3d = disc3d,
+                            tiltX = discTiltX,
+                            tiltY = discTiltY
                         )
                     }
                 1 -> {
@@ -1937,14 +1945,30 @@ fun MainLauncherScreen() {
             }
         }
 
-        // 右半分のタップ監視（最前面・消費しない）: 右の円の外側をタップしたら再生/一時停止。
-        // 円盤レイヤーより後ろに置くと円盤のドラッグ判定にタップを奪われて届かないため、前面で監視だけする
+        // 右半分のタップ領域（円をくり抜いた形）: 円の外側だけが当たり、タップで再生/一時停止。
+        // 円盤の上に監視レイヤーをかぶせると円盤の操作を奪ってしまうため、形で抜いた clickable にする
         if (currentLauncherPage == 1 && !isLyricsBrowsing && !pvFullscreen) {
             val tapDensity = LocalDensity.current
             val disc2CenterXPx = with(tapDensity) { animatedDisc2CenterX.dp.toPx() }
             val disc2CenterYPx = with(tapDensity) { disc2CenterY.dp.toPx() }
             val disc2RadiusPx = with(tapDensity) { disc2RadiusDp.dp.toPx() }
             val halfWidthPx = with(tapDensity) { (screenWidthDp / 2f).dp.toPx() }
+            val topPadPx = with(tapDensity) { (topPaddingDp + 60.dp).toPx() }
+            val toggleShape = remember(disc2CenterXPx, disc2CenterYPx, disc2RadiusPx, halfWidthPx, topPadPx) {
+                object : Shape {
+                    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+                        val rectPath = android.graphics.Path().apply {
+                            addRect(0f, 0f, size.width, size.height, android.graphics.Path.Direction.CW)
+                        }
+                        val circlePath = android.graphics.Path().apply {
+                            addCircle(disc2CenterXPx - halfWidthPx, disc2CenterYPx - topPadPx, disc2RadiusPx, android.graphics.Path.Direction.CW)
+                        }
+                        rectPath.op(circlePath, android.graphics.Path.Op.DIFFERENCE)
+                        val path = Path().apply { asAndroidPath().set(rectPath) }
+                        return Outline.Generic(path)
+                    }
+                }
+            }
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
@@ -1952,23 +1976,11 @@ fun MainLauncherScreen() {
                     .align(Alignment.CenterEnd)
                     .zIndex(94f)
                     .padding(top = topPaddingDp + 60.dp, bottom = bottomPaddingDp + 60.dp)
-                    .pointerInput(Unit) {
-                        awaitPointerEventScope {
-                            while (true) {
-                                val down = awaitFirstDown(requireUnconsumed = false)
-                                val up = waitForUpOrCancellation()
-                                if (up != null) {
-                                    val moved = (up.position - down.position).getDistance()
-                                    val gx = up.position.x + halfWidthPx
-                                    val gy = up.position.y + with(tapDensity) { (topPaddingDp + 60.dp).toPx() }
-                                    val distC = sqrt((gx - disc2CenterXPx).pow(2) + (gy - disc2CenterYPx).pow(2))
-                                    if (moved < 24f && distC > disc2RadiusPx) {
-                                        toggleSessionPlayback()
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    .clip(toggleShape)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { toggleSessionPlayback() }
             )
         }
 

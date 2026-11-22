@@ -108,7 +108,7 @@ fun DiscWheel(
             onSelectedIndexChange = onFocusChange,
             centerContent = centerContent,
             modifier = Modifier.fillMaxSize()
-        ) { index, rad, alpha, isSelected ->
+        ) { index, rad, labelAlpha, isSelected ->
             val entry = entries[index]
             // アイコン: アプリ円盤と同じく輪郭の内側（半径-18）
             val iconX = centerX + 147f * cos(rad)
@@ -118,7 +118,6 @@ fun DiscWheel(
                 modifier = Modifier
                     .offset(x = (iconX - iconSize / 2f).dp, y = (iconY - iconSize / 2f).dp)
                     .size(iconSize.dp)
-                    .graphicsLayer { this.alpha = alpha }
                     .clickable {
                         if (isSelected) onEntryClick(index) else carouselState.animateToIndex(index)
                     },
@@ -136,7 +135,7 @@ fun DiscWheel(
                     .offset(x = (if (side == DiscSide.LEFT) ax else ax - 240f).dp, y = (ay - 22f).dp)
                     .width(240.dp)
                     .height(44.dp)
-                    .graphicsLayer { this.alpha = alpha },
+                    .graphicsLayer { this.alpha = labelAlpha },
                 contentAlignment = if (side == DiscSide.LEFT) Alignment.CenterStart else Alignment.CenterEnd
             ) {
                 Row(

@@ -30,6 +30,8 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import android.view.HapticFeedbackConstants
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
@@ -97,7 +99,7 @@ fun DiscCarousel(
     state: DiscCarouselState = rememberDiscCarouselState(0, stepAngle),
     onSelectedIndexChange: (Int) -> Unit = {},
     centerContent: (@Composable BoxScope.() -> Unit)? = null,
-    itemContent: @Composable (index: Int, rad: Float, alpha: Float, isSelected: Boolean) -> Unit
+    itemContent: @Composable (index: Int, rad: Float, labelAlpha: Float, isSelected: Boolean) -> Unit
 ) {
     val context = LocalContext.current
     val prefManager = remember { AppPreferenceManager(context) }
@@ -155,111 +157,114 @@ fun DiscCarousel(
     val centerPx = with(density) { Offset(discCenterXDp.dp.toPx(), discCenterYDp.dp.toPx()) }
     val radiusPx = with(density) { discRadiusDp.dp.toPx() }
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .pointerInput(itemCount, discCenterXDp, discCenterYDp, discRadiusDp, isRightDisc, isLoopable, gesturesEnabled) {
-                if (!gesturesEnabled) return@pointerInput
-                awaitPointerEventScope {
-                    while (true) {
-                        val down = awaitFirstDown(requireUnconsumed = false)
-                        val pos = down.position
+    val discDragModifier = if (gesturesEnabled) {
+        Modifier.pointerInput(itemCount, discCenterXDp, discCenterYDp, discRadiusDp, isRightDisc, isLoopable) {
+            awaitPointerEventScope {
+                while (true) {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val pos = down.position
 
-                        val isTouchInTargetHalf = if (isRightDisc) {
-                            pos.x >= size.width / 2f
-                        } else {
-                            pos.x < size.width / 2f
-                        }
-                        if (!isTouchInTargetHalf) continue
+                    val isTouchInTargetHalf = if (isRightDisc) {
+                        pos.x >= size.width / 2f
+                    } else {
+                        pos.x < size.width / 2f
+                    }
+                    if (!isTouchInTargetHalf) continue
 
-                        val distFromCenter = sqrt((pos.x - centerPx.x).pow(2) + (pos.y - centerPx.y).pow(2))
-                        val isInsideCircle = distFromCenter <= radiusPx
+                    val distFromCenter = sqrt((pos.x - centerPx.x).pow(2) + (pos.y - centerPx.y).pow(2))
+                    val isInsideCircle = distFromCenter <= radiusPx
 
-                        var currentPos = pos
-                        var totalDx = 0f
-                        var totalDy = 0f
-                        var isDragStarted = false
-                        var lastDeltaAngle = 0f
-                        var lastTime = System.currentTimeMillis()
+                    var currentPos = pos
+                    var totalDx = 0f
+                    var totalDy = 0f
+                    var isDragStarted = false
+                    var lastDeltaAngle = 0f
+                    var lastTime = System.currentTimeMillis()
 
-                        drag(down.id) { change: PointerInputChange ->
-                            val prevPos = currentPos
-                            currentPos = change.position
-                            val currentTime = System.currentTimeMillis()
+                    drag(down.id) { change: PointerInputChange ->
+                        val prevPos = currentPos
+                        currentPos = change.position
+                        val currentTime = System.currentTimeMillis()
 
-                            val dx = currentPos.x - prevPos.x
-                            val dy = currentPos.y - prevPos.y
-                            totalDx += dx
-                            totalDy += dy
+                        val dx = currentPos.x - prevPos.x
+                        val dy = currentPos.y - prevPos.y
+                        totalDx += dx
+                        totalDy += dy
 
-                            if (!isDragStarted) {
-                                if (isInsideCircle && abs(totalDx) > abs(totalDy) && abs(totalDx) > 10f) {
-                                    return@drag
-                                }
-                                if (abs(totalDy) > 6f || abs(totalDx) > 6f || !isInsideCircle) {
-                                    isDragStarted = true
-                                    state.isScrolling = true
-                                }
+                        if (!isDragStarted) {
+                            if (isInsideCircle && abs(totalDx) > abs(totalDy) && abs(totalDx) > 10f) {
+                                return@drag
                             }
-
-                            if (isDragStarted) {
-                                change.consume()
-
-                                val dyPx = currentPos.y - prevPos.y
-                                val directionFactor = if (isReverseScroll) -1f else 1f
-                                val deltaAngle = -(dyPx / radiusPx) * (180f / PI.toFloat()) * (if (isRightDisc) 1.2f else -1.2f) * directionFactor
-
-                                val dt = (currentTime - lastTime).coerceAtLeast(1)
-                                lastDeltaAngle = deltaAngle / dt * 16f
-                                lastTime = currentTime
-
-                                val targetAngle = state.rawRotation + deltaAngle
-                                val constrainedAngle = if (isLoopable) {
-                                    targetAngle
-                                } else {
-                                    targetAngle.coerceIn(minRotation - 20f, maxRotation + 20f)
-                                }
-                                state.rawRotation = constrainedAngle
-                                coroutineScope.launch {
-                                    state.rotationAnim.snapTo(constrainedAngle)
-                                }
+                            if (abs(totalDy) > 6f || abs(totalDx) > 6f || !isInsideCircle) {
+                                isDragStarted = true
+                                state.isScrolling = true
                             }
                         }
 
-                        if (isDragStarted && itemCount > 0) {
-                            if (isLoopable) {
-                                val inertiaTarget = state.rawRotation + lastDeltaAngle * 10f
-                                val nearestIndex = (-inertiaTarget / stepAngle).roundToInt()
-                                val finalSnapAngle = -nearestIndex * stepAngle
+                        if (isDragStarted) {
+                            change.consume()
 
-                                state.rawRotation = finalSnapAngle
-                                coroutineScope.launch {
-                                    state.rotationAnim.animateTo(
-                                        targetValue = finalSnapAngle,
-                                        animationSpec = tween(durationMillis = 750, easing = FastOutSlowInEasing)
-                                    )
-                                    state.isScrolling = false
-                                }
+                            val dyPx = currentPos.y - prevPos.y
+                            val directionFactor = if (isReverseScroll) -1f else 1f
+                            val deltaAngle = -(dyPx / radiusPx) * (180f / PI.toFloat()) * (if (isRightDisc) 1.2f else -1.2f) * directionFactor
+
+                            val dt = (currentTime - lastTime).coerceAtLeast(1)
+                            lastDeltaAngle = deltaAngle / dt * 16f
+                            lastTime = currentTime
+
+                            val targetAngle = state.rawRotation + deltaAngle
+                            val constrainedAngle = if (isLoopable) {
+                                targetAngle
                             } else {
-                                val inertiaTarget = state.rawRotation + lastDeltaAngle * 6f
-                                val nearestIndex = (-inertiaTarget / stepAngle).roundToInt()
-                                val finalSnapAngle = (-nearestIndex * stepAngle).coerceIn(minRotation, maxRotation)
+                                targetAngle.coerceIn(minRotation - 20f, maxRotation + 20f)
+                            }
+                            state.rawRotation = constrainedAngle
+                            coroutineScope.launch {
+                                state.rotationAnim.snapTo(constrainedAngle)
+                            }
+                        }
+                    }
 
-                                state.rawRotation = finalSnapAngle
-                                coroutineScope.launch {
-                                    state.rotationAnim.animateTo(
-                                        targetValue = finalSnapAngle,
-                                        animationSpec = spring(stiffness = 220f, dampingRatio = 0.65f)
-                                    )
-                                    state.isScrolling = false
-                                }
+                    if (isDragStarted && itemCount > 0) {
+                        if (isLoopable) {
+                            val inertiaTarget = state.rawRotation + lastDeltaAngle * 10f
+                            val nearestIndex = (-inertiaTarget / stepAngle).roundToInt()
+                            val finalSnapAngle = -nearestIndex * stepAngle
+
+                            state.rawRotation = finalSnapAngle
+                            coroutineScope.launch {
+                                state.rotationAnim.animateTo(
+                                    targetValue = finalSnapAngle,
+                                    animationSpec = tween(durationMillis = 750, easing = FastOutSlowInEasing)
+                                )
+                                state.isScrolling = false
                             }
                         } else {
-                            state.isScrolling = false
+                            val inertiaTarget = state.rawRotation + lastDeltaAngle * 6f
+                            val nearestIndex = (-inertiaTarget / stepAngle).roundToInt()
+                            val finalSnapAngle = (-nearestIndex * stepAngle).coerceIn(minRotation, maxRotation)
+
+                            state.rawRotation = finalSnapAngle
+                            coroutineScope.launch {
+                                state.rotationAnim.animateTo(
+                                    targetValue = finalSnapAngle,
+                                    animationSpec = spring(stiffness = 220f, dampingRatio = 0.65f)
+                                )
+                                state.isScrolling = false
+                            }
                         }
+                    } else {
+                        state.isScrolling = false
                     }
                 }
             }
+        }
+    } else Modifier
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .then(discDragModifier)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Canvas(modifier = Modifier.fillMaxSize()) {
@@ -288,9 +293,9 @@ fun DiscCarousel(
                         val rad = itemAngle * (PI.toFloat() / 180f)
 
                         val edgeFade = (1.0f - (angleDiffFromCenter / 80f).coerceIn(0f, 1f).pow(2)).coerceIn(0f, 1f)
-                        val finalAlpha = textAlpha * scrollAlpha * edgeFade
+                        val labelAlpha = textAlpha * scrollAlpha * edgeFade
 
-                        itemContent(itemIndex, rad, finalAlpha, itemIndex == selectedIndex)
+                        itemContent(itemIndex, rad, labelAlpha, itemIndex == selectedIndex)
                     }
                 }
             } else {
@@ -302,9 +307,9 @@ fun DiscCarousel(
                         val rad = itemAngle * (PI.toFloat() / 180f)
 
                         val edgeFade = (1.0f - (angleDiffFromCenter / 80f).coerceIn(0f, 1f).pow(2)).coerceIn(0f, 1f)
-                        val finalAlpha = textAlpha * scrollAlpha * edgeFade
+                        val labelAlpha = textAlpha * scrollAlpha * edgeFade
 
-                        itemContent(index, rad, finalAlpha, index == selectedIndex)
+                        itemContent(index, rad, labelAlpha, index == selectedIndex)
                     }
                 }
             }
@@ -337,6 +342,7 @@ fun DiscTouchHalf(
     modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
+    val view = LocalView.current
     Box(
         modifier = modifier.pointerInput(state, isRight) {
             awaitPointerEventScope {
@@ -346,6 +352,7 @@ fun DiscTouchHalf(
                     if (st.itemCount <= 0) continue
                     var lastY = down.position.y
                     var dragging = false
+                    var lastIdx = (-st.rawRotation / st.stepAngle).roundToInt()
                     drag(down.id) { change ->
                         val dy = change.position.y - lastY
                         lastY = change.position.y
@@ -361,6 +368,11 @@ fun DiscTouchHalf(
                             val target = (st.rawRotation + delta).coerceIn(minRot - 20f, 20f)
                             st.rawRotation = target
                             scope.launch { st.rotationAnim.snapTo(target) }
+                            val idxNow = (-st.rawRotation / st.stepAngle).roundToInt()
+                            if (idxNow != lastIdx) {
+                                lastIdx = idxNow
+                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                            }
                         }
                     }
                     if (dragging) {
