@@ -1147,9 +1147,8 @@ fun SettingsScreen(
             navigateAnimated { goBack() }
         } else {
             val node = currentList[idx]
-            val tog = node.item?.onToggle
             val act = node.item?.onAction
-            if (tog != null) tog.invoke() else if (act != null) act.invoke() else focusId = node.id
+            if (act != null) act.invoke() else focusId = node.id
         }
     }
 
@@ -1223,11 +1222,8 @@ fun SettingsScreen(
                             onFocusChange = { },
                             onEntryClick = { idx ->
                                 val child = fNode.children[idx]
-                                val tog = child.item?.onToggle
                                 val act = child.item?.onAction
-                                if (tog != null) {
-                                    tog.invoke()
-                                } else if (act != null) {
+                                if (act != null) {
                                     act.invoke()
                                 } else {
                                     navigateAnimated {
@@ -1279,7 +1275,7 @@ key("disc-choices-${currentItem.id}") {
                         side = DiscSide.RIGHT,
                         accentColor = currentAccentColor,
                         modifier = Modifier.fillMaxSize(),
-                        state = choiceState, gesturesEnabled = true, iconSizeDp = iconSize, accentSelectedLabel = true, contentKey = "c-${currentItem.id}", forceSlideOut = discExiting,
+                        state = choiceState, gesturesEnabled = true, iconSizeDp = iconSize, accentSelectedLabel = true, tapToApply = true, contentKey = "c-${currentItem.id}", forceSlideOut = discExiting,
                         initialFocus = currentItem.choices.indexOfFirst { it.checked }.coerceAtLeast(0),
                         onFocusChange = { },
                         onEntryClick = { idx -> currentItem.choices[idx].onSelect() },
