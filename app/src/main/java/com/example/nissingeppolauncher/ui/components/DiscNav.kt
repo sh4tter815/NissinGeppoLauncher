@@ -50,6 +50,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -92,7 +93,8 @@ fun DiscWheel(
     state: DiscCarouselState,
     gesturesEnabled: Boolean = true,
     iconSizeDp: Float = 25f,
-    contentKey: Any? = null
+    contentKey: Any? = null,
+    forceSlideOut: Boolean = false
 ) {
     if (entries.isEmpty()) return
     // 中身だけを設定用に入れ替えて、円盤のエンジン自体はアプリ円盤と共通の DiscCarousel を使う
@@ -110,6 +112,7 @@ fun DiscWheel(
             isLoopable = false,
             gesturesEnabled = gesturesEnabled,
         contentKey = contentKey,
+        forceSlideOut = forceSlideOut,
             state = carouselState,
             onSelectedIndexChange = onFocusChange,
             centerContent = centerContent,
@@ -226,7 +229,7 @@ fun DiscGauge(
     var value by remember { mutableFloatStateOf(snap(initialValue)) }
     val frac = (value - range.start) / (range.endInclusive - range.start)
     val textMeasurer = rememberTextMeasurer()
-    val gaugeHaptic = LocalHapticFeedback.current
+    val gaugeView = LocalView.current
     BoxWithConstraints(modifier = modifier) {
         val wDp = maxWidth.value
         val hDp = maxHeight.value
@@ -293,7 +296,7 @@ fun DiscGauge(
                         change.consume()
                         val newValue = snap(value - dragAmount.y * span / 280.dp.toPx() * 1f)
                         if (newValue != value) {
-                            gaugeHaptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            gaugeView.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                         }
                         value = newValue
                     }
