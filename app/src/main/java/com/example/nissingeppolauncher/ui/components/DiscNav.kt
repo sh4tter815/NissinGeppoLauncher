@@ -91,7 +91,8 @@ fun DiscWheel(
     centerContent: (@Composable BoxScope.() -> Unit)? = null,
     state: DiscCarouselState,
     gesturesEnabled: Boolean = true,
-    iconSizeDp: Float = 25f
+    iconSizeDp: Float = 25f,
+    contentKey: Any? = null
 ) {
     if (entries.isEmpty()) return
     // 中身だけを設定用に入れ替えて、円盤のエンジン自体はアプリ円盤と共通の DiscCarousel を使う
@@ -108,6 +109,7 @@ fun DiscWheel(
             isRightDisc = side == DiscSide.RIGHT,
             isLoopable = false,
             gesturesEnabled = gesturesEnabled,
+        contentKey = contentKey,
             state = carouselState,
             onSelectedIndexChange = onFocusChange,
             centerContent = centerContent,

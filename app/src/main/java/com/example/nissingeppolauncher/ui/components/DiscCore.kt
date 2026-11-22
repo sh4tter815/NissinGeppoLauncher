@@ -1,6 +1,7 @@
 package com.example.nissingeppolauncher.ui.components
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowIn
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -25,6 +26,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerInputChange
@@ -96,6 +101,7 @@ fun DiscCarousel(
     isRightDisc: Boolean = true,
     isLoopable: Boolean = false,
     gesturesEnabled: Boolean = true,
+    contentKey: Any? = null,
     state: DiscCarouselState = rememberDiscCarouselState(0, stepAngle),
     onSelectedIndexChange: (Int) -> Unit = {},
     centerContent: (@Composable BoxScope.() -> Unit)? = null,
@@ -135,6 +141,20 @@ fun DiscCarousel(
     }
 
     val currentRotation = state.rotationAnim.value
+    // 内容が切り替わったとき、円が一瞬引っ込んで戻るパルス
+    val pulseScale = remember { Animatable(1f) }
+    var pulsePrevKey by remember { mutableStateOf<Any?>(null) }
+    var pulseArmed by remember { mutableStateOf(false) }
+    LaunchedEffect(contentKey) {
+        if (pulseArmed && contentKey != pulsePrevKey) {
+            kotlinx.coroutines.delay(110)
+            pulseScale.snapTo(0.90f)
+            pulseScale.animateTo(1f, tween(280, FastOutSlowIn))
+        }
+        pulsePrevKey = contentKey
+        pulseArmed = true
+    }
+    var contentSize by remember { mutableStateOf(IntSize.Zero) }
 
     val selectedIndex = remember(currentRotation, itemCount, isLoopable) {
         if (itemCount <= 0) -1
@@ -266,7 +286,19 @@ fun DiscCarousel(
             .fillMaxSize()
             .then(discDragModifier)
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .onSizeChanged { contentSize = it }
+                .graphicsLayer {
+                    transformOrigin = TransformOrigin(
+                        if (contentSize.width > 0) centerPx.x / contentSize.width else 0.5f,
+                        if (contentSize.height > 0) centerPx.y / contentSize.height else 0.5f
+                    )
+                    scaleX = pulseScale.value
+                    scaleY = pulseScale.value
+                }
+        ) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 drawCircle(
                     color = Color.White.copy(alpha = 0.85f),
