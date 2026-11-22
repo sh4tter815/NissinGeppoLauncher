@@ -90,8 +90,28 @@ data class DiscEntry(
     val checked: Boolean = false,
     val valueText: String? = null,
     val immediate: Boolean = false,
+    val toggleState: Boolean? = null,
     val icon: @Composable () -> Unit = {}
 )
+
+// トグル項目用の小さいスイッチ表示（オン/オフの文字の代わり）
+@Composable
+fun DiscMiniSwitch(on: Boolean, accentColor: Color) {
+    Box(
+        modifier = Modifier
+            .width(30.dp)
+            .height(17.dp)
+            .background(if (on) accentColor else Color.White.copy(alpha = 0.25f), RoundedCornerShape(999.dp))
+            .padding(2.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(13.dp)
+                .align(if (on) Alignment.CenterEnd else Alignment.CenterStart)
+                .background(Color.White, CircleShape)
+        )
+    }
+}
 
 enum class DiscSide { LEFT, RIGHT }
 
@@ -177,7 +197,10 @@ fun DiscWheel(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = if (side == DiscSide.LEFT) Arrangement.Start else Arrangement.End
                 ) {
-                    if (side == DiscSide.RIGHT && entry.valueText != null) {
+                    if (side == DiscSide.RIGHT && entry.toggleState != null) {
+                        DiscMiniSwitch(entry.toggleState, accentColor)
+                        Spacer(modifier = Modifier.width(6.dp))
+                    } else if (side == DiscSide.RIGHT && entry.valueText != null) {
                         Text(entry.valueText, color = accentColor.copy(alpha = 0.75f), fontSize = 10.sp, maxLines = 1)
                         Spacer(modifier = Modifier.width(6.dp))
                     }
@@ -190,7 +213,10 @@ fun DiscWheel(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.widthIn(max = 150.dp)
                     )
-                    if (side == DiscSide.LEFT && entry.valueText != null) {
+                    if (side == DiscSide.LEFT && entry.toggleState != null) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        DiscMiniSwitch(entry.toggleState, accentColor)
+                    } else if (side == DiscSide.LEFT && entry.valueText != null) {
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(entry.valueText, color = accentColor.copy(alpha = 0.75f), fontSize = 10.sp, maxLines = 1)
                     }
