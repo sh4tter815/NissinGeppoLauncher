@@ -20,6 +20,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,6 +31,8 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.changedToUpOrCanceled
+import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -42,6 +45,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.atan2
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.pow
@@ -393,10 +397,15 @@ fun DiscTouchHalf(
     radiusPx: Float,
     isReverseScroll: () -> Boolean,
     modifier: Modifier = Modifier,
-    onHoldingChanged: ((Boolean) -> Unit)? = null
+    onHoldingChanged: ((Boolean) -> Unit)? = null,
+    discCenterXPx: Float = 0f,
+    discCenterYPx: Float = 0f,
+    onItemTap: ((Int) -> Unit)? = null
 ) {
     val scope = rememberCoroutineScope()
     val view = LocalView.current
+    val tapCb by rememberUpdatedState(onItemTap)
+    val holdCb by rememberUpdatedState(onHoldingChanged)
     Box(
         modifier = modifier.pointerInput(state, isRight) {
             awaitPointerEventScope {
@@ -404,11 +413,21 @@ fun DiscTouchHalf(
                     val down = awaitFirstDown(requireUnconsumed = false)
                     val st = state ?: continue
                     if (st.itemCount <= 0) continue
-                    onHoldingChanged?.invoke(true)
+                    holdCb?.invoke(true)
                     var lastY = down.position.y
                     var dragging = false
+                    var maxDist = 0f
                     var lastIdx = (-st.rawRotation / st.stepAngle).roundToInt()
-                    drag(down.id) { change ->
+                    var upChange: PointerInputChange? = null
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: continue
+                        if (change.changedToUpOrCanceled()) {
+                            upChange = change
+                            break
+                        }
+                        val distFromDown = (change.position - down.position).getDistance()
+                        if (distFromDown > maxDist) maxDist = distFromDown
                         val dy = change.position.y - lastY
                         lastY = change.position.y
                         if (!dragging && abs(change.position.y - down.position.y) > 6f) {
@@ -430,7 +449,36 @@ fun DiscTouchHalf(
                             }
                         }
                     }
-                    onHoldingChanged?.invoke(false)
+                    holdCb?.invoke(false)
+                    val tapSlopPx = radiusPx * (18f / 165f)
+                    val wasCancel = upChange?.let { !it.changedToUp() } ?: true
+                    if (!wasCancel && tapCb != null && upChange != null && maxDist <= tapSlopPx) {
+                        val dx = down.position.x - discCenterXPx
+                        val dyv = down.position.y - discCenterYPx
+                        val dist = sqrt(dx * dx + dyv * dyv)
+                        if (dist >= radiusPx * 0.55f && dist <= radiusPx * 1.65f) {
+                            val tapDeg = Math.toDegrees(atan2(dyv.toDouble(), dx.toDouble())).toFloat()
+                            val rot = st.rotationAnim.value
+                            val base = if (isRight) 180f else 0f
+                            var best = -1
+                            var bestDiff = Float.MAX_VALUE
+                            for (i in 0 until st.itemCount) {
+                                val itemAngle = base + i * st.stepAngle + rot
+                                var diff = (tapDeg - itemAngle) % 360f
+                                if (diff > 180f) diff -= 360f
+                                if (diff < -180f) diff += 360f
+                                val ad = abs(diff)
+                                if (ad <= st.stepAngle * 0.5f && ad < bestDiff) {
+                                    bestDiff = ad
+                                    best = i
+                                }
+                            }
+                            if (best >= 0) {
+                                upChange?.consume()
+                                tapCb?.invoke(best)
+                            }
+                        }
+                    }
                     if (dragging) {
                         st.isScrolling = false
                         val idx = (-st.rawRotation / st.stepAngle).roundToInt()

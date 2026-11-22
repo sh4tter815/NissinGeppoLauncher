@@ -47,6 +47,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -642,6 +643,7 @@ fun SettingsScreen(
     var focusId by remember { mutableStateOf<String?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var leftDiscState by remember { mutableStateOf<DiscCarouselState?>(null) }
+    var leftHeld by remember { mutableStateOf(false) }
     var rightDiscState by remember { mutableStateOf<DiscCarouselState?>(null) }
     fun goBack() {
         val dropped = navPath.lastOrNull() ?: return
@@ -1140,6 +1142,17 @@ fun SettingsScreen(
         node
     }
 
+    val leftEntryClick: (Int) -> Unit = { idx ->
+        if (idx >= currentList.size) {
+            navigateAnimated { goBack() }
+        } else {
+            val node = currentList[idx]
+            val tog = node.item?.onToggle
+            val act = node.item?.onAction
+            if (tog != null) tog.invoke() else if (act != null) act.invoke() else focusId = node.id
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -1181,21 +1194,12 @@ fun SettingsScreen(
                         side = DiscSide.LEFT,
                         accentColor = currentAccentColor,
                         modifier = Modifier.fillMaxSize(),
-                        state = lState, gesturesEnabled = true, iconSizeDp = iconSize,
-                        forceSlideOut = discExiting, holdExpand = true,
+                        state = lState, gesturesEnabled = false, iconSizeDp = iconSize,
+                        forceSlideOut = discExiting, holdExpand = true, holdActive = leftHeld,
                         contentKey = navPath.joinToString("/") + "-" + searchQuery,
                         initialFocus = currentList.indexOfFirst { it.id == focusId }.coerceAtLeast(0),
                         onFocusChange = { idx -> currentList.getOrNull(idx)?.let { focusId = it.id } },
-                        onEntryClick = { idx ->
-                            if (idx >= currentList.size) {
-                                navigateAnimated { goBack() }
-                            } else {
-                                val node = currentList[idx]
-                                val tog = node.item?.onToggle
-                                val act = node.item?.onAction
-                                if (tog != null) tog.invoke() else if (act != null) act.invoke() else focusId = node.id
-                            }
-                        }
+                        onEntryClick = leftEntryClick
                     )
                 }
                 // 右円: 子一覧 / ゲージ / 選択肢
@@ -1280,6 +1284,32 @@ key("disc-choices-${currentItem.id}") {
                 }
                 }
             }
+
+        // --- タッチ操作パネル（左円駆動＋タップ判定＋ホールド信号。円盤レイヤーの上） ---
+        val panelRadiusPx = with(LocalDensity.current) { 165.dp.toPx() }
+        val discCenterXPx = with(LocalDensity.current) { (-80).dp.toPx() }
+        val screenHDp = LocalConfiguration.current.screenHeightDp.toFloat()
+        val discCenterYPx = with(LocalDensity.current) { (screenHDp / 2f - statusTopDp.value - 104f).dp.toPx() }
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = statusTopDp + 104.dp, bottom = 72.dp)
+        ) {
+            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                DiscTouchHalf(
+                    state = leftDiscState,
+                    isRight = false,
+                    radiusPx = panelRadiusPx,
+                    isReverseScroll = { isReverseScroll },
+                    modifier = Modifier.fillMaxSize(),
+                    onHoldingChanged = { leftHeld = it },
+                    discCenterXPx = discCenterXPx,
+                    discCenterYPx = discCenterYPx,
+                    onItemTap = leftEntryClick
+                )
+            }
+            Box(modifier = Modifier.weight(1f).fillMaxHeight())
+        }
 
         // --- 検索バー（旧ヘッダーの位置・幅。タイトルと戻るはチップが担う） ---
         Box(
