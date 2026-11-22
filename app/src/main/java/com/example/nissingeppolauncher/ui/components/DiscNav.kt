@@ -226,6 +226,7 @@ fun DiscGauge(
     var value by remember { mutableFloatStateOf(snap(initialValue)) }
     val frac = (value - range.start) / (range.endInclusive - range.start)
     val textMeasurer = rememberTextMeasurer()
+    val gaugeHaptic = LocalHapticFeedback.current
     BoxWithConstraints(modifier = modifier) {
         val wDp = maxWidth.value
         val hDp = maxHeight.value
@@ -235,29 +236,40 @@ fun DiscGauge(
         Canvas(modifier = Modifier.fillMaxSize()) {
             val c = Offset(centerX.dp.toPx(), centerY.dp.toPx())
             drawCircle(color = Color.White.copy(alpha = 0.40f), radius = rDp.dp.toPx(), center = c, style = Stroke(width = 1.5.dp.toPx()))
-            // 目盛り（60分割、5つごとに長く）と、その外側に数値ラベル
+            // 目盛り（60分割は装飾のマイナー）
             for (t in 0 until 60) {
                 val ang = Math.toRadians((t * 6 - 90).toDouble())
-                val major = t % 5 == 0
-                val r1 = rDp - if (major) 20f else 13f
+                val r1 = rDp - 13f
                 val r2 = rDp - 6f
                 drawLine(
-                    color = Color.White.copy(alpha = if (major) 0.55f else 0.28f),
+                    color = Color.White.copy(alpha = 0.28f),
                     start = Offset(c.x + (r1.dp.toPx() * cos(ang)).toFloat(), c.y + (r1.dp.toPx() * sin(ang)).toFloat()),
                     end = Offset(c.x + (r2.dp.toPx() * cos(ang)).toFloat(), c.y + (r2.dp.toPx() * sin(ang)).toFloat()),
-                    strokeWidth = if (major) 2.dp.toPx() else 1.2.dp.toPx(),
+                    strokeWidth = 1.2.dp.toPx(),
                     cap = StrokeCap.Round
                 )
-                if (major) {
-                    val v = range.start + (t / 60f) * (range.endInclusive - range.start)
-                    val layout = textMeasurer.measure(
-                        format(v),
-                        TextStyle(color = Color.White.copy(alpha = 0.75f), fontSize = 11.sp)
-                    )
-                    val lr = (rDp + 24f).dp.toPx()
-                    val pos = Offset(c.x + (lr * cos(ang)).toFloat(), c.y + (lr * sin(ang)).toFloat())
-                    drawText(layout, topLeft = Offset(pos.x - layout.size.width / 2f, pos.y - layout.size.height / 2f))
-                }
+            }
+            // 主要目盛りと数値ラベルは、実際のステップ位置に正確に置く
+            val majorEvery = if (steps > 20) 5 else 1
+            for (k in 0..steps step majorEvery) {
+                val v = range.start + k * stepSize
+                val ang = Math.toRadians(((k.toFloat() / (steps + 1)) * 360f - 90f).toDouble())
+                val r1 = rDp - 20f
+                val r2 = rDp - 6f
+                drawLine(
+                    color = Color.White.copy(alpha = 0.55f),
+                    start = Offset(c.x + (r1.dp.toPx() * cos(ang)).toFloat(), c.y + (r1.dp.toPx() * sin(ang)).toFloat()),
+                    end = Offset(c.x + (r2.dp.toPx() * cos(ang)).toFloat(), c.y + (r2.dp.toPx() * sin(ang)).toFloat()),
+                    strokeWidth = 2.dp.toPx(),
+                    cap = StrokeCap.Round
+                )
+                val layout = textMeasurer.measure(
+                    format(v),
+                    TextStyle(color = Color.White.copy(alpha = 0.75f), fontSize = 11.sp)
+                )
+                val lr = (rDp + 24f).dp.toPx()
+                val pos = Offset(c.x + (lr * cos(ang)).toFloat(), c.y + (lr * sin(ang)).toFloat())
+                drawText(layout, topLeft = Offset(pos.x - layout.size.width / 2f, pos.y - layout.size.height / 2f))
             }
             // 値の弧
             drawArc(
@@ -279,7 +291,11 @@ fun DiscGauge(
                     val span = range.endInclusive - range.start
                     detectDragGestures { change, dragAmount ->
                         change.consume()
-                        value = snap(value - dragAmount.y * span / 280.dp.toPx() * 1f)
+                        val newValue = snap(value - dragAmount.y * span / 280.dp.toPx() * 1f)
+                        if (newValue != value) {
+                            gaugeHaptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        }
+                        value = newValue
                     }
                 }
         )
@@ -301,7 +317,7 @@ fun DiscGauge(
             shape = RoundedCornerShape(12.dp),
             border = androidx.compose.foundation.BorderStroke(1.dp, accentColor),
             modifier = Modifier
-                .offset(x = (centerX - rDp - 118f).dp, y = (centerY - 21f).dp)
+                .offset(x = (centerX - rDp - 98f).dp, y = (centerY - 21f).dp)
                 .clickable { onConfirm(value) }
         ) {
             Text("決定", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 22.dp, vertical = 10.dp))

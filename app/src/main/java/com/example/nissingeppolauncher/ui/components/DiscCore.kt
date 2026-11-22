@@ -25,10 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerInputChange
@@ -140,20 +137,22 @@ fun DiscCarousel(
     }
 
     val currentRotation = state.rotationAnim.value
-    // 内容が切り替わったとき、円が一瞬引っ込んで戻るパルス
-    val pulseScale = remember { Animatable(1f) }
-    var pulsePrevKey by remember { mutableStateOf<Any?>(null) }
-    var pulseArmed by remember { mutableStateOf(false) }
-    LaunchedEffect(contentKey) {
-        if (pulseArmed && contentKey != pulsePrevKey) {
-            kotlinx.coroutines.delay(110)
-            pulseScale.snapTo(0.90f)
-            pulseScale.animateTo(1f, tween(durationMillis = 280, easing = FastOutSlowInEasing))
-        }
-        pulsePrevKey = contentKey
-        pulseArmed = true
+    // 内容が切り替わったとき、ページ切り替えと同じ「円が端に引っ込んで戻る」動き
+    val slideOut = remember { Animatable(1f) }
+    var slidePrevKey by remember { mutableStateOf<Any?>(null) }
+    var slideArmed by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        slideOut.animateTo(0f, tween(durationMillis = 220, easing = FastOutSlowInEasing))
     }
-    var contentSize by remember { mutableStateOf(IntSize.Zero) }
+    LaunchedEffect(contentKey) {
+        if (slideArmed && contentKey != slidePrevKey) {
+            slideOut.animateTo(1f, tween(durationMillis = 160, easing = FastOutSlowInEasing))
+            slideOut.animateTo(0f, tween(durationMillis = 220, easing = FastOutSlowInEasing))
+        }
+        slidePrevKey = contentKey
+        slideArmed = true
+    }
+    val slideTravelPx = with(density) { (discRadiusDp - 80f).coerceAtLeast(0f).dp.toPx() }
 
     val selectedIndex = remember(currentRotation, itemCount, isLoopable) {
         if (itemCount <= 0) -1
@@ -288,14 +287,8 @@ fun DiscCarousel(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .onSizeChanged { contentSize = it }
                 .graphicsLayer {
-                    transformOrigin = TransformOrigin(
-                        if (contentSize.width > 0) centerPx.x / contentSize.width else 0.5f,
-                        if (contentSize.height > 0) centerPx.y / contentSize.height else 0.5f
-                    )
-                    scaleX = pulseScale.value
-                    scaleY = pulseScale.value
+                    translationX = slideOut.value * slideTravelPx * if (isRightDisc) 1f else -1f
                 }
         ) {
             Canvas(modifier = Modifier.fillMaxSize()) {
