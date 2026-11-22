@@ -23,6 +23,8 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -613,6 +615,7 @@ fun SettingsScreen(
     // 円盤ナビの状態（1: カテゴリ/項目, 2: 選択肢/スライダー）
     var navPath by remember { mutableStateOf<List<String>>(emptyList()) }
     var focusId by remember { mutableStateOf<String?>(null) }
+    var searchQuery by remember { mutableStateOf("") }
     var leftDiscState by remember { mutableStateOf<DiscCarouselState?>(null) }
     var rightDiscState by remember { mutableStateOf<DiscCarouselState?>(null) }
     fun goBack() {
@@ -641,8 +644,13 @@ fun SettingsScreen(
     var useCustomFont by remember { mutableStateOf(repo.prefManager.isUseCustomFont()) }
 
     // システム「戻る」キーを押した時、カテゴリ詳細画面なら設定トップに戻る
-    BackHandler(enabled = navPath.isNotEmpty()) {
-        goBack()
+    BackHandler(enabled = navPath.isNotEmpty() || searchQuery.isNotBlank()) {
+        if (searchQuery.isNotBlank()) {
+            searchQuery = ""
+            focusId = null
+        } else {
+            goBack()
+        }
     }
 
     // 壁紙選択ピッカー
@@ -1233,7 +1241,18 @@ fun SettingsScreen(
         SettingNode("security", "セキュリティ", catIcon = true, children = flatNodes("security")),
         SettingNode("other", "その他", catIcon = true, children = itemNodes("behavior", listOf("sleep")) + itemNodes("tutorial", listOf("guideReshow")))
     )
-    val currentList: List<SettingNode> = navPath.fold(settingsTree) { list, id -> list.firstOrNull { it.id == id }?.children ?: emptyList() }
+    val searchResults: List<SettingNode> = if (searchQuery.isBlank()) emptyList() else {
+        val all = mutableListOf<SettingNode>()
+        fun walk(nodes: List<SettingNode>) {
+            for (n in nodes) {
+                if (n.item != null) all += n
+                walk(n.children)
+            }
+        }
+        walk(settingsTree)
+        all.filter { it.label.contains(searchQuery, ignoreCase = true) || (it.item?.desc?.contains(searchQuery, ignoreCase = true) == true) }
+    }
+    val currentList: List<SettingNode> = if (searchQuery.isNotBlank()) searchResults else navPath.fold(settingsTree) { list, id -> list.firstOrNull { it.id == id }?.children ?: emptyList() }
     val focusedNode: SettingNode? = currentList.firstOrNull { it.id == focusId } ?: currentList.firstOrNull()
     val currentItem: SettingItem? = focusedNode?.item
     val ownerNode: SettingNode? = run {
@@ -1275,22 +1294,30 @@ fun SettingsScreen(
                     }
                 )
                 // 左円: 現在の階層の一覧（パネル駆動）
-                key("tree-left-${navPath.joinToString("/")}") {
+                key("tree-left-${navPath.joinToString("/")}-$searchQuery") {
                     val lState = rememberDiscCarouselState(currentList.indexOfFirst { it.id == focusId }.coerceAtLeast(0), 20f)
                     LaunchedEffect(lState) { leftDiscState = lState }
                     DiscWheel(
-                        entries = currentList.map { nodeEntry(it) },
+                        entries = currentList.map { nodeEntry(it) } + (
+                            if (navPath.isNotEmpty() && searchQuery.isBlank()) listOf(
+                                DiscEntry(id = "__back", label = "戻る", icon = { DiscGlyph("back", currentAccentColor) })
+                            ) else emptyList()
+                        ),
                         side = DiscSide.LEFT,
                         accentColor = currentAccentColor,
                         modifier = Modifier.fillMaxSize(),
                         state = lState, gesturesEnabled = false, iconSizeDp = iconSize,
-                        contentKey = navPath.joinToString("/"),
+                        contentKey = navPath.joinToString("/") + "-" + searchQuery,
                         initialFocus = currentList.indexOfFirst { it.id == focusId }.coerceAtLeast(0),
                         onFocusChange = { idx -> currentList.getOrNull(idx)?.let { focusId = it.id } },
                         onEntryClick = { idx ->
-                            val node = currentList[idx]
-                            val act = node.item?.onAction
-                            if (act != null) act.invoke() else focusId = node.id
+                            if (idx >= currentList.size) {
+                                goBack()
+                            } else {
+                                val node = currentList[idx]
+                                val act = node.item?.onAction
+                                if (act != null) act.invoke() else focusId = node.id
+                            }
                         }
                     )
                 }
@@ -1390,7 +1417,7 @@ key("disc-choices-${currentItem.id}") {
             Box(modifier = Modifier.weight(1f).fillMaxHeight())
         }
 
-        // --- ヘッダー（フォルダページと同じ位置・幅: 上端+48dp, 320x48, 角丸16） ---
+        // --- 検索バー（旧ヘッダーの位置・幅。タイトルと戻るはチップが担う） ---
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1405,28 +1432,71 @@ key("disc-choices-${currentItem.id}") {
                     .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (navPath.isNotEmpty()) {
+                BasicTextField(
+                    value = searchQuery,
+                    onValueChange = {
+                        searchQuery = it
+                        focusId = null
+                    },
+                    singleLine = true,
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        color = Color.White,
+                        fontSize = 15.sp
+                    ),
+                    cursorBrush = SolidColor(currentAccentColor),
+                    modifier = Modifier.weight(1f)
+                ) { innerTextField ->
+                    Box(contentAlignment = Alignment.CenterStart) {
+                        if (searchQuery.isEmpty()) {
+                            Text(
+                                text = "設定を検索",
+                                color = Color.Gray.copy(alpha = 0.7f),
+                                fontSize = 14.sp
+                            )
+                        }
+                        innerTextField()
+                    }
+                }
+                if (searchQuery.isNotEmpty()) {
                     Text(
-                        text = "‹ 戻る",
-                        color = currentAccentColor,
-                        fontSize = 16.sp,
+                        text = "✕",
+                        color = Color.White,
+                        fontSize = 14.sp,
                         modifier = Modifier
-                            .clickable { goBack() }
-                            .padding(end = 16.dp)
+                            .clickable {
+                                searchQuery = ""
+                                focusId = null
+                            }
+                            .padding(start = 8.dp)
                     )
                 }
-                Text(
-                    text = when {
-                        currentItem != null -> currentItem.label
-                        navPath.isNotEmpty() -> ownerNode?.label ?: "設定"
-                        else -> "環境設定"
-                    },
-                    color = Color.White,
-                    fontSize = 16.sp
-                )
             }
         }
 
+        // --- チップ（タイトル＋戻る / 検索結果のクリア） ---
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = statusTopDp + 106.dp),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            if (searchQuery.isNotBlank()) {
+                DiscInfoChip(
+                    label = "「${searchQuery}」の結果 ${searchResults.size}件",
+                    accentColor = currentAccentColor,
+                    onClear = {
+                        searchQuery = ""
+                        focusId = null
+                    }
+                )
+            } else if (navPath.isNotEmpty()) {
+                DiscInfoChip(
+                    label = "‹ ${ownerNode?.label ?: "設定"}",
+                    accentColor = currentAccentColor,
+                    onClick = { goBack() }
+                )
+            }
+        }
 
         if (showPasscodeChangeDialog) {
             AlertDialog(

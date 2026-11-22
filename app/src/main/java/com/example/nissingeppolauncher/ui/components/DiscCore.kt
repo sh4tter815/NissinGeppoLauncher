@@ -1,7 +1,6 @@
 package com.example.nissingeppolauncher.ui.components
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowIn
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -149,7 +148,7 @@ fun DiscCarousel(
         if (pulseArmed && contentKey != pulsePrevKey) {
             kotlinx.coroutines.delay(110)
             pulseScale.snapTo(0.90f)
-            pulseScale.animateTo(1f, tween(280, FastOutSlowIn))
+            pulseScale.animateTo(1f, tween(280, FastOutSlowInEasing))
         }
         pulsePrevKey = contentKey
         pulseArmed = true
