@@ -71,6 +71,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -890,21 +891,6 @@ fun MainLauncherScreen() {
                     liquidEnabled = liquidBackground,
                     liquidAccent = if (dopagakiMode) Color.hsv(Math.floorMod(pvLineIndex * 47, 360).toFloat(), 0.72f, 1f) else effectiveAccent
                 )
-
-            // 右の円の外・画面右半分のタップは再生/一時停止。円の中はアイコンのタップだけにして判定をはっきり分ける
-            // （最背面に置くので、円盤・歌詞・ダイヤルなど上に描かれる要素のタップはそちらが優先される）
-            if (currentLauncherPage == 1 && !isLyricsBrowsing && !pvFullscreen) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .fillMaxWidth(0.5f)
-                        .align(Alignment.CenterEnd)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) { toggleSessionPlayback() }
-                )
-            }
 
             if (dopagakiMode && currentLauncherPage == 1) {
                 // ドパガキ中は画面の縁に虹色の回る枠を出す
@@ -1948,6 +1934,82 @@ fun MainLauncherScreen() {
                     tint = accentColor,
                     modifier = Modifier.size(24.dp)
                 )
+            }
+        }
+
+        // 右半分のタップ監視（最前面・消費しない）: 右の円の外側をタップしたら再生/一時停止。
+        // 円盤レイヤーより後ろに置くと円盤のドラッグ判定にタップを奪われて届かないため、前面で監視だけする
+        if (currentLauncherPage == 1 && !isLyricsBrowsing && !pvFullscreen) {
+            val tapDensity = LocalDensity.current
+            val disc2CenterXPx = with(tapDensity) { animatedDisc2CenterX.dp.toPx() }
+            val disc2CenterYPx = with(tapDensity) { disc2CenterY.dp.toPx() }
+            val disc2RadiusPx = with(tapDensity) { disc2RadiusDp.dp.toPx() }
+            val halfWidthPx = with(tapDensity) { (screenWidthDp / 2f).dp.toPx() }
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(0.5f)
+                    .align(Alignment.CenterEnd)
+                    .zIndex(94f)
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                val down = awaitFirstDown(requireUnconsumed = false)
+                                val up = waitForUpOrCancellation()
+                                if (up != null) {
+                                    val moved = (up.position - down.position).getDistance()
+                                    val gx = up.position.x + halfWidthPx
+                                    val gy = up.position.y
+                                    val distC = sqrt((gx - disc2CenterXPx).pow(2) + (gy - disc2CenterYPx).pow(2))
+                                    if (moved < 24f && distC > disc2RadiusPx) {
+                                        toggleSessionPlayback()
+                                    }
+                                }
+                            }
+                        }
+                    }
+            )
+        }
+
+        // 間奏スキップ（通常モード用・最前面）: PVレイヤーの中にあると円盤にタップを奪われるため、ここに出す
+        if (currentLauncherPage == 1 && !isLyricsBrowsing && !pvFullscreen && lyricsDisplayMode == "video" && !dopagakiMode && syncedLyricLines.isNotEmpty()) {
+            val skipPosMs = sessionPositionMs + lyricOffsetMs
+            val skipIdx = syncedLyricLines.indexOfLast { it.timeMs <= skipPosMs }
+            val skipCur = syncedLyricLines.getOrNull(skipIdx)
+            val skipNext = syncedLyricLines.getOrNull(skipIdx + 1)
+            val skipInterlude = when {
+                skipCur == null -> skipIdx < 0 && (syncedLyricLines.firstOrNull()?.let { (it.timeMs - skipPosMs) > 2500 } ?: false)
+                skipNext == null -> (skipPosMs - skipCur.timeMs) > 8000
+                else -> (skipNext.timeMs - skipCur.timeMs) > 15000 && (skipPosMs - skipCur.timeMs) > 5000
+            }
+            if (skipInterlude) {
+                val skipLabel = when {
+                    skipNext != null && skipCur == null -> "前奏をスキップ▷"
+                    skipNext != null -> "間奏をスキップ▷"
+                    else -> "次の曲へ▷"
+                }
+                val skipTarget = skipNext?.let { (it.timeMs - lyricOffsetMs - 300L).coerceAtLeast(0L) }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = topPaddingDp + 145.dp + 44.dp, end = 16.dp)
+                        .zIndex(96f),
+                    contentAlignment = Alignment.CenterEnd
+                ) {
+                    Text(
+                        text = skipLabel,
+                        color = Color.White.copy(alpha = 0.85f),
+                        fontSize = 13.sp,
+                        style = LocalTextStyle.current.copy(fontFamily = pvFontFamily),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable {
+                                android.widget.Toast.makeText(context, if (skipLabel.contains("次の曲")) "次の曲へ" else if (skipLabel.contains("前奏")) "前奏をスキップ" else "間奏をスキップ", Toast.LENGTH_SHORT).show()
+                                if (skipTarget != null) seekSessionTo(skipTarget) else skipToNextTrack()
+                            }
+                            .padding(horizontal = 12.dp, vertical = 10.dp)
+                    )
+                }
             }
         }
 
