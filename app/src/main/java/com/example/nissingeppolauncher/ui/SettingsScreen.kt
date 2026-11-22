@@ -54,6 +54,9 @@ import androidx.compose.ui.unit.sp
 import com.example.nissingeppolauncher.data.AppRepository
 import com.example.nissingeppolauncher.service.LyricsOverlayService
 import com.example.nissingeppolauncher.ui.components.DiscEntry
+import com.example.nissingeppolauncher.data.SettingsTreeData
+import com.example.nissingeppolauncher.data.SettingItemDef
+import com.example.nissingeppolauncher.data.SettingNodeDef
 import com.example.nissingeppolauncher.ui.components.DiscInfoChip
 import com.example.nissingeppolauncher.ui.components.DiscGauge
 import com.example.nissingeppolauncher.ui.components.DiscGlyph
@@ -754,36 +757,118 @@ fun SettingsScreen(
         SettingChoice("on", "オン", current) { set(true) },
         SettingChoice("off", "オフ", !current) { set(false) }
     )
-    fun itemsFor(catId: String): List<SettingItem> = when (catId) {
-        "behavior" -> listOf(
+    // ===== 設定ツリー（settings_tree.json 駆動）: 構造と項目定義はJSON、動作はここの対応表 =====
+    data class SettingNode(
+        val id: String,
+        val label: String,
+        val glyph: String? = null,
+        val catIcon: Boolean = false,
+        val item: SettingItem? = null,
+        val children: List<SettingNode> = emptyList()
+    )
+
+    var treeData by remember { mutableStateOf(SettingsTreeData.load(context)) }
+    LaunchedEffect(Unit) {
+        val newer = SettingsTreeData.refresh(context)
+        if (newer != null) treeData = newer
+    }
+
+    val boolBinds: Map<String, Pair<() -> Boolean, (Boolean) -> Unit>> = mapOf(
+        "reverseScroll" to Pair({ isReverseScroll }, { v: Boolean -> isReverseScroll = v; repo.prefManager.setReverseScroll(v); onChanged() }),
+        "disc3d" to Pair({ disc3d }, { v: Boolean -> disc3d = v; repo.prefManager.setDisc3dEnabled(v); onChanged() }),
+        "disc3dTilt" to Pair({ disc3dTilt }, { v: Boolean -> disc3dTilt = v; repo.prefManager.setDisc3dTiltEnabled(v); onChanged() }),
+        "liquidBackground" to Pair({ liquidBackground }, { v: Boolean -> liquidBackground = v; repo.prefManager.setLiquidBackgroundEnabled(v); onChanged() }),
+        "matchArtwork" to Pair({ matchArtwork }, { v: Boolean -> matchArtwork = v; repo.prefManager.setMatchArtworkColor(v); onChanged() }),
+        "lyricsBold" to Pair({ lyricsBold }, { v: Boolean -> lyricsBold = v; repo.prefManager.setLyricsBold(v); onChanged() }),
+        "pvPartsEntry" to Pair({ pvPartsEntry }, { v: Boolean -> pvPartsEntry = v; repo.prefManager.setPvPartsEntryEnabled(v); onChanged() }),
+        "dopagaki" to Pair({ dopagakiMode }, { v: Boolean -> dopagakiMode = v; repo.prefManager.setDopagakiEnabled(v); onChanged() }),
+        "dopaBlackFont" to Pair({ dopaBlackFont }, { v: Boolean -> dopaBlackFont = v; repo.prefManager.setDopaBlackFontEnabled(v); onChanged() }),
+        "usePasscodeForHidden" to Pair({ usePasscodeForHidden }, { v: Boolean -> usePasscodeForHidden = v; repo.prefManager.setUsePasscodeForHidden(v); onChanged() })
+    )
+
+    val stringBinds: Map<String, Pair<() -> String, (String) -> Unit>> = mapOf(
+        "pageSwitchStyle" to Pair({ pageSwitchStyle }, { v: String -> pageSwitchStyle = v; repo.prefManager.setPageSwitchStyle(v); onChanged() }),
+        "homeDiscLayout" to Pair({ homeDiscLayout }, { v: String -> homeDiscLayout = v; repo.prefManager.setHomeDiscLayout(v); onChanged() }),
+        "dateDisplayMode" to Pair({ dateDisplayMode }, { v: String -> dateDisplayMode = v; repo.prefManager.setDateDisplayMode(v); onChanged() }),
+        "bgMode" to Pair({ bgMode }, { v: String -> bgMode = v; repo.prefManager.setBackgroundMode(v); onChanged() }),
+        "accentHex" to Pair({ accentHex }, { v: String -> accentHex = v; repo.prefManager.setAccentColorHex(v); onChanged() }),
+        "fontChoice" to Pair({ currentFontChoice }, { v: String -> currentFontChoice = v; repo.prefManager.setFontChoice(v); useCustomFont = v == "custom"; repo.prefManager.setUseCustomFont(v == "custom"); onChanged() }),
+        "lyricsDisplayMode" to Pair({ lyricsDisplayMode }, { v: String -> lyricsDisplayMode = v; repo.prefManager.setLyricsDisplayMode(v); onChanged() }),
+        "lyricsPvFont" to Pair({ lyricsPvFont }, { v: String -> lyricsPvFont = v; repo.prefManager.setLyricsPvFont(v); onChanged() }),
+        "lyricsEnFont" to Pair({ lyricsEnFont }, { v: String -> lyricsEnFont = v; repo.prefManager.setLyricsEnFont(v); onChanged() })
+    )
+
+    val floatBinds: Map<String, Pair<() -> Float, (Float) -> Unit>> = mapOf(
+        "wallpaperAlpha" to Pair({ wallpaperAlpha }, { v: Float -> wallpaperAlpha = v; repo.prefManager.setHomeWallpaperAlpha(v); onChanged() }),
+        "iconSize" to Pair({ iconSize }, { v: Float -> iconSize = v; repo.prefManager.setAppDiscIconSizeDp(v); onChanged() }),
+        "textSize" to Pair({ textSize }, { v: Float -> textSize = v; repo.prefManager.setAppDiscTextSizeSp(v); onChanged() }),
+        "letterSpacing" to Pair({ letterSpacing }, { v: Float -> letterSpacing = v; repo.prefManager.setAppDiscLetterSpacingSp(v); onChanged() }),
+        "stepAngle" to Pair({ stepAngle }, { v: Float -> stepAngle = v; repo.prefManager.setAppDiscStepAngle(v); onChanged() })
+    )
+
+    val sliderFormats: Map<String, (Float) -> String> = mapOf(
+        "percentInv" to { v: Float -> "${((1f - v) * 100).toInt()}%" },
+        "dp" to { v: Float -> "${v.toInt()} dp" },
+        "sp" to { v: Float -> "${v.toInt()} sp" },
+        "sp1" to { v: Float -> String.format(java.util.Locale.ROOT, "%.1f sp", v) },
+        "deg" to { v: Float -> String.format(java.util.Locale.ROOT, "%.1f°", v) }
+    )
+
+    val fontResolvers: Map<String, Pair<() -> FontFamily?, (String) -> FontFamily?>> = mapOf(
+        "uiFont" to Pair(
+            { parseFontFamily(currentFontChoice, if (currentFontChoice == "custom") customFontPath else null) },
+            { k: String -> parseFontFamily(k, if (k == "custom") customFontPath else null) }
+        ),
+        "jpFont" to Pair(
+            { parseFontFamily(lyricsPvFont, if (lyricsPvFont == "custom") customFontPath else null) },
+            { k: String -> parseFontFamily(k, if (k == "custom") customFontPath else null) }
+        ),
+        "enFont" to Pair(
+            {
+                when (lyricsEnFont) {
+                    "same" -> parseFontFamily(lyricsPvFont, if (lyricsPvFont == "custom") customFontPath else null)
+                    "custom" -> parseFontFamily("custom", lyricsEnCustomPath)
+                    else -> parseFontFamily(lyricsEnFont, null)
+                }
+            },
+            { k: String ->
+                when (k) {
+                    "same" -> parseFontFamily(lyricsPvFont, if (lyricsPvFont == "custom") customFontPath else null)
+                    "custom" -> parseFontFamily("custom", lyricsEnCustomPath)
+                    else -> parseFontFamily(k, null)
+                }
+            }
+        )
+    )
+
+    val choiceEffects: Map<String, (String) -> Unit> = mapOf(
+        "pickFont" to { v: String -> if (v == "custom") fontPickerLauncher.launch("*/*") },
+        "pickFontIfNone" to { v: String -> if (v == "custom" && customFontPath == null) fontPickerLauncher.launch("*/*") },
+        "pickEnFont" to { v: String -> if (v == "custom") enFontPickerLauncher.launch("*/*") }
+    )
+
+    val actionBuilders: Map<String, (SettingItemDef) -> SettingItem> = mapOf(
+        "wallpaperPick" to { def: SettingItemDef ->
             SettingItem(
-                id = "reverse", label = "スクロール方向の反転", desc = "有効にすると、ダイヤルをドラッグした際の回転方向が逆になります",
-                glyph = "swap", valueText = if (isReverseScroll) "オン" else "オフ",
-                choices = toggleChoices(isReverseScroll) { v -> isReverseScroll = v; repo.prefManager.setReverseScroll(v); onChanged() }
-            ),
+                def.id, def.label, def.desc, def.glyph,
+                valueText = if (backgroundPath != null) "設定済み" else "未設定",
+                onAction = { imagePickerLauncher.launch("image/*") }
+            )
+        },
+        "wallpaperClear" to { def: SettingItemDef ->
             SettingItem(
-                id = "sleep", label = "スリープタイマー", desc = "設定した時間が過ぎたら、再生中の音楽を自動で一時停止します",
-                glyph = "clock",
-                valueText = if (sleepTimerEndMs > sleepNowMs) "あと約 ${(sleepTimerEndMs - sleepNowMs + 59999L) / 60000L} 分" else "オフ",
-                choices = listOf(0, 15, 30, 60).map { min ->
-                    SettingChoice(
-                        id = "min$min", label = if (min == 0) "オフ" else "${min}分",
-                        checked = if (min == 0) sleepTimerEndMs <= 0L else (sleepTimerEndMs > sleepNowMs && sleepTimerMinutes == min)
-                    ) {
-                        sleepTimerMinutes = min
-                        repo.prefManager.setSleepTimerMinutes(min)
-                        val end = if (min == 0) 0L else System.currentTimeMillis() + min * 60000L
-                        sleepTimerEndMs = end
-                        repo.prefManager.setSleepTimerEndMs(end)
-                        onChanged()
-                    }
+                def.id, def.label, def.desc, def.glyph, valueText = "",
+                onAction = {
+                    repo.prefManager.setCustomBackgroundPath(null)
+                    backgroundPath = null
+                    onChanged()
                 }
             )
-        )
-        "apps" -> listOf(
+        },
+        "updateApps" to { def: SettingItemDef ->
             SettingItem(
-                id = "updateApps", label = "アプリ一覧を更新", desc = "追加・削除・更新されたアプリをチェックして、一覧に反映します（差分更新）。通常は起動時に自動でチェックされます",
-                glyph = "apps", valueText = appsUpdateStatus.ifEmpty { "差分更新" },
+                def.id, def.label, def.desc, def.glyph,
+                valueText = appsUpdateStatus.ifEmpty { "差分更新" },
                 onAction = {
                     if (!isUpdatingApps) {
                         isUpdatingApps = true
@@ -797,397 +882,31 @@ fun SettingsScreen(
                     }
                 }
             )
-        )
-        "appearance" -> buildList {
-            add(
-                SettingItem(
-                    id = "pageSwitch", label = "ボタンでページ切り替え", desc = "オフにすると下部のダイヤルで切り替えます",
-                    glyph = "toggle", valueText = if (pageSwitchStyle == "buttons") "ボタン" else "ダイヤル",
-                    choices = listOf(
-                        SettingChoice("buttons", "ボタン", pageSwitchStyle == "buttons") { pageSwitchStyle = "buttons"; repo.prefManager.setPageSwitchStyle("buttons"); onChanged() },
-                        SettingChoice("dial", "ダイヤル", pageSwitchStyle == "dial") { pageSwitchStyle = "dial"; repo.prefManager.setPageSwitchStyle("dial"); onChanged() }
-                    )
-                )
-            )
-            add(
-                SettingItem(
-                    id = "discLayout", label = "ホーム画面の円の大きさ", desc = "「アートワーク大きめ」では再生アートワークの円が大きくなります。「自動」は再生中だけ大きめになります",
-                    glyph = "disc",
-                    valueText = when (homeDiscLayout) { "artwork" -> "アートワーク大きめ"; "auto" -> "自動"; else -> "従来（均等）" },
-                    currentIllo = when (homeDiscLayout) { "artwork" -> "disc_artwork"; "auto" -> "disc_auto"; else -> "disc_classic" },
-                    choices = listOf(
-                        Triple("classic", "従来（均等）", "disc_classic"),
-                        Triple("artwork", "アートワーク大きめ", "disc_artwork"),
-                        Triple("auto", "自動", "disc_auto")
-                    ).map { (value, label, illo) ->
-                        SettingChoice(value, label, homeDiscLayout == value, illo = illo) {
-                            homeDiscLayout = value; repo.prefManager.setHomeDiscLayout(value); onChanged()
-                        }
-                    }
-                )
-            )
-            add(
-                SettingItem(
-                    id = "disc3d", label = "UIを3D表示", desc = "円・時計・ダイヤル・歌詞PVなどを少し奥に倒して、立体的に見せます",
-                    glyph = "disc", valueText = if (disc3d) "オン" else "オフ",
-                    choices = toggleChoices(disc3d) { v -> disc3d = v; repo.prefManager.setDisc3dEnabled(v); onChanged() }
-                )
-            )
-            add(
-                SettingItem(
-                    id = "disc3dTilt", label = "端末の傾きで角度を変える", desc = "スマホを傾けると、3Dの角度もついてきます（3D表示がオンのときだけ）",
-                    glyph = "disc", valueText = if (disc3dTilt) "オン" else "オフ",
-                    choices = toggleChoices(disc3dTilt) { v -> disc3dTilt = v; repo.prefManager.setDisc3dTiltEnabled(v); onChanged() }
-                )
-            )
-            add(
-                SettingItem(
-                    id = "dateMode", label = "日付の表示", desc = "「常時縦」は日付を時刻の右に横倒しで、「常時横」は時計の下に表示します。「切り替え」は歌詞が出ている間だけ横倒しになります",
-                    glyph = "clock",
-                    valueText = when (dateDisplayMode) { "under" -> "常時横"; "auto" -> "切り替え"; else -> "常時縦" },
-                    currentIllo = when (dateDisplayMode) { "under" -> "date_under"; "auto" -> "date_auto"; else -> "date_sideways" },
-                    choices = listOf(
-                        Triple("sideways", "常時縦", "date_sideways"),
-                        Triple("under", "常時横", "date_under"),
-                        Triple("auto", "切り替え", "date_auto")
-                    ).map { (value, label, illo) ->
-                        SettingChoice(value, label, dateDisplayMode == value, illo = illo) {
-                            dateDisplayMode = value; repo.prefManager.setDateDisplayMode(value); onChanged()
-                        }
-                    }
-                )
-            )
-            add(
-                SettingItem(
-                    id = "bgMode", label = "背景の見せ方", desc = "アートワークを選ぶと、再生中は曲のアートワーク由来の背景になります",
-                    glyph = "image",
-                    valueText = when (bgMode) { "artwork_solid" -> "単色"; "artwork_blur" -> "ぼかし"; else -> "壁紙" },
-                    currentIllo = when (bgMode) { "artwork_solid" -> "bg_solid"; "artwork_blur" -> "bg_blur"; else -> "bg_wallpaper" },
-                    choices = listOf(
-                        Triple("wallpaper", "壁紙", "bg_wallpaper"),
-                        Triple("artwork_solid", "単色", "bg_solid"),
-                        Triple("artwork_blur", "ぼかし", "bg_blur")
-                    ).map { (value, label, illo) ->
-                        SettingChoice(value, label, bgMode == value, illo = illo) {
-                            bgMode = value; repo.prefManager.setBackgroundMode(value); onChanged()
-                        }
-                    }
-                )
-            )
-            add(
-                SettingItem(
-                    id = "liquid", label = "液体グラデーション背景", desc = "壁紙がないときや再生中のアートワーク背景の上で、グラデーションがゆっくり動きます",
-                    glyph = "color", valueText = if (liquidBackground) "オン" else "オフ",
-                    choices = toggleChoices(liquidBackground) { v -> liquidBackground = v; repo.prefManager.setLiquidBackgroundEnabled(v); onChanged() }
-                )
-            )
-            add(
-                SettingItem(
-                    id = "wallpaperPick", label = "壁紙画像を選択", desc = "ホーム画面の背景にする画像を選びます",
-                    glyph = "image", valueText = if (backgroundPath != null) "設定済み" else "未設定",
-                    onAction = { imagePickerLauncher.launch("image/*") }
-                )
-            )
-            if (backgroundPath != null) {
-                add(
-                    SettingItem(
-                        id = "wallpaperClear", label = "壁紙を解除", desc = "カスタム壁紙をやめて標準の背景に戻します",
-                        glyph = "image", valueText = "",
-                        onAction = {
-                            repo.prefManager.setCustomBackgroundPath(null)
-                            backgroundPath = null
-                            onChanged()
-                        }
-                    )
-                )
-            }
-            add(
-                SettingItem(
-                    id = "brightness", label = "ホーム背景の明るさ", desc = "壁紙の上に重ねる暗さの調整です",
-                    glyph = "slider", valueText = "${((1f - wallpaperAlpha) * 100).toInt()}%",
-                    slider = SettingSliderSpec(
-                        value = wallpaperAlpha, range = 0.05f..0.9f, steps = 17,
-                        format = { "${((1f - it) * 100).toInt()}%" },
-                        onSave = { v -> wallpaperAlpha = v; repo.prefManager.setHomeWallpaperAlpha(v); onChanged() }
-                    )
-                )
-            )
-            add(
-                SettingItem(
-                    id = "matchArtwork", label = "アートワークに合わせる", desc = "再生中の曲のアートワークから、アクセントと背景の色を自動で決めます",
-                    glyph = "color", valueText = if (matchArtwork) "オン" else "オフ",
-                    choices = toggleChoices(matchArtwork) { v -> matchArtwork = v; repo.prefManager.setMatchArtworkColor(v); onChanged() }
-                )
-            )
-            add(
-                SettingItem(
-                    id = "accentColor", label = "アクセントカラー", desc = "UIの差し色です（アートワーク連動がオンのときは自動の色が優先されます）",
-                    glyph = "color",
-                    valueText = ACCENT_PRESETS.firstOrNull { it.second.equals(accentHex, true) }?.first ?: accentHex,
-                    currentColorHex = accentHex,
-                    choices = ACCENT_PRESETS.map { (name, hex) ->
-                        SettingChoice(hex, name, accentHex.equals(hex, true), colorHex = hex) {
-                            accentHex = hex; repo.prefManager.setAccentColorHex(hex); onChanged()
-                        }
-                    }
-                )
-            )
-            add(
-                SettingItem(
-                    id = "uiFont", label = "UIフォント", desc = "ランチャー全体の文字のフォントです",
-                    glyph = "font",
-                    valueText = when (currentFontChoice) { "receipt" -> "レシート"; "denkichip" -> "でんきチップ"; "tsukuhou" -> "築豊明朝"; "kaibunsho" -> "怪聞書"; "zenkaku" -> "Zen Kaku"; "custom" -> "カスタム"; else -> "システム" },
-                    currentFont = parseFontFamily(currentFontChoice, if (currentFontChoice == "custom") customFontPath else null),
-                    choices = listOf(
-                        "default" to "システムフォント",
-                        "receipt" to "レシートフォント",
-                        "denkichip" to "でんきチップ",
-                        "tsukuhou" to "築豊明朝",
-                        "kaibunsho" to "怪聞書フォント",
-                        "zenkaku" to "Zen Kaku Gothic New",
-                        "custom" to "＋カスタムフォント"
-                    ).map { (key, label) ->
-                        SettingChoice(
-                            key, label, currentFontChoice == key,
-                            fontSample = parseFontFamily(key, if (key == "custom") customFontPath else null)
-                        ) {
-                            currentFontChoice = key
-                            repo.prefManager.setFontChoice(key)
-                            useCustomFont = key == "custom"
-                            repo.prefManager.setUseCustomFont(key == "custom")
-                            onChanged()
-                            if (key == "custom") fontPickerLauncher.launch("*/*")
-                        }
-                    }
-                )
-            )
-            add(
-                SettingItem(
-                    id = "iconSize", label = "アイコンサイズ", desc = "アプリ円盤のアイコンの大きさです",
-                    glyph = "slider", valueText = "${iconSize.toInt()} dp",
-                    slider = SettingSliderSpec(iconSize, 16f..32f, 15, { "${it.toInt()} dp" }) { v ->
-                        iconSize = v; repo.prefManager.setAppDiscIconSizeDp(v); onChanged()
-                    }
-                )
-            )
-            add(
-                SettingItem(
-                    id = "textSize", label = "テキストサイズ", desc = "アプリ円盤のアプリ名の大きさです",
-                    glyph = "slider", valueText = "${textSize.toInt()} sp",
-                    slider = SettingSliderSpec(textSize, 12f..22f, 9, { "${it.toInt()} sp" }) { v ->
-                        textSize = v; repo.prefManager.setAppDiscTextSizeSp(v); onChanged()
-                    }
-                )
-            )
-            add(
-                SettingItem(
-                    id = "letterSpacing", label = "文字間隔", desc = "アプリ名の文字どうしの間隔です",
-                    glyph = "slider", valueText = String.format(java.util.Locale.ROOT, "%.1f sp", letterSpacing),
-                    slider = SettingSliderSpec(letterSpacing, 0.5f..3.0f, 25, { String.format(java.util.Locale.ROOT, "%.1f sp", it) }) { v ->
-                        letterSpacing = v; repo.prefManager.setAppDiscLetterSpacingSp(v); onChanged()
-                    }
-                )
-            )
-            add(
-                SettingItem(
-                    id = "stepAngle", label = "リストの間隔", desc = "アプリ円盤で1アプリぶんの回転角度です",
-                    glyph = "slider", valueText = String.format(java.util.Locale.ROOT, "%.1f°", stepAngle),
-                    slider = SettingSliderSpec(stepAngle, 10f..20f, 20, { String.format(java.util.Locale.ROOT, "%.1f°", it) }) { v ->
-                        stepAngle = v; repo.prefManager.setAppDiscStepAngle(v); onChanged()
-                    }
-                )
-            )
-        }
-        "lyrics" -> buildList {
-            add(
-                SettingItem(
-                    id = "displayMode", label = "歌詞の表示モード", desc = "複数行は時計の下に前・今・次の3行を表示します。リリックビデオはSpotifyなど他のアプリの再生でも使えます",
-                    glyph = "music",
-                    valueText = when (lyricsDisplayMode) { "video" -> "リリックビデオ"; "multi" -> "複数行"; else -> "現在の行" },
-                    choices = listOf(
-                        Triple("line", "現在の行", "line"),
-                        Triple("video", "リリックビデオ", "video"),
-                        Triple("multi", "複数行", "multi")
-                    ).map { (value, label, mode) ->
-                        SettingChoice(value, label, lyricsDisplayMode == value, modePreview = mode) {
-                            lyricsDisplayMode = value; repo.prefManager.setLyricsDisplayMode(value); onChanged()
-                        }
-                    }
-                )
-            )
-            add(
-                SettingItem(
-                    id = "jpFont", label = "歌詞のフォント", desc = "全モード共通の歌詞フォントです。「カスタム」はフォント設定で選んだファイルを使います",
-                    glyph = "font",
-                    valueText = when (lyricsPvFont) { "receipt" -> "レシート"; "denkichip" -> "でんきチップ"; "tsukuhou" -> "築豊明朝"; "kaibunsho" -> "怪聞書"; "zenkaku" -> "Zen Kaku"; "custom" -> "カスタム"; else -> "システム" },
-                    currentFont = parseFontFamily(lyricsPvFont, if (lyricsPvFont == "custom") customFontPath else null),
-                    choices = listOf(
-                        "default" to "システムフォント",
-                        "receipt" to "レシートフォント",
-                        "denkichip" to "でんきチップ",
-                        "tsukuhou" to "築豊明朝",
-                        "kaibunsho" to "怪聞書フォント",
-                        "zenkaku" to "Zen Kaku Gothic New",
-                        "custom" to "＋カスタムフォント"
-                    ).map { (key, label) ->
-                        SettingChoice(
-                            key, label, lyricsPvFont == key,
-                            fontSample = parseFontFamily(key, if (key == "custom") customFontPath else null)
-                        ) {
-                            lyricsPvFont = key
-                            repo.prefManager.setLyricsPvFont(key)
-                            onChanged()
-                            if (key == "custom" && customFontPath == null) fontPickerLauncher.launch("*/*")
-                        }
-                    }
-                )
-            )
-            add(
-                SettingItem(
-                    id = "enFont", label = "歌詞の英字フォント", desc = "歌詞の中の英字・数字だけに使うフォントです",
-                    glyph = "font",
-                    valueText = when (lyricsEnFont) { "same" -> "日本語と同じ"; "freelicense" -> "Free License"; "montserratbi" -> "Montserrat"; "receipt" -> "レシート"; "denkichip" -> "でんきチップ"; "tsukuhou" -> "築豊明朝"; "kaibunsho" -> "怪聞書"; "zenkaku" -> "Zen Kaku"; "custom" -> "カスタム"; else -> "システム" },
-                    currentFont = when (lyricsEnFont) {
-                        "same" -> parseFontFamily(lyricsPvFont, if (lyricsPvFont == "custom") customFontPath else null)
-                        "custom" -> parseFontFamily("custom", lyricsEnCustomPath)
-                        else -> parseFontFamily(lyricsEnFont, null)
-                    },
-                    choices = listOf(
-                        "same" to "日本語フォントと同じ",
-                        "freelicense" to "Free License",
-                        "montserratbi" to "Montserrat Bold Italic",
-                        "default" to "システムフォント",
-                        "receipt" to "レシートフォント",
-                        "denkichip" to "でんきチップ",
-                        "tsukuhou" to "築豊明朝",
-                        "kaibunsho" to "怪聞書フォント",
-                        "zenkaku" to "Zen Kaku Gothic New",
-                        "custom" to "＋カスタムフォント"
-                    ).map { (key, label) ->
-                        SettingChoice(
-                            key, label, lyricsEnFont == key,
-                            fontSample = when (key) {
-                                "same" -> parseFontFamily(lyricsPvFont, if (lyricsPvFont == "custom") customFontPath else null)
-                                "custom" -> parseFontFamily("custom", lyricsEnCustomPath)
-                                else -> parseFontFamily(key, null)
-                            }
-                        ) {
-                            lyricsEnFont = key
-                            repo.prefManager.setLyricsEnFont(key)
-                            onChanged()
-                            if (key == "custom") enFontPickerLauncher.launch("*/*")
-                        }
-                    }
-                )
-            )
-            add(
-                SettingItem(
-                    id = "bold", label = "歌詞を太字にする", desc = "デフォルトは細字。築豊明朝は細字が映えます",
-                    glyph = "text", valueText = if (lyricsBold) "オン" else "オフ",
-                    choices = toggleChoices(lyricsBold) { v -> lyricsBold = v; repo.prefManager.setLyricsBold(v); onChanged() }
-                )
-            )
-            add(
-                SettingItem(
-                    id = "parts", label = "文字をパーツに分けて入場させる", desc = "リリックビデオで、文字がスライス状のパーツになって集まります",
-                    glyph = "sparkle", valueText = if (pvPartsEntry) "オン" else "オフ",
-                    choices = toggleChoices(pvPartsEntry) { v -> pvPartsEntry = v; repo.prefManager.setPvPartsEntryEnabled(v); onChanged() }
-                )
-            )
-            add(
-                SettingItem(
-                    id = "dopagaki", label = "ドパガキモード", desc = "リリックビデオにエフェクトを大量に重ねて派手にします",
-                    glyph = "sparkle", valueText = if (dopagakiMode) "オン" else "オフ",
-                    choices = toggleChoices(dopagakiMode) { v -> dopagakiMode = v; repo.prefManager.setDopagakiEnabled(v); onChanged() }
-                )
-            )
-            add(
-                SettingItem(
-                    id = "dopaBlack", label = "ドパガキ中は極太フォント", desc = "ドパガキモードのとき、歌詞を Zen Kaku Gothic New の極太（Black）で表示します",
-                    glyph = "font", valueText = if (dopaBlackFont) "オン" else "オフ",
-                    choices = toggleChoices(dopaBlackFont) { v -> dopaBlackFont = v; repo.prefManager.setDopaBlackFontEnabled(v); onChanged() }
-                )
-            )
-            add(
-                SettingItem(
-                    id = "statusBar", label = "ステータスバーに歌詞を表示", desc = "他のアプリの上にも、時計と同期歌詞1行を重ねます（重ねて表示の権限が必要）",
-                    glyph = "music", valueText = if (statusBarLyrics) "オン" else "オフ",
-                    choices = listOf(
-                        SettingChoice("on", "オン", statusBarLyrics) {
-                            statusBarLyrics = true
-                            repo.prefManager.setStatusBarLyricsEnabled(true)
-                            if (Settings.canDrawOverlays(context)) {
-                                LyricsOverlayService.start(context)
-                            } else {
-                                val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + context.packageName))
-                                try { context.startActivity(intent) } catch (e: Exception) { }
-                            }
-                            onChanged()
-                        },
-                        SettingChoice("off", "オフ", !statusBarLyrics) {
-                            statusBarLyrics = false
-                            repo.prefManager.setStatusBarLyricsEnabled(false)
-                            LyricsOverlayService.stop(context)
-                            onChanged()
-                        }
-                    )
-                )
-            )
-            add(
-                SettingItem(
-                    id = "fxUpdate", label = "歌詞エフェクトの更新", desc = "単語アイコンや色の対応表を最新にします",
-                    glyph = "update",
-                    valueText = when { fxChecking -> "確認中…"; fxMessage != null -> fxMessage!!; else -> "タップで確認" },
-                    onAction = {
-                        if (!fxChecking) {
-                            fxMessage = null
-                            fxChecking = true
-                            settingsScope.launch {
-                                val result = LyricEffectsData.refresh(context)
-                                fxChecking = false
-                                fxMessage = when (result) {
-                                    1 -> "更新しました（データ v${LyricEffectsData.appliedVersion}）"
-                                    0 -> "最新のデータです（データ v${LyricEffectsData.appliedVersion}）"
-                                    else -> "確認に失敗しました" + (LyricEffectsData.lastRefreshError?.let { "（$it）" } ?: "")
-                                }
-                            }
-                        }
-                    }
-                )
-            )
-        }
-        "security" -> listOf(
+        },
+        "fxUpdate" to { def: SettingItemDef ->
             SettingItem(
-                id = "passcodeAuth", label = "非表示アプリのパスコード認証", desc = "有効にすると、非表示リストを開く際にパスコード認証を行います",
-                glyph = "lock", valueText = if (usePasscodeForHidden) "オン" else "オフ",
-                choices = toggleChoices(usePasscodeForHidden) { v -> usePasscodeForHidden = v; repo.prefManager.setUsePasscodeForHidden(v); onChanged() }
-            ),
-            SettingItem(
-                id = "passcodeChange", label = "パスコードを変更する", desc = "非表示リスト解除用のパスコード (PIN) を変更します",
-                glyph = "lock", valueText = "",
+                def.id, def.label, def.desc, def.glyph,
+                valueText = when { fxChecking -> "確認中…"; fxMessage != null -> fxMessage!!; else -> "タップで確認" },
                 onAction = {
-                    newPasscodeField = repo.prefManager.getPasscode()
-                    showPasscodeChangeDialog = true
+                    if (!fxChecking) {
+                        fxMessage = null
+                        fxChecking = true
+                        settingsScope.launch {
+                            val result = LyricEffectsData.refresh(context)
+                            fxChecking = false
+                            fxMessage = when (result) {
+                                1 -> "更新しました（データ v${LyricEffectsData.appliedVersion}）"
+                                0 -> "最新のデータです（データ v${LyricEffectsData.appliedVersion}）"
+                                else -> "確認に失敗しました" + (LyricEffectsData.lastRefreshError?.let { "（$it）" } ?: "")
+                            }
+                        }
+                    }
                 }
             )
-        )
-        "tutorial" -> listOf(
+        },
+        "checkUpdate" to { def: SettingItemDef ->
             SettingItem(
-                id = "guideReshow", label = "チュートリアルを再表示する", desc = "ガイドや使い方をもう一度表示するようにします",
-                glyph = "guide", valueText = "",
-                onAction = {
-                    repo.prefManager.setFirstWelcomeTutorialShown(false)
-                    repo.prefManager.setFirstIndexTutorialShown(false)
-                    repo.prefManager.setFirstHideTutorialShown(false)
-                    Toast.makeText(context, "チュートリアルを再表示するように設定しました", Toast.LENGTH_SHORT).show()
-                    onChanged()
-                }
-            )
-        )
-        "__update" -> listOf(
-            SettingItem(
-                id = "checkUpdate", label = "アップデートを確認", desc = "GitHubの最新ビルドを確認します",
-                glyph = "update",
+                def.id, def.label, def.desc, def.glyph,
                 valueText = when { updateChecking -> "確認中…"; updateMessage != null -> updateMessage!!; else -> "タップで確認" },
                 onAction = {
                     if (!updateChecking) {
@@ -1208,40 +927,139 @@ fun SettingsScreen(
                     }
                 }
             )
-        )
-        else -> emptyList()
+        },
+        "passcodeChange" to { def: SettingItemDef ->
+            SettingItem(
+                def.id, def.label, def.desc, def.glyph, valueText = "",
+                onAction = {
+                    newPasscodeField = repo.prefManager.getPasscode()
+                    showPasscodeChangeDialog = true
+                }
+            )
+        },
+        "guideReshow" to { def: SettingItemDef ->
+            SettingItem(
+                def.id, def.label, def.desc, def.glyph, valueText = "",
+                onAction = {
+                    repo.prefManager.setFirstWelcomeTutorialShown(false)
+                    repo.prefManager.setFirstIndexTutorialShown(false)
+                    repo.prefManager.setFirstHideTutorialShown(false)
+                    Toast.makeText(context, "チュートリアルを再表示するように設定しました", Toast.LENGTH_SHORT).show()
+                    onChanged()
+                }
+            )
+        }
+    )
+
+    val specialBuilders: Map<String, (SettingItemDef) -> SettingItem> = mapOf(
+        "sleep" to { def: SettingItemDef ->
+            SettingItem(
+                def.id, def.label, def.desc, def.glyph,
+                valueText = if (sleepTimerEndMs > sleepNowMs) "あと約 ${(sleepTimerEndMs - sleepNowMs + 59999L) / 60000L} 分" else "オフ",
+                choices = listOf(0, 15, 30, 60).map { min ->
+                    SettingChoice(
+                        id = "min$min", label = if (min == 0) "オフ" else "${min}分",
+                        checked = if (min == 0) sleepTimerEndMs <= 0L else (sleepTimerEndMs > sleepNowMs && sleepTimerMinutes == min)
+                    ) {
+                        sleepTimerMinutes = min
+                        repo.prefManager.setSleepTimerMinutes(min)
+                        val end = if (min == 0) 0L else System.currentTimeMillis() + min * 60000L
+                        sleepTimerEndMs = end
+                        repo.prefManager.setSleepTimerEndMs(end)
+                        onChanged()
+                    }
+                }
+            )
+        },
+        "statusBar" to { def: SettingItemDef ->
+            SettingItem(
+                def.id, def.label, def.desc, def.glyph,
+                valueText = if (statusBarLyrics) "オン" else "オフ",
+                choices = listOf(
+                    SettingChoice("on", "オン", statusBarLyrics) {
+                        statusBarLyrics = true
+                        repo.prefManager.setStatusBarLyricsEnabled(true)
+                        if (Settings.canDrawOverlays(context)) {
+                            LyricsOverlayService.start(context)
+                        } else {
+                            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + context.packageName))
+                            try { context.startActivity(intent) } catch (e: Exception) { }
+                        }
+                        onChanged()
+                    },
+                    SettingChoice("off", "オフ", !statusBarLyrics) {
+                        statusBarLyrics = false
+                        repo.prefManager.setStatusBarLyricsEnabled(false)
+                        LyricsOverlayService.stop(context)
+                        onChanged()
+                    }
+                )
+            )
+        }
+    )
+
+    fun buildItem(def: SettingItemDef): SettingItem? {
+        return when (def.type) {
+            "toggle" -> {
+                val b = boolBinds[def.bind] ?: return null
+                val cur = b.first()
+                SettingItem(
+                    def.id, def.label, def.desc, def.glyph,
+                    valueText = if (cur) "オン" else "オフ",
+                    choices = toggleChoices(cur) { v -> b.second(v) }
+                )
+            }
+            "choices" -> {
+                val b = stringBinds[def.bind] ?: return null
+                val cur = b.first()
+                val sel = def.choices.firstOrNull { it.v == cur }
+                SettingItem(
+                    def.id, def.label, def.desc, def.glyph,
+                    valueText = sel?.let { it.short ?: it.label } ?: cur,
+                    currentIllo = sel?.illo,
+                    currentColorHex = if (def.id == "accentColor") cur else null,
+                    currentFont = fontResolvers[def.id]?.first?.invoke(),
+                    choices = def.choices.map { c ->
+                        SettingChoice(
+                            id = c.v, label = c.label, checked = cur == c.v,
+                            illo = c.illo, colorHex = c.colorHex,
+                            fontSample = fontResolvers[def.id]?.second?.invoke(c.v),
+                            modePreview = c.preview
+                        ) {
+                            b.second(c.v)
+                            c.effect?.let { eff -> choiceEffects[eff]?.invoke(c.v) }
+                        }
+                    }
+                )
+            }
+            "slider" -> {
+                val b = floatBinds[def.bind] ?: return null
+                val fmt = sliderFormats[def.format] ?: { v: Float -> v.toString() }
+                val cur = b.first()
+                SettingItem(
+                    def.id, def.label, def.desc, def.glyph,
+                    valueText = fmt(cur),
+                    slider = SettingSliderSpec(cur, def.min..def.max, def.steps, fmt) { v -> b.second(v) }
+                )
+            }
+            "action" -> actionBuilders[def.action]?.invoke(def)
+            "special" -> specialBuilders[def.id]?.invoke(def)
+            else -> null
+        }
     }
-    // ===== 階層ツリー（カテゴリ→グループ→項目）。木構造なので深さは自由に増やせる =====
-    data class SettingNode(
-        val id: String,
-        val label: String,
-        val glyph: String? = null,
-        val catIcon: Boolean = false,
-        val item: SettingItem? = null,
-        val children: List<SettingNode> = emptyList()
-    )
-    fun itemNodes(source: String, ids: List<String>): List<SettingNode> =
-        ids.mapNotNull { id -> itemsFor(source).firstOrNull { it.id == id }?.let { SettingNode(it.id, it.label, glyph = it.glyph, item = it) } }
-    fun flatNodes(source: String): List<SettingNode> =
-        itemsFor(source).map { SettingNode(it.id, it.label, glyph = it.glyph, item = it) }
-    val settingsTree: List<SettingNode> = listOf(
-        SettingNode("background", "背景", catIcon = true, children = listOf(
-            SettingNode("bg_image", "背景画像", glyph = "image", children = itemNodes("appearance", listOf("bgMode", "wallpaperPick", "wallpaperClear", "brightness"))),
-            SettingNode("bg_liquid", "液体", glyph = "color", children = itemNodes("appearance", listOf("liquid")))
-        )),
-        SettingNode("ui", "UI", catIcon = true, children = listOf(
-            SettingNode("ui_color", "カラー", glyph = "palette", children = itemNodes("appearance", listOf("accentColor", "matchArtwork"))),
-            SettingNode("ui_disc", "円盤", glyph = "disc", children = itemNodes("behavior", listOf("reverse")) + itemNodes("appearance", listOf("discLayout", "iconSize", "stepAngle", "disc3d", "disc3dTilt", "dateMode", "pageSwitch"))),
-            SettingNode("ui_text", "文字", glyph = "font", children = itemNodes("appearance", listOf("uiFont", "textSize", "letterSpacing")))
-        )),
-        SettingNode("lyrics", "歌詞", catIcon = true, children = listOf(
-            SettingNode("ly_text", "文字", glyph = "text", children = itemNodes("lyrics", listOf("jpFont", "enFont", "bold", "dopaBlack"))),
-            SettingNode("ly_anim", "アニメーション", glyph = "sparkle", children = itemNodes("lyrics", listOf("displayMode", "parts", "dopagaki", "statusBar")))
-        )),
-        SettingNode("data", "データ管理", catIcon = true, children = itemNodes("apps", listOf("updateApps")) + itemNodes("lyrics", listOf("fxUpdate")) + itemNodes("__update", listOf("checkUpdate"))),
-        SettingNode("security", "セキュリティ", catIcon = true, children = flatNodes("security")),
-        SettingNode("other", "その他", catIcon = true, children = itemNodes("behavior", listOf("sleep")) + itemNodes("tutorial", listOf("guideReshow")))
-    )
+
+    fun buildNode(def: SettingNodeDef): SettingNode? {
+        if (def.itemId != null) {
+            val itemDef = treeData.items[def.itemId] ?: return null
+            if (itemDef.visibleIf == "wallpaperSet" && backgroundPath == null) return null
+            val item = buildItem(itemDef) ?: return null
+            return SettingNode(itemDef.id, itemDef.label, glyph = itemDef.glyph, item = item)
+        }
+        val kids = def.children.mapNotNull { buildNode(it) }
+        return SettingNode(def.id, def.label, glyph = def.glyph, catIcon = def.cat, children = kids)
+    }
+    val settingsTree: List<SettingNode> = treeData.tree.mapNotNull { buildNode(it) }
+
     val searchResults: List<SettingNode> = if (searchQuery.isBlank()) emptyList() else {
         val all = mutableListOf<SettingNode>()
         fun walk(nodes: List<SettingNode>) {
