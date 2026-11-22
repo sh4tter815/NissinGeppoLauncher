@@ -868,9 +868,6 @@ fun MainLauncherScreen() {
     // ドパガキ中（設定ON時）は歌詞を Zen Kaku Gothic New の極太で出す
     val pvFontFamily = if (dopagakiMode && dopaBlackFont) ZenKakuBlackFontFamily else lyricsFontFamily
     // ドパガキ中は歌詞行を短い断片に自動分割する（切り替わり頻度とサイズを上げる）。対訳は断片の先頭にだけ付ける
-    val pvSeg = remember(syncedLyricLines, dopagakiMode) { if (dopagakiMode && syncedLyricLines.isNotEmpty()) segmentLyricLines(syncedLyricLines) else null }
-    val pvLinesArg = pvSeg?.first ?: syncedLyricLines
-    val pvTranslationsArg = if (pvSeg != null) lyricTranslations?.let { tr -> pvSeg.first.indices.map { i -> val par = pvSeg.second[i]; if (i == 0 || pvSeg.second[i - 1] != par) tr.getOrNull(par) ?: "" else "" } } else lyricTranslations
     // 英字フォント: "same" のときは日本語フォントと同じ（=混合しないので null を渡す）
     val lyricsEnFontFamily = if (lyricsEnFont == "same") lyricsFontFamily else parseFontFamily(lyricsEnFont, if (lyricsEnFont == "custom") lyricsEnCustomPath else null)
     val lyricsEnFontArg = if (lyricsEnFont == "same") null else lyricsEnFontFamily
@@ -940,7 +937,7 @@ fun MainLauncherScreen() {
               Box(Modifier.fillMaxSize().zIndex(if (dopagakiMode) 60f else 0f)) {
                 LyricsPvLayer(
                     pvTilt3d = disc3d,
-                    lines = pvLinesArg,
+                    lines = syncedLyricLines,
                     positionMs = sessionPositionMs,
                     lyricOffsetMs = lyricOffsetMs,
                     bold = lyricsBold,
@@ -948,7 +945,7 @@ fun MainLauncherScreen() {
                     accentColor = effectiveAccent,
                     screenWidthDp = screenWidthDp,
                     translationEnabled = translationEnabled,
-                    translations = pvTranslationsArg,
+                    translations = lyricTranslations,
                     pvTopDp = topPaddingDp + 165.dp,
                     interludeTopDp = topPaddingDp + 145.dp,
                     translationTopDp = topPaddingDp + 320.dp,
@@ -2014,7 +2011,7 @@ fun MainLauncherScreen() {
         if (pvFullscreen && currentLauncherPage == 1) {
             LyricsFullscreenOverlay(
                 pvTilt3d = disc3d,
-                lines = pvLinesArg,
+                lines = syncedLyricLines,
                 positionMs = sessionPositionMs,
                 lyricOffsetMs = lyricOffsetMs,
                 displayMode = lyricsDisplayMode,

@@ -1044,9 +1044,7 @@ fun PvLyricLine(
         else -> 64f
     }
     val heightCap = if (bigText) heightCapBase * 1.8f else heightCapBase
-    // ドパガキ中、行同期（単語タイミングなし）の行は分割されない分、高さ上限を上げて大きめに表示する
-    val dopaCapMul = if (words.isEmpty()) 2.3f else 1.7f
-    val fitSize = if (dopagaki) minOf((screenWidthDp - 2f) / (longestRowEm * 1.01f), heightCap * dopaCapMul) else minOf((screenWidthDp - 8f) / (longestRowEm * 1.06f), heightCap)
+    val fitSize = if (dopagaki) minOf((screenWidthDp - 2f) / (longestRowEm * 1.01f), heightCap * 1.7f) else minOf((screenWidthDp - 8f) / (longestRowEm * 1.06f), heightCap)
     val lineOffsetX = ((baseSeed / 7) % 17 - 8).dp
     val lineOffsetY = ((baseSeed / 11) % 13 - 6).dp
     val row2Indent = ((baseSeed / 13) % 4 * 14).dp
