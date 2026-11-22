@@ -51,6 +51,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -87,7 +90,8 @@ fun DiscWheel(
     onEntryClick: (Int) -> Unit = {},
     centerContent: (@Composable BoxScope.() -> Unit)? = null,
     state: DiscCarouselState,
-    gesturesEnabled: Boolean = true
+    gesturesEnabled: Boolean = true,
+    iconSizeDp: Float = 25f
 ) {
     if (entries.isEmpty()) return
     // 中身だけを設定用に入れ替えて、円盤のエンジン自体はアプリ円盤と共通の DiscCarousel を使う
@@ -113,7 +117,7 @@ fun DiscWheel(
             // アイコン: アプリ円盤と同じく輪郭の内側（半径-18）
             val iconX = centerX + 147f * cos(rad)
             val iconY = centerY + 147f * sin(rad)
-            val iconSize = 46f
+            val iconSize = iconSizeDp + 14f
             Box(
                 modifier = Modifier
                     .offset(x = (iconX - iconSize / 2f).dp, y = (iconY - iconSize / 2f).dp)
@@ -123,7 +127,7 @@ fun DiscWheel(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                Box(modifier = Modifier.graphicsLayer { val sc = (if (isSelected) 1.12f else 1f) * 0.8f; scaleX = sc; scaleY = sc }) {
+                Box(modifier = Modifier.graphicsLayer { val sc = (if (isSelected) 1.12f else 1f) * (iconSizeDp / 36f); scaleX = sc; scaleY = sc }) {
                     entry.icon()
                 }
             }
@@ -168,7 +172,7 @@ fun DiscWheel(
     }
 }
 
-// スライダー用の円: 目盛り付きのリングで値を決め、「決定」で保存する
+// スライダー用の円: 目盛りの外側に数値ラベルを出し、現在値は円の中、決定は円の左に置く
 @Composable
 fun DiscGauge(
     title: String,
@@ -185,6 +189,7 @@ fun DiscGauge(
         (range.start + Math.round((v - range.start) / stepSize) * stepSize).coerceIn(range.start, range.endInclusive)
     var value by remember { mutableFloatStateOf(snap(initialValue)) }
     val frac = (value - range.start) / (range.endInclusive - range.start)
+    val textMeasurer = rememberTextMeasurer()
     BoxWithConstraints(modifier = modifier) {
         val wDp = maxWidth.value
         val hDp = maxHeight.value
@@ -194,7 +199,7 @@ fun DiscGauge(
         Canvas(modifier = Modifier.fillMaxSize()) {
             val c = Offset(centerX.dp.toPx(), centerY.dp.toPx())
             drawCircle(color = Color.White.copy(alpha = 0.40f), radius = rDp.dp.toPx(), center = c, style = Stroke(width = 1.5.dp.toPx()))
-            // 目盛り（経過時間のスケールのように60分割、5つごとに長く）
+            // 目盛り（60分割、5つごとに長く）と、その外側に数値ラベル
             for (t in 0 until 60) {
                 val ang = Math.toRadians((t * 6 - 90).toDouble())
                 val major = t % 5 == 0
@@ -207,6 +212,16 @@ fun DiscGauge(
                     strokeWidth = if (major) 2.dp.toPx() else 1.2.dp.toPx(),
                     cap = StrokeCap.Round
                 )
+                if (major) {
+                    val v = range.start + (t / 60f) * (range.endInclusive - range.start)
+                    val layout = textMeasurer.measure(
+                        format(v),
+                        TextStyle(color = Color.White.copy(alpha = 0.75f), fontSize = 11.sp)
+                    )
+                    val lr = (rDp + 24f).dp.toPx()
+                    val pos = Offset(c.x + (lr * cos(ang)).toFloat(), c.y + (lr * sin(ang)).toFloat())
+                    drawText(layout, topLeft = Offset(pos.x - layout.size.width / 2f, pos.y - layout.size.height / 2f))
+                }
             }
             // 値の弧
             drawArc(
@@ -232,26 +247,28 @@ fun DiscGauge(
                     }
                 }
         )
-        // 中央: 値と決定ボタン
+        // 円の中: 現在値
         Box(
             modifier = Modifier
-                .offset(x = (centerX - 128f - 52f).dp, y = (centerY - 52f).dp)
+                .offset(x = (centerX - 128f - 52f).dp, y = (centerY - 30f).dp)
                 .size(104.dp),
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(format(value), color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.Bold)
                 Text(title, color = Color.Gray, fontSize = 11.sp)
-                Spacer(modifier = Modifier.height(10.dp))
-                Surface(
-                    color = accentColor.copy(alpha = 0.25f),
-                    shape = RoundedCornerShape(12.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, accentColor),
-                    modifier = Modifier.clickable { onConfirm(value) }
-                ) {
-                    Text("決定", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
-                }
             }
+        }
+        // 決定: 円の左に
+        Surface(
+            color = accentColor.copy(alpha = 0.25f),
+            shape = RoundedCornerShape(12.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, accentColor),
+            modifier = Modifier
+                .offset(x = (centerX - rDp - 118f).dp, y = (centerY - 21f).dp)
+                .clickable { onConfirm(value) }
+        ) {
+            Text("決定", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 22.dp, vertical = 10.dp))
         }
     }
 }
@@ -278,6 +295,12 @@ fun DiscGlyph(kind: String, accentColor: Color) {
                 drawLine(color = ink, start = Offset(w * 0.24f, h * 0.80f), end = Offset(w * 0.50f, h * 0.20f), strokeWidth = w * 0.06f, cap = StrokeCap.Round)
                 drawLine(color = ink, start = Offset(w * 0.50f, h * 0.20f), end = Offset(w * 0.76f, h * 0.80f), strokeWidth = w * 0.06f, cap = StrokeCap.Round)
                 drawLine(color = accentColor, start = Offset(w * 0.35f, h * 0.60f), end = Offset(w * 0.65f, h * 0.60f), strokeWidth = w * 0.06f, cap = StrokeCap.Round)
+            }
+            "palette" -> {
+                drawCircle(color = ink, radius = w * 0.34f, center = Offset(w * 0.50f, h * 0.50f), style = thin)
+                drawCircle(color = accentColor, radius = w * 0.08f, center = Offset(w * 0.38f, h * 0.38f))
+                drawCircle(color = Color(0xFF88C0FF), radius = w * 0.08f, center = Offset(w * 0.62f, h * 0.38f))
+                drawCircle(color = Color(0xFF9AA0A6), radius = w * 0.08f, center = Offset(w * 0.50f, h * 0.62f))
             }
             "color" -> {
                 val p = Path()
