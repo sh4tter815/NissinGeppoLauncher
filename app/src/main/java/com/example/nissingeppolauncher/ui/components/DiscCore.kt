@@ -104,6 +104,7 @@ fun DiscCarousel(
     forceSlideOut: Boolean = false,
     holdExpand: Boolean = false,
     holdActive: Boolean? = null,
+    fadeLabelsOnScroll: Boolean = true,
     state: DiscCarouselState = rememberDiscCarouselState(0, stepAngle),
     onSelectedIndexChange: (Int) -> Unit = {},
     centerContent: (@Composable BoxScope.() -> Unit)? = null,
@@ -126,7 +127,7 @@ fun DiscCarousel(
     val maxRotation = 0f
 
     val scrollAlpha by animateFloatAsState(
-        targetValue = if (state.isScrolling) 0.0f else 1.0f,
+        targetValue = if (state.isScrolling && fadeLabelsOnScroll) 0.0f else 1.0f,
         animationSpec = tween(durationMillis = 100),
         label = "DiscCarouselScrollAlpha"
     )
