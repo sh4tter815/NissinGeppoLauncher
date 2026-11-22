@@ -44,6 +44,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -53,7 +54,10 @@ import com.example.nissingeppolauncher.ui.components.DiscEntry
 import com.example.nissingeppolauncher.ui.components.DiscGauge
 import com.example.nissingeppolauncher.ui.components.DiscGlyph
 import com.example.nissingeppolauncher.ui.components.DiscSide
+import com.example.nissingeppolauncher.ui.components.DiscCarouselState
+import com.example.nissingeppolauncher.ui.components.DiscTouchHalf
 import com.example.nissingeppolauncher.ui.components.DiscWheel
+import com.example.nissingeppolauncher.ui.components.rememberDiscCarouselState
 import com.example.nissingeppolauncher.ui.components.parseFontFamily
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
@@ -583,6 +587,8 @@ fun SettingsScreen(
     var discItemId by remember { mutableStateOf<String?>(null) }
     var leftFocus by remember { mutableIntStateOf(0) }
     var rightFocus by remember { mutableIntStateOf(0) }
+    var leftDiscState by remember { mutableStateOf<DiscCarouselState?>(null) }
+    var rightDiscState by remember { mutableStateOf<DiscCarouselState?>(null) }
     var updateChecking by remember { mutableStateOf(false) }
     var updateMessage by remember { mutableStateOf<String?>(null) }
     var updateInfo by remember { mutableStateOf<com.example.nissingeppolauncher.data.UpdateChecker.LatestRelease?>(null) }
@@ -1197,6 +1203,8 @@ fun SettingsScreen(
             Box(modifier = Modifier.fillMaxSize()) {
                 if (discLevel == 1) {
                     key("disc-cats") {
+                        val catState = rememberDiscCarouselState(discCategories.indexOfFirst { it.first == catFocusId }.coerceAtLeast(0), 20f)
+                        LaunchedEffect(catState) { leftDiscState = catState }
                         DiscWheel(
                             entries = discCategories.map { (id, title, _) ->
                                 DiscEntry(id = id, label = title, icon = {
@@ -1207,12 +1215,15 @@ fun SettingsScreen(
                             side = DiscSide.LEFT,
                             accentColor = currentAccentColor,
                             modifier = Modifier.fillMaxSize(),
+                            state = catState, gesturesEnabled = false,
                             initialFocus = discCategories.indexOfFirst { it.first == catFocusId }.coerceAtLeast(0),
                             onFocusChange = { idx -> leftFocus = idx; catFocusId = discCategories[idx].first },
                             onEntryClick = { idx -> catFocusId = discCategories[idx].first }
                         )
                     }
                     key("disc-items-$catFocusId") {
+                        val itemState = rememberDiscCarouselState(0, 20f)
+                        LaunchedEffect(itemState) { rightDiscState = itemState }
                         DiscWheel(
                             entries = levelItems.map { item ->
                                 DiscEntry(id = item.id, label = item.label, valueText = item.valueText.ifEmpty { null }, icon = { DiscGlyph(item.glyph, currentAccentColor) })
@@ -1220,6 +1231,7 @@ fun SettingsScreen(
                             side = DiscSide.RIGHT,
                             accentColor = currentAccentColor,
                             modifier = Modifier.fillMaxSize(),
+                            state = itemState, gesturesEnabled = false,
                             initialFocus = 0,
                             onFocusChange = { rightFocus = it },
                             onEntryClick = { idx -> openItem(levelItems[idx]) },
@@ -1227,6 +1239,8 @@ fun SettingsScreen(
                     }
                 } else {
                     key("disc-l2items-$discCategory") {
+                        val l2State = rememberDiscCarouselState(levelItems.indexOfFirst { it.id == discItemId }.coerceAtLeast(0), 20f)
+                        LaunchedEffect(l2State) { leftDiscState = l2State }
                         DiscWheel(
                             entries = levelItems.map { item ->
                                 DiscEntry(id = item.id, label = item.label, valueText = item.valueText.ifEmpty { null }, icon = { DiscGlyph(item.glyph, currentAccentColor) })
@@ -1234,6 +1248,7 @@ fun SettingsScreen(
                             side = DiscSide.LEFT,
                             accentColor = currentAccentColor,
                             modifier = Modifier.fillMaxSize(),
+                            state = l2State, gesturesEnabled = false,
                             initialFocus = levelItems.indexOfFirst { it.id == discItemId }.coerceAtLeast(0),
                             onFocusChange = { leftFocus = it },
                             onEntryClick = { idx ->
@@ -1268,6 +1283,8 @@ fun SettingsScreen(
                         }
                     } else if (currentItem != null) {
                         key("disc-choices-${currentItem.id}") {
+                            val choiceState = rememberDiscCarouselState(currentItem.choices.indexOfFirst { it.checked }.coerceAtLeast(0), 20f)
+                            LaunchedEffect(choiceState) { rightDiscState = choiceState }
                             DiscWheel(
                                 entries = currentItem.choices.map { choice ->
                                     DiscEntry(
@@ -1292,6 +1309,7 @@ fun SettingsScreen(
                                 side = DiscSide.RIGHT,
                                 accentColor = currentAccentColor,
                                 modifier = Modifier.fillMaxSize(),
+                                state = choiceState, gesturesEnabled = false,
                                 initialFocus = currentItem.choices.indexOfFirst { it.checked }.coerceAtLeast(0),
                                 onFocusChange = { rightFocus = it },
                                 onEntryClick = { idx -> currentItem.choices[idx].onSelect() },
@@ -1300,6 +1318,36 @@ fun SettingsScreen(
                     }
                 }
             }
+
+        // --- タッチ操作パネル（フォルダページと同じ3分割: ヘッダー帯とダイヤル帯を除き、左右で円盤を回す） ---
+        val panelRadiusPx = with(LocalDensity.current) { 165.dp.toPx() }
+        val rightPanelActive = discLevel == 1 || (currentItem != null && currentItem.slider == null)
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 104.dp, bottom = 72.dp)
+        ) {
+            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                DiscTouchHalf(
+                    state = leftDiscState,
+                    isRight = false,
+                    radiusPx = panelRadiusPx,
+                    isReverseScroll = { isReverseScroll },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                if (rightPanelActive) {
+                    DiscTouchHalf(
+                        state = rightDiscState,
+                        isRight = true,
+                        radiusPx = panelRadiusPx,
+                        isReverseScroll = { isReverseScroll },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+        }
 
         Column(modifier = Modifier.fillMaxSize().padding(top = 40.dp)) {
             // --- 上部 タイトルバー（フォルダページと同じ浮いたピル型） ---

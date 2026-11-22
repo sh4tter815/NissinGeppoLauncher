@@ -1951,6 +1951,7 @@ fun MainLauncherScreen() {
                     .fillMaxWidth(0.5f)
                     .align(Alignment.CenterEnd)
                     .zIndex(94f)
+                    .padding(top = topPaddingDp + 60.dp, bottom = bottomPaddingDp + 60.dp)
                     .pointerInput(Unit) {
                         awaitPointerEventScope {
                             while (true) {
@@ -1959,7 +1960,7 @@ fun MainLauncherScreen() {
                                 if (up != null) {
                                     val moved = (up.position - down.position).getDistance()
                                     val gx = up.position.x + halfWidthPx
-                                    val gy = up.position.y
+                                    val gy = up.position.y + with(tapDensity) { (topPaddingDp + 60.dp).toPx() }
                                     val distC = sqrt((gx - disc2CenterXPx).pow(2) + (gy - disc2CenterYPx).pow(2))
                                     if (moved < 24f && distC > disc2RadiusPx) {
                                         toggleSessionPlayback()

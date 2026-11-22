@@ -93,6 +93,7 @@ fun DiscCarousel(
     stepAngle: Float = 20f,
     isRightDisc: Boolean = true,
     isLoopable: Boolean = false,
+    gesturesEnabled: Boolean = true,
     state: DiscCarouselState = rememberDiscCarouselState(0, stepAngle),
     onSelectedIndexChange: (Int) -> Unit = {},
     centerContent: (@Composable BoxScope.() -> Unit)? = null,
@@ -157,7 +158,8 @@ fun DiscCarousel(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .pointerInput(itemCount, discCenterXDp, discCenterYDp, discRadiusDp, isRightDisc, isLoopable) {
+            .pointerInput(itemCount, discCenterXDp, discCenterYDp, discRadiusDp, isRightDisc, isLoopable, gesturesEnabled) {
+                if (!gesturesEnabled) return@pointerInput
                 awaitPointerEventScope {
                     while (true) {
                         val down = awaitFirstDown(requireUnconsumed = false)
@@ -319,4 +321,56 @@ fun DiscCarousel(
             }
         }
     }
+}
+
+/**
+ * フォルダページのタッチ操作パネルと同じ方式で、画面の片側半分を受け持って円盤を回す操作レイヤー。
+ * ヘッダーと下ダイヤルの帯は呼び出し側のパディングで外してある前提。
+ * ドラッグはアプリ円盤と同じ連続式で、離したら DiscCarouselState.animateToIndex でスナップする。
+ */
+@Composable
+fun DiscTouchHalf(
+    state: DiscCarouselState?,
+    isRight: Boolean,
+    radiusPx: Float,
+    isReverseScroll: () -> Boolean,
+    modifier: Modifier = Modifier
+) {
+    val scope = rememberCoroutineScope()
+    Box(
+        modifier = modifier.pointerInput(state, isRight) {
+            awaitPointerEventScope {
+                while (true) {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val st = state ?: continue
+                    if (st.itemCount <= 0) continue
+                    var lastY = down.position.y
+                    var dragging = false
+                    drag(down.id) { change ->
+                        val dy = change.position.y - lastY
+                        lastY = change.position.y
+                        if (!dragging && abs(change.position.y - down.position.y) > 6f) {
+                            dragging = true
+                            st.isScrolling = true
+                        }
+                        if (dragging) {
+                            change.consume()
+                            val dirF = if (isReverseScroll()) -1f else 1f
+                            val delta = -(dy / radiusPx) * (180f / PI.toFloat()) * (if (isRight) 1.2f else -1.2f) * dirF
+                            val minRot = -((st.itemCount - 1) * st.stepAngle).coerceAtLeast(0f)
+                            val target = (st.rawRotation + delta).coerceIn(minRot - 20f, 20f)
+                            st.rawRotation = target
+                            scope.launch { st.rotationAnim.snapTo(target) }
+                        }
+                    }
+                    if (dragging) {
+                        st.isScrolling = false
+                        val idx = (-st.rawRotation / st.stepAngle).roundToInt()
+                            .coerceIn(0, (st.itemCount - 1).coerceAtLeast(0))
+                        st.animateToIndex(idx)
+                    }
+                }
+            }
+        }
+    )
 }
