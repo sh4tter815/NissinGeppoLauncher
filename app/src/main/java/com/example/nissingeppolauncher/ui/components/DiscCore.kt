@@ -148,7 +148,7 @@ fun DiscCarousel(
         if (pulseArmed && contentKey != pulsePrevKey) {
             kotlinx.coroutines.delay(110)
             pulseScale.snapTo(0.90f)
-            pulseScale.animateTo(1f, tween(280, FastOutSlowInEasing))
+            pulseScale.animateTo(1f, tween(durationMillis = 280, easing = FastOutSlowInEasing))
         }
         pulsePrevKey = contentKey
         pulseArmed = true
