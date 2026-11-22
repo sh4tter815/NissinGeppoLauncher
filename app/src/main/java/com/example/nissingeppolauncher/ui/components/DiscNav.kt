@@ -134,7 +134,8 @@ fun DiscWheel(
     holdActive: Boolean? = null,
     focusedLabelOnly: Boolean = false,
     fadeLabelsOnScroll: Boolean = true,
-    accentSelectedLabel: Boolean = false
+    accentSelectedLabel: Boolean = false,
+    tapToApply: Boolean = false
 ) {
     if (entries.isEmpty()) return
     // 中身だけを設定用に入れ替えて、円盤のエンジン自体はアプリ円盤と共通の DiscCarousel を使う
@@ -171,7 +172,11 @@ fun DiscWheel(
                     .offset(x = (iconX - iconSize / 2f).dp, y = (iconY - iconSize / 2f).dp)
                     .size(iconSize.dp)
                     .clickable {
-                        if (isSelected || entry.immediate) onEntryClick(index) else carouselState.animateToIndex(index)
+                        when {
+                                isSelected || entry.immediate -> onEntryClick(index)
+                                tapToApply -> { carouselState.animateToIndex(index); onEntryClick(index) }
+                                else -> carouselState.animateToIndex(index)
+                            }
                     },
                 contentAlignment = Alignment.Center
             ) {
@@ -192,7 +197,11 @@ fun DiscWheel(
             ) {
                 Row(
                     modifier = Modifier.clickable {
-                        if (isSelected || entry.immediate) onEntryClick(index) else carouselState.animateToIndex(index)
+                        when {
+                                isSelected || entry.immediate -> onEntryClick(index)
+                                tapToApply -> { carouselState.animateToIndex(index); onEntryClick(index) }
+                                else -> carouselState.animateToIndex(index)
+                            }
                     },
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = if (side == DiscSide.LEFT) Arrangement.Start else Arrangement.End
