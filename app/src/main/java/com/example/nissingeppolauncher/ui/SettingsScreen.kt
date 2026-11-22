@@ -58,7 +58,7 @@ import com.example.nissingeppolauncher.data.SettingsTreeData
 import com.example.nissingeppolauncher.data.SettingItemDef
 import com.example.nissingeppolauncher.data.SettingNodeDef
 import com.example.nissingeppolauncher.ui.components.DiscInfoChip
-import com.example.nissingeppolauncher.ui.components.DiscGauge
+import com.example.nissingeppolauncher.ui.components.DiscValueWheel
 import com.example.nissingeppolauncher.ui.components.DiscGlyph
 import com.example.nissingeppolauncher.ui.components.DiscSide
 import com.example.nissingeppolauncher.ui.components.DiscCarouselState
@@ -1186,8 +1186,8 @@ fun SettingsScreen(
                         )
                     }
                 } else if (currentItem != null && currentItem.slider != null) {
-                    key("disc-gauge-${currentItem.id}") {
-                        DiscGauge(
+                    key("disc-value-${currentItem.id}") {
+                        DiscValueWheel(
                             title = currentItem.label,
                             initialValue = currentItem.slider.value,
                             range = currentItem.slider.range,
@@ -1195,7 +1195,7 @@ fun SettingsScreen(
                             format = currentItem.slider.format,
                             accentColor = currentAccentColor,
                             modifier = Modifier.fillMaxSize(),
-                            onConfirm = { v -> currentItem.slider.onSave(v) }
+                            onSave = { v -> currentItem.slider.onSave(v) }
                         )
                     }
                 } else if (currentItem != null) {

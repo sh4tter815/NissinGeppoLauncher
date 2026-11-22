@@ -1,6 +1,15 @@
 package com.example.nissingeppolauncher.ui.components
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.drag
+import androidx.compose.ui.text.LocalTextStyle
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
@@ -211,9 +220,9 @@ fun DiscInfoChip(
     }
 }
 
-// スライダー用の円: 目盛りの外側に数値ラベルを出し、現在値は円の中、決定は円の左に置く
+// 値の円盤（音楽アプリのシーク円盤の移植）: 右の円を回して、左端に来た値がそのまま設定値になる
 @Composable
-fun DiscGauge(
+fun DiscValueWheel(
     title: String,
     initialValue: Float,
     range: ClosedFloatingPointRange<Float>,
@@ -221,114 +230,164 @@ fun DiscGauge(
     format: (Float) -> String,
     accentColor: Color,
     modifier: Modifier = Modifier,
-    onConfirm: (Float) -> Unit
+    onSave: (Float) -> Unit
 ) {
     val stepSize = (range.endInclusive - range.start) / (steps + 1)
-    fun snap(v: Float): Float =
-        (range.start + Math.round((v - range.start) / stepSize) * stepSize).coerceIn(range.start, range.endInclusive)
-    var value by remember { mutableFloatStateOf(snap(initialValue)) }
-    val frac = (value - range.start) / (range.endInclusive - range.start)
+    val maxIndex = steps + 1
+    fun valueAt(index: Int): Float = (range.start + index * stepSize).coerceIn(range.start, range.endInclusive)
+    fun indexOf(v: Float): Int = Math.round((v - range.start) / stepSize).coerceIn(0, maxIndex)
     val textMeasurer = rememberTextMeasurer()
-    val gaugeView = LocalView.current
+    val view = LocalView.current
+    val uiFontFamily = LocalTextStyle.current.fontFamily
+    val scope = rememberCoroutineScope()
+    val indexAnim = remember { Animatable(indexOf(initialValue).toFloat()) }
+    var isDragging by remember { mutableStateOf(false) }
+    var lastHapticIndex by remember { mutableStateOf(indexOf(initialValue)) }
+
+    // 現在位置の丸ぽちの鼓動（シーク円盤と同じ）
+    val infiniteTransition = rememberInfiniteTransition(label = "ValueDotPulse")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1.0f,
+        targetValue = 1.45f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 750, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "ValuePulseScale"
+    )
+
     BoxWithConstraints(modifier = modifier) {
         val wDp = maxWidth.value
         val hDp = maxHeight.value
         val rDp = 165f
         val centerX = wDp + 80f
         val centerY = hDp / 2f
+        val displayIndex = indexAnim.value
+        val currentIndex = Math.round(displayIndex).coerceIn(0, maxIndex)
+        val totalSpanDegrees = 300f
+        val anglePerStep = totalSpanDegrees / maxIndex
+        val rotationDegrees = 180f - displayIndex * anglePerStep
+
         Canvas(modifier = Modifier.fillMaxSize()) {
             val c = Offset(centerX.dp.toPx(), centerY.dp.toPx())
-            drawCircle(color = Color.White.copy(alpha = 0.40f), radius = rDp.dp.toPx(), center = c, style = Stroke(width = 1.5.dp.toPx()))
-            // 目盛り（60分割は装飾のマイナー）
-            for (t in 0 until 60) {
-                val ang = Math.toRadians((t * 6 - 90).toDouble())
-                val r1 = rDp - 13f
-                val r2 = rDp - 6f
-                drawLine(
-                    color = Color.White.copy(alpha = 0.28f),
-                    start = Offset(c.x + (r1.dp.toPx() * cos(ang)).toFloat(), c.y + (r1.dp.toPx() * sin(ang)).toFloat()),
-                    end = Offset(c.x + (r2.dp.toPx() * cos(ang)).toFloat(), c.y + (r2.dp.toPx() * sin(ang)).toFloat()),
-                    strokeWidth = 1.2.dp.toPx(),
-                    cap = StrokeCap.Round
-                )
-            }
-            // 主要目盛りと数値ラベルは、実際のステップ位置に正確に置く
-            val majorEvery = if (steps > 20) 5 else 1
-            for (k in 0..steps step majorEvery) {
-                val v = range.start + k * stepSize
-                val ang = Math.toRadians(((k.toFloat() / (steps + 1)) * 360f - 90f).toDouble())
-                val r1 = rDp - 20f
-                val r2 = rDp - 6f
+            val r = rDp.dp.toPx()
+            // 外周リング
+            drawCircle(color = Color.White.copy(alpha = 0.85f), radius = r, center = c, style = Stroke(width = 1.5f))
+            // 値の弧（始端→現在値）
+            drawArc(
+                color = accentColor,
+                startAngle = rotationDegrees,
+                sweepAngle = displayIndex * anglePerStep,
+                useCenter = false,
+                topLeft = Offset(c.x - r + 8.dp.toPx(), c.y - r + 8.dp.toPx()),
+                size = Size((r - 8.dp.toPx()) * 2f, (r - 8.dp.toPx()) * 2f),
+                style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round)
+            )
+            // 目盛りと数値ラベル（ステップ位置）
+            for (k in 0..maxIndex) {
+                val ang = Math.toRadians((rotationDegrees + k * anglePerStep).toDouble())
+                val cosA = cos(ang).toFloat()
+                val sinA = sin(ang).toFloat()
                 drawLine(
                     color = Color.White.copy(alpha = 0.55f),
-                    start = Offset(c.x + (r1.dp.toPx() * cos(ang)).toFloat(), c.y + (r1.dp.toPx() * sin(ang)).toFloat()),
-                    end = Offset(c.x + (r2.dp.toPx() * cos(ang)).toFloat(), c.y + (r2.dp.toPx() * sin(ang)).toFloat()),
-                    strokeWidth = 2.dp.toPx(),
+                    start = Offset(c.x + (r - 18.dp.toPx()) * cosA, c.y + (r - 18.dp.toPx()) * sinA),
+                    end = Offset(c.x + r * cosA, c.y + r * sinA),
+                    strokeWidth = 2f,
                     cap = StrokeCap.Round
                 )
                 val layout = textMeasurer.measure(
-                    format(v),
-                    TextStyle(color = Color.White.copy(alpha = 0.75f), fontSize = 11.sp)
+                    format(valueAt(k)),
+                    TextStyle(color = Color.White.copy(alpha = 0.75f), fontSize = 11.sp, fontFamily = uiFontFamily)
                 )
-                val lr = (rDp + 24f).dp.toPx()
-                val pos = Offset(c.x + (lr * cos(ang)).toFloat(), c.y + (lr * sin(ang)).toFloat())
+                val lr = r + 14.dp.toPx()
+                val pos = Offset(c.x + lr * cosA, c.y + lr * sinA)
                 drawText(layout, topLeft = Offset(pos.x - layout.size.width / 2f, pos.y - layout.size.height / 2f))
+                // 小目盛り（ステップ間を4分割）
+                if (k < maxIndex) {
+                    for (s in 1..3) {
+                        val a2 = Math.toRadians((rotationDegrees + (k + s / 4f) * anglePerStep).toDouble())
+                        val c2 = cos(a2).toFloat()
+                        val s2 = sin(a2).toFloat()
+                        drawLine(
+                            color = Color.White.copy(alpha = 0.28f),
+                            start = Offset(c.x + (r - 9.dp.toPx()) * c2, c.y + (r - 9.dp.toPx()) * s2),
+                            end = Offset(c.x + r * c2, c.y + r * s2),
+                            strokeWidth = 0.8f,
+                            cap = StrokeCap.Round
+                        )
+                    }
+                }
             }
-            // 値の弧
-            drawArc(
-                color = accentColor,
-                startAngle = -90f,
-                sweepAngle = frac * 360f,
-                useCenter = false,
-                topLeft = Offset(c.x - (rDp - 34f).dp.toPx(), c.y - (rDp - 34f).dp.toPx()),
-                size = Size((rDp - 34f).dp.toPx() * 2f, (rDp - 34f).dp.toPx() * 2f),
-                style = Stroke(width = 6.dp.toPx(), cap = StrokeCap.Round)
+            // 左端（現在値の位置）の丸ぽち
+            val dotC = Offset(c.x - r, c.y)
+            drawCircle(color = Color.White.copy(alpha = 0.35f), radius = 12.dp.toPx() * pulseScale, center = dotC)
+            drawCircle(color = Color.White, radius = 4.5.dp.toPx(), center = dotC)
+            // 円の中: 現在値と項目名（画面右端から38dp内側、シーク円盤と同じ位置）
+            val textX = size.width - 38.dp.toPx()
+            val valueLayout = textMeasurer.measure(
+                format(valueAt(currentIndex)),
+                TextStyle(color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = uiFontFamily)
             )
+            drawText(valueLayout, topLeft = Offset(textX - valueLayout.size.width / 2f, c.y - 26.dp.toPx()))
+            drawLine(
+                color = Color.White.copy(alpha = 0.8f),
+                start = Offset(textX - 17.dp.toPx(), c.y - 2.dp.toPx()),
+                end = Offset(textX + 17.dp.toPx(), c.y - 2.dp.toPx()),
+                strokeWidth = 1.2.dp.toPx()
+            )
+            val titleLayout = textMeasurer.measure(
+                title,
+                TextStyle(color = Color.Gray, fontSize = 11.sp, fontFamily = uiFontFamily)
+            )
+            drawText(titleLayout, topLeft = Offset(textX - titleLayout.size.width / 2f, c.y + 6.dp.toPx()))
         }
+
+        // 右半分のドラッグで回す（シーク円盤と同じ操作）
         Box(
             modifier = Modifier
                 .fillMaxHeight()
-                .fillMaxWidth(0.55f)
+                .fillMaxWidth(0.5f)
                 .align(Alignment.CenterEnd)
-                .pointerInput(Unit) {
-                    val span = range.endInclusive - range.start
-                    detectDragGestures { change, dragAmount ->
-                        change.consume()
-                        val newValue = snap(value - dragAmount.y * span / 280.dp.toPx() * 1f)
-                        if (newValue != value) {
-                            gaugeView.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                .pointerInput(maxIndex) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            var moved = false
+                            var lastY = down.position.y
+                            drag(down.id) { change ->
+                                val deltaY = change.position.y - lastY
+                                if (kotlin.math.abs(deltaY) > 2f) {
+                                    moved = true
+                                    isDragging = true
+                                }
+                                lastY = change.position.y
+                                if (moved) {
+                                    val deltaIndex = deltaY / 280.dp.toPx() * maxIndex
+                                    val next = (indexAnim.value + deltaIndex).coerceIn(0f, maxIndex.toFloat())
+                                    scope.launch { indexAnim.snapTo(next) }
+                                    val idx = Math.round(next)
+                                    if (idx != lastHapticIndex) {
+                                        view.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                                        lastHapticIndex = idx
+                                    }
+                                }
+                                change.consume()
+                            }
+                            if (moved) {
+                                isDragging = false
+                                val target = Math.round(indexAnim.value).coerceIn(0, maxIndex)
+                                scope.launch {
+                                    indexAnim.animateTo(target.toFloat(), tween(durationMillis = 150, easing = FastOutSlowInEasing))
+                                    onSave(valueAt(target))
+                                }
+                            }
                         }
-                        value = newValue
                     }
                 }
         )
-        // 円の中: 現在値
-        Box(
-            modifier = Modifier
-                .offset(x = (centerX - 128f - 52f).dp, y = (centerY - 30f).dp)
-                .size(104.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(format(value), color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.Bold)
-                Text(title, color = Color.Gray, fontSize = 11.sp)
-            }
-        }
-        // 決定: 円の左に
-        Surface(
-            color = accentColor.copy(alpha = 0.25f),
-            shape = RoundedCornerShape(12.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, accentColor),
-            modifier = Modifier
-                .offset(x = (centerX - rDp - 98f).dp, y = (centerY - 21f).dp)
-                .clickable { onConfirm(value) }
-        ) {
-            Text("決定", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 22.dp, vertical = 10.dp))
-        }
     }
 }
 
-// 設定項目用の小さな線画アイコン（SettingsCategoryIcon と同じ作風）
 @Composable
 fun DiscGlyph(kind: String, accentColor: Color) {
     Canvas(modifier = Modifier.size(36.dp)) {
