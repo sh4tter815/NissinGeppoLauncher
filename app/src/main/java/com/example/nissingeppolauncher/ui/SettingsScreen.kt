@@ -627,6 +627,20 @@ fun SettingsScreen(
         navPath = navPath.dropLast(1)
         focusId = dropped
     }
+    // 退場（円が端に引っ込む）を挟んでから遷移する
+    var discExiting by remember { mutableStateOf(false) }
+    var navBusy by remember { mutableStateOf(false) }
+    fun navigateAnimated(change: () -> Unit) {
+        if (navBusy) return
+        navBusy = true
+        settingsScope.launch {
+            discExiting = true
+            kotlinx.coroutines.delay(175)
+            change()
+            discExiting = false
+            navBusy = false
+        }
+    }
     var updateChecking by remember { mutableStateOf(false) }
     var updateMessage by remember { mutableStateOf<String?>(null) }
     var updateInfo by remember { mutableStateOf<com.example.nissingeppolauncher.data.UpdateChecker.LatestRelease?>(null) }
@@ -653,7 +667,7 @@ fun SettingsScreen(
             searchQuery = ""
             focusId = null
         } else {
-            goBack()
+            navigateAnimated { goBack() }
         }
     }
 
@@ -1126,12 +1140,13 @@ fun SettingsScreen(
                         accentColor = currentAccentColor,
                         modifier = Modifier.fillMaxSize(),
                         state = lState, gesturesEnabled = false, iconSizeDp = iconSize,
+                        forceSlideOut = discExiting,
                         contentKey = navPath.joinToString("/") + "-" + searchQuery,
                         initialFocus = currentList.indexOfFirst { it.id == focusId }.coerceAtLeast(0),
                         onFocusChange = { idx -> currentList.getOrNull(idx)?.let { focusId = it.id } },
                         onEntryClick = { idx ->
                             if (idx >= currentList.size) {
-                                goBack()
+                                navigateAnimated { goBack() }
                             } else {
                                 val node = currentList[idx]
                                 val act = node.item?.onAction
@@ -1152,6 +1167,7 @@ fun SettingsScreen(
                             accentColor = currentAccentColor,
                             modifier = Modifier.fillMaxSize(),
                             state = rState, gesturesEnabled = true, iconSizeDp = iconSize,
+                            forceSlideOut = discExiting,
                             contentKey = "r-${navPath.joinToString("/")}-${fNode.id}",
                             initialFocus = 0,
                             onFocusChange = { },
@@ -1161,8 +1177,10 @@ fun SettingsScreen(
                                 if (act != null) {
                                     act.invoke()
                                 } else {
-                                    navPath = navPath + fNode.id
-                                    focusId = child.id
+                                    navigateAnimated {
+                                        navPath = navPath + fNode.id
+                                        focusId = child.id
+                                    }
                                 }
                             }
                         )
@@ -1208,7 +1226,7 @@ key("disc-choices-${currentItem.id}") {
                         side = DiscSide.RIGHT,
                         accentColor = currentAccentColor,
                         modifier = Modifier.fillMaxSize(),
-                        state = choiceState, gesturesEnabled = true, iconSizeDp = iconSize, contentKey = "c-${currentItem.id}",
+                        state = choiceState, gesturesEnabled = true, iconSizeDp = iconSize, contentKey = "c-${currentItem.id}", forceSlideOut = discExiting,
                         initialFocus = currentItem.choices.indexOfFirst { it.checked }.coerceAtLeast(0),
                         onFocusChange = { },
                         onEntryClick = { idx -> currentItem.choices[idx].onSelect() },
@@ -1312,7 +1330,7 @@ key("disc-choices-${currentItem.id}") {
                 DiscInfoChip(
                     label = "‹ ${ownerNode?.label ?: "設定"}",
                     accentColor = currentAccentColor,
-                    onClick = { goBack() }
+                    onClick = { navigateAnimated { goBack() } }
                 )
             }
         }
