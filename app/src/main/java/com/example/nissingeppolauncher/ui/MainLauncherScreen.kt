@@ -2004,7 +2004,7 @@ fun MainLauncherScreen() {
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
                             .clickable {
-                                android.widget.Toast.makeText(context, if (skipLabel.contains("次の曲")) "次の曲へ" else if (skipLabel.contains("前奏")) "前奏をスキップ" else "間奏をスキップ", Toast.LENGTH_SHORT).show()
+                                android.widget.Toast.makeText(context, if (skipLabel.contains("次の曲")) "次の曲へ" else if (skipLabel.contains("前奏")) "前奏をスキップ" else "間奏をスキップ", android.widget.Toast.LENGTH_SHORT).show()
                                 if (skipTarget != null) seekSessionTo(skipTarget) else skipToNextTrack()
                             }
                             .padding(horizontal = 12.dp, vertical = 10.dp)
