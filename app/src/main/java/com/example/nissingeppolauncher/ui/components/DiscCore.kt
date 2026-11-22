@@ -31,8 +31,6 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerInputChange
-import androidx.compose.ui.input.pointer.changedToUpOrCanceled
-import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -422,7 +420,7 @@ fun DiscTouchHalf(
                     while (true) {
                         val event = awaitPointerEvent()
                         val change = event.changes.firstOrNull { it.id == down.id } ?: continue
-                        if (change.changedToUpOrCanceled()) {
+                        if (!change.pressed && change.previousPressed) {
                             upChange = change
                             break
                         }
@@ -451,8 +449,7 @@ fun DiscTouchHalf(
                     }
                     holdCb?.invoke(false)
                     val tapSlopPx = radiusPx * (18f / 165f)
-                    val wasCancel = upChange?.let { !it.changedToUp() } ?: true
-                    if (!wasCancel && tapCb != null && upChange != null && maxDist <= tapSlopPx) {
+                    if (tapCb != null && upChange != null && maxDist <= tapSlopPx) {
                         val dx = down.position.x - discCenterXPx
                         val dyv = down.position.y - discCenterYPx
                         val dist = sqrt(dx * dx + dyv * dyv)
