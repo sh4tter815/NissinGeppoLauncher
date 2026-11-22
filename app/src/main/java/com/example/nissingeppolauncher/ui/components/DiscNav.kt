@@ -54,7 +54,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.Stroke
+import androidx.compose.ui.graphics.Matrix
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.vector.PathParserCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -390,6 +393,19 @@ fun DiscValueWheel(
     }
 }
 
+// 一部のアイコンは Lucide Icons (https://lucide.dev) のパスデータを使用している。
+// Copyright (c) Lucide Icons and Contributors — ISC License:
+// Permission to use, copy, modify, and/or distribute this software for any purpose
+// with or without fee is hereby granted, provided that the above copyright notice
+// and this permission notice appear in all copies.
+private fun lucidePath(d: String, scale: Float): Path {
+    val p = PathParser().parsePathString(d).toPath()
+    val m = Matrix()
+    m.scale(scale, scale, 1f)
+    p.transform(m)
+    return p
+}
+
 @Composable
 fun DiscGlyph(kind: String, accentColor: Color) {
     Canvas(modifier = Modifier.size(36.dp)) {
@@ -518,51 +534,41 @@ fun DiscGlyph(kind: String, accentColor: Color) {
                 drawLine(color = ink, start = Offset(w * 0.24f, h * 0.65f), end = Offset(w * 0.40f, h * 0.79f), strokeWidth = lw, cap = StrokeCap.Round)
             }
             "sun" -> {
-                drawCircle(color = ink, radius = w * 0.16f, center = Offset(w * 0.50f, h * 0.50f), style = thin)
-                drawCircle(color = accentColor, radius = w * 0.06f, center = Offset(w * 0.50f, h * 0.50f))
-                for (i in 0 until 8) {
-                    val a = Math.toRadians((i * 45).toDouble())
-                    val ca = cos(a).toFloat()
-                    val sa = sin(a).toFloat()
-                    drawLine(color = ink, start = Offset(w * 0.50f + ca * w * 0.24f, h * 0.50f + sa * h * 0.24f), end = Offset(w * 0.50f + ca * w * 0.34f, h * 0.50f + sa * h * 0.34f), strokeWidth = w * 0.055f, cap = StrokeCap.Round)
-                }
+                // Lucide "sun"
+                val ls = Stroke(width = w * (2f / 24f), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                val sc = w / 24f
+                drawCircle(color = ink, radius = 4f * sc, center = Offset(w / 2f, h / 2f), style = ls)
+                drawPath(lucidePath("M12 2v2", sc), color = ink, style = ls)
+                drawPath(lucidePath("M12 20v2", sc), color = ink, style = ls)
+                drawPath(lucidePath("m4.93 4.93 1.41 1.41", sc), color = ink, style = ls)
+                drawPath(lucidePath("m17.66 17.66 1.41 1.41", sc), color = ink, style = ls)
+                drawPath(lucidePath("M2 12h2", sc), color = ink, style = ls)
+                drawPath(lucidePath("M20 12h2", sc), color = ink, style = ls)
+                drawPath(lucidePath("m6.34 17.66-1.41 1.41", sc), color = ink, style = ls)
+                drawPath(lucidePath("m19.07 4.93-1.41 1.41", sc), color = ink, style = ls)
             }
             "trash" -> {
-                drawLine(color = ink, start = Offset(w * 0.16f, h * 0.26f), end = Offset(w * 0.84f, h * 0.26f), strokeWidth = w * 0.06f, cap = StrokeCap.Round)
-                drawLine(color = ink, start = Offset(w * 0.40f, h * 0.26f), end = Offset(w * 0.40f, h * 0.16f), strokeWidth = w * 0.055f, cap = StrokeCap.Round)
-                drawLine(color = ink, start = Offset(w * 0.40f, h * 0.16f), end = Offset(w * 0.60f, h * 0.16f), strokeWidth = w * 0.055f, cap = StrokeCap.Round)
-                drawLine(color = ink, start = Offset(w * 0.60f, h * 0.16f), end = Offset(w * 0.60f, h * 0.26f), strokeWidth = w * 0.055f, cap = StrokeCap.Round)
-                val bin = Path()
-                bin.moveTo(w * 0.24f, h * 0.34f)
-                bin.lineTo(w * 0.76f, h * 0.34f)
-                bin.lineTo(w * 0.70f, h * 0.84f)
-                bin.lineTo(w * 0.30f, h * 0.84f)
-                bin.close()
-                drawPath(path = bin, color = ink, style = thin)
-                drawLine(color = accentColor, start = Offset(w * 0.42f, h * 0.46f), end = Offset(w * 0.44f, h * 0.74f), strokeWidth = w * 0.05f, cap = StrokeCap.Round)
-                drawLine(color = accentColor, start = Offset(w * 0.58f, h * 0.46f), end = Offset(w * 0.56f, h * 0.74f), strokeWidth = w * 0.05f, cap = StrokeCap.Round)
+                // Lucide "trash"
+                val ls = Stroke(width = w * (2f / 24f), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                val sc = w / 24f
+                drawPath(lucidePath("M10 11v6", sc), color = ink, style = ls)
+                drawPath(lucidePath("M14 11v6", sc), color = ink, style = ls)
+                drawPath(lucidePath("M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6", sc), color = ink, style = ls)
+                drawPath(lucidePath("M3 6h18", sc), color = ink, style = ls)
+                drawPath(lucidePath("M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2", sc), color = ink, style = ls)
             }
             "cursor" -> {
-                val cur = Path()
-                cur.moveTo(w * 0.28f, h * 0.12f)
-                cur.lineTo(w * 0.78f, h * 0.58f)
-                cur.lineTo(w * 0.56f, h * 0.62f)
-                cur.lineTo(w * 0.68f, h * 0.86f)
-                cur.lineTo(w * 0.58f, h * 0.90f)
-                cur.lineTo(w * 0.46f, h * 0.66f)
-                cur.lineTo(w * 0.30f, h * 0.82f)
-                cur.close()
-                drawPath(path = cur, color = ink, style = thin)
+                // Lucide "mouse-pointer-2"
+                val ls = Stroke(width = w * (2f / 24f), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                val sc = w / 24f
+                drawPath(lucidePath("M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z", sc), color = ink, style = ls)
             }
             "eye" -> {
-                val eyeP = Path()
-                eyeP.moveTo(w * 0.08f, h * 0.50f)
-                eyeP.cubicTo(w * 0.30f, h * 0.18f, w * 0.70f, h * 0.18f, w * 0.92f, h * 0.50f)
-                eyeP.cubicTo(w * 0.70f, h * 0.82f, w * 0.30f, h * 0.82f, w * 0.08f, h * 0.50f)
-                eyeP.close()
-                drawPath(path = eyeP, color = ink, style = thin)
-                drawCircle(color = ink, radius = w * 0.15f, center = Offset(w * 0.50f, h * 0.50f), style = thin)
-                drawCircle(color = accentColor, radius = w * 0.07f, center = Offset(w * 0.50f, h * 0.50f))
+                // Lucide "eye"
+                val ls = Stroke(width = w * (2f / 24f), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                val sc = w / 24f
+                drawPath(lucidePath("M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0", sc), color = ink, style = ls)
+                drawCircle(color = ink, radius = 3f * sc, center = Offset(w / 2f, h / 2f), style = ls)
             }
             else -> {
                 drawCircle(color = accentColor, radius = w * 0.16f, center = Offset(w * 0.50f, h * 0.50f))
