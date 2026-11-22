@@ -98,6 +98,7 @@ fun DiscCarousel(
     isLoopable: Boolean = false,
     gesturesEnabled: Boolean = true,
     contentKey: Any? = null,
+    forceSlideOut: Boolean = false,
     state: DiscCarouselState = rememberDiscCarouselState(0, stepAngle),
     onSelectedIndexChange: (Int) -> Unit = {},
     centerContent: (@Composable BoxScope.() -> Unit)? = null,
@@ -143,6 +144,11 @@ fun DiscCarousel(
     var slideArmed by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         slideOut.animateTo(0f, tween(durationMillis = 220, easing = FastOutSlowInEasing))
+    }
+    LaunchedEffect(forceSlideOut) {
+        if (forceSlideOut) {
+            slideOut.animateTo(1f, tween(durationMillis = 160, easing = FastOutSlowInEasing))
+        }
     }
     LaunchedEffect(contentKey) {
         if (slideArmed && contentKey != slidePrevKey) {
