@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerInputChange
@@ -99,6 +100,8 @@ fun DiscCarousel(
     gesturesEnabled: Boolean = true,
     contentKey: Any? = null,
     forceSlideOut: Boolean = false,
+    holdExpand: Boolean = false,
+    holdActive: Boolean? = null,
     state: DiscCarouselState = rememberDiscCarouselState(0, stepAngle),
     onSelectedIndexChange: (Int) -> Unit = {},
     centerContent: (@Composable BoxScope.() -> Unit)? = null,
@@ -160,6 +163,15 @@ fun DiscCarousel(
     }
     val slideTravelPx = with(density) { (discRadiusDp - 80f).coerceAtLeast(0f).dp.toPx() }
 
+    // 押している間の拡大（フォルダページの左円と同じ 1.30 倍。オプション）
+    var internalHold by remember { mutableStateOf(false) }
+    val holdNow = holdActive ?: internalHold
+    val holdScaleAnim by animateFloatAsState(
+        targetValue = if (holdExpand && holdNow) 1.30f else 1.0f,
+        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+        label = "DiscHoldScale"
+    )
+
     val selectedIndex = remember(currentRotation, itemCount, isLoopable) {
         if (itemCount <= 0) -1
         else {
@@ -194,6 +206,7 @@ fun DiscCarousel(
                         pos.x < size.width / 2f
                     }
                     if (!isTouchInTargetHalf) continue
+                    internalHold = true
 
                     val distFromCenter = sqrt((pos.x - centerPx.x).pow(2) + (pos.y - centerPx.y).pow(2))
                     val isInsideCircle = distFromCenter <= radiusPx
@@ -249,6 +262,7 @@ fun DiscCarousel(
                         }
                     }
 
+                    internalHold = false
                     if (isDragStarted && itemCount > 0) {
                         if (isLoopable) {
                             val inertiaTarget = state.rawRotation + lastDeltaAngle * 10f
@@ -296,6 +310,14 @@ fun DiscCarousel(
                 .graphicsLayer {
                     translationX = slideOut.value * slideTravelPx * if (isRightDisc) 1f else -1f
                     alpha = 1f - slideOut.value
+                    if (holdExpand) {
+                        scaleX = holdScaleAnim
+                        scaleY = holdScaleAnim
+                        transformOrigin = TransformOrigin(
+                            (centerPx.x / size.width).coerceIn(0f, 1f),
+                            (centerPx.y / size.height).coerceIn(0f, 1f)
+                        )
+                    }
                 }
         ) {
             Canvas(modifier = Modifier.fillMaxSize()) {
@@ -370,7 +392,8 @@ fun DiscTouchHalf(
     isRight: Boolean,
     radiusPx: Float,
     isReverseScroll: () -> Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onHoldingChanged: ((Boolean) -> Unit)? = null
 ) {
     val scope = rememberCoroutineScope()
     val view = LocalView.current
@@ -381,6 +404,7 @@ fun DiscTouchHalf(
                     val down = awaitFirstDown(requireUnconsumed = false)
                     val st = state ?: continue
                     if (st.itemCount <= 0) continue
+                    onHoldingChanged?.invoke(true)
                     var lastY = down.position.y
                     var dragging = false
                     var lastIdx = (-st.rawRotation / st.stepAngle).roundToInt()
@@ -406,6 +430,7 @@ fun DiscTouchHalf(
                             }
                         }
                     }
+                    onHoldingChanged?.invoke(false)
                     if (dragging) {
                         st.isScrolling = false
                         val idx = (-st.rawRotation / st.stepAngle).roundToInt()
