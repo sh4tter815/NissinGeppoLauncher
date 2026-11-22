@@ -116,6 +116,7 @@ data class SettingItem(
     val choices: List<SettingChoice> = emptyList(),
     val slider: SettingSliderSpec? = null,
     val onAction: (() -> Unit)? = null,
+    val onToggle: (() -> Unit)? = null,
     val currentIllo: String? = null,
     val currentFont: FontFamily? = null,
     val currentColorHex: String? = null
@@ -641,6 +642,7 @@ fun SettingsScreen(
     var focusId by remember { mutableStateOf<String?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var leftDiscState by remember { mutableStateOf<DiscCarouselState?>(null) }
+    var leftHeld by remember { mutableStateOf(false) }
     var rightDiscState by remember { mutableStateOf<DiscCarouselState?>(null) }
     fun goBack() {
         val dropped = navPath.lastOrNull() ?: return
@@ -945,10 +947,13 @@ fun SettingsScreen(
                         settingsScope.launch {
                             val result = LyricEffectsData.refresh(context)
                             fxChecking = false
-                            fxMessage = when (result) {
-                                1 -> "更新しました（データ v${LyricEffectsData.appliedVersion}）"
-                                0 -> "最新のデータです（データ v${LyricEffectsData.appliedVersion}）"
-                                else -> "確認に失敗しました" + (LyricEffectsData.lastRefreshError?.let { "（$it）" } ?: "")
+                            if (result == 0) {
+                                android.widget.Toast.makeText(context, "最新のデータです（データ v${LyricEffectsData.appliedVersion}）", android.widget.Toast.LENGTH_SHORT).show()
+                            } else {
+                                fxMessage = when (result) {
+                                    1 -> "更新しました（データ v${LyricEffectsData.appliedVersion}）"
+                                    else -> "確認に失敗しました" + (LyricEffectsData.lastRefreshError?.let { "（$it）" } ?: "")
+                                }
                             }
                         }
                     }
@@ -972,7 +977,7 @@ fun SettingsScreen(
                             } else if (info == null) {
                                 updateMessage = "確認に失敗しました"
                             } else {
-                                updateMessage = "新しいビルドはありませんでした（最新: #${info.buildNumber}）"
+                                android.widget.Toast.makeText(context, "新しいビルドはありませんでした（最新: #${info.buildNumber}）", android.widget.Toast.LENGTH_SHORT).show()
                             }
                         }
                     }
@@ -1057,7 +1062,8 @@ fun SettingsScreen(
                 SettingItem(
                     def.id, def.label, def.desc, def.glyph,
                     valueText = if (cur) "オン" else "オフ",
-                    choices = toggleChoices(cur) { v -> b.second(v) }
+                    choices = toggleChoices(cur) { v -> b.second(v) },
+                    onToggle = { b.second(!cur); onChanged() }
                 )
             }
             "choices" -> {
@@ -1143,6 +1149,26 @@ fun SettingsScreen(
             // --- 階層ツリーの2円ナビ（左=現在の階層の一覧, 右=フォーカス中の子一覧 or 選択肢） ---
             val statusTopDp = with(LocalDensity.current) { WindowInsets.statusBars.getTop(LocalDensity.current).toDp() }
             val discDensity = LocalDensity.current
+        // --- タッチ操作パネル（フォルダページと同じ3分割。左だけ駆動し、右円は自前ジェスチャ） ---
+        val panelRadiusPx = with(LocalDensity.current) { 165.dp.toPx() }
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = statusTopDp + 104.dp, bottom = 72.dp)
+        ) {
+            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                DiscTouchHalf(
+                    state = leftDiscState,
+                    isRight = false,
+                    radiusPx = panelRadiusPx,
+                    isReverseScroll = { isReverseScroll },
+                    modifier = Modifier.fillMaxSize(),
+                    onHoldingChanged = { leftHeld = it }
+                )
+            }
+            Box(modifier = Modifier.weight(1f).fillMaxHeight())
+        }
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -1177,7 +1203,7 @@ fun SettingsScreen(
                         accentColor = currentAccentColor,
                         modifier = Modifier.fillMaxSize(),
                         state = lState, gesturesEnabled = false, iconSizeDp = iconSize,
-                        forceSlideOut = discExiting,
+                        forceSlideOut = discExiting, holdExpand = true, holdActive = leftHeld,
                         contentKey = navPath.joinToString("/") + "-" + searchQuery,
                         initialFocus = currentList.indexOfFirst { it.id == focusId }.coerceAtLeast(0),
                         onFocusChange = { idx -> currentList.getOrNull(idx)?.let { focusId = it.id } },
@@ -1186,8 +1212,9 @@ fun SettingsScreen(
                                 navigateAnimated { goBack() }
                             } else {
                                 val node = currentList[idx]
+                                val tog = node.item?.onToggle
                                 val act = node.item?.onAction
-                                if (act != null) act.invoke() else focusId = node.id
+                                if (tog != null) tog.invoke() else if (act != null) act.invoke() else focusId = node.id
                             }
                         }
                     )
@@ -1204,14 +1231,17 @@ fun SettingsScreen(
                             accentColor = currentAccentColor,
                             modifier = Modifier.fillMaxSize(),
                             state = rState, gesturesEnabled = true, iconSizeDp = iconSize,
-                            forceSlideOut = discExiting,
+                            forceSlideOut = discExiting, holdExpand = true,
                             contentKey = "r-${navPath.joinToString("/")}-${fNode.id}",
                             initialFocus = 0,
                             onFocusChange = { },
                             onEntryClick = { idx ->
                                 val child = fNode.children[idx]
+                                val tog = child.item?.onToggle
                                 val act = child.item?.onAction
-                                if (act != null) {
+                                if (tog != null) {
+                                    tog.invoke()
+                                } else if (act != null) {
                                     act.invoke()
                                 } else {
                                     navigateAnimated {
@@ -1263,7 +1293,7 @@ key("disc-choices-${currentItem.id}") {
                         side = DiscSide.RIGHT,
                         accentColor = currentAccentColor,
                         modifier = Modifier.fillMaxSize(),
-                        state = choiceState, gesturesEnabled = true, iconSizeDp = iconSize, contentKey = "c-${currentItem.id}", forceSlideOut = discExiting,
+                        state = choiceState, gesturesEnabled = true, iconSizeDp = iconSize, contentKey = "c-${currentItem.id}", forceSlideOut = discExiting, holdExpand = true,
                         initialFocus = currentItem.choices.indexOfFirst { it.checked }.coerceAtLeast(0),
                         onFocusChange = { },
                         onEntryClick = { idx -> currentItem.choices[idx].onSelect() },
@@ -1271,25 +1301,6 @@ key("disc-choices-${currentItem.id}") {
                 }
                 }
             }
-
-        // --- タッチ操作パネル（フォルダページと同じ3分割。左だけ駆動し、右円は自前ジェスチャ） ---
-        val panelRadiusPx = with(LocalDensity.current) { 165.dp.toPx() }
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = statusTopDp + 104.dp, bottom = 72.dp)
-        ) {
-            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                DiscTouchHalf(
-                    state = leftDiscState,
-                    isRight = false,
-                    radiusPx = panelRadiusPx,
-                    isReverseScroll = { isReverseScroll },
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-            Box(modifier = Modifier.weight(1f).fillMaxHeight())
-        }
 
         // --- 検索バー（旧ヘッダーの位置・幅。タイトルと戻るはチップが担う） ---
         Box(
