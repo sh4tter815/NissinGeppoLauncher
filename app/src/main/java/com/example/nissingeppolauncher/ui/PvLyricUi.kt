@@ -3459,24 +3459,17 @@ fun LyricsPvLayer(
                     }
                 }
             }
+            // 通常モードのスキップ表示は Main 側の最前面オーバーレイに移設した（円盤レイヤーにタップを奪われないため）
             if (pvSkipTarget != null) {
                 if (dopagaki) {
                     Box(Modifier.fillMaxSize().zIndex(999f), contentAlignment = Alignment.Center) {
                         PvSkipInterludeText(pvSkipLabel, fontFamily, big = true, accentColor = accentColor) { onSeek(pvSkipTarget) }
-                    }
-                } else {
-                    Box(Modifier.fillMaxWidth().padding(top = interludeTopDp + 44.dp, end = 16.dp).zIndex(999f), contentAlignment = Alignment.CenterEnd) {
-                        PvSkipInterludeText(pvSkipLabel, fontFamily) { onSeek(pvSkipTarget) }
                     }
                 }
             } else if (pvCurLine != null) {
                 if (dopagaki) {
                     Box(Modifier.fillMaxSize().zIndex(999f), contentAlignment = Alignment.Center) {
                         PvSkipInterludeText("次の曲へ▷", fontFamily, big = true, accentColor = accentColor) { onNextTrack() }
-                    }
-                } else {
-                    Box(Modifier.fillMaxWidth().padding(top = interludeTopDp + 44.dp, end = 16.dp).zIndex(999f), contentAlignment = Alignment.CenterEnd) {
-                        PvSkipInterludeText("次の曲へ▷", fontFamily) { onNextTrack() }
                     }
                 }
             }

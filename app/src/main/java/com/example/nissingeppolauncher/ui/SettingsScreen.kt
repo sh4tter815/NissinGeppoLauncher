@@ -1223,30 +1223,6 @@ fun SettingsScreen(
                             initialFocus = 0,
                             onFocusChange = { rightFocus = it },
                             onEntryClick = { idx -> openItem(levelItems[idx]) },
-                            centerContent = {
-                                val item = levelItems.getOrNull(rightFocus)
-                                if (item != null) {
-                                    val itemIllo = item.currentIllo
-                                    val itemFont = item.currentFont
-                                    val itemHex = item.currentColorHex
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        when {
-                                            itemIllo != null -> Box(modifier = Modifier.graphicsLayer { scaleX = 2f; scaleY = 2f }) {
-                                                ChoiceIllustration(itemIllo, currentAccentColor, true)
-                                            }
-                                            itemFont != null -> Text("あアA", fontFamily = itemFont, color = Color.White, fontSize = 25.sp)
-                                            itemHex != null -> Box(
-                                                modifier = Modifier.size(46.dp).clip(CircleShape).background(parseHexColor(itemHex))
-                                            )
-                                            else -> Box(modifier = Modifier.graphicsLayer { scaleX = 1.7f; scaleY = 1.7f }) {
-                                                DiscGlyph(item.glyph, currentAccentColor)
-                                            }
-                                        }
-                                        Spacer(modifier = Modifier.height(9.dp))
-                                        Text(item.valueText, color = currentAccentColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-                            }
                         )
                     }
                 } else {
@@ -1319,42 +1295,6 @@ fun SettingsScreen(
                                 initialFocus = currentItem.choices.indexOfFirst { it.checked }.coerceAtLeast(0),
                                 onFocusChange = { rightFocus = it },
                                 onEntryClick = { idx -> currentItem.choices[idx].onSelect() },
-                                centerContent = {
-                                    val choice = currentItem.choices.getOrNull(rightFocus)
-                                    if (choice != null) {
-                                        val cMode = choice.modePreview
-                                        val cIllo2 = choice.illo
-                                        val cFont2 = choice.fontSample
-                                        val cHex2 = choice.colorHex
-                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                            when {
-                                                cMode != null -> LyricsModePreviewCard(
-                                                    mode = cMode,
-                                                    label = choice.label,
-                                                    selected = choice.checked,
-                                                    accentColor = currentAccentColor,
-                                                    modifier = Modifier.width(100.dp)
-                                                ) { choice.onSelect() }
-                                                cIllo2 != null -> Box(modifier = Modifier.graphicsLayer { scaleX = 2.2f; scaleY = 2.2f }) {
-                                                    ChoiceIllustration(cIllo2, currentAccentColor, true)
-                                                }
-                                                cFont2 != null -> {
-                                                    Text("あアA", fontFamily = cFont2, color = Color.White, fontSize = 24.sp)
-                                                    Spacer(modifier = Modifier.height(4.dp))
-                                                    Text(choice.label, color = Color.Gray, fontSize = 10.sp, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                                                }
-                                                cHex2 != null -> {
-                                                    Box(modifier = Modifier.size(52.dp).clip(CircleShape).background(parseHexColor(cHex2)))
-                                                    Spacer(modifier = Modifier.height(6.dp))
-                                                    Text(choice.label, color = Color.White, fontSize = 12.sp)
-                                                }
-                                                else -> Box(modifier = Modifier.graphicsLayer { scaleX = 1.7f; scaleY = 1.7f }) {
-                                                    DiscGlyph(currentItem.glyph, currentAccentColor)
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
                             )
                         }
                     }
