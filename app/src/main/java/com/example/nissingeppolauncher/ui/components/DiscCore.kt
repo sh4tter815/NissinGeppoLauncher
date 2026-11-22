@@ -415,7 +415,11 @@ fun DiscTouchHalf(
                     var lastY = down.position.y
                     var dragging = false
                     var maxDist = 0f
-                    var lastIdx = (-st.rawRotation / st.stepAngle).roundToInt()
+                    // フォルダページ方式のステップスクロール: 40px = 1ステップ、180ms の補間移動
+                    val stepThreshold = 40f
+                    var accumulatedDy = 0f
+                    var stepCount = (-st.rawRotation / st.stepAngle).roundToInt()
+                        .coerceIn(0, (st.itemCount - 1).coerceAtLeast(0))
                     var upChange: PointerInputChange? = null
                     while (true) {
                         val event = awaitPointerEvent()
@@ -426,26 +430,49 @@ fun DiscTouchHalf(
                         }
                         val distFromDown = (change.position - down.position).getDistance()
                         if (distFromDown > maxDist) maxDist = distFromDown
-                        val dy = change.position.y - lastY
-                        lastY = change.position.y
                         if (!dragging && abs(change.position.y - down.position.y) > 6f) {
                             dragging = true
                             st.isScrolling = true
                         }
                         if (dragging) {
                             change.consume()
-                            val dirF = if (isReverseScroll()) -1f else 1f
-                            val delta = -(dy / radiusPx) * (180f / PI.toFloat()) * (if (isRight) 1.2f else -1.2f) * dirF
-                            val minRot = -((st.itemCount - 1) * st.stepAngle).coerceAtLeast(0f)
-                            val target = (st.rawRotation + delta).coerceIn(minRot - 20f, 20f)
-                            st.rawRotation = target
-                            scope.launch { st.rotationAnim.snapTo(target) }
-                            val idxNow = (-st.rawRotation / st.stepAngle).roundToInt()
-                            if (idxNow != lastIdx) {
-                                lastIdx = idxNow
-                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                            val rawDy = change.position.y - lastY
+                            val deltaY = rawDy * (if (isReverseScroll()) -1f else 1f)
+                            accumulatedDy += deltaY
+                            while (accumulatedDy >= stepThreshold) {
+                                accumulatedDy -= stepThreshold
+                                val next = (stepCount + 1).coerceAtMost((st.itemCount - 1).coerceAtLeast(0))
+                                if (next != stepCount) {
+                                    stepCount = next
+                                    val target = -stepCount * st.stepAngle
+                                    st.rawRotation = target
+                                    scope.launch {
+                                        st.rotationAnim.animateTo(
+                                            targetValue = target,
+                                            animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+                                        )
+                                    }
+                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                }
+                            }
+                            while (accumulatedDy <= -stepThreshold) {
+                                accumulatedDy += stepThreshold
+                                val next = (stepCount - 1).coerceAtLeast(0)
+                                if (next != stepCount) {
+                                    stepCount = next
+                                    val target = -stepCount * st.stepAngle
+                                    st.rawRotation = target
+                                    scope.launch {
+                                        st.rotationAnim.animateTo(
+                                            targetValue = target,
+                                            animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+                                        )
+                                    }
+                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                }
                             }
                         }
+                        lastY = change.position.y
                     }
                     holdCb?.invoke(false)
                     val tapSlopPx = radiusPx * (18f / 165f)
@@ -478,9 +505,6 @@ fun DiscTouchHalf(
                     }
                     if (dragging) {
                         st.isScrolling = false
-                        val idx = (-st.rawRotation / st.stepAngle).roundToInt()
-                            .coerceIn(0, (st.itemCount - 1).coerceAtLeast(0))
-                        st.animateToIndex(idx)
                     }
                 }
             }
