@@ -1204,6 +1204,7 @@ fun SettingsScreen(
             .background(Color(0x330B101D))
     ) {
             // --- 2つの円 ---
+            val discDensity = LocalDensity.current
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -1212,7 +1213,7 @@ fun SettingsScreen(
                             transformOrigin = TransformOrigin(0.5f, 0.5f)
                             rotationX = 27f + (tiltX?.value ?: 0f)
                             rotationY = tiltY?.value ?: 0f
-                            cameraDistance = 6.5f * LocalDensity.current.density
+                            cameraDistance = 6.5f * discDensity.density
                         } else Modifier
                     )
             ) {
