@@ -642,7 +642,6 @@ fun SettingsScreen(
     var focusId by remember { mutableStateOf<String?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var leftDiscState by remember { mutableStateOf<DiscCarouselState?>(null) }
-    var leftHeld by remember { mutableStateOf(false) }
     var rightDiscState by remember { mutableStateOf<DiscCarouselState?>(null) }
     fun goBack() {
         val dropped = navPath.lastOrNull() ?: return
@@ -1149,26 +1148,6 @@ fun SettingsScreen(
             // --- 階層ツリーの2円ナビ（左=現在の階層の一覧, 右=フォーカス中の子一覧 or 選択肢） ---
             val statusTopDp = with(LocalDensity.current) { WindowInsets.statusBars.getTop(LocalDensity.current).toDp() }
             val discDensity = LocalDensity.current
-        // --- タッチ操作パネル（フォルダページと同じ3分割。左だけ駆動し、右円は自前ジェスチャ） ---
-        val panelRadiusPx = with(LocalDensity.current) { 165.dp.toPx() }
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = statusTopDp + 104.dp, bottom = 72.dp)
-        ) {
-            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                DiscTouchHalf(
-                    state = leftDiscState,
-                    isRight = false,
-                    radiusPx = panelRadiusPx,
-                    isReverseScroll = { isReverseScroll },
-                    modifier = Modifier.fillMaxSize(),
-                    onHoldingChanged = { leftHeld = it }
-                )
-            }
-            Box(modifier = Modifier.weight(1f).fillMaxHeight())
-        }
-
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -1202,8 +1181,8 @@ fun SettingsScreen(
                         side = DiscSide.LEFT,
                         accentColor = currentAccentColor,
                         modifier = Modifier.fillMaxSize(),
-                        state = lState, gesturesEnabled = false, iconSizeDp = iconSize,
-                        forceSlideOut = discExiting, holdExpand = true, holdActive = leftHeld,
+                        state = lState, gesturesEnabled = true, iconSizeDp = iconSize,
+                        forceSlideOut = discExiting, holdExpand = true,
                         contentKey = navPath.joinToString("/") + "-" + searchQuery,
                         initialFocus = currentList.indexOfFirst { it.id == focusId }.coerceAtLeast(0),
                         onFocusChange = { idx -> currentList.getOrNull(idx)?.let { focusId = it.id } },
@@ -1231,7 +1210,7 @@ fun SettingsScreen(
                             accentColor = currentAccentColor,
                             modifier = Modifier.fillMaxSize(),
                             state = rState, gesturesEnabled = true, iconSizeDp = iconSize,
-                            forceSlideOut = discExiting, holdExpand = true,
+                            forceSlideOut = discExiting,
                             contentKey = "r-${navPath.joinToString("/")}-${fNode.id}",
                             initialFocus = 0,
                             onFocusChange = { },
@@ -1293,7 +1272,7 @@ key("disc-choices-${currentItem.id}") {
                         side = DiscSide.RIGHT,
                         accentColor = currentAccentColor,
                         modifier = Modifier.fillMaxSize(),
-                        state = choiceState, gesturesEnabled = true, iconSizeDp = iconSize, contentKey = "c-${currentItem.id}", forceSlideOut = discExiting, holdExpand = true,
+                        state = choiceState, gesturesEnabled = true, iconSizeDp = iconSize, contentKey = "c-${currentItem.id}", forceSlideOut = discExiting,
                         initialFocus = currentItem.choices.indexOfFirst { it.checked }.coerceAtLeast(0),
                         onFocusChange = { },
                         onEntryClick = { idx -> currentItem.choices[idx].onSelect() },
