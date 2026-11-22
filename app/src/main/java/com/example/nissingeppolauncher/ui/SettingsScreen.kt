@@ -1284,6 +1284,7 @@ fun SettingsScreen(
                         accentColor = currentAccentColor,
                         modifier = Modifier.fillMaxSize(),
                         state = lState, gesturesEnabled = false, iconSizeDp = iconSize,
+                        contentKey = navPath.joinToString("/"),
                         initialFocus = currentList.indexOfFirst { it.id == focusId }.coerceAtLeast(0),
                         onFocusChange = { idx -> currentList.getOrNull(idx)?.let { focusId = it.id } },
                         onEntryClick = { idx ->
@@ -1305,6 +1306,7 @@ fun SettingsScreen(
                             accentColor = currentAccentColor,
                             modifier = Modifier.fillMaxSize(),
                             state = rState, gesturesEnabled = true, iconSizeDp = iconSize,
+                            contentKey = "r-${navPath.joinToString("/")}-${fNode.id}",
                             initialFocus = 0,
                             onFocusChange = { },
                             onEntryClick = { idx ->
@@ -1360,7 +1362,7 @@ key("disc-choices-${currentItem.id}") {
                         side = DiscSide.RIGHT,
                         accentColor = currentAccentColor,
                         modifier = Modifier.fillMaxSize(),
-                        state = choiceState, gesturesEnabled = true, iconSizeDp = iconSize,
+                        state = choiceState, gesturesEnabled = true, iconSizeDp = iconSize, contentKey = "c-${currentItem.id}",
                         initialFocus = currentItem.choices.indexOfFirst { it.checked }.coerceAtLeast(0),
                         onFocusChange = { },
                         onEntryClick = { idx -> currentItem.choices[idx].onSelect() },
