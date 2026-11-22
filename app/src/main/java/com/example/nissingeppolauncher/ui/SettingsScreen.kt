@@ -442,6 +442,26 @@ fun SettingsCategoryIcon(kind: String, accentColor: Color) {
                 drawLine(color = ink, start = Offset(w * 0.14f, h * 0.66f), end = Offset(w * 0.86f, h * 0.66f), strokeWidth = w * 0.05f, cap = StrokeCap.Round)
                 drawCircle(color = accentColor, radius = w * 0.10f, center = Offset(w * 0.34f, h * 0.66f))
             }
+            "library" -> {
+                // フォルダ
+                val body = Path()
+                body.moveTo(w * 0.08f, h * 0.26f)
+                body.lineTo(w * 0.40f, h * 0.26f)
+                body.lineTo(w * 0.48f, h * 0.38f)
+                body.lineTo(w * 0.92f, h * 0.38f)
+                body.lineTo(w * 0.92f, h * 0.80f)
+                body.lineTo(w * 0.08f, h * 0.80f)
+                body.close()
+                drawPath(path = body, color = ink, style = thin)
+                drawCircle(color = accentColor, radius = w * 0.07f, center = Offset(w * 0.74f, h * 0.60f))
+            }
+            "tools" -> {
+                // レンチ
+                drawCircle(color = ink, radius = w * 0.19f, center = Offset(w * 0.35f, h * 0.35f), style = thin)
+                drawLine(color = ink, start = Offset(w * 0.35f, h * 0.35f), end = Offset(w * 0.52f, h * 0.18f), strokeWidth = w * 0.10f, cap = StrokeCap.Round)
+                drawLine(color = ink, start = Offset(w * 0.47f, h * 0.47f), end = Offset(w * 0.82f, h * 0.82f), strokeWidth = w * 0.13f, cap = StrokeCap.Round)
+                drawCircle(color = accentColor, radius = w * 0.06f, center = Offset(w * 0.82f, h * 0.82f))
+            }
             "data" -> {
                 drawArc(color = ink, startAngle = -40f, sweepAngle = 250f, useCenter = false, topLeft = Offset(w * 0.16f, h * 0.16f), size = Size(w * 0.68f, h * 0.68f), style = thin)
                 drawLine(color = accentColor, start = Offset(w * 0.80f, h * 0.10f), end = Offset(w * 0.80f, h * 0.30f), strokeWidth = w * 0.06f, cap = StrokeCap.Round)
@@ -892,6 +912,23 @@ fun SettingsScreen(
                             appsUpdateStatus = "更新しました（全 ${apps.size} 件）"
                             isUpdatingApps = false
                             onAppsUpdated()
+                        }
+                    }
+                }
+            )
+        },
+        "treeUpdate" to { def: SettingItemDef ->
+            SettingItem(
+                def.id, def.label, def.desc, def.glyph,
+                valueText = "v${treeData.version}",
+                onAction = {
+                    settingsScope.launch {
+                        val newer = com.example.nissingeppolauncher.data.SettingsTreeData.refresh(context)
+                        if (newer != null) {
+                            treeData = newer
+                            android.widget.Toast.makeText(context, "設定データを更新しました（v${newer.version}）", android.widget.Toast.LENGTH_SHORT).show()
+                        } else {
+                            android.widget.Toast.makeText(context, "設定データは最新です", android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }
                 }

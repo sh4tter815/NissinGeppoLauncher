@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -487,6 +487,13 @@
       "glyph": "update",
       "type": "action",
       "action": "checkUpdate"
+    },
+    "treeUpdate": {
+      "label": "設定データ更新",
+      "desc": "設定の定義データを最新に更新する",
+      "glyph": "update",
+      "type": "action",
+      "action": "treeUpdate"
     }
   },
   "tree": [
@@ -639,18 +646,12 @@
       ]
     },
     {
-      "id": "data",
-      "label": "データ管理",
+      "id": "library",
+      "label": "ライブラリ",
       "cat": true,
       "children": [
         {
           "item": "updateApps"
-        },
-        {
-          "item": "fxUpdate"
-        },
-        {
-          "item": "checkUpdate"
         }
       ]
     },
@@ -668,12 +669,28 @@
       ]
     },
     {
+      "id": "tools",
+      "label": "ツール",
+      "cat": true,
+      "children": [
+        {
+          "item": "sleep"
+        }
+      ]
+    },
+    {
       "id": "other",
       "label": "その他",
       "cat": true,
       "children": [
         {
-          "item": "sleep"
+          "item": "checkUpdate"
+        },
+        {
+          "item": "fxUpdate"
+        },
+        {
+          "item": "treeUpdate"
         },
         {
           "item": "guideReshow"
