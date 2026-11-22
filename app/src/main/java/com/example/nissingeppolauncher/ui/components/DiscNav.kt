@@ -113,7 +113,8 @@ fun DiscWheel(
     holdExpand: Boolean = false,
     holdActive: Boolean? = null,
     focusedLabelOnly: Boolean = false,
-    fadeLabelsOnScroll: Boolean = true
+    fadeLabelsOnScroll: Boolean = true,
+    accentSelectedLabel: Boolean = false
 ) {
     if (entries.isEmpty()) return
     // 中身だけを設定用に入れ替えて、円盤のエンジン自体はアプリ円盤と共通の DiscCarousel を使う
@@ -182,7 +183,7 @@ fun DiscWheel(
                     }
                     Text(
                         text = entry.label + if (entry.checked) "  ✓" else "",
-                        color = if (entry.checked || (focusedLabelOnly && isSelected)) accentColor else Color.White.copy(alpha = 0.9f),
+                        color = if (entry.checked || ((focusedLabelOnly || accentSelectedLabel) && isSelected)) accentColor else Color.White.copy(alpha = 0.9f),
                         fontSize = 15.sp,
                         fontWeight = if (isSelected || entry.checked) FontWeight.Bold else FontWeight.Medium,
                         maxLines = 1,
