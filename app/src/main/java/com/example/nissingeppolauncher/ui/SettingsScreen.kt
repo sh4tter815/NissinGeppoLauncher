@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.sp
 import com.example.nissingeppolauncher.data.AppRepository
 import com.example.nissingeppolauncher.service.LyricsOverlayService
 import com.example.nissingeppolauncher.ui.components.DiscEntry
+import com.example.nissingeppolauncher.ui.components.DiscInfoChip
 import com.example.nissingeppolauncher.ui.components.DiscGauge
 import com.example.nissingeppolauncher.ui.components.DiscGlyph
 import com.example.nissingeppolauncher.ui.components.DiscSide
