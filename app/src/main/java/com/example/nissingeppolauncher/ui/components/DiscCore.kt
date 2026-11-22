@@ -295,6 +295,7 @@ fun DiscCarousel(
                 .fillMaxSize()
                 .graphicsLayer {
                     translationX = slideOut.value * slideTravelPx * if (isRightDisc) 1f else -1f
+                    alpha = 1f - slideOut.value
                 }
         ) {
             Canvas(modifier = Modifier.fillMaxSize()) {
