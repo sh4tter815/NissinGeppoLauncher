@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -47,6 +48,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -83,7 +85,7 @@ fun DiscWheel(
     initialFocus: Int = 0,
     onFocusChange: (Int) -> Unit = {},
     onEntryClick: (Int) -> Unit = {},
-    centerContent: (@Composable () -> Unit)? = null
+    centerContent: (@Composable BoxScope.() -> Unit)? = null
 ) {
     if (entries.isEmpty()) return
     val scope = rememberCoroutineScope()
