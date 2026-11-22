@@ -1133,7 +1133,7 @@ fun SettingsScreen(
                     DiscWheel(
                         entries = currentList.map { nodeEntry(it) } + (
                             if (navPath.isNotEmpty() && searchQuery.isBlank()) listOf(
-                                DiscEntry(id = "__back", label = "戻る", icon = { DiscGlyph("back", currentAccentColor) })
+                                DiscEntry(id = "__back", label = "戻る", immediate = true, icon = { DiscGlyph("back", currentAccentColor) })
                             ) else emptyList()
                         ),
                         side = DiscSide.LEFT,
