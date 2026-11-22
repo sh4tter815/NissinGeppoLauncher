@@ -420,6 +420,32 @@ fun SettingsCategoryIcon(kind: String, accentColor: Color) {
                 drawRoundRect(color = ink, topLeft = Offset(w * 0.13f, h * 0.55f), size = Size(cell, cell), cornerRadius = rad)
                 drawRoundRect(color = accentColor, topLeft = Offset(w * 0.55f, h * 0.55f), size = Size(cell, cell), cornerRadius = rad)
             }
+            "background" -> {
+                drawRoundRect(color = ink, topLeft = Offset(w * 0.10f, h * 0.14f), size = Size(w * 0.80f, h * 0.72f), cornerRadius = CornerRadius(w * 0.06f, w * 0.06f), style = thin)
+                drawCircle(color = accentColor, radius = w * 0.08f, center = Offset(w * 0.68f, h * 0.34f))
+                val m = Path()
+                m.moveTo(w * 0.16f, h * 0.80f)
+                m.lineTo(w * 0.44f, h * 0.50f)
+                m.lineTo(w * 0.84f, h * 0.80f)
+                m.close()
+                drawPath(path = m, color = ink.copy(alpha = 0.8f))
+            }
+            "ui" -> {
+                drawLine(color = ink, start = Offset(w * 0.14f, h * 0.36f), end = Offset(w * 0.86f, h * 0.36f), strokeWidth = w * 0.05f, cap = StrokeCap.Round)
+                drawCircle(color = accentColor, radius = w * 0.10f, center = Offset(w * 0.62f, h * 0.36f))
+                drawLine(color = ink, start = Offset(w * 0.14f, h * 0.66f), end = Offset(w * 0.86f, h * 0.66f), strokeWidth = w * 0.05f, cap = StrokeCap.Round)
+                drawCircle(color = accentColor, radius = w * 0.10f, center = Offset(w * 0.34f, h * 0.66f))
+            }
+            "data" -> {
+                drawArc(color = ink, startAngle = -40f, sweepAngle = 250f, useCenter = false, topLeft = Offset(w * 0.16f, h * 0.16f), size = Size(w * 0.68f, h * 0.68f), style = thin)
+                drawLine(color = accentColor, start = Offset(w * 0.80f, h * 0.10f), end = Offset(w * 0.80f, h * 0.30f), strokeWidth = w * 0.06f, cap = StrokeCap.Round)
+                drawLine(color = accentColor, start = Offset(w * 0.80f, h * 0.10f), end = Offset(w * 0.62f, h * 0.16f), strokeWidth = w * 0.06f, cap = StrokeCap.Round)
+            }
+            "other" -> {
+                drawCircle(color = ink, radius = w * 0.07f, center = Offset(w * 0.26f, h * 0.50f))
+                drawCircle(color = accentColor, radius = w * 0.07f, center = Offset(w * 0.50f, h * 0.50f))
+                drawCircle(color = ink, radius = w * 0.07f, center = Offset(w * 0.74f, h * 0.50f))
+            }
             "security" -> {
                 drawArc(color = ink, startAngle = 180f, sweepAngle = 180f, useCenter = false, topLeft = Offset(w * 0.29f, h * 0.08f), size = Size(w * 0.42f, h * 0.42f), style = thin)
                 drawRoundRect(color = accentColor, topLeft = Offset(w * 0.18f, h * 0.34f), size = Size(w * 0.64f, h * 0.52f), cornerRadius = CornerRadius(w * 0.08f, w * 0.08f))
@@ -585,12 +611,8 @@ fun SettingsScreen(
 
     // システム環境設定風 2段階ナビゲーション ("behavior", "appearance", "security", "tutorial")
     // 円盤ナビの状態（1: カテゴリ/項目, 2: 選択肢/スライダー）
-    var discLevel by remember { mutableIntStateOf(1) }
-    var catFocusId by remember { mutableStateOf("behavior") }
-    var discCategory by remember { mutableStateOf("behavior") }
-    var discItemId by remember { mutableStateOf<String?>(null) }
-    var leftFocus by remember { mutableIntStateOf(0) }
-    var rightFocus by remember { mutableIntStateOf(0) }
+    var navPath by remember { mutableStateOf<List<String>>(emptyList()) }
+    var focusId by remember { mutableStateOf<String?>(null) }
     var leftDiscState by remember { mutableStateOf<DiscCarouselState?>(null) }
     var rightDiscState by remember { mutableStateOf<DiscCarouselState?>(null) }
     var updateChecking by remember { mutableStateOf(false) }
@@ -614,9 +636,8 @@ fun SettingsScreen(
     var useCustomFont by remember { mutableStateOf(repo.prefManager.isUseCustomFont()) }
 
     // システム「戻る」キーを押した時、カテゴリ詳細画面なら設定トップに戻る
-    BackHandler(enabled = discLevel == 2) {
-        discLevel = 1
-        discItemId = null
+    BackHandler(enabled = navPath.isNotEmpty()) {
+        goBack()
     }
 
     // 壁紙選択ピッカー
@@ -715,15 +736,6 @@ fun SettingsScreen(
     }
 
     // ===== 円盤ナビの項目モデル（状態と保存処理は従来のものをそのまま使う） =====
-    val discCategories = listOf(
-        Triple("behavior", "動作", "ダイヤルのスクロール方向や操作感の設定"),
-        Triple("appearance", "外観", "壁紙、配色、フォントなどの見た目のカスタマイズ"),
-        Triple("lyrics", "歌詞", "表示モード、フォント、太さの設定"),
-        Triple("apps", "アプリ一覧", "アプリ一覧データの差分更新（追加・削除されたアプリの反映）"),
-        Triple("security", "セキュリティ", "非表示アプリ用のパスコード(PIN)設定"),
-        Triple("tutorial", "チュートリアル", "ガイドや使い方の再表示設定"),
-        Triple("__update", "アップデート", "GitHubの最新ビルドを確認します")
-    )
     fun toggleChoices(current: Boolean, set: (Boolean) -> Unit): List<SettingChoice> = listOf(
         SettingChoice("on", "オン", current) { set(true) },
         SettingChoice("off", "オフ", !current) { set(false) }
@@ -1185,25 +1197,62 @@ fun SettingsScreen(
         )
         else -> emptyList()
     }
-    fun openItem(item: SettingItem) {
-        if (item.onAction != null) {
-            item.onAction.invoke()
-        } else {
-            discCategory = catFocusId
-            discItemId = item.id
-            rightFocus = 0
-            discLevel = 2
+    // ===== 階層ツリー（カテゴリ→グループ→項目）。木構造なので深さは自由に増やせる =====
+    data class SettingNode(
+        val id: String,
+        val label: String,
+        val glyph: String? = null,
+        val catIcon: Boolean = false,
+        val item: SettingItem? = null,
+        val children: List<SettingNode> = emptyList()
+    )
+    fun itemNodes(source: String, ids: List<String>): List<SettingNode> =
+        ids.mapNotNull { id -> itemsFor(source).firstOrNull { it.id == id }?.let { SettingNode(it.id, it.label, glyph = it.glyph, item = it) } }
+    fun flatNodes(source: String): List<SettingNode> =
+        itemsFor(source).map { SettingNode(it.id, it.label, glyph = it.glyph, item = it) }
+    val settingsTree: List<SettingNode> = listOf(
+        SettingNode("background", "背景", catIcon = true, children = listOf(
+            SettingNode("bg_image", "背景画像", glyph = "image", children = itemNodes("appearance", listOf("bgMode", "wallpaperPick", "wallpaperClear", "brightness"))),
+            SettingNode("bg_liquid", "液体", glyph = "color", children = itemNodes("appearance", listOf("liquid")))
+        )),
+        SettingNode("ui", "UI", catIcon = true, children = listOf(
+            SettingNode("ui_color", "カラー", glyph = "palette", children = itemNodes("appearance", listOf("accentColor", "matchArtwork"))),
+            SettingNode("ui_disc", "円盤", glyph = "disc", children = itemNodes("behavior", listOf("reverse")) + itemNodes("appearance", listOf("discLayout", "iconSize", "stepAngle", "disc3d", "disc3dTilt", "dateMode", "pageSwitch"))),
+            SettingNode("ui_text", "文字", glyph = "font", children = itemNodes("appearance", listOf("uiFont", "textSize", "letterSpacing")))
+        )),
+        SettingNode("lyrics", "歌詞", catIcon = true, children = listOf(
+            SettingNode("ly_text", "文字", glyph = "text", children = itemNodes("lyrics", listOf("jpFont", "enFont", "bold", "dopaBlack"))),
+            SettingNode("ly_anim", "アニメーション", glyph = "sparkle", children = itemNodes("lyrics", listOf("displayMode", "parts", "dopagaki", "statusBar")))
+        )),
+        SettingNode("data", "データ管理", catIcon = true, children = itemNodes("apps", listOf("updateApps")) + itemNodes("lyrics", listOf("fxUpdate")) + itemNodes("__update", listOf("checkUpdate"))),
+        SettingNode("security", "セキュリティ", catIcon = true, children = flatNodes("security")),
+        SettingNode("other", "その他", catIcon = true, children = itemNodes("behavior", listOf("sleep")) + itemNodes("tutorial", listOf("guideReshow")))
+    )
+    val currentList: List<SettingNode> = navPath.fold(settingsTree) { list, id -> list.firstOrNull { it.id == id }?.children ?: emptyList() }
+    val focusedNode: SettingNode? = currentList.firstOrNull { it.id == focusId } ?: currentList.firstOrNull()
+    val currentItem: SettingItem? = focusedNode?.item
+    val ownerNode: SettingNode? = run {
+        var list = settingsTree
+        var node: SettingNode? = null
+        for (id in navPath) {
+            node = list.firstOrNull { it.id == id }
+            list = node?.children ?: emptyList()
         }
+        node
     }
-    val levelItems = itemsFor(if (discLevel == 2) discCategory else catFocusId)
-    val currentItem = levelItems.firstOrNull { it.id == discItemId }
+    fun goBack() {
+        val dropped = navPath.lastOrNull() ?: return
+        navPath = navPath.dropLast(1)
+        focusId = dropped
+    }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0x330B101D))
     ) {
-            // --- 2つの円 ---
+            // --- 階層ツリーの2円ナビ（左=現在の階層の一覧, 右=フォーカス中の子一覧 or 選択肢） ---
+            val statusTopDp = with(LocalDensity.current) { WindowInsets.statusBars.getTop(LocalDensity.current).toDp() }
             val discDensity = LocalDensity.current
             Box(
                 modifier = Modifier
@@ -1217,130 +1266,115 @@ fun SettingsScreen(
                         } else Modifier
                     )
             ) {
-                if (discLevel == 1) {
-                    key("disc-cats") {
-                        val catState = rememberDiscCarouselState(discCategories.indexOfFirst { it.first == catFocusId }.coerceAtLeast(0), 20f)
-                        LaunchedEffect(catState) { leftDiscState = catState }
-                        DiscWheel(
-                            entries = discCategories.map { (id, title, _) ->
-                                DiscEntry(id = id, label = title, icon = {
-                                    if (id == "__update") DiscGlyph("update", currentAccentColor)
-                                    else SettingsCategoryIcon(kind = id, accentColor = currentAccentColor)
-                                })
-                            },
-                            side = DiscSide.LEFT,
-                            accentColor = currentAccentColor,
-                            modifier = Modifier.fillMaxSize(),
-                            state = catState, gesturesEnabled = false,
-                            initialFocus = discCategories.indexOfFirst { it.first == catFocusId }.coerceAtLeast(0),
-                            onFocusChange = { idx -> leftFocus = idx; catFocusId = discCategories[idx].first },
-                            onEntryClick = { idx -> catFocusId = discCategories[idx].first }
-                        )
+                fun nodeEntry(node: SettingNode): DiscEntry = DiscEntry(
+                    id = node.id, label = node.label,
+                    valueText = node.item?.valueText?.ifEmpty { null },
+                    icon = {
+                        if (node.catIcon) SettingsCategoryIcon(kind = node.id, accentColor = currentAccentColor)
+                        else DiscGlyph(node.glyph ?: node.item?.glyph ?: "toggle", currentAccentColor)
                     }
-                    key("disc-items-$catFocusId") {
-                        val itemState = rememberDiscCarouselState(0, 20f)
-                        LaunchedEffect(itemState) { rightDiscState = itemState }
+                )
+                // 左円: 現在の階層の一覧（パネル駆動）
+                key("tree-left-${navPath.joinToString("/")}") {
+                    val lState = rememberDiscCarouselState(currentList.indexOfFirst { it.id == focusId }.coerceAtLeast(0), 20f)
+                    LaunchedEffect(lState) { leftDiscState = lState }
+                    DiscWheel(
+                        entries = currentList.map { nodeEntry(it) },
+                        side = DiscSide.LEFT,
+                        accentColor = currentAccentColor,
+                        modifier = Modifier.fillMaxSize(),
+                        state = lState, gesturesEnabled = false, iconSizeDp = iconSize,
+                        initialFocus = currentList.indexOfFirst { it.id == focusId }.coerceAtLeast(0),
+                        onFocusChange = { idx -> currentList.getOrNull(idx)?.let { focusId = it.id } },
+                        onEntryClick = { idx ->
+                            val node = currentList[idx]
+                            val act = node.item?.onAction
+                            if (act != null) act.invoke() else focusId = node.id
+                        }
+                    )
+                }
+                // 右円: 子一覧 / ゲージ / 選択肢
+                val fNode = focusedNode
+                if (fNode != null && fNode.item == null && fNode.children.isNotEmpty()) {
+                    key("tree-right-${navPath.joinToString("/")}-${fNode.id}") {
+                        val rState = rememberDiscCarouselState(0, 20f)
+                        LaunchedEffect(rState) { rightDiscState = rState }
                         DiscWheel(
-                            entries = levelItems.map { item ->
-                                DiscEntry(id = item.id, label = item.label, valueText = item.valueText.ifEmpty { null }, icon = { DiscGlyph(item.glyph, currentAccentColor) })
-                            },
+                            entries = fNode.children.map { nodeEntry(it) },
                             side = DiscSide.RIGHT,
                             accentColor = currentAccentColor,
                             modifier = Modifier.fillMaxSize(),
-                            state = itemState, gesturesEnabled = true,
+                            state = rState, gesturesEnabled = true, iconSizeDp = iconSize,
                             initialFocus = 0,
-                            onFocusChange = { rightFocus = it },
-                            onEntryClick = { idx -> openItem(levelItems[idx]) },
-                        )
-                    }
-                } else {
-                    key("disc-l2items-$discCategory") {
-                        val l2State = rememberDiscCarouselState(levelItems.indexOfFirst { it.id == discItemId }.coerceAtLeast(0), 20f)
-                        LaunchedEffect(l2State) { leftDiscState = l2State }
-                        DiscWheel(
-                            entries = levelItems.map { item ->
-                                DiscEntry(id = item.id, label = item.label, valueText = item.valueText.ifEmpty { null }, icon = { DiscGlyph(item.glyph, currentAccentColor) })
-                            },
-                            side = DiscSide.LEFT,
-                            accentColor = currentAccentColor,
-                            modifier = Modifier.fillMaxSize(),
-                            state = l2State, gesturesEnabled = false,
-                            initialFocus = levelItems.indexOfFirst { it.id == discItemId }.coerceAtLeast(0),
-                            onFocusChange = { leftFocus = it },
+                            onFocusChange = { },
                             onEntryClick = { idx ->
-                                val item = levelItems[idx]
-                                if (item.onAction != null) {
-                                    item.onAction.invoke()
-                                    discLevel = 1
-                                    discItemId = null
+                                val child = fNode.children[idx]
+                                val act = child.item?.onAction
+                                if (act != null) {
+                                    act.invoke()
                                 } else {
-                                    discItemId = item.id
-                                    rightFocus = 0
+                                    navPath = navPath + fNode.id
+                                    focusId = child.id
                                 }
                             }
                         )
                     }
-                    if (currentItem != null && currentItem.slider != null) {
-                        key("disc-gauge-${currentItem.id}") {
-                            DiscGauge(
-                                title = currentItem.label,
-                                initialValue = currentItem.slider.value,
-                                range = currentItem.slider.range,
-                                steps = currentItem.slider.steps,
-                                format = currentItem.slider.format,
-                                accentColor = currentAccentColor,
-                                modifier = Modifier.fillMaxSize(),
-                                onConfirm = { v ->
-                                    currentItem.slider.onSave(v)
-                                    discLevel = 1
-                                    discItemId = null
+                } else if (currentItem != null && currentItem.slider != null) {
+                    key("disc-gauge-${currentItem.id}") {
+                        DiscGauge(
+                            title = currentItem.label,
+                            initialValue = currentItem.slider.value,
+                            range = currentItem.slider.range,
+                            steps = currentItem.slider.steps,
+                            format = currentItem.slider.format,
+                            accentColor = currentAccentColor,
+                            modifier = Modifier.fillMaxSize(),
+                            onConfirm = { v -> currentItem.slider.onSave(v) }
+                        )
+                    }
+                } else if (currentItem != null) {
+key("disc-choices-${currentItem.id}") {
+                    val choiceState = rememberDiscCarouselState(currentItem.choices.indexOfFirst { it.checked }.coerceAtLeast(0), 20f)
+                    LaunchedEffect(choiceState) { rightDiscState = choiceState }
+                    DiscWheel(
+                        entries = currentItem.choices.map { choice ->
+                            DiscEntry(
+                                id = choice.id, label = choice.label, checked = choice.checked,
+                                icon = {
+                                    val cHex = choice.colorHex
+                                    val cFont = choice.fontSample
+                                    val cIllo = choice.illo
+                                    when {
+                                        cHex != null -> Box(
+                                            modifier = Modifier.size(30.dp).clip(CircleShape).background(parseHexColor(cHex))
+                                        )
+                                        cFont != null -> Text("あ", fontFamily = cFont, color = Color.White, fontSize = 19.sp)
+                                        cIllo != null -> Box(modifier = Modifier.graphicsLayer { scaleX = 0.78f; scaleY = 0.78f }) {
+                                            ChoiceIllustration(cIllo, currentAccentColor, choice.checked)
+                                        }
+                                        else -> DiscGlyph(currentItem.glyph, currentAccentColor)
+                                    }
                                 }
                             )
-                        }
-                    } else if (currentItem != null) {
-                        key("disc-choices-${currentItem.id}") {
-                            val choiceState = rememberDiscCarouselState(currentItem.choices.indexOfFirst { it.checked }.coerceAtLeast(0), 20f)
-                            LaunchedEffect(choiceState) { rightDiscState = choiceState }
-                            DiscWheel(
-                                entries = currentItem.choices.map { choice ->
-                                    DiscEntry(
-                                        id = choice.id, label = choice.label, checked = choice.checked,
-                                        icon = {
-                                            val cHex = choice.colorHex
-                                            val cFont = choice.fontSample
-                                            val cIllo = choice.illo
-                                            when {
-                                                cHex != null -> Box(
-                                                    modifier = Modifier.size(30.dp).clip(CircleShape).background(parseHexColor(cHex))
-                                                )
-                                                cFont != null -> Text("あ", fontFamily = cFont, color = Color.White, fontSize = 19.sp)
-                                                cIllo != null -> Box(modifier = Modifier.graphicsLayer { scaleX = 0.78f; scaleY = 0.78f }) {
-                                                    ChoiceIllustration(cIllo, currentAccentColor, choice.checked)
-                                                }
-                                                else -> DiscGlyph(currentItem.glyph, currentAccentColor)
-                                            }
-                                        }
-                                    )
-                                },
-                                side = DiscSide.RIGHT,
-                                accentColor = currentAccentColor,
-                                modifier = Modifier.fillMaxSize(),
-                                state = choiceState, gesturesEnabled = true,
-                                initialFocus = currentItem.choices.indexOfFirst { it.checked }.coerceAtLeast(0),
-                                onFocusChange = { rightFocus = it },
-                                onEntryClick = { idx -> currentItem.choices[idx].onSelect() },
-                            )
-                        }
-                    }
+                        },
+                        side = DiscSide.RIGHT,
+                        accentColor = currentAccentColor,
+                        modifier = Modifier.fillMaxSize(),
+                        state = choiceState, gesturesEnabled = true, iconSizeDp = iconSize,
+                        initialFocus = currentItem.choices.indexOfFirst { it.checked }.coerceAtLeast(0),
+                        onFocusChange = { rightFocus = it },
+                        onEntryClick = { idx -> currentItem.choices[idx].onSelect() },
+                    )
+                }
                 }
             }
 
-        // --- タッチ操作パネル（フォルダページと同じ3分割: ヘッダー帯とダイヤル帯を除き、左右で円盤を回す） ---
+        // --- タッチ操作パネル（フォルダページと同じ3分割。左だけ駆動し、右円は自前ジェスチャ） ---
         val panelRadiusPx = with(LocalDensity.current) { 165.dp.toPx() }
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 104.dp, bottom = 72.dp)
+                .padding(top = statusTopDp + 104.dp, bottom = 72.dp)
         ) {
             Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
                 DiscTouchHalf(
@@ -1354,41 +1388,43 @@ fun SettingsScreen(
             Box(modifier = Modifier.weight(1f).fillMaxHeight())
         }
 
-        Column(modifier = Modifier.fillMaxSize().padding(top = 40.dp)) {
-            // --- 上部 タイトルバー（フォルダページと同じ浮いたピル型） ---
-            Surface(
-                color = Color(0x99101728),
-                shape = RoundedCornerShape(20.dp),
+        // --- ヘッダー（フォルダページと同じ位置・幅: 上端+48dp, 320x48, 角丸16） ---
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = statusTopDp + 48.dp),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp)
+                    .width(320.dp)
+                    .height(48.dp)
+                    .background(Color(0x99101728), RoundedCornerShape(16.dp))
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (discLevel == 2) {
-                        Text(
-                            text = "‹ 戻る",
-                            color = currentAccentColor,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Normal,
-                            modifier = Modifier
-                                .clickable { discLevel = 1; discItemId = null }
-                                .padding(end = 16.dp)
-                        )
-                    }
+                if (navPath.isNotEmpty()) {
                     Text(
-                        text = if (discLevel == 2) (currentItem?.label ?: "設定") else "環境設定",
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Normal
+                        text = "‹ 戻る",
+                        color = currentAccentColor,
+                        fontSize = 16.sp,
+                        modifier = Modifier
+                            .clickable { goBack() }
+                            .padding(end = 16.dp)
                     )
                 }
+                Text(
+                    text = when {
+                        currentItem != null -> currentItem.label
+                        navPath.isNotEmpty() -> ownerNode?.label ?: "設定"
+                        else -> "環境設定"
+                    },
+                    color = Color.White,
+                    fontSize = 16.sp
+                )
             }
-
-
         }
+
 
         if (showPasscodeChangeDialog) {
             AlertDialog(
