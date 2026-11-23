@@ -312,7 +312,7 @@ fun DiscWheel(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                Box(modifier = Modifier.graphicsLayer { val sc = (if (isSelected) 1.12f else 1f) * (iconSizeDp / 36f) * 1.35f; scaleX = sc; scaleY = sc }) {
+                Box(modifier = Modifier.graphicsLayer { val sc = (if (isSelected) 1.12f else 1f) * (iconSizeDp / 36f) * 1.0f; scaleX = sc; scaleY = sc }) {
                     entry.icon()
                 }
             }
@@ -1279,7 +1279,7 @@ fun DiscFolderItem(
         is FolderDiscEntry.App -> ({ onAppClick(entry.app) })
         FolderDiscEntry.NewFolder -> ({ onNewFolderClick() })
     }
-    val glyphSize = (iconSizeDp * 1.35f).dp
+    val glyphSize = (iconSizeDp * 1.0f).dp
     Box(
         modifier = Modifier
             .offset(x = (iconXDp - iconSizeDp / 2f).dp, y = (iconYDp - iconSizeDp / 2f).dp)
