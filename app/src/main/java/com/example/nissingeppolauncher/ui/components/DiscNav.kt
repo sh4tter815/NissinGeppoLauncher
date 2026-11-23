@@ -1160,8 +1160,8 @@ fun DiscAppItem(
             if (iconBitmap != null) {
                 Box(
                     modifier = Modifier
-                        .offset(x = (iconXDp - (iconSizeDp / 2f)).dp, y = (iconYDp - (iconSizeDp / 2f)).dp)
-                        .size(iconSizeDp.dp)
+                        .offset(x = (iconXDp - ((iconSizeDp + 14f) / 2f)).dp, y = (iconYDp - ((iconSizeDp + 14f) / 2f)).dp)
+                        .size((iconSizeDp + 14f).dp)
                         .combinedClickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
@@ -1282,8 +1282,8 @@ fun DiscFolderItem(
     val glyphSize = (iconSizeDp * 1.0f).dp
     Box(
         modifier = Modifier
-            .offset(x = (iconXDp - iconSizeDp / 2f).dp, y = (iconYDp - iconSizeDp / 2f).dp)
-            .size(iconSizeDp.dp)
+            .offset(x = (iconXDp - ((iconSizeDp + 14f) / 2f)).dp, y = (iconYDp - ((iconSizeDp + 14f) / 2f)).dp)
+            .size((iconSizeDp + 14f).dp)
             .combinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
