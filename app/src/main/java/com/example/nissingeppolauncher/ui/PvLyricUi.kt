@@ -3236,9 +3236,9 @@ fun LyricsPvLayer(
     val pvCurLine = lines.getOrNull(pvIndex)
     val pvNextLine = lines.getOrNull(pvIndex + 1)
     val pvInterlude = when {
-        pvCurLine == null -> pvIndex < 0 && (lines.firstOrNull()?.let { (it.timeMs - pvPos) > 2500 } ?: false) // 前奏も間奏アートを出す
-        pvNextLine == null -> (pvPos - pvCurLine.timeMs) > 8000
-        else -> (pvNextLine.timeMs - pvCurLine.timeMs) > 15000 && (pvPos - pvCurLine.timeMs) > 5000 // 行間が長い間奏だけ。次の行が近づいたら前の行に戻る、をしない
+        pvCurLine == null -> pvIndex < 0 && (lines.firstOrNull()?.let { (it.timeMs - pvPos) > 10000 } ?: false) // 前奏も間奏アートを出す（相当長い時だけ）
+        pvNextLine == null -> (pvPos - pvCurLine.timeMs) > 15000
+        else -> (pvNextLine.timeMs - pvCurLine.timeMs) > 20000 && (pvPos - pvCurLine.timeMs) > 8000 // 行間が相当長い間奏だけ。次の行が近づいたら前の行に戻る、をしない
     }
     val pvDisplayIndex = if (pvInterlude) -2 else pvIndex
     // 色名・連想色に当たった行では、その色（文字と同じ淡色）を親に知らせてアクセントを一瞬変える
@@ -4117,9 +4117,9 @@ fun LyricsFullscreenOverlay(
         val fsCurLine = fsLines.getOrNull(fsIndex)
         val fsNextLine = fsLines.getOrNull(fsIndex + 1)
         val fsInterlude = when {
-            fsCurLine == null -> fsIndex < 0 && (fsLines.firstOrNull()?.let { (it.timeMs - fsPos) > 2500 } ?: false) // 前奏も間奏アートを出す
-            fsNextLine == null -> (fsPos - fsCurLine.timeMs) > 8000
-            else -> (fsNextLine.timeMs - fsCurLine.timeMs) > 15000 && (fsPos - fsCurLine.timeMs) > 5000
+            fsCurLine == null -> fsIndex < 0 && (fsLines.firstOrNull()?.let { (it.timeMs - fsPos) > 10000 } ?: false) // 前奏も間奏アートを出す（相当長い時だけ）
+            fsNextLine == null -> (fsPos - fsCurLine.timeMs) > 15000
+            else -> (fsNextLine.timeMs - fsCurLine.timeMs) > 20000 && (fsPos - fsCurLine.timeMs) > 8000
         }
         if (displayMode == "video") {
             // PVだけを中央に
