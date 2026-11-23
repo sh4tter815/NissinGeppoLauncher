@@ -6,6 +6,10 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.Box
@@ -105,6 +109,8 @@ fun DiscCarousel(
     holdExpand: Boolean = false,
     holdActive: Boolean? = null,
     fadeLabelsOnScroll: Boolean = true,
+    onHoldingChanged: ((Boolean) -> Unit)? = null,
+    onEmptyTap: (() -> Unit)? = null,
     state: DiscCarouselState = rememberDiscCarouselState(0, stepAngle),
     onSelectedIndexChange: (Int) -> Unit = {},
     centerContent: (@Composable BoxScope.() -> Unit)? = null,
@@ -168,6 +174,7 @@ fun DiscCarousel(
 
     // 押している間の拡大（フォルダページの左円と同じ 1.30 倍。オプション）
     var internalHold by remember { mutableStateOf(false) }
+    LaunchedEffect(internalHold) { onHoldingChanged?.invoke(internalHold) }
     val holdNow = holdActive ?: internalHold
     val holdScaleAnim by animateFloatAsState(
         targetValue = if (holdExpand && holdNow) 1.30f else 1.0f,
@@ -329,6 +336,19 @@ fun DiscCarousel(
                     radius = discRadiusDp.dp.toPx(),
                     center = Offset(discCenterXDp.dp.toPx(), discCenterYDp.dp.toPx()),
                     style = Stroke(width = 1.5f)
+                )
+            }
+
+            if (onEmptyTap != null) {
+                Box(
+                    modifier = Modifier
+                        .offset(x = (discCenterXDp - discRadiusDp).dp, y = (discCenterYDp - discRadiusDp).dp)
+                        .size((discRadiusDp * 2f).dp)
+                        .clip(CircleShape)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { onEmptyTap() }
                 )
             }
 

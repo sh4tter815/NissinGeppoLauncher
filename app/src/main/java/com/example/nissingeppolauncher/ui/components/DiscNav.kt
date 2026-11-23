@@ -15,6 +15,18 @@ import androidx.compose.material3.LocalTextStyle
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.style.TextAlign
+import com.example.nissingeppolauncher.data.AppInfo
+import kotlin.math.abs
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -44,6 +56,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
@@ -1013,6 +1026,379 @@ fun DiscGlyph(kind: String, accentColor: Color) {
             }
             else -> {
                 drawCircle(color = accentColor, radius = w * 0.16f, center = Offset(w * 0.50f, h * 0.50f))
+            }
+        }
+    }
+}
+
+
+// ===== アプリ円盤・フォルダ円盤・索引円盤（DiscCarousel のラッパー。旧 RotatableAppDisc / RotatableFolderWheel / RotatableIndexWheel の見た目と操作感を共通部品で再現） =====
+
+/** RotatableAppDisc と同じ DiscItem 列を作る（showIndices の時は頭文字の IndexEntry を差し込む） */
+fun buildDiscItems(apps: List<AppInfo>, showIndices: Boolean): List<DiscItem> {
+    val items = mutableListOf<DiscItem>()
+    if (showIndices) {
+        var lastInitial: String? = null
+        for (app in apps) {
+            val initial = app.initialJapanese.ifBlank { "＃" }
+            if (initial != lastInitial) {
+                items.add(DiscItem.IndexEntry(initial))
+                lastInitial = initial
+            }
+            items.add(DiscItem.AppEntry(app))
+        }
+    } else {
+        for (app in apps) items.add(DiscItem.AppEntry(app))
+    }
+    return items
+}
+
+/** アプリ円盤の1項目（右円用）。RotatableAppDisc の RenderDiscItem と同じ描画 */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun DiscAppItem(
+    item: DiscItem,
+    discCenterXDp: Float,
+    discCenterYDp: Float,
+    discRadiusDp: Float,
+    rad: Float,
+    labelAlpha: Float,
+    textSizeSp: Float,
+    iconSizeDp: Float,
+    letterSpacingSp: Float,
+    accentColor: Color,
+    selectedPackages: Set<String>?,
+    iconTilt3d: Boolean,
+    rainbowGlow: Boolean = false,
+    showLabels: Boolean = true,
+    onAppClick: (AppInfo) -> Unit,
+    onLongClick: (AppInfo) -> Unit
+) {
+    val effAccent = if (rainbowGlow) dopaRainbowColor(seed = 9) else accentColor
+    val outerAppRadiusDp = discRadiusDp + 8f
+    val innerIconRadiusDp = discRadiusDp - 18f
+    when (item) {
+        is DiscItem.IndexEntry -> {
+            val appXDp = discCenterXDp + outerAppRadiusDp * cos(rad)
+            val appYDp = discCenterYDp + outerAppRadiusDp * sin(rad)
+            Box(
+                modifier = Modifier
+                    .offset(x = (appXDp - 240f).dp, y = (appYDp - 22f).dp)
+                    .width(240.dp)
+                    .height(44.dp),
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                Text(
+                    text = item.char,
+                    color = effAccent.copy(alpha = labelAlpha),
+                    fontSize = textSizeSp.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = letterSpacingSp.sp,
+                    textAlign = TextAlign.End
+                )
+            }
+        }
+        is DiscItem.AppEntry -> {
+            val app = item.app
+            val appXDp = discCenterXDp + outerAppRadiusDp * cos(rad)
+            val appYDp = discCenterYDp + outerAppRadiusDp * sin(rad)
+            val iconXDp = discCenterXDp + innerIconRadiusDp * cos(rad)
+            val iconYDp = discCenterYDp + innerIconRadiusDp * sin(rad)
+            val iconBitmap = app.iconBitmap
+            if (iconBitmap != null) {
+                Box(
+                    modifier = Modifier
+                        .offset(x = (iconXDp - (iconSizeDp / 2f)).dp, y = (iconYDp - (iconSizeDp / 2f)).dp)
+                        .size(iconSizeDp.dp)
+                        .combinedClickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = { onAppClick(app) },
+                            onLongClick = { onLongClick(app) }
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (iconTilt3d) {
+                        Image(
+                            bitmap = iconBitmap,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size((iconSizeDp - 4f).coerceAtLeast(12f).dp)
+                                .offset(y = 2.5.dp),
+                            colorFilter = ColorFilter.tint(Color.Black.copy(alpha = 0.38f), BlendMode.SrcIn)
+                        )
+                    }
+                    Image(
+                        bitmap = iconBitmap,
+                        contentDescription = null,
+                        modifier = Modifier.size((iconSizeDp - 4f).coerceAtLeast(12f).dp)
+                    )
+                }
+            }
+            val isChecked = selectedPackages?.contains(app.packageName) == true
+            val displayText = if (isChecked) "${app.label}  ✓" else app.label
+            val textColor = if (isChecked) effAccent else Color.White.copy(alpha = 0.9f * labelAlpha)
+            val textWeight = if (isChecked) FontWeight.Bold else FontWeight.Medium
+            if (showLabels) Box(
+                modifier = Modifier
+                    .offset(x = (appXDp - 240f).dp, y = (appYDp - 22f).dp)
+                    .width(240.dp)
+                    .height(44.dp),
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.End,
+                    modifier = Modifier
+                        .wrapContentSize()
+                        .combinedClickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = { onAppClick(app) },
+                            onLongClick = { onLongClick(app) }
+                        )
+                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = displayText,
+                        modifier = Modifier.widthIn(max = 140.dp),
+                        color = textColor,
+                        fontSize = textSizeSp.sp,
+                        fontWeight = textWeight,
+                        letterSpacing = letterSpacingSp.sp,
+                        textAlign = TextAlign.End,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** 索引ホイール（あかさたな…）。旧 RotatableIndexWheel と同じ描画。回転は外（パネル）が state 経由で駆動する */
+@Composable
+fun DiscIndexWheel(
+    items: List<String>,
+    state: DiscCarouselState,
+    modifier: Modifier = Modifier,
+    discCenterXDp: Float,
+    discCenterYDp: Float,
+    discRadiusDp: Float = 165f,
+    isHolding: Boolean = false,
+    accentColor: Color,
+    onSelectedIndexChange: (Int) -> Unit = {}
+) {
+    var focusIdx by remember { mutableIntStateOf(0) }
+    val configuration = LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp.toFloat()
+    val screenHeightDp = configuration.screenHeightDp.toFloat()
+    val notchScale by animateFloatAsState(
+        targetValue = if (isHolding) 1.30f else 1.0f,
+        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+        label = "DiscIndexNotchScale"
+    )
+    // 静止したら選択中の文字が横倒しになる（設定の縦ラベルと同じ作法）
+    val restP by animateFloatAsState(
+        targetValue = if (isHolding) 0f else 1f,
+        animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+        label = "DiscIndexRest"
+    )
+    Box(modifier = modifier.fillMaxSize()) {
+        DiscCarousel(
+            itemCount = items.size,
+            modifier = Modifier.fillMaxSize(),
+            discCenterXDp = discCenterXDp,
+            discCenterYDp = discCenterYDp,
+            discRadiusDp = discRadiusDp,
+            stepAngle = if (items.isEmpty()) 24f else 360f / items.size,
+            isRightDisc = false,
+            isLoopable = true,
+            gesturesEnabled = false,
+            holdExpand = true,
+            holdActive = isHolding,
+            fadeLabelsOnScroll = false,
+            state = state,
+            onSelectedIndexChange = { idx -> focusIdx = idx; onSelectedIndexChange(idx) }
+        ) { index, rad, _, isSelected ->
+            val item = items.getOrNull(index)
+            if (item != null) {
+                var n = (rad * 180f / PI.toFloat()) % 360f
+                if (n > 180f) n -= 360f
+                if (n < -180f) n += 360f
+                val diff = abs(n)
+                val fade75 = (1.0f - (diff / 75f).coerceIn(0f, 1f).pow(2)).coerceIn(0f, 1f)
+                val charAlpha = (when {
+                    isHolding && isSelected -> 1f
+                    isHolding -> 0.75f
+                    else -> 0.35f
+                }) * fade75
+                val radiusOffset = if (isHolding && isSelected) 32f else 20f
+                val itemXDp = discCenterXDp + (discRadiusDp + radiusOffset) * cos(rad)
+                val itemYDp = discCenterYDp + (discRadiusDp + radiusOffset) * sin(rad)
+                Box(
+                    modifier = Modifier
+                        .offset(x = (itemXDp - 20f).dp, y = (itemYDp - 20f).dp)
+                        .size(40.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = item,
+                        color = if (isHolding && isSelected) accentColor else Color.White.copy(alpha = charAlpha * (if (isSelected) (1f - restP) else 1f)),
+                        fontSize = if (isHolding && isSelected) 22.sp else 13.sp,
+                        fontWeight = if (isHolding && isSelected) FontWeight.Bold else FontWeight.Medium,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
+        // 静止時: 選択中の文字が円の中へ横倒しで入る（設定の左円の縦ラベルと同じ）
+        if (restP > 0.01f) {
+            val focusItem = items.getOrNull(focusIdx)
+            if (focusItem != null) {
+                Box(
+                    modifier = Modifier
+                        .offset(x = (discCenterXDp + discRadiusDp - 60f - 100f).dp, y = (discCenterYDp - 22f).dp)
+                        .width(200.dp)
+                        .height(44.dp)
+                        .graphicsLayer {
+                            alpha = restP
+                            rotationZ = -90f * restP
+                            translationX = (1f - restP) * 40.dp.toPx()
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = focusItem,
+                        color = accentColor,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                }
+            }
+        }
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = notchScale
+                    scaleY = notchScale
+                    transformOrigin = TransformOrigin(
+                        (discCenterXDp / screenWidthDp).coerceIn(0f, 1f),
+                        (discCenterYDp / screenHeightDp).coerceIn(0f, 1f)
+                    )
+                }
+        ) {
+            if (isHolding || notchScale > 1.01f) {
+                drawCircle(
+                    color = accentColor,
+                    radius = 8f,
+                    center = Offset((discCenterXDp + discRadiusDp).dp.toPx() - 14f, discCenterYDp.dp.toPx())
+                )
+            }
+        }
+    }
+}
+
+/** フォルダ選択ホイール。旧 RotatableFolderWheel と同じ描画。回転は外（DiscTouchHalf）が state 経由で駆動する */
+@Composable
+fun DiscFolderWheel(
+    folders: List<Pair<String, String>>,
+    state: DiscCarouselState,
+    modifier: Modifier = Modifier,
+    discCenterXDp: Float,
+    discCenterYDp: Float,
+    discRadiusDp: Float = 165f,
+    isHolding: Boolean = false,
+    textSizeSp: Float = 16f,
+    letterSpacingSp: Float = 1.2f,
+    accentColor: Color,
+    onSelectedIndexChange: (Int) -> Unit = {}
+) {
+    val configuration = LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp.toFloat()
+    val screenHeightDp = configuration.screenHeightDp.toFloat()
+    val folderItems = remember(folders) { folders + Pair("NEW_FOLDER", "新規作成") }
+    val notchScale by animateFloatAsState(
+        targetValue = if (isHolding) 1.30f else 1.0f,
+        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+        label = "DiscFolderNotchScale"
+    )
+    Box(modifier = modifier.fillMaxSize()) {
+        DiscCarousel(
+            itemCount = folderItems.size,
+            modifier = Modifier.fillMaxSize(),
+            discCenterXDp = discCenterXDp,
+            discCenterYDp = discCenterYDp,
+            discRadiusDp = discRadiusDp,
+            stepAngle = 24f,
+            isRightDisc = false,
+            isLoopable = false,
+            gesturesEnabled = false,
+            holdExpand = true,
+            holdActive = isHolding,
+            fadeLabelsOnScroll = false,
+            state = state,
+            onSelectedIndexChange = onSelectedIndexChange
+        ) { index, rad, labelAlpha, isSelected ->
+            val item = folderItems.getOrNull(index)
+            if (item != null) {
+                val innerXDp = discCenterXDp + (discRadiusDp - 18f) * cos(rad)
+                val innerYDp = discCenterYDp + (discRadiusDp - 18f) * sin(rad)
+                Box(
+                    modifier = Modifier
+                        .offset(x = (innerXDp - 20f).dp, y = (innerYDp - 20f).dp)
+                        .size(40.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (item.first == "NEW_FOLDER") {
+                        WhitePlusIcon(size = 22.dp, color = if (isSelected) accentColor else Color.White.copy(alpha = 0.85f * labelAlpha))
+                    } else {
+                        WhiteFolderIcon(size = 22.dp, color = if (isSelected) accentColor else Color.White.copy(alpha = 0.85f * labelAlpha))
+                    }
+                }
+                if (isSelected || isHolding) {
+                    val outerXDp = discCenterXDp + (discRadiusDp + 28f) * cos(rad)
+                    val outerYDp = discCenterYDp + (discRadiusDp + 28f) * sin(rad)
+                    Box(
+                        modifier = Modifier
+                            .offset(x = outerXDp.dp, y = (outerYDp - 20f).dp)
+                            .width(220.dp)
+                            .height(40.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Text(
+                            text = item.second,
+                            color = if (isSelected) accentColor else Color.White.copy(alpha = 0.7f),
+                            fontSize = textSizeSp.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            letterSpacing = letterSpacingSp.sp,
+                            textAlign = TextAlign.Start,
+                            modifier = Modifier.graphicsLayer { alpha = if (isSelected) 1f else labelAlpha }
+                        )
+                    }
+                }
+            }
+        }
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = notchScale
+                    scaleY = notchScale
+                    transformOrigin = TransformOrigin(
+                        (discCenterXDp / screenWidthDp).coerceIn(0f, 1f),
+                        (discCenterYDp / screenHeightDp).coerceIn(0f, 1f)
+                    )
+                }
+        ) {
+            if (isHolding || notchScale > 1.01f) {
+                drawCircle(
+                    color = accentColor,
+                    radius = 8f,
+                    center = Offset((discCenterXDp + discRadiusDp).dp.toPx() - 14f, discCenterYDp.dp.toPx())
+                )
             }
         }
     }
