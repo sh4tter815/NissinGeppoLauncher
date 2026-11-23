@@ -75,6 +75,7 @@ import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.example.nissingeppolauncher.ui.components.parseFontFamily
 import com.example.nissingeppolauncher.data.LyricsManager
+import com.example.nissingeppolauncher.data.LyricEffectsData
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -101,7 +102,7 @@ class LyricsOverlayService : Service() {
     private var pvLifecycleOwner: OverlayLifecycleOwner? = null
     private val pvLineState = mutableStateOf<LyricLine?>(null)
     private val pvPosState = mutableStateOf(0L)
-    private val pvAccentState = mutableStateOf(androidx.compose.ui.graphics.Color(0xFFE53935))
+    private val pvColorWordsState = mutableStateOf<List<Pair<String, androidx.compose.ui.graphics.Color>>>(emptyList())
     private val pvFontState = mutableStateOf<FontFamily?>(null)
     private val pvEnFontState = mutableStateOf<FontFamily?>(null)
     private val pvBoldState = mutableStateOf(false)
@@ -294,9 +295,10 @@ class LyricsOverlayService : Service() {
     // PVミニ: 同じ帯に Compose で「ワード同期の色付き」だけを描く（アイコン・パーティクル・カメラワークなし）
     private fun buildPvOverlay(wm: WindowManager, width: Int, statusBarHeight: Int) {
         val pref = AppPreferenceManager(this)
-        pvAccentState.value = try {
-            androidx.compose.ui.graphics.Color(Color.parseColor(pref.getAccentColorHex()))
-        } catch (e: Exception) { pvAccentState.value }
+        serviceScope.launch {
+            LyricEffectsData.init(this@LyricsOverlayService)
+            pvColorWordsState.value = LyricEffectsData.colorWords + LyricEffectsData.assocColorWords
+        }
         val jpChoice = pref.getLyricsPvFont()
         val jpFont = parseFontFamily(jpChoice, if (jpChoice == "custom") pref.getCustomFontPath() else null)
         pvFontState.value = jpFont
@@ -355,8 +357,29 @@ class LyricsOverlayService : Service() {
         val weight = if (pvBoldState.value) FontWeight.Bold else FontWeight.Normal
         val fontFam = pvFontState.value
         val enFam = pvEnFontState.value
-        val accent = pvAccentState.value
+        val colorWords = pvColorWordsState.value
         val baseCol = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.92f)
+        // 登録ワード（色名・連想ワード）に反応する文字色。長いワードを先に、リスト順優先で塗る
+        val charColors = remember(line.text, colorWords) {
+            val arr = arrayOfNulls<androidx.compose.ui.graphics.Color>(line.text.length)
+            if (colorWords.isNotEmpty() && line.text.isNotEmpty()) {
+                for (pass in 0..1) {
+                    for ((w, c) in colorWords) {
+                        if (w.isEmpty()) continue
+                        if (pass == 0 && w.length < 2) continue
+                        if (pass == 1 && w.length >= 2) continue
+                        var from = 0
+                        while (true) {
+                            val idx = line.text.indexOf(w, from)
+                            if (idx < 0) break
+                            for (k in idx until idx + w.length) if (arr[k] == null) arr[k] = c
+                            from = idx + 1
+                        }
+                    }
+                }
+            }
+            arr
+        }
         val shadow = Shadow(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.6f), Offset(0f, 1.5f), 4f)
         val timings = remember(line) {
             if (line.words.isEmpty()) null else {
@@ -381,12 +404,7 @@ class LyricsOverlayService : Service() {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 line.text.forEachIndexed { i, ch ->
                     val t = timings?.getOrNull(i)
-                    val col = when {
-                        t == null -> baseCol
-                        posMs >= t.second -> accent
-                        posMs <= t.first -> baseCol
-                        else -> androidx.compose.ui.graphics.lerp(baseCol, accent, ((posMs - t.first).toFloat() / (t.second - t.first).coerceAtLeast(1L).toFloat()).coerceIn(0f, 1f))
-                    }
+                    val col = charColors.getOrNull(i) ?: baseCol
                     val entered = if (t != null) posMs >= t.first else posMs >= line.timeMs + i * 45L
                     val anim = remember(line.timeMs, i) { Animatable(if (entered) 1f else 0f) }
                     LaunchedEffect(entered) {
@@ -474,9 +492,7 @@ class LyricsOverlayService : Service() {
                 clockView?.text = hourFormat.format(now) + "\n" + minuteFormat.format(now)
                 if (overlayMode == "pv") {
                     pvClockState.value = hourFormat.format(now) + "\n" + minuteFormat.format(now)
-                    pvAccentState.value = try {
-                        androidx.compose.ui.graphics.Color(Color.parseColor(AppPreferenceManager(this@LyricsOverlayService).getAccentColorHex()))
-                    } catch (e: Exception) { pvAccentState.value }
+                    pvColorWordsState.value = LyricEffectsData.colorWords + LyricEffectsData.assocColorWords
                 }
                 applyFonts()
                 delay(5000)
