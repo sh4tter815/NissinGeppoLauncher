@@ -37,7 +37,11 @@ import androidx.core.content.res.ResourcesCompat
 import com.example.nissingeppolauncher.R
 import com.example.nissingeppolauncher.data.LyricLine
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Text
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.fillMaxSize
@@ -47,6 +51,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.graphics.graphicsLayer
@@ -76,6 +86,11 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.example.nissingeppolauncher.ui.components.parseFontFamily
 import com.example.nissingeppolauncher.data.LyricsManager
 import com.example.nissingeppolauncher.ui.LyricEffectsData
+import com.example.nissingeppolauncher.ui.splitLyricUnits
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import kotlin.math.abs
+import kotlin.math.sin
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -101,6 +116,7 @@ class LyricsOverlayService : Service() {
     private var overlayMode: String = "line"
     private var pvLifecycleOwner: OverlayLifecycleOwner? = null
     private val pvLineState = mutableStateOf<LyricLine?>(null)
+    private val pvInterludeState = mutableStateOf(false)
     private val pvPosState = mutableStateOf(0L)
     private val pvColorWordsState = mutableStateOf<List<Pair<String, androidx.compose.ui.graphics.Color>>>(emptyList())
     private val pvFontState = mutableStateOf<FontFamily?>(null)
@@ -350,15 +366,16 @@ class LyricsOverlayService : Service() {
         }
     }
 
-    // PVミニの行描画: ワード同期の色付け + 文字ごとの大きさの差 + 1文字ずつの入場アニメーション
+    // PVミニの行描画: 登録ワードの色 + 文字ごとの大きさ・ゆらぎ + 1文字ずつの入場 + 意味の区切りで最大2行
     @Composable
     private fun MiniPvLine(line: LyricLine, posMs: Long) {
         val measurer = rememberTextMeasurer()
         val weight = if (pvBoldState.value) FontWeight.Bold else FontWeight.Normal
         val fontFam = pvFontState.value
         val enFam = pvEnFontState.value
-        val colorWords = pvColorWordsState.value
         val baseCol = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.92f)
+        val shadow = Shadow(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.6f), Offset(0f, 1.5f), 4f)
+        val colorWords = pvColorWordsState.value
         // 登録ワード（色名・連想ワード）に反応する文字色。長いワードを先に、リスト順優先で塗る
         val charColors = remember(line.text, colorWords) {
             val arr = arrayOfNulls<androidx.compose.ui.graphics.Color>(line.text.length)
@@ -380,7 +397,6 @@ class LyricsOverlayService : Service() {
             }
             arr
         }
-        val shadow = Shadow(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.6f), Offset(0f, 1.5f), 4f)
         val timings = remember(line) {
             if (line.words.isEmpty()) null else {
                 val list = mutableListOf<Pair<Long, Long>>()
@@ -394,42 +410,169 @@ class LyricsOverlayService : Service() {
                 list
             }
         }
-        BoxWithConstraints(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+        val chunks = remember(line.text) { try { splitLyricUnits(line.text) } catch (e: Exception) { listOf(line.text) } }
+        val splitIdx = remember(line.text, chunks) { computeMiniSplit(line.text, chunks) }
+        val rowTexts = if (splitIdx in 1 until line.text.length) {
+            listOf(line.text.substring(0, splitIdx), line.text.substring(splitIdx))
+        } else listOf(line.text)
+        val swayTrans = rememberInfiniteTransition(label = "miniSway")
+        val swayT by swayTrans.animateFloat(
+            initialValue = 0f, targetValue = 6.2832f,
+            animationSpec = infiniteRepeatable(tween(3400, LinearEasing), RepeatMode.Restart),
+            label = "swayT"
+        )
+        BoxWithConstraints(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             val style20 = TextStyle(fontFamily = fontFam, fontSize = 20.sp, fontWeight = weight)
-            val textWidth = remember(line.text, fontFam, weight) {
-                measurer.measure(line.text, style20, softWrap = false).size.width
-            }
             val availPx = with(LocalDensity.current) { maxWidth.toPx() }
-            val fitSp = if (textWidth > 0) (20f * availPx / textWidth * 0.94f).coerceIn(7f, 18f) else 18f
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                line.text.forEachIndexed { i, ch ->
-                    val t = timings?.getOrNull(i)
-                    val col = charColors.getOrNull(i) ?: baseCol
-                    val entered = if (t != null) posMs >= t.first else posMs >= line.timeMs + i * 45L
-                    val anim = remember(line.timeMs, i) { Animatable(if (entered) 1f else 0f) }
-                    LaunchedEffect(entered) {
-                        if (entered && anim.value < 1f) anim.animateTo(1f, tween(durationMillis = 190, easing = FastOutSlowInEasing))
-                    }
-                    val seed = (line.timeMs / 100L).toInt() * 31 + i * 17
-                    val factor = 0.92f + ((seed % 22 + 22) % 22) / 100f
-                    Text(
-                        text = ch.toString(),
-                        color = col,
-                        fontSize = (fitSp * factor).sp,
-                        fontWeight = weight,
-                        fontFamily = if (enFam != null && ch in ' '..'~') enFam else fontFam,
-                        style = TextStyle(shadow = shadow),
-                        modifier = Modifier.graphicsLayer {
-                            alpha = anim.value
-                            scaleX = 0.55f + 0.45f * anim.value
-                            scaleY = 0.55f + 0.45f * anim.value
-                            translationY = (1f - anim.value) * 5.dp.toPx()
-                            rotationZ = ((seed % 13 + 13) % 13 - 6).toFloat() * (1f - anim.value * 0.4f)
+            val rawFit = remember(line.text, rowTexts, availPx, fontFam, weight) {
+                var f = 18f
+                for (rt in rowTexts) {
+                    val w = measurer.measure(rt, style20, softWrap = false).size.width
+                    if (w > 0) f = minOf(f, 20f * availPx / w)
+                }
+                (f * 0.94f).coerceIn(7f, 18f)
+            }
+            val fitSp = if (rowTexts.size == 2) {
+                val cap = with(LocalDensity.current) { (maxHeight.toDp().value / 2f) / 1.25f / fontScale }
+                minOf(rawFit, cap).coerceAtLeast(6f)
+            } else rawFit
+            Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
+                rowTexts.forEachIndexed { r, rowText ->
+                    val startIdx = if (r == 0) 0 else splitIdx
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        rowText.forEachIndexed { j, ch ->
+                            val i = startIdx + j
+                            val t = timings?.getOrNull(i)
+                            val col = charColors.getOrNull(i) ?: baseCol
+                            val entered = if (t != null) posMs >= t.first else posMs >= line.timeMs + i * 45L
+                            val anim = remember(line.timeMs, i) { Animatable(if (entered) 1f else 0f) }
+                            LaunchedEffect(entered) {
+                                if (entered && anim.value < 1f) anim.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = 380f))
+                            }
+                            val seed = (line.timeMs / 100L).toInt() * 31 + i * 17
+                            val factor = 0.92f + ((seed % 22 + 22) % 22) / 100f
+                            val phase = ((seed % 628 + 628) % 628) / 100f
+                            Text(
+                                text = ch.toString(),
+                                color = col,
+                                fontSize = (fitSp * factor).sp,
+                                fontWeight = weight,
+                                fontFamily = if (enFam != null && ch in ' '..'~') enFam else fontFam,
+                                style = TextStyle(shadow = shadow),
+                                modifier = Modifier.graphicsLayer {
+                                    alpha = anim.value
+                                    val es = 0.55f + 0.45f * anim.value
+                                    val breathe = 1f + 0.03f * sin(swayT * 1.3f + phase)
+                                    scaleX = es * breathe
+                                    scaleY = es * breathe
+                                    translationY = (1f - anim.value) * 5.dp.toPx() + sin(swayT + phase) * 1.6.dp.toPx()
+                                    rotationZ = ((seed % 13 + 13) % 13 - 6).toFloat() * (1f - anim.value * 0.4f) + sin(swayT * 0.8f + phase * 1.7f) * 2.5f
+                                }
+                            )
                         }
-                    )
+                    }
                 }
             }
         }
+    }
+
+    // PVミニの間奏: 本家と同じ波の線＋粒子（瞬く点）
+    @Composable
+    private fun MiniInterludeWave() {
+        val trans = rememberInfiniteTransition(label = "miniWave")
+        val t by trans.animateFloat(
+            initialValue = 0f, targetValue = 6.2832f,
+            animationSpec = infiniteRepeatable(tween(2600, LinearEasing), RepeatMode.Restart),
+            label = "waveT"
+        )
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            for (w in 0..1) {
+                val amp = (3.2f - w * 1.1f).dp.toPx()
+                val baseY = size.height * (0.5f + (w - 0.5f) * 0.18f)
+                val path = Path()
+                var x = 0f
+                path.moveTo(0f, baseY + sin(t + w * 1.7f) * amp)
+                while (x <= size.width) {
+                    x += 6f
+                    path.lineTo(x, baseY + sin(t + x / size.width * 4.2f + w * 1.7f) * amp)
+                }
+                drawPath(
+                    path,
+                    color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f - w * 0.22f),
+                    style = Stroke(width = 1.2.dp.toPx())
+                )
+            }
+            for (i in 0 until 10) {
+                val px = ((i * 47) % 100) / 100f * size.width
+                val py = ((i * 31) % 70 + 15) / 100f * size.height
+                val tw = 0.35f + 0.65f * abs(sin(t * 1.4f + i * 1.93f))
+                drawCircle(
+                    androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f * tw),
+                    radius = (if (i % 3 == 0) 1.6f else 1.1f) * tw,
+                    center = Offset(px, py)
+                )
+            }
+        }
+    }
+
+    private fun miniCharEm(ch: Char): Float = when {
+        ch.code in 0x20..0x7E -> 0.56f
+        ch.code in 0xFF61..0xFF9F -> 0.5f
+        else -> 1f
+    }
+
+    private fun miniChunkEm(s: String): Float = s.fold(0f) { a, c -> a + miniCharEm(c) * 1.02f }
+
+    // 本家と同じ考え方の改行位置: 塊の境界で左右均等、長い1塊は助詞の位置で割る
+    private fun computeMiniSplit(text: String, chunks: List<String>): Int {
+        val nonSpace = text.count { it != ' ' && it != '　' }
+        if (nonSpace < 6) return -1
+        if (chunks.size == 1) {
+            val s = chunks[0]
+            if (s.length >= 6 && miniChunkEm(s) > 12f) {
+                val total = miniChunkEm(s)
+                val particles = "はがをにへとやのもでからまでよりばねよわ"
+                var bestI = -1
+                var bestD = Float.MAX_VALUE
+                var acc = 0f
+                for (i in 1 until s.length) {
+                    acc += miniCharEm(s[i - 1]) * 1.02f
+                    if (i >= 2 && i <= s.length - 2 && (s[i - 1] in particles || s[i - 1] == ' ' || s[i - 1] == '　')) {
+                        val d = abs(total / 2f - acc)
+                        if (d < bestD) { bestD = d; bestI = i }
+                    }
+                }
+                if (bestI < 0) {
+                    acc = 0f
+                    bestD = Float.MAX_VALUE
+                    for (i in 1 until s.length) {
+                        acc += miniCharEm(s[i - 1]) * 1.02f
+                        val d = abs(total / 2f - acc)
+                        if (d < bestD) { bestD = d; bestI = i }
+                    }
+                }
+                val noStart = "ーぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮ・、。，．！!？?）)】」』\""
+                while (bestI > 1 && bestI < s.length && s[bestI] in noStart) bestI--
+                while (bestI < s.length - 1 && bestI > 0 && s[bestI] in noStart) bestI++
+                if (bestI in 1 until s.length) return bestI
+            }
+            return -1
+        }
+        val totalEm = chunks.sumOf { miniChunkEm(it).toDouble() }.toFloat()
+        var acc = 0f
+        var best = 1
+        var bestDiff = Float.MAX_VALUE
+        for (idx in 1 until chunks.size) {
+            acc += miniChunkEm(chunks[idx - 1])
+            val diff = abs(totalEm / 2f - acc)
+            if (diff < bestDiff) { bestDiff = diff; best = idx }
+        }
+        val split = chunks.take(best).sumOf { it.length }
+        return if (split in 1 until text.length) split else -1
     }
 
     @Composable
@@ -454,6 +597,8 @@ class LyricsOverlayService : Service() {
             ) {
                 if (line != null) {
                     MiniPvLine(line = line, posMs = pvPosState.value)
+                } else if (pvInterludeState.value) {
+                    MiniInterludeWave()
                 }
             }
         }
@@ -607,6 +752,7 @@ class LyricsOverlayService : Service() {
                             showLine(newLine, sungInLine)
                             if (overlayMode == "pv") {
                                 pvLineState.value = if (inInterlude) null else curLine
+                                pvInterludeState.value = inInterlude
                                 pvPosState.value = posMs
                             }
                             updateVisibility()
@@ -614,6 +760,7 @@ class LyricsOverlayService : Service() {
                     } else if (currentLine.isNotEmpty()) {
                         currentLine = ""
                         pvLineState.value = null
+                        pvInterludeState.value = false
                         updateVisibility()
                     }
                 } catch (e: Exception) {
