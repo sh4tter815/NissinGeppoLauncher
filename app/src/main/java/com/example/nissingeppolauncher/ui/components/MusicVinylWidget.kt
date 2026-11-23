@@ -255,6 +255,11 @@ fun MusicVinylWidget(
         index == rackCurrentIndex -> albumArtBitmap
         else -> null
     }
+    // pointerInput のラムダは作られた時点の値を捕捉したままになるため、最新値を参照し続ける箱を用意する
+    val latestRackCurrentIndex by rememberUpdatedState(rackCurrentIndex)
+    val latestRackSize by rememberUpdatedState(rackSize)
+    val latestQueueMode by rememberUpdatedState(queueMode)
+    val latestSessionQueue by rememberUpdatedState(sessionQueue)
     val rackFocusedIndex = if (rackSize == 0) 0 else (rackCurrentIndex + rackScrollAnim.value.roundToInt()).coerceIn(0, rackSize - 1)
     var rackLastHapticIndex by remember { mutableIntStateOf(-1) }
     LaunchedEffect(rackShow, rackFocusedIndex) {
@@ -416,7 +421,7 @@ fun MusicVinylWidget(
                         while (true) {
                             val down = awaitFirstDown(requireUnconsumed = false)
                             val hasSession = sessionController != null
-                            val startIdx = rackCurrentIndex
+                            val startIdx = latestRackCurrentIndex
                             rackTargetOffset = 0
                             if (hasSession) rackOpen = true
                             var moved = false
@@ -431,7 +436,7 @@ fun MusicVinylWidget(
                                     while (dy <= -40f || dy >= 40f) {
                                         val dir = (if (dy <= -40f) 1 else -1) * dirSign
                                         val newTarget = rackTargetOffset + dir
-                                        if (startIdx + newTarget in 0 until rackSize) {
+                                        if (startIdx + newTarget in 0 until latestRackSize) {
                                             rackTargetOffset = newTarget
                                             moved = true
                                             runRackSteps()
@@ -448,7 +453,7 @@ fun MusicVinylWidget(
                                 change.consume()
                             }
                             val heldMs = System.currentTimeMillis() - downWall
-                            val finalIndex = (startIdx + rackTargetOffset).coerceIn(0, (rackSize - 1).coerceAtLeast(0))
+                            val finalIndex = (startIdx + rackTargetOffset).coerceIn(0, (latestRackSize - 1).coerceAtLeast(0))
                             val shouldJump = hasSession && moved && finalIndex != startIdx
                             if (shouldJump) {
                                 widgetScope.launch {
@@ -461,8 +466,8 @@ fun MusicVinylWidget(
                                         val tc = sessionController?.transportControls
                                         if (shouldJump) {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            if (queueMode) {
-                                                sessionQueue.getOrNull(finalIndex)?.let { tc?.skipToQueueItem(it.queueId) }
+                                            if (latestQueueMode) {
+                                                latestSessionQueue.getOrNull(finalIndex)?.let { tc?.skipToQueueItem(it.queueId) }
                                             } else if (finalIndex < startIdx) {
                                                 tc?.skipToPrevious()
                                             } else {
