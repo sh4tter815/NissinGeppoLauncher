@@ -62,6 +62,7 @@ import com.example.nissingeppolauncher.data.SettingNodeDef
 import com.example.nissingeppolauncher.ui.components.DiscInfoChip
 import com.example.nissingeppolauncher.ui.components.DiscValueWheel
 import com.example.nissingeppolauncher.ui.components.DiscGlyph
+import com.example.nissingeppolauncher.ui.components.DiscMiniSwitch
 import com.example.nissingeppolauncher.ui.components.lucidePath
 import com.example.nissingeppolauncher.ui.components.DiscSide
 import com.example.nissingeppolauncher.ui.components.DiscCarouselState
@@ -1239,6 +1240,7 @@ key("disc-choices-${currentItem.id}") {
                                     val cFont = choice.fontSample
                                     val cIllo = choice.illo
                                     when {
+                                        choice.id == "on" || choice.id == "off" -> DiscMiniSwitch(choice.id == "on", currentAccentColor)
                                         cHex != null -> Box(
                                             modifier = Modifier.size(30.dp).clip(CircleShape).background(parseHexColor(cHex))
                                         )
