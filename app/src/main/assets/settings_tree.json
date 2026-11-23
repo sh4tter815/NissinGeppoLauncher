@@ -1,5 +1,5 @@
 {
- "version": 10,
+ "version": 11,
  "items": {
   "reverse": {
    "label": "スクロール方向の反転",
@@ -760,6 +760,27 @@
    "glyph": "arrow-up-down",
    "type": "toggle",
    "bind": "rackReverse"
+  },
+  "settingsExport": {
+   "label": "設定を書き出す",
+   "desc": "読み仮名・お気に入りを含む全設定をJSONファイルに保存します",
+   "glyph": "download",
+   "type": "action",
+   "action": "settingsExport"
+  },
+  "settingsImport": {
+   "label": "設定を読み込む",
+   "desc": "書き出したJSONから設定を復元します（今の設定は置き換わります）",
+   "glyph": "database",
+   "type": "action",
+   "action": "settingsImport"
+  },
+  "yomiUpdate": {
+   "label": "読み仮名データを更新",
+   "desc": "主要アプリの読み仮名辞書を最新にします",
+   "glyph": "languages",
+   "type": "action",
+   "action": "yomiUpdate"
   }
  },
  "tree": [
@@ -1065,6 +1086,15 @@
     },
     {
      "item": "guideReshow"
+    },
+    {
+     "item": "yomiUpdate"
+    },
+    {
+     "item": "settingsExport"
+    },
+    {
+     "item": "settingsImport"
     }
    ]
   }
