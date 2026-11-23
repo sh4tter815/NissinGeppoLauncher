@@ -700,7 +700,7 @@ fun MainLauncherScreen() {
         state.rawRotation = angle
         coroutineScope.launch { state.rotationAnim.snapTo(angle) }
     }
-    val folderStepAngle = 24f
+    val folderStepAngle = repo.prefManager.getAppDiscStepAngle()
 
     val createNewFolderStr = "新規作成"
     val currentFolderParentId = folderPath.lastOrNull()
@@ -1309,7 +1309,7 @@ fun MainLauncherScreen() {
                             verticalRestLabel = true,
                             textSizeSp = appDiscTextSize,
                             letterSpacingSp = appDiscLetterSpacing,
-                            stepAngle = 24f,
+                            stepAngle = appDiscStepAngle,
                             discCenterXDp = animatedDisc1CenterX,
                             discCenterYDp = disc1CenterY,
                             onFocusChange = { folderSelectedIndex = it }
@@ -2253,6 +2253,7 @@ fun MainLauncherScreen() {
         // 0. パスコード認証ダイアログ (非表示リスト用)
         if (showPasscodeDialog) {
             PasscodeDialog(
+                accentColor = accentColor,
                 onDismiss = { showPasscodeDialog = false },
                 onSuccess = {
                     isHideMode = true
