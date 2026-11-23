@@ -1091,7 +1091,7 @@ fun buildDiscItems(apps: List<AppInfo>, showIndices: Boolean, badges: Map<String
     if (showIndices) {
         var lastInitial: String? = null
         for (app in apps) {
-            val initial = app.initialJapanese.ifBlank { "＃" }
+            val initial = app.discGroup.ifBlank { "＃" }
             if (initial != lastInitial) {
                 items.add(DiscItem.IndexEntry(initial))
                 lastInitial = initial
