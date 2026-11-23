@@ -408,6 +408,10 @@ class AppPreferenceManager(private val context: Context) {
     fun getPageWallpaperPath(page: Int): String? = prefs.getString("wallpaper_path_page_$page", null)
     fun setPageWallpaperPath(page: Int, path: String?) = prefs.edit().putString("wallpaper_path_page_$page", path).apply()
 
+    // 通知バッジ（アプリアイコン右上に通知数）
+    fun isNotificationBadgesEnabled(): Boolean = prefs.getBoolean("notification_badges", true)
+    fun setNotificationBadgesEnabled(v: Boolean) = prefs.edit().putBoolean("notification_badges", v).apply()
+
     // アートワーク表示（左円とラックの画像そのもの）
     fun isArtworkEnabled(): Boolean = prefs.getBoolean("artwork_enabled", true)
     fun setArtworkEnabled(v: Boolean) = prefs.edit().putBoolean("artwork_enabled", v).apply()
