@@ -430,7 +430,7 @@ class LyricsOverlayService : Service() {
             val runEn = BooleanArray(runs.size)
             for (k in runs.indices) {
                 val (s, e, ascii) = runs[k]
-                if (ascii && line.text.substring(s, e).any { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' }) runEn[k] = true
+                if (ascii && e - s > 1 && line.text.substring(s, e).any { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' }) runEn[k] = true
             }
             for (k in runs.indices) {
                 if (!runs[k].third || runEn[k]) continue
@@ -966,7 +966,7 @@ class LyricsOverlayService : Service() {
         for (k in runs.indices) {
             val (s, e, ascii) = runs[k]
             if (!ascii) continue
-            if (line.substring(s, e).any { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' }) useEn[k] = true
+            if (e - s > 1 && line.substring(s, e).any { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' }) useEn[k] = true
         }
         for (k in runs.indices) {
             if (!runs[k].third || useEn[k]) continue
