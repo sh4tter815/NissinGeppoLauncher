@@ -75,7 +75,7 @@ import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.example.nissingeppolauncher.ui.components.parseFontFamily
 import com.example.nissingeppolauncher.data.LyricsManager
-import com.example.nissingeppolauncher.data.LyricEffectsData
+import com.example.nissingeppolauncher.ui.LyricEffectsData
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -408,7 +408,7 @@ class LyricsOverlayService : Service() {
                     val entered = if (t != null) posMs >= t.first else posMs >= line.timeMs + i * 45L
                     val anim = remember(line.timeMs, i) { Animatable(if (entered) 1f else 0f) }
                     LaunchedEffect(entered) {
-                        if (entered && anim.value < 1f) anim.animateTo(1f, tween(190, FastOutSlowInEasing))
+                        if (entered && anim.value < 1f) anim.animateTo(1f, tween(durationMillis = 190, easing = FastOutSlowInEasing))
                     }
                     val seed = (line.timeMs / 100L).toInt() * 31 + i * 17
                     val factor = 0.92f + ((seed % 22 + 22) % 22) / 100f
