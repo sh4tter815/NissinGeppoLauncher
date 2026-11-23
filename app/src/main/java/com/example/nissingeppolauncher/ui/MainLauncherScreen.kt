@@ -25,15 +25,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Fullscreen
-import androidx.compose.material.icons.filled.FullscreenExit
-import androidx.compose.material.icons.filled.Lyrics
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Translate
-import androidx.compose.material.icons.filled.Timer
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
@@ -706,6 +697,13 @@ fun MainLauncherScreen() {
     val folderItemsWithNew = remember(folderList, createNewFolderStr) {
         folderList + Pair("NEW_FOLDER", createNewFolderStr)
     }
+    // フォルダの左円も共通部品 DiscWheel で描く（設定・索引と仕様を統一）
+    val folderEntries = remember(folderItemsWithNew) {
+        folderItemsWithNew.map { (fid, fname) ->
+            if (fid == "NEW_FOLDER") DiscEntry(id = fid, label = fname, icon = { WhitePlusIcon(size = 22.dp, color = Color.White) })
+            else DiscEntry(id = fid, label = fname, icon = { WhiteFolderIcon(size = 22.dp, color = Color.White) })
+        }
+    }
 
     val selectedFolderItemIndex = if (folderItemsWithNew.isEmpty()) -1 else folderSelectedIndex.coerceIn(0, folderItemsWithNew.size - 1)
 
@@ -801,7 +799,7 @@ fun MainLauncherScreen() {
 
     val animatedDisc1CenterX by animateFloatAsState(
         targetValue = when {
-            isTransitioning || isHoldingRight -> -disc1RadiusDp
+            isTransitioning -> -disc1RadiusDp
             isReadyToOpenHiddenList -> disc1CenterX + 110f // 右へ大きくオフセットしてスイッチが入ったことを視覚化
             else -> disc1CenterX
         },
@@ -811,7 +809,7 @@ fun MainLauncherScreen() {
 
     val animatedDisc2CenterX by animateFloatAsState(
         targetValue = when {
-            isTransitioning || isHoldingLeft || isHoldingFolderWheel -> screenWidthDp + disc2RadiusDp
+            isTransitioning -> screenWidthDp + disc2RadiusDp
             else -> disc2CenterX
         },
         animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
@@ -1039,10 +1037,7 @@ fun MainLauncherScreen() {
                             .graphicsLayer {
                                 alpha = if (isLyricsBrowsing) 0f else 1f
                                 if (disc3d) {
-                                    transformOrigin = TransformOrigin(
-                                        (animatedDisc2CenterX / screenWidthDp).coerceIn(-2f, 3f),
-                                        ((disc2CenterY + lyricsDiscDrop) / screenHeightDp).coerceIn(-2f, 3f)
-                                    )
+                                    transformOrigin = TransformOrigin(0.5f, 0.5f)
                                     rotationX = 27f + discTiltX.value
                                     rotationY = discTiltY.value
                                     cameraDistance = 6.5f * density
@@ -1090,10 +1085,7 @@ fun MainLauncherScreen() {
                             .graphicsLayer {
                                 alpha = if (isLyricsBrowsing) 0f else 1f
                                 if (disc3d) {
-                                    transformOrigin = TransformOrigin(
-                                        (animatedDisc1CenterX / screenWidthDp).coerceIn(-2f, 3f),
-                                        ((disc1CenterY + lyricsDiscDrop) / screenHeightDp).coerceIn(-2f, 3f)
-                                    )
+                                    transformOrigin = TransformOrigin(0.5f, 0.5f)
                                     rotationX = 27f + discTiltX.value
                                     rotationY = discTiltY.value
                                     cameraDistance = 6.5f * density
@@ -1123,10 +1115,7 @@ fun MainLauncherScreen() {
                             .fillMaxSize()
                             .graphicsLayer {
                                 if (disc3d) {
-                                    transformOrigin = TransformOrigin(
-                                        (animatedDisc1CenterX / screenWidthDp).coerceIn(-2f, 3f),
-                                        (disc1CenterY / screenHeightDp).coerceIn(-2f, 3f)
-                                    )
+                                    transformOrigin = TransformOrigin(0.5f, 0.5f)
                                     rotationX = 27f + discTiltX.value
                                     rotationY = discTiltY.value
                                     cameraDistance = 6.5f * density
@@ -1143,6 +1132,8 @@ fun MainLauncherScreen() {
                         isLoopable = true,
                         discCenterXDp = animatedDisc1CenterX,
                         discCenterYDp = disc1CenterY,
+                        dotMarkers = true,
+                        restLabelText = selectedIndexChar?.let { "『$it』から始まるアプリ" },
                         onFocusChange = { indexSelected = it }
                     )
 
@@ -1183,7 +1174,7 @@ fun MainLauncherScreen() {
                         modifier = Modifier.fillMaxSize()
                                 .graphicsLayer {
                                     if (disc3d) {
-                                        transformOrigin = TransformOrigin((animatedDisc2CenterX / screenWidthDp).coerceIn(-2f, 3f), (disc2CenterY / screenHeightDp).coerceIn(-2f, 3f))
+                                        transformOrigin = TransformOrigin(0.5f, 0.5f)
                                         rotationX = 27f + discTiltX.value
                                         rotationY = discTiltY.value
                                         cameraDistance = 6.5f * density
@@ -1231,7 +1222,7 @@ fun MainLauncherScreen() {
                             modifier = Modifier.fillMaxSize()
                                 .graphicsLayer {
                                     if (disc3d) {
-                                        transformOrigin = TransformOrigin((animatedDisc1CenterX / screenWidthDp).coerceIn(-2f, 3f), (disc1CenterY / screenHeightDp).coerceIn(-2f, 3f))
+                                        transformOrigin = TransformOrigin(0.5f, 0.5f)
                                         rotationX = 27f + discTiltX.value
                                         rotationY = discTiltY.value
                                         cameraDistance = 6.5f * density
@@ -1248,30 +1239,37 @@ fun MainLauncherScreen() {
                             isLoopable = true,
                             discCenterXDp = animatedDisc1CenterX,
                             discCenterYDp = disc1CenterY,
+                            dotMarkers = true,
+                            restLabelText = selectedIndexChar?.let { "『$it』から始まるアプリ" },
                             onFocusChange = { indexSelected = it }
                         )
                     } else {
                         // 左側: フォルダ選択ダイヤル
-                        DiscFolderWheel(
-                            folders = folderList,
-                            state = folderDiscState,
+                        DiscWheel(
+                            entries = folderEntries,
+                            side = DiscSide.LEFT,
+                            accentColor = accentColor,
                             modifier = Modifier.fillMaxSize()
                                 .graphicsLayer {
                                     if (disc3d) {
-                                        transformOrigin = TransformOrigin((animatedDisc1CenterX / screenWidthDp).coerceIn(-2f, 3f), (disc1CenterY / screenHeightDp).coerceIn(-2f, 3f))
+                                        transformOrigin = TransformOrigin(0.5f, 0.5f)
                                         rotationX = 27f + discTiltX.value
                                         rotationY = discTiltY.value
                                         cameraDistance = 6.5f * density
                                     }
                                 },
+                            state = folderDiscState,
+                            gesturesEnabled = false,
+                            holdExpand = true,
+                            holdActive = isHoldingFolderWheel,
+                            focusedLabelOnly = true,
+                            fadeLabelsOnScroll = false,
+                            accentSelectedLabel = true,
+                            verticalRestLabel = true,
+                            stepAngle = 24f,
                             discCenterXDp = animatedDisc1CenterX,
                             discCenterYDp = disc1CenterY,
-                            discRadiusDp = disc1RadiusDp,
-                            isHolding = isHoldingFolderWheel,
-                            textSizeSp = appDiscTextSize,
-                            letterSpacingSp = appDiscLetterSpacing,
-                            accentColor = accentColor,
-                            onSelectedIndexChange = { folderSelectedIndex = it }
+                            onFocusChange = { folderSelectedIndex = it }
                         )
                     }
 
@@ -1311,7 +1309,7 @@ fun MainLauncherScreen() {
                         modifier = Modifier.fillMaxSize()
                                 .graphicsLayer {
                                     if (disc3d) {
-                                        transformOrigin = TransformOrigin((animatedDisc2CenterX / screenWidthDp).coerceIn(-2f, 3f), (disc2CenterY / screenHeightDp).coerceIn(-2f, 3f))
+                                        transformOrigin = TransformOrigin(0.5f, 0.5f)
                                         rotationX = 27f + discTiltX.value
                                         rotationY = discTiltY.value
                                         cameraDistance = 6.5f * density
@@ -1973,17 +1971,16 @@ fun MainLauncherScreen() {
                     },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Lyrics,
-                    contentDescription = null,
-                    tint = accentColor,
-                    modifier = Modifier.size(24.dp).blur(6.dp)
+                LucideIcon(
+                    icon = LucideListMusic,
+                    size = 24.dp,
+                    color = accentColor,
+                    modifier = Modifier.blur(6.dp)
                 )
-                Icon(
-                    imageVector = Icons.Default.Lyrics,
-                    contentDescription = "歌詞",
-                    tint = accentColor,
-                    modifier = Modifier.size(24.dp)
+                LucideIcon(
+                    icon = LucideListMusic,
+                    size = 24.dp,
+                    color = accentColor
                 )
             }
         }
@@ -2030,11 +2027,10 @@ fun MainLauncherScreen() {
                     .clickable { pvFullscreen = true },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.Fullscreen,
-                    contentDescription = "歌詞を全画面表示",
-                    tint = accentColor,
-                    modifier = Modifier.size(24.dp)
+                LucideIcon(
+                    icon = LucideMaximize,
+                    size = 24.dp,
+                    color = accentColor
                 )
             }
         }

@@ -53,18 +53,6 @@ import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material.icons.filled.RepeatOne
-import androidx.compose.material.icons.filled.Lyrics
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Fullscreen
-import androidx.compose.material.icons.filled.FullscreenExit
-import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -148,9 +136,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Translate
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.key
 import com.example.nissingeppolauncher.ui.components.LiquidGradientBackground
 import kotlin.math.floor
@@ -3774,7 +3759,7 @@ fun LyricsBrowseOverlay(
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.PlayArrow, contentDescription = "ここへ移動", tint = Color.White, modifier = Modifier.size(24.dp))
+                    LucideIcon(LucidePlay, size = 24.dp, color = Color.White)
                 }
             }
             Column(
@@ -3859,7 +3844,7 @@ fun LyricsBrowseOverlay(
             .clickable { onClose() },
         contentAlignment = Alignment.Center
     ) {
-        Icon(Icons.Default.Close, contentDescription = "閉じる", tint = Color.White.copy(alpha = 0.8f), modifier = Modifier.size(26.dp))
+        LucideIcon(LucideX, size = 26.dp, color = Color.White.copy(alpha = 0.8f))
     }
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -3959,7 +3944,7 @@ fun LyricsBrowseOverlay(
                     .clickable { onRefresh() },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Refresh, contentDescription = "歌詞を再取得", tint = Color.White, modifier = Modifier.size(24.dp))
+                LucideIcon(LucideRefreshCcw, size = 24.dp, color = Color.White)
             }
             // タグを指定して検索（間違った歌詞を掴んだとき用）
             Box(
@@ -3970,7 +3955,7 @@ fun LyricsBrowseOverlay(
                     .clickable { onOpenSearch() },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Search, contentDescription = "タグを指定して検索", tint = Color.White, modifier = Modifier.size(24.dp))
+                LucideIcon(LucideSearch, size = 24.dp, color = Color.White)
             }
             // 歌詞を手で編集（誤字修正など。キャッシュに保存される）
             if (onSaveEditedLyrics != null && lines.isNotEmpty()) {
@@ -3988,7 +3973,7 @@ fun LyricsBrowseOverlay(
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.Edit, contentDescription = "歌詞を編集", tint = Color.White, modifier = Modifier.size(24.dp))
+                    LucideIcon(LucidePencil, size = 24.dp, color = Color.White)
                 }
             }
             // 右: タイミング調整（オフセット）
@@ -4000,7 +3985,7 @@ fun LyricsBrowseOverlay(
                     .clickable { showOffsetPanel = !showOffsetPanel },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Timer, contentDescription = "タイミング調整", tint = Color.White, modifier = Modifier.size(24.dp))
+                LucideIcon(LucideTimer, size = 24.dp, color = Color.White)
             }
             // 翻訳ON/OFF（洋楽の対訳をPVの下に出す）
             Box(
@@ -4011,7 +3996,7 @@ fun LyricsBrowseOverlay(
                     .clickable { onToggleTranslation() },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Translate, contentDescription = "翻訳", tint = Color.White, modifier = Modifier.size(24.dp))
+                LucideIcon(LucideLanguages, size = 24.dp, color = Color.White)
             }
             // ドパガキモードON/OFF
             Box(
@@ -4025,7 +4010,7 @@ fun LyricsBrowseOverlay(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Star, contentDescription = "ドパガキモード", tint = Color.White, modifier = Modifier.size(24.dp))
+                LucideIcon(LucideSparkles, size = 24.dp, color = Color.White)
             }
         }
     }
@@ -4431,11 +4416,10 @@ fun LyricsFullscreenOverlay(
                 .clickable { onClose() },
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.FullscreenExit,
-                contentDescription = "全画面を終了",
-                tint = Color.White.copy(alpha = 0.85f),
-                modifier = Modifier.size(26.dp)
+            LucideIcon(
+                icon = LucideMinimize,
+                size = 26.dp,
+                color = Color.White.copy(alpha = 0.85f)
             )
         }
     }
