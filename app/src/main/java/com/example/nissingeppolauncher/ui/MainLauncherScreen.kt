@@ -243,7 +243,8 @@ fun MainLauncherScreen() {
                 fillChunkLines = true
             )
             lyricTranslationsHead = LyricsManager.translateToJapanese(
-                context, sessionTrackTitle, sessionTrackArtist, sessionTrackAlbum, syncedLyricLines
+                context, sessionTrackTitle, sessionTrackArtist, sessionTrackAlbum, syncedLyricLines,
+                placeAtGroupEnd = true
             )
         }
     }
