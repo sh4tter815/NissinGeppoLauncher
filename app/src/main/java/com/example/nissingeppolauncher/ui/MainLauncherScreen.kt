@@ -237,14 +237,21 @@ fun MainLauncherScreen() {
     var lyricsSource by remember { mutableStateOf("") }
     // 歌詞の対訳（洋楽向け）: 歌詞ブラウズ内のボタンでON/OFFする
     var lyricTranslations by remember { mutableStateOf<List<String>?>(null) }
+    var lyricTranslationsHead by remember { mutableStateOf<List<String>?>(null) }
     var translationEnabled by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         translationEnabled = repo.prefManager.isLyricTranslationEnabled()
     }
     LaunchedEffect(syncedLyricLines, translationEnabled) {
         lyricTranslations = null
+        lyricTranslationsHead = null
         if (translationEnabled && syncedLyricLines.isNotEmpty()) {
+            // PV・行表示は文のまとまりの全行に同じ訳を出す。全体歌詞は先頭の行だけ
             lyricTranslations = LyricsManager.translateToJapanese(
+                context, sessionTrackTitle, sessionTrackArtist, sessionTrackAlbum, syncedLyricLines,
+                fillChunkLines = true
+            )
+            lyricTranslationsHead = LyricsManager.translateToJapanese(
                 context, sessionTrackTitle, sessionTrackArtist, sessionTrackAlbum, syncedLyricLines
             )
         }
@@ -2090,7 +2097,7 @@ fun MainLauncherScreen() {
                 topPaddingDp = topPaddingDp,
                 source = lyricsSource,
                 translationEnabled = translationEnabled,
-                translations = lyricTranslations,
+                translations = lyricTranslationsHead,
                 onToggleTranslation = {
                     translationEnabled = !translationEnabled
                     repo.prefManager.setLyricTranslationEnabled(translationEnabled)
