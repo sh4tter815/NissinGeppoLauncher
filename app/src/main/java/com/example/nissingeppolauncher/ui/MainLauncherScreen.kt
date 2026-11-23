@@ -22,6 +22,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.border
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.shape.CircleShape
@@ -1133,6 +1134,8 @@ fun MainLauncherScreen() {
                         isLoopable = true,
                         discCenterXDp = animatedDisc1CenterX,
                         discCenterYDp = disc1CenterY,
+                        textSizeSp = appDiscTextSize,
+                        letterSpacingSp = appDiscLetterSpacing,
                         dotMarkers = true,
                         restLabelText = selectedIndexChar?.let { "『$it』から始まるアプリ" },
                         onFocusChange = { indexSelected = it }
@@ -1240,6 +1243,8 @@ fun MainLauncherScreen() {
                             isLoopable = true,
                             discCenterXDp = animatedDisc1CenterX,
                             discCenterYDp = disc1CenterY,
+                            textSizeSp = appDiscTextSize,
+                            letterSpacingSp = appDiscLetterSpacing,
                             dotMarkers = true,
                             restLabelText = selectedIndexChar?.let { "『$it』から始まるアプリ" },
                             onFocusChange = { indexSelected = it }
@@ -1267,6 +1272,8 @@ fun MainLauncherScreen() {
                             fadeLabelsOnScroll = false,
                             accentSelectedLabel = true,
                             verticalRestLabel = true,
+                            textSizeSp = appDiscTextSize,
+                            letterSpacingSp = appDiscLetterSpacing,
                             stepAngle = 24f,
                             discCenterXDp = animatedDisc1CenterX,
                             discCenterYDp = disc1CenterY,
@@ -1489,6 +1496,8 @@ fun MainLauncherScreen() {
 
                                         drag(down.id) { change ->
                                             change.consume()
+                                            // パネル駆動でもスクロール中フラグを立てる（索引の文字表示などが isScrolling を見ているため）
+                                            if (isIndexWheel) indexDiscState.isScrolling = true
                                             val pos = change.position
                                             if (currentLauncherPage == 2 && !isEditingFolder) {
                                                 val shouldOpen = pos.x >= size.width * 0.78f
@@ -1592,6 +1601,7 @@ fun MainLauncherScreen() {
                                 } finally {
                                     isHoldingLeft = false
                                     isHoldingFolderWheel = false
+                                    indexDiscState.isScrolling = false
                                 }
                             }
                         }
@@ -1609,16 +1619,26 @@ fun MainLauncherScreen() {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = topPaddingDp + 48.dp)
                     .zIndex(150f),
                 contentAlignment = Alignment.TopCenter
             ) {
+                // 設定と同じ白い円
+                Box(
+                    modifier = Modifier
+                        .padding(top = topPaddingDp)
+                        .offset(y = (-264).dp)
+                        .size(330.dp)
+                        .border(1.5.dp, Color.White.copy(alpha = 0.85f), CircleShape)
+                )
+                Box(
+                    modifier = Modifier.padding(top = topPaddingDp + 10.dp),
+                    contentAlignment = Alignment.TopCenter
+                ) {
                 if (isHideMode) {
                     Row(
                         modifier = Modifier
                             .width(320.dp)
                             .height(48.dp)
-                            .background(Color(0x99101728), RoundedCornerShape(16.dp))
                             .clickable { isHideMode = false }
                             .padding(horizontal = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -1637,7 +1657,6 @@ fun MainLauncherScreen() {
                         modifier = Modifier
                             .width(320.dp)
                             .height(48.dp)
-                            .background(Color(0x99101728), RoundedCornerShape(16.dp))
                             .padding(horizontal = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
@@ -1651,7 +1670,7 @@ fun MainLauncherScreen() {
                                 fontSize = 15.sp,
                                 textAlign = TextAlign.Center
                             ),
-                            cursorBrush = SolidColor(Color(0xFF88C0FF)),
+                            cursorBrush = SolidColor(accentColor),
                             modifier = Modifier.weight(1f)
                         ) { innerTextField ->
                             Box(contentAlignment = Alignment.Center) {
@@ -1680,6 +1699,7 @@ fun MainLauncherScreen() {
                         }
                     }
                 }
+                }
             }
         }
 
@@ -1688,16 +1708,26 @@ fun MainLauncherScreen() {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = topPaddingDp + 48.dp)
                     .zIndex(150f),
                 contentAlignment = Alignment.TopCenter
             ) {
+                // 設定と同じ白い円
+                Box(
+                    modifier = Modifier
+                        .padding(top = topPaddingDp)
+                        .offset(y = (-264).dp)
+                        .size(330.dp)
+                        .border(1.5.dp, Color.White.copy(alpha = 0.85f), CircleShape)
+                )
+                Box(
+                    modifier = Modifier.padding(top = topPaddingDp + 10.dp),
+                    contentAlignment = Alignment.TopCenter
+                ) {
                 if (selectedFolderId == "NEW_FOLDER") {
                     Row(
                         modifier = Modifier
                             .width(320.dp)
                             .height(48.dp)
-                            .background(Color(0x99101728), RoundedCornerShape(16.dp))
                             .padding(horizontal = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
@@ -1711,7 +1741,7 @@ fun MainLauncherScreen() {
                                 fontSize = 15.sp,
                                 textAlign = TextAlign.Center
                             ),
-                            cursorBrush = SolidColor(Color(0xFF88C0FF)),
+                            cursorBrush = SolidColor(accentColor),
                             modifier = Modifier.weight(1f)
                         ) { innerTextField ->
                             Box(contentAlignment = Alignment.Center) {
@@ -1747,8 +1777,7 @@ fun MainLauncherScreen() {
                     Row(
                         modifier = Modifier
                             .width(320.dp)
-                            .height(48.dp)
-                            .background(Color(0x99101728), RoundedCornerShape(16.dp)),
+                            .height(48.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         if (isEditingFolder) {
@@ -1872,6 +1901,7 @@ fun MainLauncherScreen() {
                             }
                         }
                     }
+                }
                 }
             }
         }
