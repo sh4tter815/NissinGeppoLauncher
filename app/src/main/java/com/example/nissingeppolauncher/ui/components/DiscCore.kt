@@ -126,7 +126,16 @@ fun DiscCarousel(
     val coroutineScope = rememberCoroutineScope()
 
     state.itemCount = itemCount
-    state.stepAngle = stepAngle
+    // 項目間隔が変わったら（初期生成時の間隔と違う場合も含む）、
+    // 今選ばれている項目を保ったまま回転角を新しい間隔に合わせ直す。
+    // これをしないと「回転角÷間隔」で出す選択位置がズレて、押した項目と違う設定が開く。
+    LaunchedEffect(stepAngle) {
+        if (state.stepAngle != stepAngle) {
+            val idx = (-state.rawRotation / state.stepAngle).roundToInt().coerceAtLeast(0)
+            state.stepAngle = stepAngle
+            state.animateToIndex(idx)
+        }
+    }
 
     val baseCenterAngle = if (isRightDisc) 180f else 0f
 
@@ -183,7 +192,7 @@ fun DiscCarousel(
         label = "DiscHoldScale"
     )
 
-    val selectedIndex = remember(currentRotation, itemCount, isLoopable) {
+    val selectedIndex = remember(currentRotation, itemCount, isLoopable, stepAngle) {
         if (itemCount <= 0) -1
         else {
             val rawIdx = (-currentRotation / stepAngle).roundToInt()
