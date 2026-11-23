@@ -196,9 +196,11 @@ fun DiscWheel(
     accentSelectedLabel: Boolean = false,
     tapToApply: Boolean = false,
     dimmed: Boolean = false,
-    showValues: Boolean = true
+    showValues: Boolean = true,
+    verticalRestLabel: Boolean = false
 ) {
     if (entries.isEmpty()) return
+    var focusIdx by remember { mutableStateOf(initialFocus) }
     val dimFactor by animateFloatAsState(
         targetValue = if (dimmed) 0.2f else 1f,
         animationSpec = tween(durationMillis = 120),
@@ -209,6 +211,11 @@ fun DiscWheel(
         val centerX = if (side == DiscSide.LEFT) -80f else maxWidth.value + 80f
         val centerY = maxHeight.value / 2f
         val carouselState = state
+        val restP by animateFloatAsState(
+            targetValue = if (verticalRestLabel && side == DiscSide.LEFT && !(holdActive == true || carouselState.isScrolling)) 1f else 0f,
+            animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+            label = "DiscWheelRest"
+        )
         DiscCarousel(
             itemCount = entries.size,
             discCenterXDp = centerX,
@@ -224,7 +231,7 @@ fun DiscWheel(
         holdActive = holdActive,
         fadeLabelsOnScroll = fadeLabelsOnScroll,
             state = carouselState,
-            onSelectedIndexChange = onFocusChange,
+            onSelectedIndexChange = { idx -> focusIdx = idx; onFocusChange(idx) },
             centerContent = centerContent,
             modifier = Modifier.fillMaxSize()
         ) { index, rad, labelAlpha, isSelected ->
@@ -258,7 +265,7 @@ fun DiscWheel(
                     .offset(x = (if (side == DiscSide.LEFT) ax else ax - 240f).dp, y = (ay - 22f).dp)
                     .width(240.dp)
                     .height(44.dp)
-                    .graphicsLayer { this.alpha = (if (focusedLabelOnly && !isSelected && !carouselState.isScrolling) 0f else labelAlpha) * dimFactor },
+                    .graphicsLayer { this.alpha = (if (focusedLabelOnly && !isSelected && !carouselState.isScrolling) 0f else labelAlpha) * dimFactor * (if (verticalRestLabel && side == DiscSide.LEFT && isSelected) (1f - restP) else 1f) },
                 contentAlignment = if (side == DiscSide.LEFT) Alignment.CenterStart else Alignment.CenterEnd
             ) {
                 Row(
@@ -272,13 +279,6 @@ fun DiscWheel(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = if (side == DiscSide.LEFT) Arrangement.Start else Arrangement.End
                 ) {
-                    if (side == DiscSide.RIGHT && entry.toggleState != null) {
-                        DiscMiniSwitch(entry.toggleState, accentColor)
-                        Spacer(modifier = Modifier.width(6.dp))
-                    } else if (side == DiscSide.RIGHT && entry.valueText != null) {
-                        Text(entry.valueText, color = accentColor.copy(alpha = 0.75f), fontSize = 10.sp, maxLines = 1)
-                        Spacer(modifier = Modifier.width(6.dp))
-                    }
                     if (isSelected) {
                         MarqueeText(
                             text = entry.label + if (entry.checked) "  ✓" else "",
@@ -297,13 +297,40 @@ fun DiscWheel(
                             modifier = Modifier.widthIn(max = 150.dp)
                         )
                     }
-                    if (showValues && side == DiscSide.LEFT && entry.toggleState != null) {
+                    if ((side == DiscSide.RIGHT || showValues) && entry.toggleState != null) {
                         Spacer(modifier = Modifier.width(6.dp))
                         DiscMiniSwitch(entry.toggleState, accentColor)
-                    } else if (showValues && side == DiscSide.LEFT && entry.valueText != null) {
+                    } else if ((side == DiscSide.RIGHT || showValues) && entry.valueText != null) {
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(entry.valueText, color = accentColor.copy(alpha = 0.75f), fontSize = 10.sp, maxLines = 1)
                     }
+                }
+            }
+        }
+        // 左円の静止時ラベル: 指を離すと円の中へ横倒し(縦)になって移動する
+        if (verticalRestLabel && side == DiscSide.LEFT && restP > 0.01f) {
+            val focusEntry = entries.getOrNull(focusIdx)
+            if (focusEntry != null) {
+                Box(
+                    modifier = Modifier
+                        .offset(x = (centerX + 165f - 60f - 100f).dp, y = (centerY - 22f).dp)
+                        .width(200.dp)
+                        .height(44.dp)
+                        .graphicsLayer {
+                            alpha = restP
+                            rotationZ = -90f * restP
+                            translationX = (1f - restP) * 40.dp.toPx()
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        focusEntry.label,
+                        color = accentColor,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
         }
