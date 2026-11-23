@@ -464,10 +464,10 @@ class LyricsOverlayService : Service() {
                 (f * 0.94f).coerceIn(7f, 18f)
             }
             val fitSp = if (rowTexts.size == 2) {
-                val cap = (maxHeight.value / 2f) / 1.25f / LocalDensity.current.fontScale
+                val cap = (maxHeight.value / 2f) / 1.42f / LocalDensity.current.fontScale
                 minOf(rawFit, cap).coerceAtLeast(6f)
             } else rawFit
-            Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
+            Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy((-1).dp, Alignment.CenterVertically)) {
                 rowTexts.forEachIndexed { r, rowText ->
                     val startIdx = if (r == 0) 0 else splitIdx
                     Row(
@@ -520,6 +520,7 @@ class LyricsOverlayService : Service() {
                                     fontSize = charSp.sp,
                                     fontWeight = weight,
                                     fontFamily = charFont,
+                                    lineHeight = (charSp * 1.02f).sp,
                                     style = TextStyle(shadow = Shadow(col.copy(alpha = 0.85f), Offset(0f, 0f), 9f))
                                 )
                                 Text(
@@ -528,6 +529,7 @@ class LyricsOverlayService : Service() {
                                     fontSize = charSp.sp,
                                     fontWeight = weight,
                                     fontFamily = charFont,
+                                    lineHeight = (charSp * 1.02f).sp,
                                     style = TextStyle(shadow = shadow)
                                 )
                             }
