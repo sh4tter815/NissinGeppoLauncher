@@ -122,7 +122,7 @@ fun MainLauncherScreen() {
     val keyboardController = LocalSoftwareKeyboardController.current
 
     // ページ管理 (0: 設定, 1: ホーム, 2: アプリ一覧, 3: フォルダ)
-    var currentLauncherPage by remember { mutableIntStateOf(1) }
+    var currentLauncherPage by remember { mutableIntStateOf(if (repo.prefManager.getStartupPage() == "last") repo.prefManager.getLastPage() else 1) }
 
     var accentHex by remember { mutableStateOf(repo.prefManager.getAccentColorHex()) }
     val manualAccentColor = remember(accentHex) { parseHexColor(accentHex) }
@@ -182,6 +182,15 @@ fun MainLauncherScreen() {
     var sessionPositionMs by remember { mutableLongStateOf(0L) }
     var lyricOffsetMs by remember { mutableLongStateOf(0L) }
     var lyricsDisplayMode by remember { mutableStateOf(repo.prefManager.getLyricsDisplayMode()) }
+    // 2026-11-23 追加設定の状態（設定画面の onChanged で読み直す）
+    var lyricsEnabled by remember { mutableStateOf(repo.prefManager.isLyricsEnabled()) }
+    var clockShowSeconds by remember { mutableStateOf(repo.prefManager.isClockShowSeconds()) }
+    var clock12h by remember { mutableStateOf(repo.prefManager.isClock12h()) }
+    var clockBattery by remember { mutableStateOf(repo.prefManager.isClockShowBattery()) }
+    var dateWareki by remember { mutableStateOf(repo.prefManager.isDateWareki()) }
+    var pageTransitionSpeed by remember { mutableFloatStateOf(repo.prefManager.getPageTransitionSpeed()) }
+    var dialVisibility by remember { mutableStateOf(repo.prefManager.getDialVisibility()) }
+    var keepScreenOn by remember { mutableStateOf(repo.prefManager.isKeepScreenOn()) }
     var lyricsPvFont by remember { mutableStateOf(repo.prefManager.getLyricsPvFont()) }
     var lyricsEnFont by remember { mutableStateOf(repo.prefManager.getLyricsEnFont()) }
     var lyricsEnCustomPath by remember { mutableStateOf(repo.prefManager.getLyricsEnCustomFontPath()) }
@@ -298,9 +307,19 @@ fun MainLauncherScreen() {
         }
     }
 
+    // 「前回のページ」を覚える（起動時に開くページ設定用）
+    LaunchedEffect(currentLauncherPage) {
+        repo.prefManager.setLastPage(currentLauncherPage)
+    }
+
+    // 再生中は画面を点けたまま
+    LaunchedEffect(keepScreenOn, sessionIsPlaying) {
+        view.keepScreenOn = keepScreenOn && sessionIsPlaying
+    }
+
     // ステータスバー歌詞オーバーレイ: 設定がONで権限があればサービスを起動しておく
     LaunchedEffect(Unit) {
-        if (repo.prefManager.isStatusBarLyricsEnabled() && android.provider.Settings.canDrawOverlays(context)) {
+        if (repo.prefManager.isLyricsEnabled() && repo.prefManager.isStatusBarLyricsEnabled() && android.provider.Settings.canDrawOverlays(context)) {
             // 自己修復: サービスが死んでいる・応答していないときは、トグルし直さなくても再起動する
             val svc = com.example.nissingeppolauncher.service.LyricsOverlayService
             // 再起動は start の呼び直しだけで行う。stop を挟むと前景サービスの開始が競合し、
@@ -338,7 +357,7 @@ fun MainLauncherScreen() {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 com.example.nissingeppolauncher.service.LyricsOverlayService.launcherInForeground = true
-                if (repo.prefManager.isStatusBarLyricsEnabled() && android.provider.Settings.canDrawOverlays(context)) {
+                if (repo.prefManager.isLyricsEnabled() && repo.prefManager.isStatusBarLyricsEnabled() && android.provider.Settings.canDrawOverlays(context)) {
                     val svc = com.example.nissingeppolauncher.service.LyricsOverlayService
                     svc.start(context)
                 }
@@ -879,7 +898,7 @@ fun MainLauncherScreen() {
             isHoldingRight = false
             isHoldingFolderWheel = false
             isTransitioning = true
-            delay(220)
+            delay((220f / repo.prefManager.getPageTransitionSpeed()).toLong().coerceAtLeast(60L))
             currentLauncherPage = targetPage
             isSearchActive = false
             searchQuery = ""
@@ -891,7 +910,7 @@ fun MainLauncherScreen() {
 
     val transitionAlpha by animateFloatAsState(
         targetValue = if (isTransitioning) 0.0f else 1.0f,
-        animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = (220f / pageTransitionSpeed).toInt().coerceAtLeast(60), easing = FastOutSlowInEasing),
         label = "TransitionAlpha"
     )
 
@@ -962,7 +981,7 @@ fun MainLauncherScreen() {
             }
 
             // リリックビデオ（文字PV）: 再生中セッション（Spotify等も含む）の歌詞を大きく散らして表示する
-            if (lyricsDisplayMode == "video" && currentLauncherPage == 1 && !isLyricsBrowsing && syncedLyricLines.isNotEmpty()) {
+            if (lyricsEnabled && lyricsDisplayMode == "video" && currentLauncherPage == 1 && !isLyricsBrowsing && syncedLyricLines.isNotEmpty()) {
               Box(Modifier.fillMaxSize().zIndex(if (dopagakiMode) 60f else 0f)) {
                 LyricsPvLayer(
                     pvTilt3d = disc3d,
@@ -992,7 +1011,7 @@ fun MainLauncherScreen() {
             }
 
             // 複数行モード: 時計の下に前・今・次の3行を表示（今の行が大きめ）
-            if (lyricsDisplayMode == "multi" && currentLauncherPage == 1 && !isLyricsBrowsing && syncedLyricLines.isNotEmpty()) {
+            if (lyricsEnabled && lyricsDisplayMode == "multi" && currentLauncherPage == 1 && !isLyricsBrowsing && syncedLyricLines.isNotEmpty()) {
                 LauncherMultiLineLyrics(
                     lines = syncedLyricLines,
                     positionMs = sessionPositionMs,
@@ -1031,6 +1050,19 @@ fun MainLauncherScreen() {
                                 useCustomFont = repo.prefManager.isUseCustomFont()
                                 fontChoice = repo.prefManager.getFontChoice()
                                 lyricsDisplayMode = repo.prefManager.getLyricsDisplayMode()
+                                lyricsEnabled = repo.prefManager.isLyricsEnabled()
+                                clockShowSeconds = repo.prefManager.isClockShowSeconds()
+                                clock12h = repo.prefManager.isClock12h()
+                                clockBattery = repo.prefManager.isClockShowBattery()
+                                dateWareki = repo.prefManager.isDateWareki()
+                                pageTransitionSpeed = repo.prefManager.getPageTransitionSpeed()
+                                dialVisibility = repo.prefManager.getDialVisibility()
+                                keepScreenOn = repo.prefManager.isKeepScreenOn()
+                                if (!lyricsEnabled) {
+                                    com.example.nissingeppolauncher.service.LyricsOverlayService.stop(context)
+                                } else if (repo.prefManager.isStatusBarLyricsEnabled() && android.provider.Settings.canDrawOverlays(context)) {
+                                    com.example.nissingeppolauncher.service.LyricsOverlayService.start(context)
+                                }
                                 lyricsPvFont = repo.prefManager.getLyricsPvFont()
                                 lyricsEnFont = repo.prefManager.getLyricsEnFont()
                                 lyricsEnCustomPath = repo.prefManager.getLyricsEnCustomFontPath()
@@ -1050,6 +1082,10 @@ fun MainLauncherScreen() {
                 1 -> {
                     // --- 1: ホーム画面 ---
                     ClockWidget(
+                        showSeconds = clockShowSeconds,
+                        hour12 = clock12h,
+                        showBattery = clockBattery,
+                        wareki = dateWareki,
                         modifier = Modifier
                             .padding(start = 28.dp, top = topPaddingDp + 48.dp)
                             .zIndex(10f)
@@ -1062,9 +1098,9 @@ fun MainLauncherScreen() {
                                     cameraDistance = 6.5f * density
                                 }
                             },
-                        lyricsLine = if (lyricsDisplayMode == "line") currentLyricLine else "",
+                        lyricsLine = if (lyricsEnabled && lyricsDisplayMode == "line") currentLyricLine else "",
                         translationText = if (lyricsDisplayMode == "line" && translationEnabled) lyricTranslations?.getOrNull(syncedLyricLines.indexOfLast { it.timeMs <= sessionPositionMs + lyricOffsetMs }) ?: "" else "",
-                        karaokeLine = if (lyricsDisplayMode == "line") syncedLyricLines.lastOrNull { it.timeMs <= sessionPositionMs + lyricOffsetMs } else null,
+                        karaokeLine = if (lyricsEnabled && lyricsDisplayMode == "line") syncedLyricLines.lastOrNull { it.timeMs <= sessionPositionMs + lyricOffsetMs } else null,
                         karaokePositionMs = sessionPositionMs + lyricOffsetMs,
                         karaokeSungColor = accentColor,
                         lyricFontFamily = lyricsFontFamily,
@@ -1482,7 +1518,7 @@ fun MainLauncherScreen() {
         }
 
                 // --- 画面下部 ページ切り替え (ボタン式 / ダイヤル式を設定で切替) ---
-        if (!isLyricsBrowsing && !pvFullscreen && !vinylRackOpen && repo.prefManager.getPageSwitchStyle() == "dial") {
+        if (!isLyricsBrowsing && !pvFullscreen && dialVisibility != "hidden" && (dialVisibility == "always" || !vinylRackOpen) && repo.prefManager.getPageSwitchStyle() == "dial") {
             PeekPageDial(
                 currentPage = currentLauncherPage,
                 onPageSelected = { targetPage ->
@@ -1503,7 +1539,7 @@ fun MainLauncherScreen() {
                         }
                     }
             )
-        } else if (!isLyricsBrowsing && !pvFullscreen && !vinylRackOpen) {
+        } else if (!isLyricsBrowsing && !pvFullscreen && dialVisibility != "hidden" && (dialVisibility == "always" || !vinylRackOpen)) {
             BottomPageDial(
                 currentPage = currentLauncherPage,
                 onPageSelected = { targetPage ->
