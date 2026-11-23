@@ -137,7 +137,8 @@ fun DiscWheel(
     fadeLabelsOnScroll: Boolean = true,
     accentSelectedLabel: Boolean = false,
     tapToApply: Boolean = false,
-    dimmed: Boolean = false
+    dimmed: Boolean = false,
+    showValues: Boolean = true
 ) {
     if (entries.isEmpty()) return
     val dimFactor by animateFloatAsState(
@@ -229,10 +230,10 @@ fun DiscWheel(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.widthIn(max = 150.dp)
                     )
-                    if (side == DiscSide.LEFT && entry.toggleState != null) {
+                    if (showValues && side == DiscSide.LEFT && entry.toggleState != null) {
                         Spacer(modifier = Modifier.width(6.dp))
                         DiscMiniSwitch(entry.toggleState, accentColor)
-                    } else if (side == DiscSide.LEFT && entry.valueText != null) {
+                    } else if (showValues && side == DiscSide.LEFT && entry.valueText != null) {
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(entry.valueText, color = accentColor.copy(alpha = 0.75f), fontSize = 10.sp, maxLines = 1)
                     }
