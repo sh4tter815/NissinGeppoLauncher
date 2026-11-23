@@ -61,6 +61,7 @@ import com.example.nissingeppolauncher.data.SettingNodeDef
 import com.example.nissingeppolauncher.ui.components.DiscInfoChip
 import com.example.nissingeppolauncher.ui.components.DiscValueWheel
 import com.example.nissingeppolauncher.ui.components.DiscGlyph
+import com.example.nissingeppolauncher.ui.components.lucidePath
 import com.example.nissingeppolauncher.ui.components.DiscSide
 import com.example.nissingeppolauncher.ui.components.DiscCarouselState
 import com.example.nissingeppolauncher.ui.components.DiscTouchHalf
@@ -396,97 +397,69 @@ fun SettingsCategoryIcon(kind: String, accentColor: Color) {
         val w = size.width
         val h = size.height
         val ink = Color.White.copy(alpha = 0.9f)
-        val thin = Stroke(width = w * 0.055f)
         when (kind) {
-            "behavior" -> {
-                // 左右で逆向きの2本矢印（スクロール方向・操作感のイメージ）
-                val lw = w * 0.06f
-                drawLine(color = accentColor, start = Offset(w * 0.16f, h * 0.35f), end = Offset(w * 0.76f, h * 0.35f), strokeWidth = lw, cap = StrokeCap.Round)
-                drawLine(color = accentColor, start = Offset(w * 0.76f, h * 0.35f), end = Offset(w * 0.60f, h * 0.21f), strokeWidth = lw, cap = StrokeCap.Round)
-                drawLine(color = accentColor, start = Offset(w * 0.76f, h * 0.35f), end = Offset(w * 0.60f, h * 0.49f), strokeWidth = lw, cap = StrokeCap.Round)
-                drawLine(color = ink, start = Offset(w * 0.84f, h * 0.65f), end = Offset(w * 0.24f, h * 0.65f), strokeWidth = lw, cap = StrokeCap.Round)
-                drawLine(color = ink, start = Offset(w * 0.24f, h * 0.65f), end = Offset(w * 0.40f, h * 0.51f), strokeWidth = lw, cap = StrokeCap.Round)
-                drawLine(color = ink, start = Offset(w * 0.24f, h * 0.65f), end = Offset(w * 0.40f, h * 0.79f), strokeWidth = lw, cap = StrokeCap.Round)
-            }
-            "appearance" -> {
-                drawCircle(color = accentColor, radius = w * 0.27f, center = Offset(w * 0.36f, h * 0.38f))
-                drawCircle(color = ink.copy(alpha = 0.75f), radius = w * 0.27f, center = Offset(w * 0.64f, h * 0.38f))
-                drawCircle(color = Color(0xFF9AA0A6), radius = w * 0.27f, center = Offset(w * 0.50f, h * 0.66f))
-            }
-            "lyrics" -> {
-                drawOval(color = accentColor, topLeft = Offset(w * 0.10f, h * 0.64f), size = Size(w * 0.30f, h * 0.22f))
-                drawLine(color = ink, start = Offset(w * 0.40f, h * 0.72f), end = Offset(w * 0.40f, h * 0.16f), strokeWidth = w * 0.05f, cap = StrokeCap.Round)
-                drawOval(color = ink, topLeft = Offset(w * 0.56f, h * 0.58f), size = Size(w * 0.28f, h * 0.20f))
-                drawLine(color = ink, start = Offset(w * 0.84f, h * 0.66f), end = Offset(w * 0.84f, h * 0.10f), strokeWidth = w * 0.05f, cap = StrokeCap.Round)
-                drawLine(color = ink, start = Offset(w * 0.40f, h * 0.16f), end = Offset(w * 0.84f, h * 0.10f), strokeWidth = w * 0.07f, cap = StrokeCap.Round)
-            }
-            "apps" -> {
-                val cell = w * 0.32f
-                val rad = CornerRadius(w * 0.06f, w * 0.06f)
-                drawRoundRect(color = accentColor, topLeft = Offset(w * 0.13f, h * 0.13f), size = Size(cell, cell), cornerRadius = rad)
-                drawRoundRect(color = ink, topLeft = Offset(w * 0.55f, h * 0.13f), size = Size(cell, cell), cornerRadius = rad)
-                drawRoundRect(color = ink, topLeft = Offset(w * 0.13f, h * 0.55f), size = Size(cell, cell), cornerRadius = rad)
-                drawRoundRect(color = accentColor, topLeft = Offset(w * 0.55f, h * 0.55f), size = Size(cell, cell), cornerRadius = rad)
-            }
             "background" -> {
-                drawRoundRect(color = ink, topLeft = Offset(w * 0.10f, h * 0.14f), size = Size(w * 0.80f, h * 0.72f), cornerRadius = CornerRadius(w * 0.06f, w * 0.06f), style = thin)
-                drawCircle(color = accentColor, radius = w * 0.08f, center = Offset(w * 0.68f, h * 0.34f))
-                val m = Path()
-                m.moveTo(w * 0.16f, h * 0.80f)
-                m.lineTo(w * 0.44f, h * 0.50f)
-                m.lineTo(w * 0.84f, h * 0.80f)
-                m.close()
-                drawPath(path = m, color = ink.copy(alpha = 0.8f))
+                // Lucide "image"
+                val ls = Stroke(width = w * (2f / 24f), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                val sc = w / 24f
+                drawRoundRect(color = ink, topLeft = Offset(3f * sc, 3f * sc), size = Size(18f * sc, 18f * sc), cornerRadius = CornerRadius(2f * sc, 2f * sc), style = ls)
+                drawCircle(color = ink, radius = 2f * sc, center = Offset(9f * sc, 9f * sc), style = ls)
+                drawPath(lucidePath("m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21", sc), color = ink, style = ls)
             }
             "ui" -> {
-                drawLine(color = ink, start = Offset(w * 0.14f, h * 0.36f), end = Offset(w * 0.86f, h * 0.36f), strokeWidth = w * 0.05f, cap = StrokeCap.Round)
-                drawCircle(color = accentColor, radius = w * 0.10f, center = Offset(w * 0.62f, h * 0.36f))
-                drawLine(color = ink, start = Offset(w * 0.14f, h * 0.66f), end = Offset(w * 0.86f, h * 0.66f), strokeWidth = w * 0.05f, cap = StrokeCap.Round)
-                drawCircle(color = accentColor, radius = w * 0.10f, center = Offset(w * 0.34f, h * 0.66f))
+                // Lucide "sliders-horizontal"
+                val ls = Stroke(width = w * (2f / 24f), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                val sc = w / 24f
+                drawPath(lucidePath("M10 5H3", sc), color = ink, style = ls)
+                drawPath(lucidePath("M12 19H3", sc), color = ink, style = ls)
+                drawPath(lucidePath("M14 3v4", sc), color = ink, style = ls)
+                drawPath(lucidePath("M16 17v4", sc), color = ink, style = ls)
+                drawPath(lucidePath("M21 12h-9", sc), color = ink, style = ls)
+                drawPath(lucidePath("M21 19h-5", sc), color = ink, style = ls)
+                drawPath(lucidePath("M21 5h-7", sc), color = ink, style = ls)
+                drawPath(lucidePath("M8 10v4", sc), color = ink, style = ls)
+                drawPath(lucidePath("M8 12H3", sc), color = ink, style = ls)
+            }
+            "lyrics" -> {
+                // Lucide "audio-lines"
+                val ls = Stroke(width = w * (2f / 24f), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                val sc = w / 24f
+                drawPath(lucidePath("M2 10v3", sc), color = ink, style = ls)
+                drawPath(lucidePath("M6 6v11", sc), color = ink, style = ls)
+                drawPath(lucidePath("M10 3v18", sc), color = ink, style = ls)
+                drawPath(lucidePath("M14 8v7", sc), color = ink, style = ls)
+                drawPath(lucidePath("M18 5v13", sc), color = ink, style = ls)
+                drawPath(lucidePath("M22 10v3", sc), color = ink, style = ls)
             }
             "library" -> {
-                // フォルダ
-                val body = Path()
-                body.moveTo(w * 0.08f, h * 0.26f)
-                body.lineTo(w * 0.40f, h * 0.26f)
-                body.lineTo(w * 0.48f, h * 0.38f)
-                body.lineTo(w * 0.92f, h * 0.38f)
-                body.lineTo(w * 0.92f, h * 0.80f)
-                body.lineTo(w * 0.08f, h * 0.80f)
-                body.close()
-                drawPath(path = body, color = ink, style = thin)
-                drawCircle(color = accentColor, radius = w * 0.07f, center = Offset(w * 0.74f, h * 0.60f))
-            }
-            "tools" -> {
-                // レンチ
-                drawCircle(color = ink, radius = w * 0.19f, center = Offset(w * 0.35f, h * 0.35f), style = thin)
-                drawLine(color = ink, start = Offset(w * 0.35f, h * 0.35f), end = Offset(w * 0.52f, h * 0.18f), strokeWidth = w * 0.10f, cap = StrokeCap.Round)
-                drawLine(color = ink, start = Offset(w * 0.47f, h * 0.47f), end = Offset(w * 0.82f, h * 0.82f), strokeWidth = w * 0.13f, cap = StrokeCap.Round)
-                drawCircle(color = accentColor, radius = w * 0.06f, center = Offset(w * 0.82f, h * 0.82f))
-            }
-            "data" -> {
-                drawArc(color = ink, startAngle = -40f, sweepAngle = 250f, useCenter = false, topLeft = Offset(w * 0.16f, h * 0.16f), size = Size(w * 0.68f, h * 0.68f), style = thin)
-                drawLine(color = accentColor, start = Offset(w * 0.80f, h * 0.10f), end = Offset(w * 0.80f, h * 0.30f), strokeWidth = w * 0.06f, cap = StrokeCap.Round)
-                drawLine(color = accentColor, start = Offset(w * 0.80f, h * 0.10f), end = Offset(w * 0.62f, h * 0.16f), strokeWidth = w * 0.06f, cap = StrokeCap.Round)
-            }
-            "other" -> {
-                drawCircle(color = ink, radius = w * 0.07f, center = Offset(w * 0.26f, h * 0.50f))
-                drawCircle(color = accentColor, radius = w * 0.07f, center = Offset(w * 0.50f, h * 0.50f))
-                drawCircle(color = ink, radius = w * 0.07f, center = Offset(w * 0.74f, h * 0.50f))
+                // Lucide "folder"
+                val ls = Stroke(width = w * (2f / 24f), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                val sc = w / 24f
+                drawPath(lucidePath("M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z", sc), color = ink, style = ls)
             }
             "security" -> {
-                drawArc(color = ink, startAngle = 180f, sweepAngle = 180f, useCenter = false, topLeft = Offset(w * 0.29f, h * 0.08f), size = Size(w * 0.42f, h * 0.42f), style = thin)
-                drawRoundRect(color = accentColor, topLeft = Offset(w * 0.18f, h * 0.34f), size = Size(w * 0.64f, h * 0.52f), cornerRadius = CornerRadius(w * 0.08f, w * 0.08f))
-                drawCircle(color = Color(0xFF101728), radius = w * 0.07f, center = Offset(w * 0.50f, h * 0.58f))
+                // Lucide "lock"
+                val ls = Stroke(width = w * (2f / 24f), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                val sc = w / 24f
+                drawRoundRect(color = ink, topLeft = Offset(3f * sc, 11f * sc), size = Size(18f * sc, 11f * sc), cornerRadius = CornerRadius(2f * sc, 2f * sc), style = ls)
+                drawPath(lucidePath("M7 11V7a5 5 0 0 1 10 0v4", sc), color = ink, style = ls)
+            }
+            "tools" -> {
+                // Lucide "wrench"
+                val ls = Stroke(width = w * (2f / 24f), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                val sc = w / 24f
+                drawPath(lucidePath("M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z", sc), color = ink, style = ls)
+            }
+            "other" -> {
+                // Lucide "ellipsis"
+                val ls = Stroke(width = w * (2f / 24f), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                val sc = w / 24f
+                drawCircle(color = ink, radius = 1f * sc, center = Offset(12f * sc, 12f * sc), style = ls)
+                drawCircle(color = ink, radius = 1f * sc, center = Offset(19f * sc, 12f * sc), style = ls)
+                drawCircle(color = ink, radius = 1f * sc, center = Offset(5f * sc, 12f * sc), style = ls)
             }
             else -> {
-                drawCircle(color = ink, radius = w * 0.36f, style = thin)
-                val q = Path()
-                q.moveTo(w * 0.38f, h * 0.37f)
-                q.cubicTo(w * 0.38f, h * 0.23f, w * 0.62f, h * 0.23f, w * 0.62f, h * 0.37f)
-                q.cubicTo(w * 0.62f, h * 0.49f, w * 0.50f, h * 0.50f, w * 0.50f, h * 0.61f)
-                drawPath(path = q, color = ink, style = Stroke(width = w * 0.055f, cap = StrokeCap.Round))
-                drawCircle(color = ink, radius = w * 0.045f, center = Offset(w * 0.50f, h * 0.73f))
+                drawCircle(color = ink, radius = w * 0.30f, style = Stroke(width = w * 0.06f))
             }
         }
     }
