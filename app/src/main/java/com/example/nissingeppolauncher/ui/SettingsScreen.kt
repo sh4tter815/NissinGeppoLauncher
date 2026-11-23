@@ -1196,7 +1196,7 @@ fun SettingsScreen(
                         accentColor = currentAccentColor,
                         modifier = Modifier.fillMaxSize(),
                         state = lState, gesturesEnabled = false, iconSizeDp = iconSize,
-                        focusedLabelOnly = true, fadeLabelsOnScroll = false,
+                        focusedLabelOnly = true, fadeLabelsOnScroll = false, showValues = false,
                         forceSlideOut = discExiting, holdExpand = true, holdActive = leftHeld,
                         contentKey = navPath.joinToString("/") + "-" + searchQuery,
                         initialFocus = currentList.indexOfFirst { it.id == focusId }.coerceAtLeast(0),
