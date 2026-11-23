@@ -213,7 +213,9 @@ fun DiscWheel(
     stepAngle: Float = 20f,
     isLoopable: Boolean = false,
     discCenterXDp: Float? = null,
-    discCenterYDp: Float? = null
+    discCenterYDp: Float? = null,
+    dotMarkers: Boolean = false,
+    restLabelText: String? = null
 ) {
     if (entries.isEmpty()) return
     var focusIdx by remember { mutableStateOf(initialFocus) }
@@ -252,6 +254,41 @@ fun DiscWheel(
             modifier = Modifier.fillMaxSize()
         ) { index, rad, labelAlpha, isSelected ->
             val entry = entries[index]
+            if (dotMarkers) {
+                // 索引モード: ●は円の内側に常駐。スクロール中だけ行頭の文字が円の外にずらっと出る
+                val dotX = centerX + 147f * cos(rad)
+                val dotY = centerY + 147f * sin(rad)
+                Canvas(
+                    modifier = Modifier
+                        .offset(x = (dotX - 6f).dp, y = (dotY - 6f).dp)
+                        .size(12.dp)
+                ) {
+                    drawCircle(
+                        color = if (isSelected) accentColor else Color.White,
+                        radius = (if (isSelected) 5.5f else 4f).dp.toPx(),
+                        alpha = labelAlpha * (if (isSelected) 1f else 0.55f)
+                    )
+                }
+                if (carouselState.isScrolling) {
+                    val ax = centerX + 173f * cos(rad)
+                    val ay = centerY + 173f * sin(rad)
+                    Box(
+                        modifier = Modifier
+                            .offset(x = (if (side == DiscSide.LEFT) ax else ax - 240f).dp, y = (ay - 22f).dp)
+                            .width(240.dp)
+                            .height(44.dp),
+                        contentAlignment = if (side == DiscSide.LEFT) Alignment.CenterStart else Alignment.CenterEnd
+                    ) {
+                        Text(
+                            entry.label,
+                            color = if (isSelected) accentColor else Color.White.copy(alpha = 0.9f),
+                            fontSize = 15.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            modifier = Modifier.graphicsLayer { this.alpha = labelAlpha }
+                        )
+                    }
+                }
+            } else {
             // アイコン: アプリ円盤と同じく輪郭の内側（半径-18）
             val iconX = centerX + 147f * cos(rad)
             val iconY = centerY + 147f * sin(rad)
@@ -269,7 +306,7 @@ fun DiscWheel(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                Box(modifier = Modifier.graphicsLayer { val sc = (if (isSelected) 1.12f else 1f) * (iconSizeDp / 36f); scaleX = sc; scaleY = sc }) {
+                Box(modifier = Modifier.graphicsLayer { val sc = (if (isSelected) 1.12f else 1f) * (iconSizeDp / 36f) * 1.35f; scaleX = sc; scaleY = sc }) {
                     entry.icon()
                 }
             }
@@ -322,6 +359,7 @@ fun DiscWheel(
                     }
                 }
             }
+            }
         }
         // 左円の静止時ラベル: 指を離すと円の中へ横倒し(縦)になって移動する
         if (verticalRestLabel && side == DiscSide.LEFT && restP > 0.01f) {
@@ -340,7 +378,7 @@ fun DiscWheel(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        focusEntry.label,
+                        restLabelText ?: focusEntry.label,
                         color = accentColor,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
@@ -1180,104 +1218,3 @@ fun DiscAppItem(
 }
 
 /** フォルダ選択ホイール。旧 RotatableFolderWheel と同じ描画。回転は外（DiscTouchHalf）が state 経由で駆動する */
-@Composable
-fun DiscFolderWheel(
-    folders: List<Pair<String, String>>,
-    state: DiscCarouselState,
-    modifier: Modifier = Modifier,
-    discCenterXDp: Float,
-    discCenterYDp: Float,
-    discRadiusDp: Float = 165f,
-    isHolding: Boolean = false,
-    textSizeSp: Float = 16f,
-    letterSpacingSp: Float = 1.2f,
-    accentColor: Color,
-    onSelectedIndexChange: (Int) -> Unit = {}
-) {
-    val configuration = LocalConfiguration.current
-    val screenWidthDp = configuration.screenWidthDp.toFloat()
-    val screenHeightDp = configuration.screenHeightDp.toFloat()
-    val folderItems = remember(folders) { folders + Pair("NEW_FOLDER", "新規作成") }
-    val notchScale by animateFloatAsState(
-        targetValue = if (isHolding) 1.30f else 1.0f,
-        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
-        label = "DiscFolderNotchScale"
-    )
-    Box(modifier = modifier.fillMaxSize()) {
-        DiscCarousel(
-            itemCount = folderItems.size,
-            modifier = Modifier.fillMaxSize(),
-            discCenterXDp = discCenterXDp,
-            discCenterYDp = discCenterYDp,
-            discRadiusDp = discRadiusDp,
-            stepAngle = 24f,
-            isRightDisc = false,
-            isLoopable = false,
-            gesturesEnabled = false,
-            holdExpand = true,
-            holdActive = isHolding,
-            fadeLabelsOnScroll = false,
-            state = state,
-            onSelectedIndexChange = onSelectedIndexChange
-        ) { index, rad, labelAlpha, isSelected ->
-            val item = folderItems.getOrNull(index)
-            if (item != null) {
-                val innerXDp = discCenterXDp + (discRadiusDp - 18f) * cos(rad)
-                val innerYDp = discCenterYDp + (discRadiusDp - 18f) * sin(rad)
-                Box(
-                    modifier = Modifier
-                        .offset(x = (innerXDp - 20f).dp, y = (innerYDp - 20f).dp)
-                        .size(40.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (item.first == "NEW_FOLDER") {
-                        WhitePlusIcon(size = 22.dp, color = if (isSelected) accentColor else Color.White.copy(alpha = 0.85f * labelAlpha))
-                    } else {
-                        WhiteFolderIcon(size = 22.dp, color = if (isSelected) accentColor else Color.White.copy(alpha = 0.85f * labelAlpha))
-                    }
-                }
-                if (isSelected || isHolding) {
-                    val outerXDp = discCenterXDp + (discRadiusDp + 28f) * cos(rad)
-                    val outerYDp = discCenterYDp + (discRadiusDp + 28f) * sin(rad)
-                    Box(
-                        modifier = Modifier
-                            .offset(x = outerXDp.dp, y = (outerYDp - 20f).dp)
-                            .width(220.dp)
-                            .height(40.dp),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        Text(
-                            text = item.second,
-                            color = if (isSelected) accentColor else Color.White.copy(alpha = 0.7f),
-                            fontSize = textSizeSp.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            letterSpacing = letterSpacingSp.sp,
-                            textAlign = TextAlign.Start,
-                            modifier = Modifier.graphicsLayer { alpha = if (isSelected) 1f else labelAlpha }
-                        )
-                    }
-                }
-            }
-        }
-        Canvas(
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    scaleX = notchScale
-                    scaleY = notchScale
-                    transformOrigin = TransformOrigin(
-                        (discCenterXDp / screenWidthDp).coerceIn(0f, 1f),
-                        (discCenterYDp / screenHeightDp).coerceIn(0f, 1f)
-                    )
-                }
-        ) {
-            if (isHolding || notchScale > 1.01f) {
-                drawCircle(
-                    color = accentColor,
-                    radius = 8f,
-                    center = Offset((discCenterXDp + discRadiusDp).dp.toPx() - 14f, discCenterYDp.dp.toPx())
-                )
-            }
-        }
-    }
-}
