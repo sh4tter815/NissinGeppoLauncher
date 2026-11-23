@@ -1,5 +1,5 @@
 {
- "version": 9,
+ "version": 10,
  "items": {
   "reverse": {
    "label": "スクロール方向の反転",
@@ -746,6 +746,20 @@
    "glyph": "eye",
    "type": "toggle",
    "bind": "keepScreenOn"
+  },
+  "artworkVisible": {
+   "label": "アートワークを表示",
+   "desc": "左円とラックのアートワーク画像そのものです",
+   "glyph": "image",
+   "type": "toggle",
+   "bind": "artworkEnabled"
+  },
+  "rackReverse": {
+   "label": "ラック表示のスクロール方向",
+   "desc": "オンでラックの送り方向が逆になります（円盤の反転とは別の設定です）",
+   "glyph": "arrow-up-down",
+   "type": "toggle",
+   "bind": "rackReverse"
   }
  },
  "tree": [
@@ -909,70 +923,93 @@
   },
   {
    "id": "lyrics",
-   "label": "歌詞",
+   "label": "音楽",
    "cat": true,
    "children": [
     {
-     "item": "lyricsEnabled"
-    },
-    {
-     "id": "ly_text",
-     "label": "文字",
-     "glyph": "case-sensitive",
+     "id": "music_art",
+     "label": "アートワーク",
+     "glyph": "image",
      "children": [
       {
-       "item": "jpFont"
+       "item": "artworkVisible"
       },
       {
-       "item": "enFont"
-      },
-      {
-       "item": "bold"
-      },
-      {
-       "item": "dopaBlack"
-      },
-      {
-       "item": "translation"
-      },
-      {
-       "item": "pvRuby"
-      },
-      {
-       "item": "pvTextColor"
+       "item": "rackReverse"
       }
      ]
     },
     {
-     "id": "ly_anim",
-     "label": "アニメーション",
-     "glyph": "clapperboard",
+     "id": "lyrics_sub",
+     "label": "歌詞",
+     "glyph": "music",
      "children": [
       {
-       "item": "parts"
+       "item": "lyricsEnabled"
       },
       {
-       "item": "dopagaki"
+       "id": "ly_anim",
+       "label": "アニメーション",
+       "glyph": "clapperboard",
+       "children": [
+        {
+         "item": "parts"
+        },
+        {
+         "item": "dopagaki"
+        },
+        {
+         "item": "pvInterludeArt"
+        }
+       ]
       },
       {
-       "item": "pvInterludeArt"
+       "id": "ly_text",
+       "label": "文字",
+       "glyph": "case-sensitive",
+       "children": [
+        {
+         "item": "jpFont"
+        },
+        {
+         "item": "enFont"
+        },
+        {
+         "item": "bold"
+        },
+        {
+         "item": "dopaBlack"
+        },
+        {
+         "item": "translation"
+        },
+        {
+         "item": "pvRuby"
+        },
+        {
+         "item": "pvTextColor"
+        },
+        {
+         "item": "pvFontScale"
+        },
+        {
+         "item": "pvTopOffset"
+        }
+       ]
+      },
+      {
+       "item": "displayMode"
+      },
+      {
+       "item": "statusBar"
+      },
+      {
+       "item": "statusBarWidth"
       }
      ]
     },
     {
-     "item": "displayMode"
-    },
-    {
-     "item": "statusBar"
-    },
-    {
-     "item": "pvFontScale"
-    },
-    {
-     "item": "pvTopOffset"
-    },
-    {
-     "item": "statusBarWidth"
+     "item": "keepScreenOn"
     }
    ]
   },
@@ -1008,7 +1045,7 @@
      "item": "sleep"
     },
     {
-     "item": "keepScreenOn"
+     "item": "startupPage"
     }
    ]
   },
@@ -1028,9 +1065,6 @@
     },
     {
      "item": "guideReshow"
-    },
-    {
-     "item": "startupPage"
     }
    ]
   }
