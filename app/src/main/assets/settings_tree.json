@@ -1,5 +1,5 @@
 {
- "version": 4,
+ "version": 5,
  "items": {
   "reverse": {
    "label": "スクロール方向の反転",
@@ -505,7 +505,7 @@
     {
      "id": "bg_image",
      "label": "背景画像",
-     "glyph": "image",
+     "glyph": "wallpaper",
      "children": [
       {
        "item": "bgMode"
@@ -524,7 +524,7 @@
     {
      "id": "bg_liquid",
      "label": "液体",
-     "glyph": "color",
+     "glyph": "droplet",
      "children": [
       {
        "item": "liquid"
@@ -585,7 +585,7 @@
     {
      "id": "ui_text",
      "label": "文字",
-     "glyph": "font",
+     "glyph": "case-sensitive",
      "children": [
       {
        "item": "uiFont"
@@ -608,7 +608,7 @@
     {
      "id": "ly_text",
      "label": "文字",
-     "glyph": "text",
+     "glyph": "case-sensitive",
      "children": [
       {
        "item": "jpFont"
@@ -627,7 +627,7 @@
     {
      "id": "ly_anim",
      "label": "アニメーション",
-     "glyph": "sparkle",
+     "glyph": "clapperboard",
      "children": [
       {
        "item": "displayMode"
