@@ -207,7 +207,8 @@ class AppRepository(private val context: Context) {
     private fun buildAppInfoList(records: List<AppRecord>): List<AppInfo> {
         val favoritesSet = prefManager.getFavoritePackages()
         val hiddenSet = prefManager.getHiddenPackages()
-        val yomiMap = prefManager.getYomiMap()
+        // 既定の読み仮名辞書（主要アプリ用）の上に、手動登録を重ねる（手動が優先）
+        val yomiMap = AppYomiData.load(context) + prefManager.getYomiMap()
         val aliasesMap = prefManager.getAliasesMap()
 
         val apps = records.map { rec ->

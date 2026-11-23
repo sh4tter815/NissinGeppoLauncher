@@ -415,6 +415,62 @@ class AppPreferenceManager(private val context: Context) {
     fun isRackReverseScroll(): Boolean = prefs.getBoolean("rack_reverse", false)
     fun setRackReverseScroll(v: Boolean) = prefs.edit().putBoolean("rack_reverse", v).apply()
 
+    // ===== 設定バックアップ（読み仮名・お気に入り・フォルダを含む全設定をJSONへ） =====
+    fun exportAllJson(): String {
+        val prefsObj = org.json.JSONObject()
+        for ((k, v) in prefs.all) {
+            val o = org.json.JSONObject()
+            when (v) {
+                is Boolean -> { o.put("t", "b"); o.put("v", v) }
+                is Int -> { o.put("t", "i"); o.put("v", v) }
+                is Long -> { o.put("t", "l"); o.put("v", v) }
+                is Float -> { o.put("t", "f"); o.put("v", v.toDouble()) }
+                is String -> { o.put("t", "s"); o.put("v", v) }
+                is Set<*> -> { o.put("t", "set"); o.put("v", org.json.JSONArray(v.map { it.toString() })) }
+                else -> continue
+            }
+            prefsObj.put(k, o)
+        }
+        return org.json.JSONObject().apply {
+            put("app", "NissinGeppoLauncher")
+            put("kind", "settings-backup")
+            put("version", 1)
+            put("prefs", prefsObj)
+        }.toString()
+    }
+
+    fun importAllJson(text: String): Boolean {
+        return try {
+            val root = org.json.JSONObject(text)
+            if (root.optString("kind") != "settings-backup") return false
+            val prefsObj = root.getJSONObject("prefs")
+            val e = prefs.edit()
+            e.clear()
+            val keys = prefsObj.keys()
+            while (keys.hasNext()) {
+                val k = keys.next()
+                val o = prefsObj.getJSONObject(k)
+                when (o.getString("t")) {
+                    "b" -> e.putBoolean(k, o.getBoolean("v"))
+                    "i" -> e.putInt(k, o.getInt("v"))
+                    "l" -> e.putLong(k, o.getLong("v"))
+                    "f" -> e.putFloat(k, o.getDouble("v").toFloat())
+                    "s" -> e.putString(k, o.getString("v"))
+                    "set" -> {
+                        val arr = o.getJSONArray("v")
+                        val s = mutableSetOf<String>()
+                        for (i in 0 until arr.length()) s.add(arr.getString(i))
+                        e.putStringSet(k, s)
+                    }
+                }
+            }
+            e.apply()
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     // フォント選択 ("default" = デフォルト, "receipt" = レシートフォント, "custom" = カスタムファイル)
     fun getFontChoice(): String = prefs.getString("font_choice", "default") ?: "default"
     fun setFontChoice(choice: String) = prefs.edit().putString("font_choice", choice).apply()
