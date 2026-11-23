@@ -143,12 +143,14 @@ fun MarqueeText(
     color: Color,
     fontWeight: FontWeight?,
     alignEnd: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    fontSizeSp: Float = 15f,
+    letterSpacingSp: Float = 0f
 ) {
     val density = LocalDensity.current
     val viewportPx = with(density) { 128.dp.toPx() }
     val textMeasurer = rememberTextMeasurer()
-    val style = LocalTextStyle.current.copy(color = color, fontSize = 15.sp, fontWeight = fontWeight)
+    val style = LocalTextStyle.current.copy(color = color, fontSize = fontSizeSp.sp, fontWeight = fontWeight, letterSpacing = letterSpacingSp.sp)
     val textWidthPx = remember(text, style) {
         textMeasurer.measure(text, style, softWrap = false).size.width.toFloat()
     }
@@ -199,6 +201,8 @@ fun DiscWheel(
     state: DiscCarouselState,
     gesturesEnabled: Boolean = true,
     iconSizeDp: Float = 25f,
+    textSizeSp: Float = 15f,
+    letterSpacingSp: Float = 0f,
     contentKey: Any? = null,
     forceSlideOut: Boolean = false,
     holdExpand: Boolean = false,
@@ -260,12 +264,12 @@ fun DiscWheel(
                 val dotY = centerY + 147f * sin(rad)
                 Canvas(
                     modifier = Modifier
-                        .offset(x = (dotX - 6f).dp, y = (dotY - 6f).dp)
-                        .size(12.dp)
+                        .offset(x = (dotX - 4.5f).dp, y = (dotY - 4.5f).dp)
+                        .size(9.dp)
                 ) {
                     drawCircle(
                         color = if (isSelected) accentColor else Color.White,
-                        radius = (if (isSelected) 5.5f else 4f).dp.toPx(),
+                        radius = (if (isSelected) 4f else 2.8f).dp.toPx(),
                         alpha = labelAlpha * (if (isSelected) 1f else 0.55f)
                     )
                 }
@@ -282,7 +286,8 @@ fun DiscWheel(
                         Text(
                             entry.label,
                             color = if (isSelected) accentColor else Color.White.copy(alpha = 0.9f),
-                            fontSize = 15.sp,
+                            fontSize = textSizeSp.sp,
+                            letterSpacing = letterSpacingSp.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             modifier = Modifier.graphicsLayer { this.alpha = labelAlpha }
                         )
@@ -337,13 +342,16 @@ fun DiscWheel(
                             text = entry.label + if (entry.checked) "  ✓" else "",
                             color = if (entry.checked || ((focusedLabelOnly || accentSelectedLabel) && isSelected)) accentColor else Color.White.copy(alpha = 0.9f),
                             fontWeight = if (isSelected || entry.checked) FontWeight.Bold else FontWeight.Medium,
-                            alignEnd = side == DiscSide.RIGHT
+                            alignEnd = side == DiscSide.RIGHT,
+                            fontSizeSp = textSizeSp,
+                            letterSpacingSp = letterSpacingSp
                         )
                     } else {
                         Text(
                             text = entry.label + if (entry.checked) "  ✓" else "",
                             color = if (entry.checked || ((focusedLabelOnly || accentSelectedLabel) && isSelected)) accentColor else Color.White.copy(alpha = 0.9f),
-                            fontSize = 15.sp,
+                            fontSize = textSizeSp.sp,
+                            letterSpacing = letterSpacingSp.sp,
                             fontWeight = if (isSelected || entry.checked) FontWeight.Bold else FontWeight.Medium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -380,7 +388,8 @@ fun DiscWheel(
                     Text(
                         restLabelText ?: focusEntry.label,
                         color = accentColor,
-                        fontSize = 15.sp,
+                        fontSize = textSizeSp.sp,
+                        letterSpacing = letterSpacingSp.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
