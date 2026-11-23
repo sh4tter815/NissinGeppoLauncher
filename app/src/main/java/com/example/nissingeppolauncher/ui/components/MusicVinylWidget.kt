@@ -250,7 +250,8 @@ fun MusicVinylWidget(
         index < rackCurrentIndex -> "前の曲"
         else -> "次の曲"
     }
-    fun rackArtAt(index: Int): Bitmap? = when {
+    val artworkEnabled = prefManager.isArtworkEnabled()
+    fun rackArtAt(index: Int): Bitmap? = if (!artworkEnabled) null else when {
         queueMode -> sessionQueue.getOrNull(index)?.description?.let { d -> d.iconBitmap ?: d.iconUri?.toString()?.let { queueArtCache[it] } } ?: if (index == rackCurrentIndex) albumArtBitmap else null
         index == rackCurrentIndex -> albumArtBitmap
         else -> null
@@ -427,7 +428,7 @@ fun MusicVinylWidget(
                             var moved = false
                             var maxDist = 0f
                             var stepBaseY = down.position.y
-                            val dirSign = if (prefManager.isReverseScroll()) -1 else 1
+                            val dirSign = if (prefManager.isRackReverseScroll()) -1 else 1
                             val downWall = System.currentTimeMillis()
                             drag(down.id) { change ->
                                 maxDist = maxOf(maxDist, (change.position - down.position).getDistance())
@@ -506,7 +507,7 @@ fun MusicVinylWidget(
             }
 
             // 薄い立体感: アートワークの下に暗い円を少しずらして敷き、盤の厚みとして見せる
-            if (artworkTilt3d && albumArtBitmap != null) {
+            if (artworkTilt3d && artworkEnabled && albumArtBitmap != null) {
                 Box(
                     modifier = Modifier
                         .size((discRadiusDp * 2f * 0.92f).dp)
@@ -527,7 +528,7 @@ fun MusicVinylWidget(
                     .clip(CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                val bitmap = albumArtBitmap
+                val bitmap = if (artworkEnabled) albumArtBitmap else null
                 if (bitmap != null) {
                     Image(
                         bitmap = bitmap.asImageBitmap(),
