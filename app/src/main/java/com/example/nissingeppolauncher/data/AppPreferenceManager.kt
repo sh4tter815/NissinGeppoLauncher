@@ -408,6 +408,13 @@ class AppPreferenceManager(private val context: Context) {
     fun getPageWallpaperPath(page: Int): String? = prefs.getString("wallpaper_path_page_$page", null)
     fun setPageWallpaperPath(page: Int, path: String?) = prefs.edit().putString("wallpaper_path_page_$page", path).apply()
 
+    // アートワーク表示（左円とラックの画像そのもの）
+    fun isArtworkEnabled(): Boolean = prefs.getBoolean("artwork_enabled", true)
+    fun setArtworkEnabled(v: Boolean) = prefs.edit().putBoolean("artwork_enabled", v).apply()
+    // ラック専用のスクロール反転（円盤の反転とは別）
+    fun isRackReverseScroll(): Boolean = prefs.getBoolean("rack_reverse", false)
+    fun setRackReverseScroll(v: Boolean) = prefs.edit().putBoolean("rack_reverse", v).apply()
+
     // フォント選択 ("default" = デフォルト, "receipt" = レシートフォント, "custom" = カスタムファイル)
     fun getFontChoice(): String = prefs.getString("font_choice", "default") ?: "default"
     fun setFontChoice(choice: String) = prefs.edit().putString("font_choice", choice).apply()
