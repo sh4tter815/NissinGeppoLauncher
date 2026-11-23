@@ -644,6 +644,7 @@ fun SettingsScreen(
     var searchQuery by remember { mutableStateOf("") }
     var leftDiscState by remember { mutableStateOf<DiscCarouselState?>(null) }
     var leftHeld by remember { mutableStateOf(false) }
+    var backFocused by remember { mutableStateOf(false) }
     var rightDiscState by remember { mutableStateOf<DiscCarouselState?>(null) }
     fun goBack() {
         val dropped = navPath.lastOrNull() ?: return
@@ -1147,9 +1148,8 @@ fun SettingsScreen(
             navigateAnimated { goBack() }
         } else {
             val node = currentList[idx]
-            val tog = node.item?.onToggle
             val act = node.item?.onAction
-            if (tog != null) tog.invoke() else if (act != null) act.invoke() else focusId = node.id
+            if (act != null) act.invoke() else focusId = node.id
         }
     }
 
@@ -1176,6 +1176,7 @@ fun SettingsScreen(
                 fun nodeEntry(node: SettingNode): DiscEntry = DiscEntry(
                     id = node.id, label = node.label,
                     valueText = node.item?.valueText?.ifEmpty { null },
+                    toggleState = node.item?.let { item -> if (item.onToggle != null) item.valueText == "オン" else null },
                     icon = {
                         if (node.catIcon) SettingsCategoryIcon(kind = node.id, accentColor = currentAccentColor)
                         else DiscGlyph(node.glyph ?: node.item?.glyph ?: "toggle", currentAccentColor)
@@ -1195,16 +1196,20 @@ fun SettingsScreen(
                         accentColor = currentAccentColor,
                         modifier = Modifier.fillMaxSize(),
                         state = lState, gesturesEnabled = false, iconSizeDp = iconSize,
-                        focusedLabelOnly = true, fadeLabelsOnScroll = false,
+                        focusedLabelOnly = true, fadeLabelsOnScroll = false, showValues = false,
                         forceSlideOut = discExiting, holdExpand = true, holdActive = leftHeld,
                         contentKey = navPath.joinToString("/") + "-" + searchQuery,
                         initialFocus = currentList.indexOfFirst { it.id == focusId }.coerceAtLeast(0),
-                        onFocusChange = { idx -> currentList.getOrNull(idx)?.let { focusId = it.id } },
+                        onFocusChange = { idx ->
+                            backFocused = idx >= currentList.size
+                            currentList.getOrNull(idx)?.let { focusId = it.id }
+                        },
                         onEntryClick = leftEntryClick
                     )
                 }
-                // 右円: 子一覧 / ゲージ / 選択肢
-                val fNode = focusedNode
+                // 右円: 子一覧 / ゲージ / 選択肢（「戻る」にフォーカス中は右円に何も表示しない）
+                val currentItem = if (backFocused) null else currentItem
+                val fNode = if (backFocused) null else focusedNode
                 if (fNode != null && fNode.item == null && fNode.children.isNotEmpty()) {
                     key("tree-right-${navPath.joinToString("/")}-${fNode.id}") {
                         val rState = rememberDiscCarouselState(0, 20f)
@@ -1215,17 +1220,15 @@ fun SettingsScreen(
                             accentColor = currentAccentColor,
                             modifier = Modifier.fillMaxSize(),
                             state = rState, gesturesEnabled = true, iconSizeDp = iconSize,
+                            accentSelectedLabel = true, dimmed = leftDiscState?.isScrolling == true,
                             forceSlideOut = discExiting,
                             contentKey = "r-${navPath.joinToString("/")}-${fNode.id}",
                             initialFocus = 0,
                             onFocusChange = { },
                             onEntryClick = { idx ->
                                 val child = fNode.children[idx]
-                                val tog = child.item?.onToggle
                                 val act = child.item?.onAction
-                                if (tog != null) {
-                                    tog.invoke()
-                                } else if (act != null) {
+                                if (act != null) {
                                     act.invoke()
                                 } else {
                                     navigateAnimated {
@@ -1277,7 +1280,7 @@ key("disc-choices-${currentItem.id}") {
                         side = DiscSide.RIGHT,
                         accentColor = currentAccentColor,
                         modifier = Modifier.fillMaxSize(),
-                        state = choiceState, gesturesEnabled = true, iconSizeDp = iconSize, contentKey = "c-${currentItem.id}", forceSlideOut = discExiting,
+                        state = choiceState, gesturesEnabled = true, iconSizeDp = iconSize, accentSelectedLabel = true, tapToApply = true, dimmed = leftDiscState?.isScrolling == true, contentKey = "c-${currentItem.id}", forceSlideOut = discExiting,
                         initialFocus = currentItem.choices.indexOfFirst { it.checked }.coerceAtLeast(0),
                         onFocusChange = { },
                         onEntryClick = { idx -> currentItem.choices[idx].onSelect() },

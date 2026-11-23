@@ -7,6 +7,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.material3.LocalTextStyle
@@ -90,8 +91,28 @@ data class DiscEntry(
     val checked: Boolean = false,
     val valueText: String? = null,
     val immediate: Boolean = false,
+    val toggleState: Boolean? = null,
     val icon: @Composable () -> Unit = {}
 )
+
+// トグル項目用の小さいスイッチ表示（オン/オフの文字の代わり）
+@Composable
+fun DiscMiniSwitch(on: Boolean, accentColor: Color) {
+    Box(
+        modifier = Modifier
+            .width(30.dp)
+            .height(17.dp)
+            .background(if (on) accentColor else Color.White.copy(alpha = 0.25f), RoundedCornerShape(999.dp))
+            .padding(2.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(13.dp)
+                .align(if (on) Alignment.CenterEnd else Alignment.CenterStart)
+                .background(Color.White, CircleShape)
+        )
+    }
+}
 
 enum class DiscSide { LEFT, RIGHT }
 
@@ -113,9 +134,18 @@ fun DiscWheel(
     holdExpand: Boolean = false,
     holdActive: Boolean? = null,
     focusedLabelOnly: Boolean = false,
-    fadeLabelsOnScroll: Boolean = true
+    fadeLabelsOnScroll: Boolean = true,
+    accentSelectedLabel: Boolean = false,
+    tapToApply: Boolean = false,
+    dimmed: Boolean = false,
+    showValues: Boolean = true
 ) {
     if (entries.isEmpty()) return
+    val dimFactor by animateFloatAsState(
+        targetValue = if (dimmed) 0.2f else 1f,
+        animationSpec = tween(durationMillis = 120),
+        label = "DiscWheelDim"
+    )
     // 中身だけを設定用に入れ替えて、円盤のエンジン自体はアプリ円盤と共通の DiscCarousel を使う
     BoxWithConstraints(modifier = modifier) {
         val centerX = if (side == DiscSide.LEFT) -80f else maxWidth.value + 80f
@@ -150,7 +180,11 @@ fun DiscWheel(
                     .offset(x = (iconX - iconSize / 2f).dp, y = (iconY - iconSize / 2f).dp)
                     .size(iconSize.dp)
                     .clickable {
-                        if (isSelected || entry.immediate) onEntryClick(index) else carouselState.animateToIndex(index)
+                        when {
+                                isSelected || entry.immediate -> onEntryClick(index)
+                                tapToApply -> { carouselState.animateToIndex(index); onEntryClick(index) }
+                                else -> carouselState.animateToIndex(index)
+                            }
                     },
                 contentAlignment = Alignment.Center
             ) {
@@ -166,30 +200,40 @@ fun DiscWheel(
                     .offset(x = (if (side == DiscSide.LEFT) ax else ax - 240f).dp, y = (ay - 22f).dp)
                     .width(240.dp)
                     .height(44.dp)
-                    .graphicsLayer { this.alpha = if (focusedLabelOnly && !isSelected && !carouselState.isScrolling) 0f else labelAlpha },
+                    .graphicsLayer { this.alpha = (if (focusedLabelOnly && !isSelected && !carouselState.isScrolling) 0f else labelAlpha) * dimFactor },
                 contentAlignment = if (side == DiscSide.LEFT) Alignment.CenterStart else Alignment.CenterEnd
             ) {
                 Row(
                     modifier = Modifier.clickable {
-                        if (isSelected || entry.immediate) onEntryClick(index) else carouselState.animateToIndex(index)
+                        when {
+                                isSelected || entry.immediate -> onEntryClick(index)
+                                tapToApply -> { carouselState.animateToIndex(index); onEntryClick(index) }
+                                else -> carouselState.animateToIndex(index)
+                            }
                     },
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = if (side == DiscSide.LEFT) Arrangement.Start else Arrangement.End
                 ) {
-                    if (side == DiscSide.RIGHT && entry.valueText != null) {
+                    if (side == DiscSide.RIGHT && entry.toggleState != null) {
+                        DiscMiniSwitch(entry.toggleState, accentColor)
+                        Spacer(modifier = Modifier.width(6.dp))
+                    } else if (side == DiscSide.RIGHT && entry.valueText != null) {
                         Text(entry.valueText, color = accentColor.copy(alpha = 0.75f), fontSize = 10.sp, maxLines = 1)
                         Spacer(modifier = Modifier.width(6.dp))
                     }
                     Text(
                         text = entry.label + if (entry.checked) "  ✓" else "",
-                        color = if (entry.checked || (focusedLabelOnly && isSelected)) accentColor else Color.White.copy(alpha = 0.9f),
+                        color = if (entry.checked || ((focusedLabelOnly || accentSelectedLabel) && isSelected)) accentColor else Color.White.copy(alpha = 0.9f),
                         fontSize = 15.sp,
                         fontWeight = if (isSelected || entry.checked) FontWeight.Bold else FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.widthIn(max = 150.dp)
                     )
-                    if (side == DiscSide.LEFT && entry.valueText != null) {
+                    if (showValues && side == DiscSide.LEFT && entry.toggleState != null) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        DiscMiniSwitch(entry.toggleState, accentColor)
+                    } else if (showValues && side == DiscSide.LEFT && entry.valueText != null) {
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(entry.valueText, color = accentColor.copy(alpha = 0.75f), fontSize = 10.sp, maxLines = 1)
                     }
