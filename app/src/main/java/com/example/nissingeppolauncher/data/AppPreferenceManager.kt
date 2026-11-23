@@ -349,6 +349,65 @@ class AppPreferenceManager(private val context: Context) {
     fun isReverseScroll(): Boolean = prefs.getBoolean("reverse_scroll", false)
     fun setReverseScroll(reverse: Boolean) = prefs.edit().putBoolean("reverse_scroll", reverse).apply()
 
+    // ===== 追加設定（2026-11-23 一括追加分） =====
+    // 円盤の慣性の強さ（フリックの飛び具合の倍率）
+    fun getDiscInertia(): Float = prefs.getFloat("disc_inertia", 1.0f)
+    fun setDiscInertia(v: Float) = prefs.edit().putFloat("disc_inertia", v).apply()
+    // 振動フィードバック（円盤のカチッという触覚）
+    fun isHapticsEnabled(): Boolean = prefs.getBoolean("haptics_enabled", true)
+    fun setHapticsEnabled(v: Boolean) = prefs.edit().putBoolean("haptics_enabled", v).apply()
+    // 時計: 秒表示 / 12時間表示 / バッテリー残量 / 和暦
+    fun isClockShowSeconds(): Boolean = prefs.getBoolean("clock_show_seconds", false)
+    fun setClockShowSeconds(v: Boolean) = prefs.edit().putBoolean("clock_show_seconds", v).apply()
+    fun isClock12h(): Boolean = prefs.getBoolean("clock_12h", false)
+    fun setClock12h(v: Boolean) = prefs.edit().putBoolean("clock_12h", v).apply()
+    fun isClockShowBattery(): Boolean = prefs.getBoolean("clock_show_battery", false)
+    fun setClockShowBattery(v: Boolean) = prefs.edit().putBoolean("clock_show_battery", v).apply()
+    fun isDateWareki(): Boolean = prefs.getBoolean("date_wareki", false)
+    fun setDateWareki(v: Boolean) = prefs.edit().putBoolean("date_wareki", v).apply()
+    // 歌詞マスター（オフでPV・時計下・ステータスバーの歌詞を全部消す）
+    fun isLyricsEnabled(): Boolean = prefs.getBoolean("lyrics_enabled", true)
+    fun setLyricsEnabled(v: Boolean) = prefs.edit().putBoolean("lyrics_enabled", v).apply()
+    // PV: 文字サイズ倍率 / 縦位置オフセット(dp) / 文字色 / ルビ / 間奏アート
+    fun getPvFontScale(): Float = prefs.getFloat("pv_font_scale", 1.0f)
+    fun setPvFontScale(v: Float) = prefs.edit().putFloat("pv_font_scale", v).apply()
+    fun getPvTopOffsetDp(): Float = prefs.getFloat("pv_top_offset", 0f)
+    fun setPvTopOffsetDp(v: Float) = prefs.edit().putFloat("pv_top_offset", v).apply()
+    fun getPvTextColor(): String = prefs.getString("pv_text_color", "white") ?: "white"
+    fun setPvTextColor(v: String) = prefs.edit().putString("pv_text_color", v).apply()
+    fun isPvRubyEnabled(): Boolean = prefs.getBoolean("pv_ruby_enabled", true)
+    fun setPvRubyEnabled(v: Boolean) = prefs.edit().putBoolean("pv_ruby_enabled", v).apply()
+    fun isPvInterludeArtEnabled(): Boolean = prefs.getBoolean("pv_interlude_art", true)
+    fun setPvInterludeArtEnabled(v: Boolean) = prefs.edit().putBoolean("pv_interlude_art", v).apply()
+    // 液体: 速さ倍率 / 濃さ倍率
+    fun getLiquidSpeed(): Float = prefs.getFloat("liquid_speed", 1.0f)
+    fun setLiquidSpeed(v: Float) = prefs.edit().putFloat("liquid_speed", v).apply()
+    fun getLiquidAlpha(): Float = prefs.getFloat("liquid_alpha", 1.0f)
+    fun setLiquidAlpha(v: Float) = prefs.edit().putFloat("liquid_alpha", v).apply()
+    // 起動時に開くページ: "home" / "last"（last のときは getLastPage を使う）
+    fun getStartupPage(): String = prefs.getString("startup_page", "home") ?: "home"
+    fun setStartupPage(v: String) = prefs.edit().putString("startup_page", v).apply()
+    fun getLastPage(): Int = prefs.getInt("last_page", 1)
+    fun setLastPage(v: Int) = prefs.edit().putInt("last_page", v).apply()
+    // ステータスバー歌詞の横幅（画面幅に対する割合）
+    fun getStatusBarWidthFactor(): Float = prefs.getFloat("status_bar_width", 0.33f)
+    fun setStatusBarWidthFactor(v: Float) = prefs.edit().putFloat("status_bar_width", v).apply()
+    // 下ダイヤルの表示方法: "auto"（ラック中などは隠れる） / "always" / "hidden"
+    fun getDialVisibility(): String = prefs.getString("dial_visibility", "auto") ?: "auto"
+    fun setDialVisibility(v: String) = prefs.edit().putString("dial_visibility", v).apply()
+    // ページ切り替えアニメの速さ倍率
+    fun getPageTransitionSpeed(): Float = prefs.getFloat("page_transition_speed", 1.0f)
+    fun setPageTransitionSpeed(v: Float) = prefs.edit().putFloat("page_transition_speed", v).apply()
+    // 再生中は画面を点けたまま
+    fun isKeepScreenOn(): Boolean = prefs.getBoolean("keep_screen_on", false)
+    fun setKeepScreenOn(v: Boolean) = prefs.edit().putBoolean("keep_screen_on", v).apply()
+    // 壁紙のぼかし (dp)
+    fun getWallpaperBlurDp(): Float = prefs.getFloat("wallpaper_blur", 0f)
+    fun setWallpaperBlurDp(v: Float) = prefs.edit().putFloat("wallpaper_blur", v).apply()
+    // ページごとの壁紙（未設定のページは共通の壁紙にフォールバック）
+    fun getPageWallpaperPath(page: Int): String? = prefs.getString("wallpaper_path_page_$page", null)
+    fun setPageWallpaperPath(page: Int, path: String?) = prefs.edit().putString("wallpaper_path_page_$page", path).apply()
+
     // フォント選択 ("default" = デフォルト, "receipt" = レシートフォント, "custom" = カスタムファイル)
     fun getFontChoice(): String = prefs.getString("font_choice", "default") ?: "default"
     fun setFontChoice(choice: String) = prefs.edit().putString("font_choice", choice).apply()
