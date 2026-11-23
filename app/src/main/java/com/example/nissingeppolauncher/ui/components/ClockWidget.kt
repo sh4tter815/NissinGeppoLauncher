@@ -55,7 +55,12 @@ fun ClockWidget(
     lyricFontFamily: FontFamily? = null,
     lyricEnFontFamily: FontFamily? = null,
     dopagaki: Boolean = false,
-    rainbowGlow: Boolean = false
+    rainbowGlow: Boolean = false,
+    // 追加表示: 秒 / 12時間制 / バッテリー残量 / 和暦
+    showSeconds: Boolean = false,
+    hour12: Boolean = false,
+    showBattery: Boolean = false,
+    wareki: Boolean = false
 ) {
     val context = LocalContext.current
     val effGlow = if (rainbowGlow) dopaRainbowColor(seed = 5) else glowColor
@@ -69,13 +74,26 @@ fun ClockWidget(
         }
     }
 
-    val hourFormat = SimpleDateFormat("HH", Locale.getDefault())
+    val hourFormat = SimpleDateFormat(if (hour12) "h" else "HH", Locale.getDefault())
     val minuteFormat = SimpleDateFormat("mm", Locale.getDefault())
-    val dateFormat = SimpleDateFormat("M/d (E)", Locale.JAPANESE)
+    val secondFormat = SimpleDateFormat("ss", Locale.getDefault())
+    val ampmFormat = SimpleDateFormat("a", Locale.JAPANESE)
+    val dateFormat = if (wareki) SimpleDateFormat("GGy年M月d日 (E)", Locale.JAPANESE) else SimpleDateFormat("M/d (E)", Locale.JAPANESE)
 
     val hourText = hourFormat.format(currentTime)
     val minuteText = minuteFormat.format(currentTime)
+    val secondText = secondFormat.format(currentTime)
+    val ampmText = ampmFormat.format(currentTime)
     val dateText = dateFormat.format(currentTime)
+    // バッテリー残量はスティッキーインテントから毎秒ついでに読む（レシーバ登録はしない）
+    val batteryPct = if (showBattery) {
+        try {
+            val bi = context.registerReceiver(null, android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED))
+            val level = bi?.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1) ?: -1
+            val scale = bi?.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, -1) ?: -1
+            if (level >= 0 && scale > 0) level * 100 / scale else -1
+        } catch (_: Exception) { -1 }
+    } else -1
 
     val openClock = {
         try {
@@ -135,22 +153,31 @@ fun ClockWidget(
                             indication = null
                         ) { openClock() }
                 ) {
-                    if (dopagaki) {
-                        DopaFlashText(text = hourText, fontSize = 54.sp, lineHeight = 54.sp)
-                    } else {
-                        Text(
-                            text = hourText,
-                            color = Color.White,
-                            fontSize = 54.sp,
-                            fontWeight = FontWeight.Bold,
-                            lineHeight = 54.sp
-                        )
-                    }
-                    if (dopagaki) {
-                        DopaFlashText(text = minuteText, fontSize = 54.sp, lineHeight = 54.sp)
-                    } else {
+                    Row(verticalAlignment = Alignment.Bottom) {
                         if (dopagaki) {
-                            DopaFlashText(text = dateText, fontSize = 17.sp, modifier = Modifier.padding(top = 16.dp).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { openCalendar() })
+                            DopaFlashText(text = hourText, fontSize = 54.sp, lineHeight = 54.sp)
+                        } else {
+                            Text(
+                                text = hourText,
+                                color = Color.White,
+                                fontSize = 54.sp,
+                                fontWeight = FontWeight.Bold,
+                                lineHeight = 54.sp
+                            )
+                        }
+                        if (hour12) {
+                            Text(
+                                text = ampmText,
+                                color = Color.White.copy(alpha = 0.75f),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(start = 6.dp, bottom = 8.dp)
+                            )
+                        }
+                    }
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        if (dopagaki) {
+                            DopaFlashText(text = minuteText, fontSize = 54.sp, lineHeight = 54.sp)
                         } else {
                             Text(
                                 text = minuteText,
@@ -158,6 +185,15 @@ fun ClockWidget(
                                 fontSize = 54.sp,
                                 fontWeight = FontWeight.Bold,
                                 lineHeight = 54.sp
+                            )
+                        }
+                        if (showSeconds) {
+                            Text(
+                                text = ":$secondText",
+                                color = Color.White.copy(alpha = 0.7f),
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(start = 2.dp, bottom = 6.dp)
                             )
                         }
                     }
@@ -190,6 +226,16 @@ fun ClockWidget(
                         )
                     }
                 }
+            }
+
+            if (showBattery && batteryPct >= 0) {
+                Text(
+                    text = "バッテリー $batteryPct%",
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
             }
 
             // 同期歌詞の現在行 (時計の下に表示)。行の切り替わりは音楽アプリと同じ
@@ -250,9 +296,10 @@ fun ClockWidget(
                         indication = null
                     ) { openClock() }
             ) {
-                if (dopagaki) {
+                Row(verticalAlignment = Alignment.Bottom) {
+                    if (dopagaki) {
                     DopaFlashText(text = hourText, fontSize = 54.sp, lineHeight = 54.sp)
-                } else {
+                    } else {
                     Text(
                         text = hourText,
                         color = Color.White,
@@ -260,10 +307,21 @@ fun ClockWidget(
                         fontWeight = FontWeight.Bold,
                         lineHeight = 54.sp
                     )
+                    }
+                    if (hour12) {
+                    Text(
+                        text = ampmText,
+                        color = Color.White.copy(alpha = 0.75f),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(start = 6.dp, bottom = 8.dp)
+                    )
+                    }
                 }
-                if (dopagaki) {
+                Row(verticalAlignment = Alignment.Bottom) {
+                    if (dopagaki) {
                     DopaFlashText(text = minuteText, fontSize = 54.sp, lineHeight = 54.sp)
-                } else {
+                    } else {
                     Text(
                         text = minuteText,
                         color = Color.White,
@@ -271,22 +329,44 @@ fun ClockWidget(
                         fontWeight = FontWeight.Bold,
                         lineHeight = 54.sp
                     )
+                    }
+                    if (showSeconds) {
+                    Text(
+                        text = ":$secondText",
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(start = 2.dp, bottom = 6.dp)
+                    )
+                    }
                 }
             }
 
             // 日付ブロック (時計の下・横書き。タップでカレンダーアプリ起動)
-            Text(
-                text = dateText,
-                color = Color.White.copy(alpha = 0.75f),
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier
-                    .padding(top = 16.dp)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) { openCalendar() }
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(top = 16.dp)
+            ) {
+                Text(
+                    text = dateText,
+                    color = Color.White.copy(alpha = 0.75f),
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { openCalendar() }
+                )
+                if (showBattery && batteryPct >= 0) {
+                    Text(
+                        text = " ・ $batteryPct%",
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
 
             // 同期歌詞の現在行 (日付の下に表示)。行の切り替わりは350msのクロスフェード
             if (showLyrics) {

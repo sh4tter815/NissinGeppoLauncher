@@ -120,6 +120,8 @@ fun DiscCarousel(
     val context = LocalContext.current
     val prefManager = remember { AppPreferenceManager(context) }
     val isReverseScroll = prefManager.isReverseScroll()
+    val discInertia = prefManager.getDiscInertia()
+    val hapticsEnabled = prefManager.isHapticsEnabled()
 
     val density = LocalDensity.current
     val haptic = LocalHapticFeedback.current
@@ -203,7 +205,7 @@ fun DiscCarousel(
 
     var lastHapticIndex by remember { mutableStateOf(-1) }
     LaunchedEffect(selectedIndex) {
-        if (selectedIndex != -1 && selectedIndex != lastHapticIndex && lastHapticIndex != -1) {
+        if (hapticsEnabled && selectedIndex != -1 && selectedIndex != lastHapticIndex && lastHapticIndex != -1) {
             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
         }
         lastHapticIndex = selectedIndex
@@ -285,7 +287,7 @@ fun DiscCarousel(
                     internalHold = false
                     if (isDragStarted && itemCount > 0) {
                         if (isLoopable) {
-                            val inertiaTarget = state.rawRotation + lastDeltaAngle * 10f
+                            val inertiaTarget = state.rawRotation + lastDeltaAngle * 10f * discInertia
                             val nearestIndex = (-inertiaTarget / stepAngle).roundToInt()
                             val finalSnapAngle = -nearestIndex * stepAngle
 
@@ -298,7 +300,7 @@ fun DiscCarousel(
                                 state.isScrolling = false
                             }
                         } else {
-                            val inertiaTarget = state.rawRotation + lastDeltaAngle * 6f
+                            val inertiaTarget = state.rawRotation + lastDeltaAngle * 6f * discInertia
                             val nearestIndex = (-inertiaTarget / stepAngle).roundToInt()
                             val finalSnapAngle = (-nearestIndex * stepAngle).coerceIn(minRotation, maxRotation)
 
@@ -485,7 +487,7 @@ fun DiscTouchHalf(
                                             animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
                                         )
                                     }
-                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                    if (AppPreferenceManager(view.context).isHapticsEnabled()) view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                                 }
                             }
                             while (accumulatedDy <= -stepThreshold) {
@@ -501,7 +503,7 @@ fun DiscTouchHalf(
                                             animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
                                         )
                                     }
-                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                    if (AppPreferenceManager(view.context).isHapticsEnabled()) view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                                 }
                             }
                         }
