@@ -1341,15 +1341,15 @@ key("disc-choices-${currentItem.id}") {
         ) {
             Box(
                 modifier = Modifier
-                    .size(600.dp)
-                    .offset(y = (-478).dp)
+                    .size(330.dp)
+                    .offset(y = (-264).dp)
                     .border(1.5.dp, Color.White.copy(alpha = 0.85f), CircleShape)
             )
         }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = statusTopDp + 38.dp),
+                .padding(top = statusTopDp + 10.dp),
             contentAlignment = Alignment.TopCenter
         ) {
             Row(
@@ -1407,7 +1407,7 @@ key("disc-choices-${currentItem.id}") {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = statusTopDp + 134.dp),
+                .padding(top = statusTopDp + 106.dp),
             contentAlignment = Alignment.TopCenter
         ) {
             if (searchQuery.isNotBlank()) {
