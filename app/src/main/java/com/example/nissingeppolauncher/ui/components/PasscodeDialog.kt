@@ -51,6 +51,7 @@ fun RotatableSingleDial(
             isRightDisc = false,
             isLoopable = true,
             state = state,
+            showOutline = false,
             onSelectedIndexChange = { onValueChange(it) },
             modifier = Modifier.fillMaxSize()
         ) { index, rad, labelAlpha, isSelected ->

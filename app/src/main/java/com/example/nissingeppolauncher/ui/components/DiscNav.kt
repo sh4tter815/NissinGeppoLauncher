@@ -265,12 +265,12 @@ fun DiscWheel(
                 val dotY = centerY + 147f * sin(rad)
                 Canvas(
                     modifier = Modifier
-                        .offset(x = (dotX - 4.5f).dp, y = (dotY - 4.5f).dp)
-                        .size(9.dp)
+                        .offset(x = (dotX - 3f).dp, y = (dotY - 3f).dp)
+                        .size(6.dp)
                 ) {
                     drawCircle(
                         color = if (isSelected) accentColor else Color.White,
-                        radius = (if (isSelected) 4f else 2.8f).dp.toPx(),
+                        radius = (if (isSelected) 2.6f else 1.6f).dp.toPx(),
                         alpha = labelAlpha * (if (isSelected) 1f else 0.55f)
                     )
                 }
