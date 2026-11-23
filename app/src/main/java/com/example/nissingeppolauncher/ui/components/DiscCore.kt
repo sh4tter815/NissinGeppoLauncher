@@ -109,6 +109,7 @@ fun DiscCarousel(
     holdExpand: Boolean = false,
     holdActive: Boolean? = null,
     fadeLabelsOnScroll: Boolean = true,
+    showOutline: Boolean = true,
     onHoldingChanged: ((Boolean) -> Unit)? = null,
     onEmptyTap: (() -> Unit)? = null,
     state: DiscCarouselState = rememberDiscCarouselState(0, stepAngle),
@@ -330,6 +331,7 @@ fun DiscCarousel(
                     }
                 }
         ) {
+            if (showOutline) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 drawCircle(
                     color = Color.White.copy(alpha = 0.85f),
@@ -337,6 +339,7 @@ fun DiscCarousel(
                     center = Offset(discCenterXDp.dp.toPx(), discCenterYDp.dp.toPx()),
                     style = Stroke(width = 1.5f)
                 )
+            }
             }
 
             if (onEmptyTap != null) {
