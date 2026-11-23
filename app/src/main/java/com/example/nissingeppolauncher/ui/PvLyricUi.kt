@@ -658,6 +658,11 @@ fun lyricMixedFontText(text: String, enFontFamily: FontFamily?): androidx.compos
         if (!runs[k].third || useEn[k]) continue
         useEn[k] = if (k > 0) useEn[k - 1] else (if (runs.size > 1) useEn[k + 1] else false)
     }
+    // 1文字だけのランは、日本語の流れの一部として日本語フォントにする（「電ポルP」の P など）
+    for (k in runs.indices) {
+        val (s, e, _) = runs[k]
+        if (e - s == 1) useEn[k] = false
+    }
     return buildAnnotatedString {
         for (k in runs.indices) {
             val (s, e, _) = runs[k]
@@ -712,6 +717,11 @@ fun KaraokeLyricText(
         }
         list
     }
+    // 前後が半角でない孤立した1文字の半角は、日本語フォントのままにする
+    val enCharFlags = BooleanArray(line.text.length) { idx ->
+        if (line.text[idx] !in ' '..'~') false
+        else (idx > 0 && line.text[idx - 1] in ' '..'~') || (idx < line.text.length - 1 && line.text[idx + 1] in ' '..'~')
+    }
     val annotated = buildAnnotatedString {
         var ci = 0
         for (ch in line.text) {
@@ -722,7 +732,7 @@ fun KaraokeLyricText(
                 positionMs <= t.first -> baseColor
                 else -> lerp(baseColor, sungColor, ((positionMs - t.first).toFloat() / (t.second - t.first).coerceAtLeast(1L).toFloat()).coerceIn(0f, 1f))
             }
-            withStyle(SpanStyle(color = col, fontFamily = if (enFontFamily != null && ch in ' '..'~') enFontFamily else null)) { append(ch) }
+            withStyle(SpanStyle(color = col, fontFamily = if (enFontFamily != null && enCharFlags.getOrElse(ci) { false }) enFontFamily else null)) { append(ch) }
             ci++
         }
     }
@@ -1014,6 +1024,7 @@ fun PvLyricLine(
             val u = flat[idx]
             when {
                 u.isEmpty() || u.any { it !in ' '..'~' } -> 0
+                u.length == 1 -> 0 // 1文字だけのユニットは日本語の流れとして日本語フォント
                 u.any { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' } -> 1
                 else -> -1
             }
