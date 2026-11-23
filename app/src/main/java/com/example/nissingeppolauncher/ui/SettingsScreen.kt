@@ -599,9 +599,8 @@ fun SettingsScreen(
     var pvPartsEntry by remember { mutableStateOf(repo.prefManager.isPvPartsEntryEnabled()) }
     var dopagakiMode by remember { mutableStateOf(repo.prefManager.isDopagakiEnabled()) }
     var dopaBlackFont by remember { mutableStateOf(repo.prefManager.isDopaBlackFontEnabled()) }
-    var statusBarLyrics by remember { mutableStateOf(repo.prefManager.isStatusBarLyricsEnabled()) }
+    var statusBarMode by remember { mutableStateOf(repo.prefManager.getStatusBarMode()) }
         var pageSwitchStyle by remember { mutableStateOf(repo.prefManager.getPageSwitchStyle()) }
-    var appsUpdateStatus by remember { mutableStateOf("") }
     var isUpdatingApps by remember { mutableStateOf(false) }
     val settingsScope = rememberCoroutineScope()
 
@@ -641,10 +640,10 @@ fun SettingsScreen(
         }
     }
     var updateChecking by remember { mutableStateOf(false) }
-    var updateMessage by remember { mutableStateOf<String?>(null) }
+    var knownBuild by remember { mutableStateOf(com.example.nissingeppolauncher.data.UpdateChecker.lastKnownBuild(context)) }
     var updateInfo by remember { mutableStateOf<com.example.nissingeppolauncher.data.UpdateChecker.LatestRelease?>(null) }
     var fxChecking by remember { mutableStateOf(false) }
-    var fxMessage by remember { mutableStateOf<String?>(null) }
+    var fxVersion by remember { mutableStateOf(LyricEffectsData.appliedVersion) }
     var showUpdateDialog by remember { mutableStateOf(false) }
     if (showUpdateDialog && updateInfo != null) {
         UpdateDialog(
@@ -881,15 +880,14 @@ fun SettingsScreen(
         "updateApps" to { def: SettingItemDef ->
             SettingItem(
                 def.id, def.label, def.desc, def.glyph,
-                valueText = appsUpdateStatus.ifEmpty { "差分更新" },
+                valueText = "差分更新",
                 onAction = {
                     if (!isUpdatingApps) {
                         isUpdatingApps = true
-                        appsUpdateStatus = "更新中…"
                         settingsScope.launch {
                             val apps = repo.getInstalledApps(forceRefresh = true)
-                            appsUpdateStatus = "更新しました（全 ${apps.size} 件）"
                             isUpdatingApps = false
+                            android.widget.Toast.makeText(context, "アプリ一覧を更新しました（全 ${apps.size} 件）", android.widget.Toast.LENGTH_SHORT).show()
                             onAppsUpdated()
                         }
                     }
@@ -916,21 +914,18 @@ fun SettingsScreen(
         "fxUpdate" to { def: SettingItemDef ->
             SettingItem(
                 def.id, def.label, def.desc, def.glyph,
-                valueText = when { fxChecking -> "確認中…"; fxMessage != null -> fxMessage!!; else -> "タップで確認" },
+                valueText = "v$fxVersion",
                 onAction = {
                     if (!fxChecking) {
-                        fxMessage = null
                         fxChecking = true
                         settingsScope.launch {
                             val result = LyricEffectsData.refresh(context)
                             fxChecking = false
-                            if (result == 0) {
-                                android.widget.Toast.makeText(context, "最新のデータです（データ v${LyricEffectsData.appliedVersion}）", android.widget.Toast.LENGTH_SHORT).show()
-                            } else {
-                                fxMessage = when (result) {
-                                    1 -> "更新しました（データ v${LyricEffectsData.appliedVersion}）"
-                                    else -> "確認に失敗しました" + (LyricEffectsData.lastRefreshError?.let { "（$it）" } ?: "")
-                                }
+                            fxVersion = LyricEffectsData.appliedVersion
+                            when (result) {
+                                0 -> android.widget.Toast.makeText(context, "最新のデータです（データ v${LyricEffectsData.appliedVersion}）", android.widget.Toast.LENGTH_SHORT).show()
+                                1 -> android.widget.Toast.makeText(context, "歌詞データを更新しました（v${LyricEffectsData.appliedVersion}）", android.widget.Toast.LENGTH_SHORT).show()
+                                else -> android.widget.Toast.makeText(context, "確認に失敗しました" + (LyricEffectsData.lastRefreshError?.let { "（$it）" } ?: ""), android.widget.Toast.LENGTH_SHORT).show()
                             }
                         }
                     }
@@ -940,19 +935,19 @@ fun SettingsScreen(
         "checkUpdate" to { def: SettingItemDef ->
             SettingItem(
                 def.id, def.label, def.desc, def.glyph,
-                valueText = when { updateChecking -> "確認中…"; updateMessage != null -> updateMessage!!; else -> "タップで確認" },
+                valueText = if (knownBuild > 0) "#$knownBuild" else "—",
                 onAction = {
                     if (!updateChecking) {
-                        updateMessage = null
                         updateChecking = true
                         settingsScope.launch {
                             val info = com.example.nissingeppolauncher.data.UpdateChecker.fetchLatest(context)
                             updateChecking = false
+                            if (info != null) knownBuild = info.buildNumber
                             if (info?.isNewer == true) {
                                 updateInfo = info
                                 showUpdateDialog = true
                             } else if (info == null) {
-                                updateMessage = "確認に失敗しました"
+                                android.widget.Toast.makeText(context, "確認に失敗しました", android.widget.Toast.LENGTH_SHORT).show()
                             } else {
                                 android.widget.Toast.makeText(context, "新しいビルドはありませんでした（最新: #${info.buildNumber}）", android.widget.Toast.LENGTH_SHORT).show()
                             }
@@ -1007,12 +1002,19 @@ fun SettingsScreen(
         "statusBar" to { def: SettingItemDef ->
             SettingItem(
                 def.id, def.label, def.desc, def.glyph,
-                valueText = if (statusBarLyrics) "オン" else "オフ",
+                valueText = when (statusBarMode) { "pv" -> "PVミニ"; "line" -> "1行"; else -> "オフ" },
                 choices = listOf(
-                    SettingChoice("on", "オン", statusBarLyrics) {
-                        statusBarLyrics = true
-                        repo.prefManager.setStatusBarLyricsEnabled(true)
+                    SettingChoice("off", "オフ", statusBarMode == "off") {
+                        statusBarMode = "off"
+                        repo.prefManager.setStatusBarMode("off")
+                        LyricsOverlayService.stop(context)
+                        onChanged()
+                    },
+                    SettingChoice("line", "1行", statusBarMode == "line") {
+                        statusBarMode = "line"
+                        repo.prefManager.setStatusBarMode("line")
                         if (Settings.canDrawOverlays(context)) {
+                            LyricsOverlayService.stop(context)
                             LyricsOverlayService.start(context)
                         } else {
                             val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + context.packageName))
@@ -1020,10 +1022,16 @@ fun SettingsScreen(
                         }
                         onChanged()
                     },
-                    SettingChoice("off", "オフ", !statusBarLyrics) {
-                        statusBarLyrics = false
-                        repo.prefManager.setStatusBarLyricsEnabled(false)
-                        LyricsOverlayService.stop(context)
+                    SettingChoice("pv", "PVミニ", statusBarMode == "pv") {
+                        statusBarMode = "pv"
+                        repo.prefManager.setStatusBarMode("pv")
+                        if (Settings.canDrawOverlays(context)) {
+                            LyricsOverlayService.stop(context)
+                            LyricsOverlayService.start(context)
+                        } else {
+                            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + context.packageName))
+                            try { context.startActivity(intent) } catch (e: Exception) { }
+                        }
                         onChanged()
                     }
                 )
