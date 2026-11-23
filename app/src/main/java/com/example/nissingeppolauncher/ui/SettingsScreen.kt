@@ -580,6 +580,30 @@ fun SettingsScreen(
     var textSize by remember { mutableFloatStateOf(repo.prefManager.getAppDiscTextSizeSp()) }
     var letterSpacing by remember { mutableFloatStateOf(repo.prefManager.getAppDiscLetterSpacingSp()) }
     var stepAngle by remember { mutableFloatStateOf(repo.prefManager.getAppDiscStepAngle()) }
+    // 2026-11-23 一括追加分の状態
+    var lyricsEnabled by remember { mutableStateOf(repo.prefManager.isLyricsEnabled()) }
+    var lyricTranslation by remember { mutableStateOf(repo.prefManager.isLyricTranslationEnabled()) }
+    var pvRuby by remember { mutableStateOf(repo.prefManager.isPvRubyEnabled()) }
+    var pvInterludeArt by remember { mutableStateOf(repo.prefManager.isPvInterludeArtEnabled()) }
+    var haptics by remember { mutableStateOf(repo.prefManager.isHapticsEnabled()) }
+    var clockSeconds by remember { mutableStateOf(repo.prefManager.isClockShowSeconds()) }
+    var clock12h by remember { mutableStateOf(repo.prefManager.isClock12h()) }
+    var clockBattery by remember { mutableStateOf(repo.prefManager.isClockShowBattery()) }
+    var dateWareki by remember { mutableStateOf(repo.prefManager.isDateWareki()) }
+    var keepScreenOn by remember { mutableStateOf(repo.prefManager.isKeepScreenOn()) }
+    var pvTextColor by remember { mutableStateOf(repo.prefManager.getPvTextColor()) }
+    var startupPage by remember { mutableStateOf(repo.prefManager.getStartupPage()) }
+    var dialVisibility by remember { mutableStateOf(repo.prefManager.getDialVisibility()) }
+    var discInertia by remember { mutableFloatStateOf(repo.prefManager.getDiscInertia()) }
+    var pvFontScale by remember { mutableFloatStateOf(repo.prefManager.getPvFontScale()) }
+    var pvTopOffset by remember { mutableFloatStateOf(repo.prefManager.getPvTopOffsetDp()) }
+    var liquidSpeed by remember { mutableFloatStateOf(repo.prefManager.getLiquidSpeed()) }
+    var liquidAlpha by remember { mutableFloatStateOf(repo.prefManager.getLiquidAlpha()) }
+    var statusBarWidth by remember { mutableFloatStateOf(repo.prefManager.getStatusBarWidthFactor()) }
+    var pageTransitionSpeed by remember { mutableFloatStateOf(repo.prefManager.getPageTransitionSpeed()) }
+    var wallpaperBlur by remember { mutableFloatStateOf(repo.prefManager.getWallpaperBlurDp()) }
+    var pageWallpapers by remember { mutableStateOf((0..3).map { repo.prefManager.getPageWallpaperPath(it) }) }
+    var pendingWallpaperPage by remember { mutableIntStateOf(-1) }
     var backgroundPath by remember { mutableStateOf(repo.prefManager.getCustomBackgroundPath()) }
     var wallpaperAlpha by remember { mutableFloatStateOf(repo.prefManager.getHomeWallpaperAlpha()) }
     var showPasscodeChangeDialog by remember { mutableStateOf(false) }
@@ -736,6 +760,48 @@ fun SettingsScreen(
         }
     }
 
+    // ページ別壁紙ピッカー（保存先ファイルと pref をページごとに分ける以外は共通ピッカーと同じ）
+    val pageImagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        val page = pendingWallpaperPage
+        if (uri != null && page in 0..3) {
+            try {
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    BitmapFactory.decodeStream(inputStream, null, options)
+                    var sampleSize = 1
+                    val maxDimension = 1920
+                    while (options.outWidth / sampleSize > maxDimension || options.outHeight / sampleSize > maxDimension) {
+                        sampleSize *= 2
+                    }
+                    val decodeOptions = BitmapFactory.Options().apply {
+                        inSampleSize = sampleSize
+                        inPreferredConfig = Bitmap.Config.ARGB_8888
+                    }
+                    context.contentResolver.openInputStream(uri)?.use { stream2 ->
+                        val bitmap = BitmapFactory.decodeStream(stream2, null, decodeOptions)
+                        if (bitmap != null) {
+                            val destFile = File(context.filesDir, "custom_bg_p$page.png")
+                            FileOutputStream(destFile).use { out ->
+                                bitmap.compress(Bitmap.CompressFormat.PNG, 90, out)
+                            }
+                            bitmap.recycle()
+                            val path = destFile.absolutePath
+                            repo.prefManager.setPageWallpaperPath(page, path)
+                            pageWallpapers = (0..3).map { repo.prefManager.getPageWallpaperPath(it) }
+                            onChanged()
+                            Toast.makeText(context, "壁紙を変更しました", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            } catch (_: Exception) {
+                Toast.makeText(context, "壁紙の読み込みに失敗しました", Toast.LENGTH_SHORT).show()
+            }
+        }
+        pendingWallpaperPage = -1
+    }
+
     // フォントファイル選択ピッカー (.ttf / .otf)
     val fontPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -819,7 +885,17 @@ fun SettingsScreen(
         "pvPartsEntry" to Pair({ pvPartsEntry }, { v: Boolean -> pvPartsEntry = v; repo.prefManager.setPvPartsEntryEnabled(v); onChanged() }),
         "dopagaki" to Pair({ dopagakiMode }, { v: Boolean -> dopagakiMode = v; repo.prefManager.setDopagakiEnabled(v); onChanged() }),
         "dopaBlackFont" to Pair({ dopaBlackFont }, { v: Boolean -> dopaBlackFont = v; repo.prefManager.setDopaBlackFontEnabled(v); onChanged() }),
-        "usePasscodeForHidden" to Pair({ usePasscodeForHidden }, { v: Boolean -> usePasscodeForHidden = v; repo.prefManager.setUsePasscodeForHidden(v); onChanged() })
+        "usePasscodeForHidden" to Pair({ usePasscodeForHidden }, { v: Boolean -> usePasscodeForHidden = v; repo.prefManager.setUsePasscodeForHidden(v); onChanged() }),
+        "lyricsEnabled" to Pair({ lyricsEnabled }, { v: Boolean -> lyricsEnabled = v; repo.prefManager.setLyricsEnabled(v); onChanged() }),
+        "lyricTranslation" to Pair({ lyricTranslation }, { v: Boolean -> lyricTranslation = v; repo.prefManager.setLyricTranslationEnabled(v); onChanged() }),
+        "pvRuby" to Pair({ pvRuby }, { v: Boolean -> pvRuby = v; repo.prefManager.setPvRubyEnabled(v); onChanged() }),
+        "pvInterludeArt" to Pair({ pvInterludeArt }, { v: Boolean -> pvInterludeArt = v; repo.prefManager.setPvInterludeArtEnabled(v); onChanged() }),
+        "haptics" to Pair({ haptics }, { v: Boolean -> haptics = v; repo.prefManager.setHapticsEnabled(v); onChanged() }),
+        "clockSeconds" to Pair({ clockSeconds }, { v: Boolean -> clockSeconds = v; repo.prefManager.setClockShowSeconds(v); onChanged() }),
+        "clock12h" to Pair({ clock12h }, { v: Boolean -> clock12h = v; repo.prefManager.setClock12h(v); onChanged() }),
+        "clockBattery" to Pair({ clockBattery }, { v: Boolean -> clockBattery = v; repo.prefManager.setClockShowBattery(v); onChanged() }),
+        "dateWareki" to Pair({ dateWareki }, { v: Boolean -> dateWareki = v; repo.prefManager.setDateWareki(v); onChanged() }),
+        "keepScreenOn" to Pair({ keepScreenOn }, { v: Boolean -> keepScreenOn = v; repo.prefManager.setKeepScreenOn(v); onChanged() })
     )
 
     val stringBinds: Map<String, Pair<() -> String, (String) -> Unit>> = mapOf(
@@ -831,7 +907,10 @@ fun SettingsScreen(
         "fontChoice" to Pair({ currentFontChoice }, { v: String -> currentFontChoice = v; repo.prefManager.setFontChoice(v); useCustomFont = v == "custom"; repo.prefManager.setUseCustomFont(v == "custom"); onChanged() }),
         "lyricsDisplayMode" to Pair({ lyricsDisplayMode }, { v: String -> lyricsDisplayMode = v; repo.prefManager.setLyricsDisplayMode(v); onChanged() }),
         "lyricsPvFont" to Pair({ lyricsPvFont }, { v: String -> lyricsPvFont = v; repo.prefManager.setLyricsPvFont(v); onChanged() }),
-        "lyricsEnFont" to Pair({ lyricsEnFont }, { v: String -> lyricsEnFont = v; repo.prefManager.setLyricsEnFont(v); onChanged() })
+        "lyricsEnFont" to Pair({ lyricsEnFont }, { v: String -> lyricsEnFont = v; repo.prefManager.setLyricsEnFont(v); onChanged() }),
+        "pvTextColor" to Pair({ pvTextColor }, { v: String -> pvTextColor = v; repo.prefManager.setPvTextColor(v); onChanged() }),
+        "startupPage" to Pair({ startupPage }, { v: String -> startupPage = v; repo.prefManager.setStartupPage(v); onChanged() }),
+        "dialVisibility" to Pair({ dialVisibility }, { v: String -> dialVisibility = v; repo.prefManager.setDialVisibility(v); onChanged() })
     )
 
     val floatBinds: Map<String, Pair<() -> Float, (Float) -> Unit>> = mapOf(
@@ -839,7 +918,15 @@ fun SettingsScreen(
         "iconSize" to Pair({ iconSize }, { v: Float -> iconSize = v; repo.prefManager.setAppDiscIconSizeDp(v); onChanged() }),
         "textSize" to Pair({ textSize }, { v: Float -> textSize = v; repo.prefManager.setAppDiscTextSizeSp(v); onChanged() }),
         "letterSpacing" to Pair({ letterSpacing }, { v: Float -> letterSpacing = v; repo.prefManager.setAppDiscLetterSpacingSp(v); onChanged() }),
-        "stepAngle" to Pair({ stepAngle }, { v: Float -> stepAngle = v; repo.prefManager.setAppDiscStepAngle(v); onChanged() })
+        "stepAngle" to Pair({ stepAngle }, { v: Float -> stepAngle = v; repo.prefManager.setAppDiscStepAngle(v); onChanged() }),
+        "discInertia" to Pair({ discInertia }, { v: Float -> discInertia = v; repo.prefManager.setDiscInertia(v); onChanged() }),
+        "pvFontScale" to Pair({ pvFontScale }, { v: Float -> pvFontScale = v; repo.prefManager.setPvFontScale(v); onChanged() }),
+        "pvTopOffset" to Pair({ pvTopOffset }, { v: Float -> pvTopOffset = v; repo.prefManager.setPvTopOffsetDp(v); onChanged() }),
+        "liquidSpeed" to Pair({ liquidSpeed }, { v: Float -> liquidSpeed = v; repo.prefManager.setLiquidSpeed(v); onChanged() }),
+        "liquidAlpha" to Pair({ liquidAlpha }, { v: Float -> liquidAlpha = v; repo.prefManager.setLiquidAlpha(v); onChanged() }),
+        "statusBarWidth" to Pair({ statusBarWidth }, { v: Float -> statusBarWidth = v; repo.prefManager.setStatusBarWidthFactor(v); if (statusBarMode != "off" && Settings.canDrawOverlays(context)) { LyricsOverlayService.stop(context); LyricsOverlayService.start(context) }; onChanged() }),
+        "pageTransitionSpeed" to Pair({ pageTransitionSpeed }, { v: Float -> pageTransitionSpeed = v; repo.prefManager.setPageTransitionSpeed(v); onChanged() }),
+        "wallpaperBlur" to Pair({ wallpaperBlur }, { v: Float -> wallpaperBlur = v; repo.prefManager.setWallpaperBlurDp(v); onChanged() })
     )
 
     val sliderFormats: Map<String, (Float) -> String> = mapOf(
@@ -847,7 +934,9 @@ fun SettingsScreen(
         "dp" to { v: Float -> "${v.toInt()} dp" },
         "sp" to { v: Float -> "${v.toInt()} sp" },
         "sp1" to { v: Float -> String.format(java.util.Locale.ROOT, "%.1f sp", v) },
-        "deg" to { v: Float -> String.format(java.util.Locale.ROOT, "%.1f°", v) }
+        "deg" to { v: Float -> String.format(java.util.Locale.ROOT, "%.1f°", v) },
+        "x" to { v: Float -> String.format(java.util.Locale.ROOT, "×%.1f", v) },
+        "pct" to { v: Float -> "${(v * 100).toInt()}%" }
     )
 
     val fontResolvers: Map<String, Pair<() -> FontFamily?, (String) -> FontFamily?>> = mapOf(
@@ -889,6 +978,32 @@ fun SettingsScreen(
                 def.id, def.label, def.desc, def.glyph,
                 valueText = if (backgroundPath != null) "設定済み" else "未設定",
                 onAction = { imagePickerLauncher.launch("image/*") }
+            )
+        },
+        "wallpaperPickPage" to { def: SettingItemDef ->
+            val page = when (def.id) {
+                "wallpaperPickHome" -> 1
+                "wallpaperPickApps" -> 2
+                "wallpaperPickFolder" -> 3
+                else -> 0
+            }
+            SettingItem(
+                def.id, def.label, def.desc, def.glyph,
+                valueText = if (pageWallpapers.getOrNull(page) != null) "設定済み" else "共通",
+                onAction = {
+                    pendingWallpaperPage = page
+                    pageImagePickerLauncher.launch("image/*")
+                }
+            )
+        },
+        "wallpaperClearPages" to { def: SettingItemDef ->
+            SettingItem(
+                def.id, def.label, def.desc, def.glyph, valueText = "",
+                onAction = {
+                    (0..3).forEach { repo.prefManager.setPageWallpaperPath(it, null) }
+                    pageWallpapers = (0..3).map { null }
+                    onChanged()
+                }
             )
         },
         "wallpaperClear" to { def: SettingItemDef ->
@@ -1368,7 +1483,7 @@ key("disc-choices-${currentItem.id}") {
                         if (searchQuery.isEmpty()) {
                             Text(
                                 text = "設定を検索",
-                                color = Color.Gray.copy(alpha = 0.7f),
+                                color = Color.White.copy(alpha = 0.85f),
                                 fontSize = 14.sp,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth()

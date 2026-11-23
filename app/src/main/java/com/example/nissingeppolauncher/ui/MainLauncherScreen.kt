@@ -1503,7 +1503,7 @@ fun MainLauncherScreen() {
                         }
                     }
             )
-        } else if (!isLyricsBrowsing && !pvFullscreen) {
+        } else if (!isLyricsBrowsing && !pvFullscreen && !vinylRackOpen) {
             BottomPageDial(
                 currentPage = currentLauncherPage,
                 onPageSelected = { targetPage ->
