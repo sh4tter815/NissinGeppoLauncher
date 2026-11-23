@@ -47,6 +47,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
@@ -418,7 +419,7 @@ class LyricsOverlayService : Service() {
         val swayTrans = rememberInfiniteTransition(label = "miniSway")
         val swayT by swayTrans.animateFloat(
             initialValue = 0f, targetValue = 6.2832f,
-            animationSpec = infiniteRepeatable(tween(3400, LinearEasing), RepeatMode.Restart),
+            animationSpec = infiniteRepeatable(tween(3400, easing = LinearEasing), RepeatMode.Restart),
             label = "swayT"
         )
         BoxWithConstraints(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -433,7 +434,7 @@ class LyricsOverlayService : Service() {
                 (f * 0.94f).coerceIn(7f, 18f)
             }
             val fitSp = if (rowTexts.size == 2) {
-                val cap = with(LocalDensity.current) { (maxHeight.toDp().value / 2f) / 1.25f / fontScale }
+                val cap = (maxHeight.value / 2f) / 1.25f / LocalDensity.current.fontScale
                 minOf(rawFit, cap).coerceAtLeast(6f)
             } else rawFit
             Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
@@ -466,11 +467,11 @@ class LyricsOverlayService : Service() {
                                 modifier = Modifier.graphicsLayer {
                                     alpha = anim.value
                                     val es = 0.55f + 0.45f * anim.value
-                                    val breathe = 1f + 0.03f * sin(swayT * 1.3f + phase)
+                                    val breathe = 1f + 0.03f * sin(swayT * 1.3f + phase).toFloat()
                                     scaleX = es * breathe
                                     scaleY = es * breathe
-                                    translationY = (1f - anim.value) * 5.dp.toPx() + sin(swayT + phase) * 1.6.dp.toPx()
-                                    rotationZ = ((seed % 13 + 13) % 13 - 6).toFloat() * (1f - anim.value * 0.4f) + sin(swayT * 0.8f + phase * 1.7f) * 2.5f
+                                    translationY = (1f - anim.value) * 5.dp.toPx() + sin(swayT + phase).toFloat() * 1.6.dp.toPx()
+                                    rotationZ = ((seed % 13 + 13) % 13 - 6).toFloat() * (1f - anim.value * 0.4f) + sin(swayT * 0.8f + phase * 1.7f).toFloat() * 2.5f
                                 }
                             )
                         }
@@ -486,7 +487,7 @@ class LyricsOverlayService : Service() {
         val trans = rememberInfiniteTransition(label = "miniWave")
         val t by trans.animateFloat(
             initialValue = 0f, targetValue = 6.2832f,
-            animationSpec = infiniteRepeatable(tween(2600, LinearEasing), RepeatMode.Restart),
+            animationSpec = infiniteRepeatable(tween(2600, easing = LinearEasing), RepeatMode.Restart),
             label = "waveT"
         )
         Canvas(modifier = Modifier.fillMaxSize()) {
@@ -495,10 +496,10 @@ class LyricsOverlayService : Service() {
                 val baseY = size.height * (0.5f + (w - 0.5f) * 0.18f)
                 val path = Path()
                 var x = 0f
-                path.moveTo(0f, baseY + sin(t + w * 1.7f) * amp)
+                path.moveTo(0f, baseY + sin(t + w * 1.7f).toFloat() * amp)
                 while (x <= size.width) {
                     x += 6f
-                    path.lineTo(x, baseY + sin(t + x / size.width * 4.2f + w * 1.7f) * amp)
+                    path.lineTo(x, baseY + sin(t + x / size.width * 4.2f + w * 1.7f).toFloat() * amp)
                 }
                 drawPath(
                     path,
@@ -509,7 +510,7 @@ class LyricsOverlayService : Service() {
             for (i in 0 until 10) {
                 val px = ((i * 47) % 100) / 100f * size.width
                 val py = ((i * 31) % 70 + 15) / 100f * size.height
-                val tw = 0.35f + 0.65f * abs(sin(t * 1.4f + i * 1.93f))
+                val tw = 0.35f + 0.65f * abs(sin(t * 1.4f + i * 1.93f)).toFloat()
                 drawCircle(
                     androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f * tw),
                     radius = (if (i % 3 == 0) 1.6f else 1.1f) * tw,
