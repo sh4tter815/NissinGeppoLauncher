@@ -804,6 +804,40 @@ fun SettingsScreen(
         pendingWallpaperPage = -1
     }
 
+    // 設定バックアップ: 書き出し（作成先を選ぶ）と読み込み（ファイルを選ぶ）
+    val settingsExportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                context.contentResolver.openOutputStream(uri)?.use { out ->
+                    out.write(repo.prefManager.exportAllJson().toByteArray(Charsets.UTF_8))
+                }
+                Toast.makeText(context, "設定を書き出しました", Toast.LENGTH_SHORT).show()
+            } catch (_: Exception) {
+                Toast.makeText(context, "書き出しに失敗しました", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+    val settingsImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                val text = context.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
+                if (text != null && repo.prefManager.importAllJson(text)) {
+                    onChanged()
+                    onAppsUpdated()
+                    Toast.makeText(context, "設定を読み込みました", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "読み込みに失敗しました（ファイルが違います）", Toast.LENGTH_SHORT).show()
+                }
+            } catch (_: Exception) {
+                Toast.makeText(context, "読み込みに失敗しました", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     // フォントファイル選択ピッカー (.ttf / .otf)
     val fontPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -875,6 +909,7 @@ fun SettingsScreen(
     LaunchedEffect(Unit) {
         val newer = SettingsTreeData.refresh(context)
         if (newer != null) treeData = newer
+        if (com.example.nissingeppolauncher.data.AppYomiData.refresh(context)) onAppsUpdated()
     }
 
     val boolBinds: Map<String, Pair<() -> Boolean, (Boolean) -> Unit>> = mapOf(
@@ -1032,6 +1067,35 @@ fun SettingsScreen(
                             isUpdatingApps = false
                             android.widget.Toast.makeText(context, "アプリ一覧を更新しました（全 ${apps.size} 件）", android.widget.Toast.LENGTH_SHORT).show()
                             onAppsUpdated()
+                        }
+                    }
+                }
+            )
+        },
+        "settingsExport" to { def: SettingItemDef ->
+            SettingItem(
+                def.id, def.label, def.desc, def.glyph, valueText = "",
+                onAction = { settingsExportLauncher.launch("nissingeppo_settings.json") }
+            )
+        },
+        "settingsImport" to { def: SettingItemDef ->
+            SettingItem(
+                def.id, def.label, def.desc, def.glyph, valueText = "",
+                onAction = { settingsImportLauncher.launch("*/*") }
+            )
+        },
+        "yomiUpdate" to { def: SettingItemDef ->
+            com.example.nissingeppolauncher.data.AppYomiData.load(context)
+            SettingItem(
+                def.id, def.label, def.desc, def.glyph,
+                valueText = "v${com.example.nissingeppolauncher.data.AppYomiData.appliedVersion}",
+                onAction = {
+                    settingsScope.launch {
+                        if (com.example.nissingeppolauncher.data.AppYomiData.refresh(context)) {
+                            onAppsUpdated()
+                            android.widget.Toast.makeText(context, "読み仮名データを更新しました（v${com.example.nissingeppolauncher.data.AppYomiData.appliedVersion}）", android.widget.Toast.LENGTH_SHORT).show()
+                        } else {
+                            android.widget.Toast.makeText(context, "読み仮名データは最新です", android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
