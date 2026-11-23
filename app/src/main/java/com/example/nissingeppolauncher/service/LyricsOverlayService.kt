@@ -415,6 +415,33 @@ class LyricsOverlayService : Service() {
             }
         }
         // 本家PVと同じ文字種ルール: 漢字は大きめ(1.25)、ひらがな小さめ(0.82)、カタカナ1.05、小カナは更に×0.6、ーは前の文字に合わせる、行頭がひらがな続きなら先頭だけ1.25
+        // 英字フォントは「英数字を含む半角ラン」だけ（本家と同じ判定）。記号だけのランは前後のランに合わせる
+        val charUseEn = remember(line.text) {
+            val arr = BooleanArray(line.text.length)
+            val runs = mutableListOf<Triple<Int, Int, Boolean>>()
+            var i0 = 0
+            while (i0 < line.text.length) {
+                val ascii = line.text[i0] in ' '..'~'
+                var j0 = i0
+                while (j0 < line.text.length && (line.text[j0] in ' '..'~') == ascii) j0++
+                runs.add(Triple(i0, j0, ascii))
+                i0 = j0
+            }
+            val runEn = BooleanArray(runs.size)
+            for (k in runs.indices) {
+                val (s, e, ascii) = runs[k]
+                if (ascii && line.text.substring(s, e).any { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' }) runEn[k] = true
+            }
+            for (k in runs.indices) {
+                if (!runs[k].third || runEn[k]) continue
+                runEn[k] = if (k > 0) runEn[k - 1] else (if (runs.size > 1) runEn[k + 1] else false)
+            }
+            for (k in runs.indices) {
+                if (!runEn[k]) continue
+                for (x in runs[k].first until runs[k].second) arr[x] = true
+            }
+            arr
+        }
         val charFactors = remember(line.text) {
             val smallKana = "ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ"
             val leadBoost = line.text.length >= 2 && line.text[0] in 'ぁ'..'ゟ' && line.text[1] in 'ぁ'..'ゟ'
@@ -489,7 +516,7 @@ class LyricsOverlayService : Service() {
                             val phase = ((seed % 628 + 628) % 628) / 100f
                             // 入場の向き（本家のカメラワーク相当）: 0=右から 1=左から 2=上から 3=下から 4=押し込む 5=回転
                             val dir = ((seed % 6) + 6) % 6
-                            val charFont = if (enFam != null && ch in ' '..'~') enFam else fontFam
+                            val charFont = if (enFam != null && charUseEn.getOrElse(i) { false }) enFam else fontFam
                             val charSp = (fitSp * factor * charFactors.getOrElse(i) { 0.98f }).coerceIn(fitSp * 0.55f, fitSp * 1.35f)
                             Box(
                                 modifier = Modifier.graphicsLayer {
