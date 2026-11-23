@@ -1148,7 +1148,7 @@ fun SettingsScreen(
         }
         node
     }
-    backLabelState.value = ownerNode?.label
+    backLabelState.value = focusedNode?.label
 
     val leftEntryClick: (Int) -> Unit = { idx ->
         if (idx >= currentList.size) {
