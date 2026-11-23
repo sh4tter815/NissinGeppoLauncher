@@ -56,7 +56,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
@@ -210,7 +209,11 @@ fun DiscWheel(
     tapToApply: Boolean = false,
     dimmed: Boolean = false,
     showValues: Boolean = true,
-    verticalRestLabel: Boolean = false
+    verticalRestLabel: Boolean = false,
+    stepAngle: Float = 20f,
+    isLoopable: Boolean = false,
+    discCenterXDp: Float? = null,
+    discCenterYDp: Float? = null
 ) {
     if (entries.isEmpty()) return
     var focusIdx by remember { mutableStateOf(initialFocus) }
@@ -221,8 +224,8 @@ fun DiscWheel(
     )
     // 中身だけを設定用に入れ替えて、円盤のエンジン自体はアプリ円盤と共通の DiscCarousel を使う
     BoxWithConstraints(modifier = modifier) {
-        val centerX = if (side == DiscSide.LEFT) -80f else maxWidth.value + 80f
-        val centerY = maxHeight.value / 2f
+        val centerX = discCenterXDp ?: if (side == DiscSide.LEFT) -80f else maxWidth.value + 80f
+        val centerY = discCenterYDp ?: (maxHeight.value / 2f)
         val carouselState = state
         val restP by animateFloatAsState(
             targetValue = if (verticalRestLabel && side == DiscSide.LEFT && !(holdActive == true || carouselState.isScrolling)) 1f else 0f,
@@ -234,9 +237,9 @@ fun DiscWheel(
             discCenterXDp = centerX,
             discCenterYDp = centerY,
             discRadiusDp = 165f,
-            stepAngle = 20f,
+            stepAngle = stepAngle,
             isRightDisc = side == DiscSide.RIGHT,
-            isLoopable = false,
+            isLoopable = isLoopable,
             gesturesEnabled = gesturesEnabled,
         contentKey = contentKey,
         forceSlideOut = forceSlideOut,
@@ -1171,131 +1174,6 @@ fun DiscAppItem(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-            }
-        }
-    }
-}
-
-/** 索引ホイール（あかさたな…）。旧 RotatableIndexWheel と同じ描画。回転は外（パネル）が state 経由で駆動する */
-@Composable
-fun DiscIndexWheel(
-    items: List<String>,
-    state: DiscCarouselState,
-    modifier: Modifier = Modifier,
-    discCenterXDp: Float,
-    discCenterYDp: Float,
-    discRadiusDp: Float = 165f,
-    isHolding: Boolean = false,
-    accentColor: Color,
-    onSelectedIndexChange: (Int) -> Unit = {}
-) {
-    var focusIdx by remember { mutableIntStateOf(0) }
-    val configuration = LocalConfiguration.current
-    val screenWidthDp = configuration.screenWidthDp.toFloat()
-    val screenHeightDp = configuration.screenHeightDp.toFloat()
-    val notchScale by animateFloatAsState(
-        targetValue = if (isHolding) 1.30f else 1.0f,
-        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
-        label = "DiscIndexNotchScale"
-    )
-    // 静止したら選択中の文字が横倒しになる（設定の縦ラベルと同じ作法）
-    val restP by animateFloatAsState(
-        targetValue = if (isHolding) 0f else 1f,
-        animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
-        label = "DiscIndexRest"
-    )
-    Box(modifier = modifier.fillMaxSize()) {
-        DiscCarousel(
-            itemCount = items.size,
-            modifier = Modifier.fillMaxSize(),
-            discCenterXDp = discCenterXDp,
-            discCenterYDp = discCenterYDp,
-            discRadiusDp = discRadiusDp,
-            stepAngle = if (items.isEmpty()) 24f else 360f / items.size,
-            isRightDisc = false,
-            isLoopable = true,
-            gesturesEnabled = false,
-            holdExpand = true,
-            holdActive = isHolding,
-            fadeLabelsOnScroll = false,
-            state = state,
-            onSelectedIndexChange = { idx -> focusIdx = idx; onSelectedIndexChange(idx) }
-        ) { index, rad, _, isSelected ->
-            val item = items.getOrNull(index)
-            if (item != null) {
-                var n = (rad * 180f / PI.toFloat()) % 360f
-                if (n > 180f) n -= 360f
-                if (n < -180f) n += 360f
-                val diff = abs(n)
-                val fade75 = (1.0f - (diff / 75f).coerceIn(0f, 1f).pow(2)).coerceIn(0f, 1f)
-                val charAlpha = (when {
-                    isHolding && isSelected -> 1f
-                    isHolding -> 0.75f
-                    else -> 0.35f
-                }) * fade75
-                val radiusOffset = if (isHolding && isSelected) 32f else 20f
-                val itemXDp = discCenterXDp + (discRadiusDp + radiusOffset) * cos(rad)
-                val itemYDp = discCenterYDp + (discRadiusDp + radiusOffset) * sin(rad)
-                Box(
-                    modifier = Modifier
-                        .offset(x = (itemXDp - 20f).dp, y = (itemYDp - 20f).dp)
-                        .size(40.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = item,
-                        color = if (isHolding && isSelected) accentColor else Color.White.copy(alpha = charAlpha * (if (isSelected) (1f - restP) else 1f)),
-                        fontSize = if (isHolding && isSelected) 22.sp else 13.sp,
-                        fontWeight = if (isHolding && isSelected) FontWeight.Bold else FontWeight.Medium,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
-        }
-        // 静止時: 選択中の文字が円の中へ横倒しで入る（設定の左円の縦ラベルと同じ）
-        if (restP > 0.01f) {
-            val focusItem = items.getOrNull(focusIdx)
-            if (focusItem != null) {
-                Box(
-                    modifier = Modifier
-                        .offset(x = (discCenterXDp + discRadiusDp - 60f - 100f).dp, y = (discCenterYDp - 22f).dp)
-                        .width(200.dp)
-                        .height(44.dp)
-                        .graphicsLayer {
-                            alpha = restP
-                            rotationZ = -90f * restP
-                            translationX = (1f - restP) * 40.dp.toPx()
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = focusItem,
-                        color = accentColor,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1
-                    )
-                }
-            }
-        }
-        Canvas(
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    scaleX = notchScale
-                    scaleY = notchScale
-                    transformOrigin = TransformOrigin(
-                        (discCenterXDp / screenWidthDp).coerceIn(0f, 1f),
-                        (discCenterYDp / screenHeightDp).coerceIn(0f, 1f)
-                    )
-                }
-        ) {
-            if (isHolding || notchScale > 1.01f) {
-                drawCircle(
-                    color = accentColor,
-                    radius = 8f,
-                    center = Offset((discCenterXDp + discRadiusDp).dp.toPx() - 14f, discCenterYDp.dp.toPx())
-                )
             }
         }
     }
