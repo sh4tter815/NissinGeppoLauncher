@@ -36,6 +36,39 @@ import android.text.style.MetricAffectingSpan
 import androidx.core.content.res.ResourcesCompat
 import com.example.nissingeppolauncher.R
 import com.example.nissingeppolauncher.data.LyricLine
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.Text
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.lifecycle.setViewTreeViewModelStoreOwner
+import androidx.savedstate.SavedStateRegistry
+import androidx.savedstate.SavedStateRegistryController
+import androidx.savedstate.SavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.example.nissingeppolauncher.ui.KaraokeLyricText
+import com.example.nissingeppolauncher.ui.components.parseFontFamily
 import com.example.nissingeppolauncher.data.LyricsManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -58,7 +91,17 @@ class LyricsOverlayService : Service() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var windowManager: WindowManager? = null
-    private var overlayRoot: LinearLayout? = null
+    private var overlayRoot: View? = null
+    private var overlayMode: String = "line"
+    private var pvLifecycleOwner: OverlayLifecycleOwner? = null
+    private val pvLineState = mutableStateOf<LyricLine?>(null)
+    private val pvPosState = mutableStateOf(0L)
+    private val pvAccentState = mutableStateOf(androidx.compose.ui.graphics.Color(0xFFE53935))
+    private val pvFontState = mutableStateOf<FontFamily?>(null)
+    private val pvEnFontState = mutableStateOf<FontFamily?>(null)
+    private val pvBoldState = mutableStateOf(false)
+    private val pvClockState = mutableStateOf("")
+    private val pvClockFontState = mutableStateOf<FontFamily?>(null)
     private var clockView: TextView? = null
     private var lyricView: TextView? = null
     private var attached = false
@@ -168,6 +211,11 @@ class LyricsOverlayService : Service() {
             .takeIf { it > 0 }?.let { resources.getDimensionPixelSize(it) } ?: dp(24f)
         // ダイナミックアイランド（中央のピル）に歌詞の末尾が隠れないよう、帯は左45%までにして早めに折り返す
         val width = (resources.displayMetrics.widthPixels * 0.33f).toInt()
+        overlayMode = AppPreferenceManager(this).getStatusBarMode()
+        if (overlayMode == "pv") {
+            buildPvOverlay(wm, width, statusBarHeight)
+            return
+        }
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -238,6 +286,110 @@ class LyricsOverlayService : Service() {
         }
     }
 
+    // PVミニ: 同じ帯に Compose で「ワード同期の色付き」だけを描く（アイコン・パーティクル・カメラワークなし）
+    private fun buildPvOverlay(wm: WindowManager, width: Int, statusBarHeight: Int) {
+        val pref = AppPreferenceManager(this)
+        pvAccentState.value = try {
+            androidx.compose.ui.graphics.Color(Color.parseColor(pref.getAccentColorHex()))
+        } catch (e: Exception) { pvAccentState.value }
+        val jpChoice = pref.getLyricsPvFont()
+        val jpFont = parseFontFamily(jpChoice, if (jpChoice == "custom") pref.getCustomFontPath() else null)
+        pvFontState.value = jpFont
+        val enChoice = pref.getLyricsEnFont()
+        pvEnFontState.value = if (enChoice == "same") jpFont else parseFontFamily(enChoice, if (enChoice == "custom") pref.getLyricsEnCustomFontPath() else null)
+        pvBoldState.value = pref.isLyricsBold()
+        pvClockFontState.value = parseFontFamily(pref.getFontChoice(), if (pref.isUseCustomFont()) pref.getCustomFontPath() else null)
+        val owner = OverlayLifecycleOwner()
+        owner.performCreate()
+        pvLifecycleOwner = owner
+        val composeView = ComposeView(this).apply {
+            setViewTreeLifecycleOwner(owner)
+            setViewTreeViewModelStoreOwner(owner)
+            setViewTreeSavedStateRegistryOwner(owner)
+            setBackgroundColor(Color.argb(246, 6, 8, 14))
+            setContent { StatusBarPvContent() }
+        }
+        overlayRoot = composeView
+        clockView = null
+        lyricView = null
+        composeView.setOnApplyWindowInsetsListener { _, insets ->
+            statusBarVisible = insets.isVisible(WindowInsets.Type.statusBars())
+            updateVisibility()
+            insets
+        }
+        val params = WindowManager.LayoutParams(
+            width,
+            statusBarHeight,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = 0
+            y = 0
+        }
+        try {
+            wm.addView(composeView, params)
+            attached = true
+            overlayBuiltAtMs = SystemClock.elapsedRealtime()
+            owner.performResume()
+            composeView.visibility = View.INVISIBLE
+            composeView.requestApplyInsets()
+        } catch (e: Exception) {
+            attached = false
+        }
+    }
+
+    @Composable
+    private fun StatusBarPvContent() {
+        val line = pvLineState.value
+        Row(
+            modifier = Modifier.fillMaxSize().padding(start = 10.dp, end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = pvClockState.value,
+                color = androidx.compose.ui.graphics.Color.White,
+                fontSize = 9.5.sp,
+                lineHeight = 8.sp,
+                textAlign = TextAlign.Center,
+                fontFamily = pvClockFontState.value,
+                style = TextStyle(shadow = Shadow(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.6f), Offset(0f, 1f), 4f))
+            )
+            BoxWithConstraints(
+                modifier = Modifier.weight(1f).padding(start = 8.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+            if (line != null) {
+                val measurer = rememberTextMeasurer()
+                val weight = if (pvBoldState.value) FontWeight.Bold else FontWeight.Normal
+                val fontFam = pvFontState.value
+                val style = TextStyle(fontFamily = fontFam, fontSize = 20.sp, fontWeight = weight)
+                val textWidth = remember(line.text, fontFam, weight) {
+                    measurer.measure(line.text, style, softWrap = false).size.width
+                }
+                val availDp = maxWidth
+                val avail = with(LocalDensity.current) { availDp.toPx() }
+                val fitSp = if (textWidth > 0) (20f * avail / textWidth).coerceIn(8f, 18.5f) else 18.5f
+                KaraokeLyricText(
+                    line = line,
+                    positionMs = pvPosState.value,
+                    sungColor = pvAccentState.value,
+                    baseColor = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.92f),
+                    fontSize = fitSp.sp,
+                    fontWeight = weight,
+                    fontFamily = fontFam,
+                    enFontFamily = pvEnFontState.value,
+                    shadow = Shadow(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.6f), Offset(0f, 1.5f), 4f)
+                )
+            }
+            }
+        }
+    }
+
     private fun detachOverlay() {
         val root = overlayRoot ?: return
         if (attached) {
@@ -251,6 +403,8 @@ class LyricsOverlayService : Service() {
         overlayRoot = null
         clockView = null
         lyricView = null
+        pvLifecycleOwner?.performDestroy()
+        pvLifecycleOwner = null
     }
 
     private fun updateVisibility() {
@@ -267,6 +421,12 @@ class LyricsOverlayService : Service() {
             while (true) {
                 val now = Date()
                 clockView?.text = hourFormat.format(now) + "\n" + minuteFormat.format(now)
+                if (overlayMode == "pv") {
+                    pvClockState.value = hourFormat.format(now) + "\n" + minuteFormat.format(now)
+                    pvAccentState.value = try {
+                        androidx.compose.ui.graphics.Color(Color.parseColor(AppPreferenceManager(this@LyricsOverlayService).getAccentColorHex()))
+                    } catch (e: Exception) { pvAccentState.value }
+                }
                 applyFonts()
                 delay(5000)
             }
@@ -305,6 +465,7 @@ class LyricsOverlayService : Service() {
                         trackDurationMs = duration
                         lyricLines = emptyList()
                         currentLine = ""
+                        pvLineState.value = null
                         updateVisibility()
                         fetchJob?.cancel()
                         if (title.isNotBlank()) {
@@ -358,7 +519,7 @@ class LyricsOverlayService : Service() {
                             val inInterlude = when {
                                 curLine == null -> nextLine != null && (nextLine.timeMs - posMs) > 3000
                                 nextLine == null -> (posMs - curLine.timeMs) > 8000
-                                else -> (nextLine.timeMs - posMs) > 4000 && (posMs - curLine.timeMs) > 3000
+                                else -> (nextLine.timeMs - curLine.timeMs) > 7000 && (posMs - curLine.timeMs) > 3000
                             }
                             val newLine = when {
                                 inInterlude -> "♪"
@@ -377,16 +538,21 @@ class LyricsOverlayService : Service() {
                                 count
                             } else 0
                             showLine(newLine, sungInLine)
+                            if (overlayMode == "pv") {
+                                pvLineState.value = if (inInterlude) null else curLine
+                                pvPosState.value = posMs
+                            }
                             updateVisibility()
                         }
                     } else if (currentLine.isNotEmpty()) {
                         currentLine = ""
+                        pvLineState.value = null
                         updateVisibility()
                     }
                 } catch (e: Exception) {
                     // 読めないときは表示を維持する
                 }
-                delay(250)
+                delay(if (overlayMode == "pv") 80L else 250L)
             }
         }
     }
@@ -571,5 +737,26 @@ class LyricsOverlayService : Service() {
                 // 止まっていれば何もしない
             }
         }
+    }
+}
+
+// Service のオーバーレイで Compose を動かすための最小ライフサイクル所有者
+private class OverlayLifecycleOwner : LifecycleOwner, ViewModelStoreOwner, SavedStateRegistryOwner {
+    private val registry = LifecycleRegistry(this)
+    private val store = ViewModelStore()
+    private val controller = SavedStateRegistryController.create(this)
+    override val lifecycle: Lifecycle get() = registry
+    override val viewModelStore: ViewModelStore get() = store
+    override val savedStateRegistry: SavedStateRegistry get() = controller.savedStateRegistry
+    fun performCreate() {
+        controller.performRestore(null)
+        registry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
+    }
+    fun performResume() {
+        registry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
+    }
+    fun performDestroy() {
+        registry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+        store.clear()
     }
 }

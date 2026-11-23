@@ -22,6 +22,7 @@ object UpdateChecker {
     private const val PREFS = "app_updates"
     private const val KEY_LAST_CHECK = "last_check_ms"
     private const val KEY_DISMISSED = "dismissed_build"
+    private const val KEY_LAST_KNOWN = "last_known_build"
     private const val CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000L
 
     data class LatestRelease(
@@ -48,6 +49,9 @@ object UpdateChecker {
     fun markDismissed(context: Context, buildNumber: Int) {
         prefs(context).edit().putInt(KEY_DISMISSED, buildNumber).apply()
     }
+
+    /** 最後に確認できた最新ビルド番号（未確認なら0）。設定の版表示用 */
+    fun lastKnownBuild(context: Context): Int = prefs(context).getInt(KEY_LAST_KNOWN, 0)
 
     /** 最新のデバッグビルドのリリース情報を返す（手動チェック用、スロットルなし） */
     suspend fun fetchLatest(context: Context): LatestRelease? = withContext(Dispatchers.IO) {
@@ -92,6 +96,7 @@ object UpdateChecker {
                     0L
                 }
                 val newer = published > 0L && published > installedAt
+                prefs(context).edit().putInt(KEY_LAST_KNOWN, num).apply()
                 return@withContext LatestRelease(num, downloadUrl, published, newer)
             }
             null

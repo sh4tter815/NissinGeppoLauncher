@@ -244,6 +244,16 @@ class AppPreferenceManager(private val context: Context) {
     fun setDopaBlackFontEnabled(value: Boolean) { prefs.edit().putBoolean("dopagaki_black_font", value).apply() }
     fun isStatusBarLyricsEnabled(): Boolean = prefs.getBoolean("status_bar_lyrics", false)
     fun setStatusBarLyricsEnabled(value: Boolean) { prefs.edit().putBoolean("status_bar_lyrics", value).apply() }
+    // ステータスバー歌詞のモード: "off" / "line"(1行) / "pv"(PVミニ)。未設定なら旧オンオフから引き継ぐ
+    fun getStatusBarMode(): String {
+        val m = prefs.getString("status_bar_mode", null)
+        if (m != null) return m
+        return if (isStatusBarLyricsEnabled()) "line" else "off"
+    }
+    fun setStatusBarMode(value: String) {
+        prefs.edit().putString("status_bar_mode", value)
+            .putBoolean("status_bar_lyrics", value != "off").apply()
+    }
     // スリープタイマー: 終了時刻（epoch ms、0=無効）と選択中の分数
     fun getSleepTimerEndMs(): Long = prefs.getLong("sleep_timer_end_ms", 0L)
     fun setSleepTimerEndMs(value: Long) { prefs.edit().putLong("sleep_timer_end_ms", value).apply() }
