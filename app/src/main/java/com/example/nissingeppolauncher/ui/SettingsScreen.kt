@@ -17,6 +17,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.animation.core.Animatable
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -639,6 +644,9 @@ fun SettingsScreen(
             navBusy = false
         }
     }
+    // 階層を降りる時、右円で選んだラベルが回転しながら左円の縦ラベルへ飛ぶ
+    var flightLabel by remember { mutableStateOf<String?>(null) }
+    val flightAnim = remember { Animatable(0f) }
     var updateChecking by remember { mutableStateOf(false) }
     var knownBuild by remember { mutableStateOf(com.example.nissingeppolauncher.data.UpdateChecker.lastKnownBuild(context)) }
     var updateInfo by remember { mutableStateOf<com.example.nissingeppolauncher.data.UpdateChecker.LatestRelease?>(null) }
@@ -1215,6 +1223,12 @@ fun SettingsScreen(
                                 if (act != null) {
                                     act.invoke()
                                 } else {
+                                    flightLabel = child.label
+                                    settingsScope.launch {
+                                        flightAnim.snapTo(0f)
+                                        flightAnim.animateTo(1f, animationSpec = tween(durationMillis = 420, easing = FastOutSlowInEasing))
+                                        flightLabel = null
+                                    }
                                     navigateAnimated {
                                         navPath = navPath + fNode.id
                                         focusId = child.id
@@ -1311,7 +1325,7 @@ key("disc-choices-${currentItem.id}") {
                 modifier = Modifier
                     .width(320.dp)
                     .height(48.dp)
-                    .background(Color(0x99101728), RoundedCornerShape(16.dp))
+                    .border(1.5.dp, Color.White.copy(alpha = 0.85f), RoundedCornerShape(16.dp))
                     .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -1378,6 +1392,40 @@ key("disc-choices-${currentItem.id}") {
                     accentColor = currentAccentColor,
                     onClick = { navigateAnimated { goBack() } }
                 )
+            }
+        }
+
+        // --- 階層遷移のラベル飛行（右円の選択ラベル → 左円の縦ラベル） ---
+        flightLabel?.let { label ->
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val p = flightAnim.value
+                val measurer = rememberTextMeasurer()
+                val textW = remember(label) {
+                    measurer.measure(label, TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold), softWrap = false).size.width
+                }
+                val boxWDp = with(LocalDensity.current) { textW.toDp().value }.coerceIn(40f, 200f)
+                val startCenterX = maxWidth.value - 93f - boxWDp / 2f
+                val centerX = startCenterX + (25f - startCenterX) * p
+                val centerY = maxHeight.value / 2f
+                Box(
+                    modifier = Modifier
+                        .offset { IntOffset(((centerX - boxWDp / 2f).dp.roundToPx()), ((centerY - 22f).dp.roundToPx())) }
+                        .size(boxWDp.dp, 44.dp)
+                        .graphicsLayer {
+                            rotationZ = -90f * p
+                            alpha = if (p < 0.82f) 1f else (1f - (p - 0.82f) / 0.18f).coerceIn(0f, 1f)
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = label,
+                        color = currentAccentColor,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
 

@@ -45,6 +45,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -68,7 +73,6 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
-import com.example.nissingeppolauncher.ui.KaraokeLyricText
 import com.example.nissingeppolauncher.ui.components.parseFontFamily
 import com.example.nissingeppolauncher.data.LyricsManager
 import kotlinx.coroutines.CoroutineScope
@@ -344,6 +348,72 @@ class LyricsOverlayService : Service() {
         }
     }
 
+    // PVミニの行描画: ワード同期の色付け + 文字ごとの大きさの差 + 1文字ずつの入場アニメーション
+    @Composable
+    private fun MiniPvLine(line: LyricLine, posMs: Long) {
+        val measurer = rememberTextMeasurer()
+        val weight = if (pvBoldState.value) FontWeight.Bold else FontWeight.Normal
+        val fontFam = pvFontState.value
+        val enFam = pvEnFontState.value
+        val accent = pvAccentState.value
+        val baseCol = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.92f)
+        val shadow = Shadow(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.6f), Offset(0f, 1.5f), 4f)
+        val timings = remember(line) {
+            if (line.words.isEmpty()) null else {
+                val list = mutableListOf<Pair<Long, Long>>()
+                for (w in line.words) {
+                    val n = w.text.length.coerceAtLeast(1)
+                    val dur = (w.endMs - w.startMs).coerceAtLeast(0L)
+                    for (i in 0 until n) {
+                        list.add((w.startMs + dur * i / n) to (w.startMs + dur * (i + 1) / n))
+                    }
+                }
+                list
+            }
+        }
+        BoxWithConstraints(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+            val style20 = TextStyle(fontFamily = fontFam, fontSize = 20.sp, fontWeight = weight)
+            val textWidth = remember(line.text, fontFam, weight) {
+                measurer.measure(line.text, style20, softWrap = false).size.width
+            }
+            val availPx = with(LocalDensity.current) { maxWidth.toPx() }
+            val fitSp = if (textWidth > 0) (20f * availPx / textWidth * 0.94f).coerceIn(7f, 18f) else 18f
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                line.text.forEachIndexed { i, ch ->
+                    val t = timings?.getOrNull(i)
+                    val col = when {
+                        t == null -> baseCol
+                        posMs >= t.second -> accent
+                        posMs <= t.first -> baseCol
+                        else -> androidx.compose.ui.graphics.lerp(baseCol, accent, ((posMs - t.first).toFloat() / (t.second - t.first).coerceAtLeast(1L).toFloat()).coerceIn(0f, 1f))
+                    }
+                    val entered = if (t != null) posMs >= t.first else posMs >= line.timeMs + i * 45L
+                    val anim = remember(line.timeMs, i) { Animatable(if (entered) 1f else 0f) }
+                    LaunchedEffect(entered) {
+                        if (entered && anim.value < 1f) anim.animateTo(1f, tween(190, FastOutSlowInEasing))
+                    }
+                    val seed = (line.timeMs / 100L).toInt() * 31 + i * 17
+                    val factor = 0.92f + ((seed % 22 + 22) % 22) / 100f
+                    Text(
+                        text = ch.toString(),
+                        color = col,
+                        fontSize = (fitSp * factor).sp,
+                        fontWeight = weight,
+                        fontFamily = if (enFam != null && ch in ' '..'~') enFam else fontFam,
+                        style = TextStyle(shadow = shadow),
+                        modifier = Modifier.graphicsLayer {
+                            alpha = anim.value
+                            scaleX = 0.55f + 0.45f * anim.value
+                            scaleY = 0.55f + 0.45f * anim.value
+                            translationY = (1f - anim.value) * 5.dp.toPx()
+                            rotationZ = ((seed % 13 + 13) % 13 - 6).toFloat() * (1f - anim.value * 0.4f)
+                        }
+                    )
+                }
+            }
+        }
+    }
+
     @Composable
     private fun StatusBarPvContent() {
         val line = pvLineState.value
@@ -364,29 +434,9 @@ class LyricsOverlayService : Service() {
                 modifier = Modifier.weight(1f).padding(start = 8.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
-            if (line != null) {
-                val measurer = rememberTextMeasurer()
-                val weight = if (pvBoldState.value) FontWeight.Bold else FontWeight.Normal
-                val fontFam = pvFontState.value
-                val style = TextStyle(fontFamily = fontFam, fontSize = 20.sp, fontWeight = weight)
-                val textWidth = remember(line.text, fontFam, weight) {
-                    measurer.measure(line.text, style, softWrap = false).size.width
+                if (line != null) {
+                    MiniPvLine(line = line, posMs = pvPosState.value)
                 }
-                val availDp = maxWidth
-                val avail = with(LocalDensity.current) { availDp.toPx() }
-                val fitSp = if (textWidth > 0) (20f * avail / textWidth).coerceIn(8f, 18.5f) else 18.5f
-                KaraokeLyricText(
-                    line = line,
-                    positionMs = pvPosState.value,
-                    sungColor = pvAccentState.value,
-                    baseColor = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.92f),
-                    fontSize = fitSp.sp,
-                    fontWeight = weight,
-                    fontFamily = fontFam,
-                    enFontFamily = pvEnFontState.value,
-                    shadow = Shadow(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.6f), Offset(0f, 1.5f), 4f)
-                )
-            }
             }
         }
     }

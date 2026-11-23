@@ -1,5 +1,5 @@
 {
-  "version": 6,
+  "version": 7,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -503,33 +503,26 @@
       "cat": true,
       "children": [
         {
+          "item": "bgMode"
+        },
+        {
           "id": "bg_image",
           "label": "背景画像",
           "glyph": "wallpaper",
           "children": [
             {
-              "item": "bgMode"
-            },
-            {
               "item": "wallpaperPick"
             },
             {
               "item": "wallpaperClear"
-            },
-            {
-              "item": "brightness"
             }
           ]
         },
         {
-          "id": "bg_liquid",
-          "label": "液体",
-          "glyph": "droplet",
-          "children": [
-            {
-              "item": "liquid"
-            }
-          ]
+          "item": "brightness"
+        },
+        {
+          "item": "liquid"
         }
       ]
     },
