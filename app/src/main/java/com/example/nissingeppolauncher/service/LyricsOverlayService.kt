@@ -588,6 +588,14 @@ class LyricsOverlayService : Service() {
     private fun computeMiniSplit(text: String, chunks: List<String>): Int {
         val nonSpace = text.count { it != ' ' && it != '　' }
         if (nonSpace < 6) return -1
+        // 塊は空白を除いた並びなので、元の文での開始位置を引き直す（位置を間違えると単語の途中で割れる）
+        val starts = IntArray(chunks.size)
+        var searchFrom = 0
+        for (k in chunks.indices) {
+            val at = text.indexOf(chunks[k], searchFrom)
+            starts[k] = if (at >= 0) at else searchFrom
+            searchFrom = starts[k] + chunks[k].length
+        }
         if (chunks.size == 1) {
             val s = chunks[0]
             if (s.length >= 6 && miniChunkEm(s) > 12f) {
@@ -615,7 +623,7 @@ class LyricsOverlayService : Service() {
                 val noStart = "ーぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮ・、。，．！!？?）)】」』\""
                 while (bestI > 1 && bestI < s.length && s[bestI] in noStart) bestI--
                 while (bestI < s.length - 1 && bestI > 0 && s[bestI] in noStart) bestI++
-                if (bestI in 1 until s.length) return bestI
+                if (bestI in 1 until s.length) return starts[0] + bestI
             }
             return -1
         }
@@ -628,7 +636,7 @@ class LyricsOverlayService : Service() {
             val diff = abs(totalEm / 2f - acc)
             if (diff < bestDiff) { bestDiff = diff; best = idx }
         }
-        val split = chunks.take(best).sumOf { it.length }
+        val split = starts[best]
         return if (split in 1 until text.length) split else -1
     }
 
@@ -807,7 +815,7 @@ class LyricsOverlayService : Service() {
                             val inInterlude = when {
                                 curLine == null -> nextLine != null && (nextLine.timeMs - posMs) > lyricInterludeThresholdMs(lines)
                                 nextLine == null -> (posMs - curLine.timeMs) > 15000
-                                else -> (nextLine.timeMs - curLine.timeMs) > lyricInterludeThresholdMs(lines) && (posMs - curLine.timeMs) > 4000
+                                else -> (nextLine.timeMs - curLine.timeMs) > lyricInterludeThresholdMs(lines) && (posMs - curLine.timeMs) > 10000
                             }
                             val newLine = when {
                                 inInterlude -> "♪"
