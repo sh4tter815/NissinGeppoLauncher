@@ -644,6 +644,7 @@ fun SettingsScreen(
     var searchQuery by remember { mutableStateOf("") }
     var leftDiscState by remember { mutableStateOf<DiscCarouselState?>(null) }
     var leftHeld by remember { mutableStateOf(false) }
+    var backFocused by remember { mutableStateOf(false) }
     var rightDiscState by remember { mutableStateOf<DiscCarouselState?>(null) }
     fun goBack() {
         val dropped = navPath.lastOrNull() ?: return
@@ -1199,12 +1200,16 @@ fun SettingsScreen(
                         forceSlideOut = discExiting, holdExpand = true, holdActive = leftHeld,
                         contentKey = navPath.joinToString("/") + "-" + searchQuery,
                         initialFocus = currentList.indexOfFirst { it.id == focusId }.coerceAtLeast(0),
-                        onFocusChange = { idx -> currentList.getOrNull(idx)?.let { focusId = it.id } },
+                        onFocusChange = { idx ->
+                            backFocused = idx >= currentList.size
+                            currentList.getOrNull(idx)?.let { focusId = it.id }
+                        },
                         onEntryClick = leftEntryClick
                     )
                 }
-                // 右円: 子一覧 / ゲージ / 選択肢
-                val fNode = focusedNode
+                // 右円: 子一覧 / ゲージ / 選択肢（「戻る」にフォーカス中は右円に何も表示しない）
+                val currentItem = if (backFocused) null else currentItem
+                val fNode = if (backFocused) null else focusedNode
                 if (fNode != null && fNode.item == null && fNode.children.isNotEmpty()) {
                     key("tree-right-${navPath.joinToString("/")}-${fNode.id}") {
                         val rState = rememberDiscCarouselState(0, 20f)
@@ -1215,7 +1220,7 @@ fun SettingsScreen(
                             accentColor = currentAccentColor,
                             modifier = Modifier.fillMaxSize(),
                             state = rState, gesturesEnabled = true, iconSizeDp = iconSize,
-                            accentSelectedLabel = true,
+                            accentSelectedLabel = true, dimmed = leftDiscState?.isScrolling == true,
                             forceSlideOut = discExiting,
                             contentKey = "r-${navPath.joinToString("/")}-${fNode.id}",
                             initialFocus = 0,
@@ -1275,7 +1280,7 @@ key("disc-choices-${currentItem.id}") {
                         side = DiscSide.RIGHT,
                         accentColor = currentAccentColor,
                         modifier = Modifier.fillMaxSize(),
-                        state = choiceState, gesturesEnabled = true, iconSizeDp = iconSize, accentSelectedLabel = true, tapToApply = true, contentKey = "c-${currentItem.id}", forceSlideOut = discExiting,
+                        state = choiceState, gesturesEnabled = true, iconSizeDp = iconSize, accentSelectedLabel = true, tapToApply = true, dimmed = leftDiscState?.isScrolling == true, contentKey = "c-${currentItem.id}", forceSlideOut = discExiting,
                         initialFocus = currentItem.choices.indexOfFirst { it.checked }.coerceAtLeast(0),
                         onFocusChange = { },
                         onEntryClick = { idx -> currentItem.choices[idx].onSelect() },
