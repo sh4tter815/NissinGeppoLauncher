@@ -89,6 +89,7 @@ import com.example.nissingeppolauncher.ui.components.parseFontFamily
 import com.example.nissingeppolauncher.data.LyricsManager
 import com.example.nissingeppolauncher.ui.LyricEffectsData
 import com.example.nissingeppolauncher.ui.splitLyricUnits
+import com.example.nissingeppolauncher.ui.lyricInterludeThresholdMs
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import kotlin.math.abs
@@ -804,9 +805,9 @@ class LyricsOverlayService : Service() {
                             val curLine = lines.getOrNull(curIdx)
                             val nextLine = lines.getOrNull(curIdx + 1)
                             val inInterlude = when {
-                                curLine == null -> nextLine != null && (nextLine.timeMs - posMs) > 10000
+                                curLine == null -> nextLine != null && (nextLine.timeMs - posMs) > lyricInterludeThresholdMs(lines)
                                 nextLine == null -> (posMs - curLine.timeMs) > 15000
-                                else -> (nextLine.timeMs - curLine.timeMs) > 20000 && (posMs - curLine.timeMs) > 8000
+                                else -> (nextLine.timeMs - curLine.timeMs) > lyricInterludeThresholdMs(lines) && (posMs - curLine.timeMs) > 4000
                             }
                             val newLine = when {
                                 inInterlude -> "♪"
