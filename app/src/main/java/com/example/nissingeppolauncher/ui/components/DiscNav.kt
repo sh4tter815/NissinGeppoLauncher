@@ -8,6 +8,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.material3.LocalTextStyle
@@ -33,6 +34,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -47,6 +49,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.layout.onSizeChanged
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
@@ -115,6 +120,54 @@ fun DiscMiniSwitch(on: Boolean, accentColor: Color) {
 }
 
 enum class DiscSide { LEFT, RIGHT }
+
+
+// 長いラベル用のティッカー表示: 収まりきらない時だけ、少し待ってからゆっくり流して繰り返す
+@Composable
+fun MarqueeText(
+    text: String,
+    color: Color,
+    fontWeight: FontWeight?,
+    alignEnd: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val density = LocalDensity.current
+    val maxWidthPx = with(density) { 150.dp.toPx() }
+    var textWidthPx by remember { mutableStateOf(0) }
+    val overflow = textWidthPx > maxWidthPx + 1f
+    val offset = remember { Animatable(0f) }
+    LaunchedEffect(text, overflow) {
+        if (overflow) {
+            val distance = textWidthPx - maxWidthPx
+            val duration = (distance * 25).toInt().coerceIn(700, 4500)
+            while (true) {
+                offset.snapTo(0f)
+                delay(1100)
+                offset.animateTo(-distance, tween(durationMillis = duration, easing = LinearEasing))
+                delay(1100)
+            }
+        } else {
+            offset.snapTo(0f)
+        }
+    }
+    Box(
+        modifier = modifier.width(150.dp).clipToBounds(),
+        contentAlignment = if (overflow || !alignEnd) Alignment.CenterStart else Alignment.CenterEnd
+    ) {
+        Text(
+            text = text,
+            color = color,
+            fontSize = 15.sp,
+            fontWeight = fontWeight,
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier
+                .wrapContentWidth(unbounded = true)
+                .graphicsLayer { translationX = offset.value }
+                .onSizeChanged { textWidthPx = it.width }
+        )
+    }
+}
 
 @Composable
 fun DiscWheel(
@@ -221,15 +274,24 @@ fun DiscWheel(
                         Text(entry.valueText, color = accentColor.copy(alpha = 0.75f), fontSize = 10.sp, maxLines = 1)
                         Spacer(modifier = Modifier.width(6.dp))
                     }
-                    Text(
-                        text = entry.label + if (entry.checked) "  ✓" else "",
-                        color = if (entry.checked || ((focusedLabelOnly || accentSelectedLabel) && isSelected)) accentColor else Color.White.copy(alpha = 0.9f),
-                        fontSize = 15.sp,
-                        fontWeight = if (isSelected || entry.checked) FontWeight.Bold else FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.widthIn(max = 150.dp)
-                    )
+                    if (isSelected) {
+                        MarqueeText(
+                            text = entry.label + if (entry.checked) "  ✓" else "",
+                            color = if (entry.checked || ((focusedLabelOnly || accentSelectedLabel) && isSelected)) accentColor else Color.White.copy(alpha = 0.9f),
+                            fontWeight = if (isSelected || entry.checked) FontWeight.Bold else FontWeight.Medium,
+                            alignEnd = side == DiscSide.RIGHT
+                        )
+                    } else {
+                        Text(
+                            text = entry.label + if (entry.checked) "  ✓" else "",
+                            color = if (entry.checked || ((focusedLabelOnly || accentSelectedLabel) && isSelected)) accentColor else Color.White.copy(alpha = 0.9f),
+                            fontSize = 15.sp,
+                            fontWeight = if (isSelected || entry.checked) FontWeight.Bold else FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.widthIn(max = 150.dp)
+                        )
+                    }
                     if (showValues && side == DiscSide.LEFT && entry.toggleState != null) {
                         Spacer(modifier = Modifier.width(6.dp))
                         DiscMiniSwitch(entry.toggleState, accentColor)
