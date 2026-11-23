@@ -440,9 +440,9 @@ fun MainLauncherScreen() {
                     val curLine = syncedLyricLines.getOrNull(curIdx)
                     val nextLine = syncedLyricLines.getOrNull(curIdx + 1)
                     val inInterlude = when {
-                        curLine == null -> nextLine != null && (nextLine.timeMs - posMs) > 10000
+                        curLine == null -> nextLine != null && (nextLine.timeMs - posMs) > com.example.nissingeppolauncher.ui.lyricInterludeThresholdMs(syncedLyricLines)
                         nextLine == null -> (posMs - curLine.timeMs) > 15000
-                        else -> (nextLine.timeMs - curLine.timeMs) > 20000 && (posMs - curLine.timeMs) > 8000
+                        else -> (nextLine.timeMs - curLine.timeMs) > com.example.nissingeppolauncher.ui.lyricInterludeThresholdMs(syncedLyricLines) && (posMs - curLine.timeMs) > 10000
                     }
                     currentLyricLine = when {
                         inInterlude -> "♪"
