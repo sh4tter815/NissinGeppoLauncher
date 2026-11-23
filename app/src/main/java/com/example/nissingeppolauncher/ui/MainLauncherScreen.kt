@@ -675,7 +675,7 @@ fun MainLauncherScreen() {
     var folderParents by remember { mutableStateOf(repo.prefManager.getFolderParents()) }
     var folderPath by remember { mutableStateOf<List<String>>(emptyList()) }
     var pendingFocusFolderId by remember { mutableStateOf<String?>(null) }
-    var showCreateFolderBar by remember { mutableStateOf(false) }
+    var showCreateFolderDialog by remember { mutableStateOf(false) }
     var createFolderParentId by remember { mutableStateOf<String?>(null) }
 
     val folderList = remember(foldersMap) {
@@ -1153,6 +1153,7 @@ fun MainLauncherScreen() {
                                 }
                             },
                         state = indexDiscState,
+                        iconSizeDp = appDiscIconSize,
                         gesturesEnabled = false,
                         holdExpand = true,
                         holdActive = isHoldingLeft,
@@ -1265,6 +1266,7 @@ fun MainLauncherScreen() {
                                     }
                                 },
                             state = indexDiscState,
+                            iconSizeDp = appDiscIconSize,
                             gesturesEnabled = false,
                             holdExpand = true,
                             holdActive = isHoldingLeft,
@@ -1285,6 +1287,7 @@ fun MainLauncherScreen() {
                         // 左側: フォルダ選択ダイヤル
                         DiscWheel(
                             entries = folderEntries,
+                            iconSizeDp = appDiscIconSize,
                             side = DiscSide.LEFT,
                             accentColor = accentColor,
                             modifier = Modifier.fillMaxSize()
@@ -1446,8 +1449,8 @@ fun MainLauncherScreen() {
                                     onNewFolderClick = {
                                         if (isSelected) {
                                             createFolderParentId = selectedFolderId
-                                            showCreateFolderBar = true
                                             newFolderNameInput = ""
+                                            showCreateFolderDialog = true
                                         } else {
                                             folderAppDiscState.animateToIndex(index)
                                         }
@@ -1536,11 +1539,14 @@ fun MainLauncherScreen() {
                             if (tappedId == "__BACK") {
                                 pendingFocusFolderId = folderPath.lastOrNull()
                                 folderPath = folderPath.dropLast(1)
+                            } else if (tappedId == "NEW_FOLDER" && idx == folderSelectedIndex) {
+                                createFolderParentId = currentFolderParentId
+                                newFolderNameInput = ""
+                                showCreateFolderDialog = true
                             } else {
                                 folderDiscState.animateToIndex(idx)
                                 if (tappedId == "NEW_FOLDER") {
                                     newFolderNameInput = ""
-                                    showCreateFolderBar = false
                                 }
                             }
                         }
@@ -1690,6 +1696,7 @@ fun MainLauncherScreen() {
 
                                         isHoldingLeft = false
                                         isHoldingFolderWheel = false
+                                        indexDiscState.isScrolling = false
                                     }
                                 } finally {
                                     isHoldingLeft = false
@@ -1715,14 +1722,6 @@ fun MainLauncherScreen() {
                     .zIndex(150f),
                 contentAlignment = Alignment.TopCenter
             ) {
-                // 設定と同じ白い円
-                Box(
-                    modifier = Modifier
-                        .padding(top = topPaddingDp)
-                        .offset(y = (-264).dp)
-                        .size(330.dp)
-                        .border(1.5.dp, Color.White.copy(alpha = 0.85f), CircleShape)
-                )
                 Box(
                     modifier = Modifier.padding(top = topPaddingDp + 10.dp),
                     contentAlignment = Alignment.TopCenter
@@ -1754,6 +1753,8 @@ fun MainLauncherScreen() {
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
+                        WhiteSearchIcon(size = 18.dp, color = Color.White.copy(alpha = 0.85f))
+                        Spacer(modifier = Modifier.width(8.dp))
                         BasicTextField(
                             value = searchQuery,
                             onValueChange = { searchQuery = it },
@@ -1804,72 +1805,11 @@ fun MainLauncherScreen() {
                     .zIndex(150f),
                 contentAlignment = Alignment.TopCenter
             ) {
-                // 設定と同じ白い円
-                Box(
-                    modifier = Modifier
-                        .padding(top = topPaddingDp)
-                        .offset(y = (-264).dp)
-                        .size(330.dp)
-                        .border(1.5.dp, Color.White.copy(alpha = 0.85f), CircleShape)
-                )
                 Box(
                     modifier = Modifier.padding(top = topPaddingDp + 10.dp),
                     contentAlignment = Alignment.TopCenter
                 ) {
-                if (selectedFolderId == "NEW_FOLDER" || showCreateFolderBar) {
-                    Row(
-                        modifier = Modifier
-                            .width(320.dp)
-                            .height(48.dp)
-                            .padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        BasicTextField(
-                            value = newFolderNameInput,
-                            onValueChange = { newFolderNameInput = it },
-                            singleLine = true,
-                            textStyle = androidx.compose.ui.text.TextStyle(
-                                color = Color.White,
-                                fontSize = 15.sp,
-                                textAlign = TextAlign.Center
-                            ),
-                            cursorBrush = SolidColor(accentColor),
-                            modifier = Modifier.weight(1f)
-                        ) { innerTextField ->
-                            Box(contentAlignment = Alignment.Center) {
-                                if (newFolderNameInput.isEmpty()) {
-                                    Text(
-                                        text = "新規フォルダ名を入力...",
-                                        color = Color.Gray.copy(alpha = 0.7f),
-                                        fontSize = 14.sp,
-                                        textAlign = TextAlign.Center
-                                    )
-                                }
-                                innerTextField()
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        val defaultNewFolderName = "新規フォルダ"
-                        TextButton(
-                            onClick = {
-                                val name = newFolderNameInput.ifBlank { defaultNewFolderName }
-                                val newId = System.currentTimeMillis().toString()
-                                val parentForNew = if (showCreateFolderBar) createFolderParentId else currentFolderParentId
-                                repo.prefManager.saveFolder(newId, name, emptyList())
-                                if (parentForNew != null) repo.prefManager.setFolderParent(newId, parentForNew)
-                                refreshApps()
-                                newFolderNameInput = ""
-                                showCreateFolderBar = false
-                            },
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                        ) {
-                            Text("作成", color = accentColor, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                } else if (selectedFolderId != null && selectedFolderId != "__BACK") {
+                if (selectedFolderId != null && selectedFolderId != "__BACK") {
                     Row(
                         modifier = Modifier
                             .width(320.dp)
@@ -2368,6 +2308,54 @@ fun MainLauncherScreen() {
 
 
         // 3. フォルダ削除確認ダイアログ
+        // --- 新規フォルダ作成ダイアログ ---
+        if (showCreateFolderDialog) {
+            AlertDialog(
+                onDismissRequest = { showCreateFolderDialog = false },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val name = newFolderNameInput.ifBlank { "新規フォルダ" }
+                            val newId = System.currentTimeMillis().toString()
+                            repo.prefManager.saveFolder(newId, name, emptyList())
+                            if (createFolderParentId != null) repo.prefManager.setFolderParent(newId, createFolderParentId)
+                            refreshApps()
+                            newFolderNameInput = ""
+                            showCreateFolderDialog = false
+                        }
+                    ) {
+                        Text("作成", color = accentColor, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showCreateFolderDialog = false }) {
+                        Text("キャンセル", color = Color.Gray)
+                    }
+                },
+                title = { Text("新規フォルダ", fontSize = 18.sp) },
+                text = {
+                    BasicTextField(
+                        value = newFolderNameInput,
+                        onValueChange = { newFolderNameInput = it },
+                        singleLine = true,
+                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 16.sp),
+                        cursorBrush = SolidColor(accentColor),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, Color.Gray.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                            .padding(12.dp)
+                    ) { innerTextField ->
+                        Box {
+                            if (newFolderNameInput.isEmpty()) {
+                                Text("フォルダ名を入力...", color = Color.Gray.copy(alpha = 0.7f), fontSize = 14.sp)
+                            }
+                            innerTextField()
+                        }
+                    }
+                }
+            )
+        }
+
         if (showDeleteFolderDialog && selectedFolderId != null && selectedFolderId != "__BACK") {
             AlertDialog(
                 onDismissRequest = { showDeleteFolderDialog = false },
