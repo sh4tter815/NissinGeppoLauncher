@@ -27,6 +27,7 @@ data class AppInfo(
     val initialJapanese: String = "＃", // 「あ」「か」「さ」など
     val initialEnglish: String = "＃",   // "A", "B", "C" など
     val customYomi: String = "",
+    val discGroup: String = "＃", // 円盤の索引グループ（通常は initialJapanese、スペル順モードの英語名アプリは頭文字）
     val searchAliases: List<String> = emptyList(), // 検索可能な別名（複数保存可能）
     val isFavorite: Boolean = false,
     val isHidden: Boolean = false
@@ -209,6 +210,7 @@ class AppRepository(private val context: Context) {
         val hiddenSet = prefManager.getHiddenPackages()
         // 既定の読み仮名辞書（主要アプリ用）の上に、手動登録を重ねる（手動が優先）
         val yomiMap = AppYomiData.load(context) + prefManager.getYomiMap()
+        val spellMode = prefManager.getEnglishAppSort() == "spell"
         val aliasesMap = prefManager.getAliasesMap()
 
         val apps = records.map { rec ->
@@ -216,12 +218,16 @@ class AppRepository(private val context: Context) {
             val isFavorite = favoritesSet.contains(rec.packageName)
             val customYomi = yomiMap[rec.packageName] ?: ""
             val searchAliases = aliasesMap[rec.packageName] ?: emptyList()
-            val targetForInitials = if (customYomi.isNotBlank()) customYomi else rec.label
+            // 英語名アプリの並び設定: スペル順モードでは読み仮名を使わず、スペルで並べる
+            val isLatinLabel = rec.label.firstOrNull()?.let { it.code < 128 && it.isLetter() } == true
+            val effectiveYomi = if (isLatinLabel && spellMode) "" else customYomi
+            val targetForInitials = if (effectiveYomi.isNotBlank()) effectiveYomi else rec.label
 
             // 起動時はアプリ内保存済みアイコンだけを使う（PackageManagerから読み直さない）
             val iconBitmapRaw = loadIconBitmap(rec.packageName, allowPackageLoad = false)
             val iconDrawable = iconBitmapRaw?.let { BitmapDrawable(context.resources, it) }
             val (japaneseInitial, englishInitial) = extractInitials(targetForInitials)
+            val discGroup = if (isLatinLabel && spellMode && effectiveYomi.isBlank()) englishInitial else japaneseInitial
 
             AppInfo(
                 label = rec.label,
@@ -231,6 +237,7 @@ class AppRepository(private val context: Context) {
                 initialJapanese = japaneseInitial,
                 initialEnglish = englishInitial,
                 customYomi = customYomi,
+                discGroup = discGroup,
                 searchAliases = searchAliases,
                 isFavorite = isFavorite,
                 isHidden = isHidden
@@ -238,7 +245,8 @@ class AppRepository(private val context: Context) {
         }
 
         return apps.sortedBy { app ->
-            val rawKey = if (app.customYomi.isNotBlank()) app.customYomi else app.label
+            val latin = app.label.firstOrNull()?.let { it.code < 128 && it.isLetter() } == true
+            val rawKey = if (app.customYomi.isNotBlank() && !(latin && spellMode)) app.customYomi else app.label
             toHiragana(rawKey.lowercase())
         }
     }

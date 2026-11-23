@@ -408,6 +408,17 @@ class AppPreferenceManager(private val context: Context) {
     fun getPageWallpaperPath(page: Int): String? = prefs.getString("wallpaper_path_page_$page", null)
     fun setPageWallpaperPath(page: Int, path: String?) = prefs.edit().putString("wallpaper_path_page_$page", path).apply()
 
+    // インデックスに英語（A〜Z）を含めるか
+    fun isIndexShowEnglish(): Boolean = prefs.getBoolean("index_show_english", false)
+    fun setIndexShowEnglish(v: Boolean) = prefs.edit().putBoolean("index_show_english", v).apply()
+
+    // アプリ一覧の並び順 ("name" = 名前順, "usage" = よく使う順, "recent" = 最近使った順)
+    fun getAppSortMode(): String = prefs.getString("app_sort_mode", "name") ?: "name"
+    fun setAppSortMode(v: String) = prefs.edit().putString("app_sort_mode", v).apply()
+    // 英語名アプリの並び ("yomi" = 読み仮名で並べる, "spell" = スペルで並べる)
+    fun getEnglishAppSort(): String = prefs.getString("english_app_sort", "yomi") ?: "yomi"
+    fun setEnglishAppSort(v: String) = prefs.edit().putString("english_app_sort", v).apply()
+
     // 通知バッジ（アプリアイコン右上に通知数）
     fun isNotificationBadgesEnabled(): Boolean = prefs.getBoolean("notification_badges", true)
     fun setNotificationBadgesEnabled(v: Boolean) = prefs.edit().putBoolean("notification_badges", v).apply()
