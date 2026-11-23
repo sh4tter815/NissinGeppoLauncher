@@ -430,6 +430,17 @@ class AppPreferenceManager(private val context: Context) {
     fun isRackReverseScroll(): Boolean = prefs.getBoolean("rack_reverse", false)
     fun setRackReverseScroll(v: Boolean) = prefs.edit().putBoolean("rack_reverse", v).apply()
 
+    // レイアウト自由移動のオフセット（dp）
+    fun getClockOffsetXDp(): Float = prefs.getFloat("clock_offset_x", 0f)
+    fun getClockOffsetYDp(): Float = prefs.getFloat("clock_offset_y", 0f)
+    fun setClockOffset(x: Float, y: Float) = prefs.edit().putFloat("clock_offset_x", x).putFloat("clock_offset_y", y).apply()
+    fun getPvOffsetXDp(): Float = prefs.getFloat("pv_offset_x", 0f)
+    fun setPvOffsetX(v: Float) = prefs.edit().putFloat("pv_offset_x", v).apply()
+    // 設定画面からレイアウト編集モードを開くための一時フラグ
+    fun requestLayoutEdit() = prefs.edit().putBoolean("layout_edit_request", true).apply()
+    fun isLayoutEditRequested(): Boolean = prefs.getBoolean("layout_edit_request", false)
+    fun clearLayoutEditRequest() = prefs.edit().putBoolean("layout_edit_request", false).apply()
+
     // ===== 設定バックアップ（読み仮名・お気に入り・フォルダを含む全設定をJSONへ） =====
     fun exportAllJson(): String {
         val prefsObj = org.json.JSONObject()
