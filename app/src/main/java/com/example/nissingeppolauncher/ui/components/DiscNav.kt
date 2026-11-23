@@ -50,6 +50,7 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -1086,7 +1087,7 @@ fun DiscGlyph(kind: String, accentColor: Color) {
 // ===== アプリ円盤・フォルダ円盤・索引円盤（DiscCarousel のラッパー。旧 RotatableAppDisc / RotatableFolderWheel / RotatableIndexWheel の見た目と操作感を共通部品で再現） =====
 
 /** RotatableAppDisc と同じ DiscItem 列を作る（showIndices の時は頭文字の IndexEntry を差し込む） */
-fun buildDiscItems(apps: List<AppInfo>, showIndices: Boolean): List<DiscItem> {
+fun buildDiscItems(apps: List<AppInfo>, showIndices: Boolean, badges: Map<String, Int> = emptyMap()): List<DiscItem> {
     val items = mutableListOf<DiscItem>()
     if (showIndices) {
         var lastInitial: String? = null
@@ -1096,10 +1097,10 @@ fun buildDiscItems(apps: List<AppInfo>, showIndices: Boolean): List<DiscItem> {
                 items.add(DiscItem.IndexEntry(initial))
                 lastInitial = initial
             }
-            items.add(DiscItem.AppEntry(app))
+            items.add(DiscItem.AppEntry(app, badges[app.packageName] ?: 0))
         }
     } else {
-        for (app in apps) items.add(DiscItem.AppEntry(app))
+        for (app in apps) items.add(DiscItem.AppEntry(app, badges[app.packageName] ?: 0))
     }
     return items
 }
@@ -1185,6 +1186,25 @@ fun DiscAppItem(
                         contentDescription = null,
                         modifier = Modifier.size((iconSizeDp * 1.125f).coerceAtLeast(12f).dp)
                     )
+                    // 通知バッジ（アイコン右上）
+                    if (item.badge > 0) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .width(if (item.badge > 9) 17.dp else 12.5.dp)
+                                .height(12.5.dp)
+                                .background(effAccent, RoundedCornerShape(6.25.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (item.badge > 99) "99+" else item.badge.toString(),
+                                color = Color.White,
+                                fontSize = 7.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
+                            )
+                        }
+                    }
                 }
             }
             val isChecked = selectedPackages?.contains(app.packageName) == true
