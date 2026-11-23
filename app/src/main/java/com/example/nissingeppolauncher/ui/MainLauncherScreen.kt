@@ -679,6 +679,19 @@ fun MainLauncherScreen() {
     val folderWheelRotationAnim = remember { Animatable(0f) }
     val folderWheelRotation = folderWheelRotationAnim.value
     var isHoldingFolderWheel by remember { mutableStateOf(false) }
+    // 共通部品（DiscCarousel）化した円盤の状態（フォルダ左・フォルダ右・アプリー覧右・索引）
+    val folderDiscState = rememberDiscCarouselState(initialIndex = 0, stepAngle = 24f)
+    var folderSelectedIndex by remember { mutableIntStateOf(0) }
+    val folderAppDiscState = rememberDiscCarouselState(initialIndex = 0, stepAngle = 20f)
+    val appListDiscState = rememberDiscCarouselState(initialIndex = 0, stepAngle = 20f)
+    val homeDiscState = rememberDiscCarouselState(initialIndex = 0, stepAngle = 20f)
+    val homeDiscItems = remember(favoriteApps) { buildDiscItems(favoriteApps, false) }
+    val indexDiscState = rememberDiscCarouselState(initialIndex = 0, stepAngle = 360f / INDEX_ITEMS.size)
+    var indexSelected by remember { mutableIntStateOf(0) }
+    fun snapDiscTo(state: DiscCarouselState, angle: Float) {
+        state.rawRotation = angle
+        coroutineScope.launch { state.rotationAnim.snapTo(angle) }
+    }
     val folderStepAngle = 24f
 
     val createNewFolderStr = "新規作成"
@@ -686,13 +699,7 @@ fun MainLauncherScreen() {
         folderList + Pair("NEW_FOLDER", createNewFolderStr)
     }
 
-    val selectedFolderItemIndex = remember(folderWheelRotation, folderItemsWithNew.size) {
-        if (folderItemsWithNew.isEmpty()) -1
-        else {
-            val rawIdx = (-folderWheelRotation / folderStepAngle).roundToInt()
-            ((rawIdx % folderItemsWithNew.size) + folderItemsWithNew.size) % folderItemsWithNew.size
-        }
-    }
+    val selectedFolderItemIndex = if (folderItemsWithNew.isEmpty()) -1 else folderSelectedIndex.coerceIn(0, folderItemsWithNew.size - 1)
 
     val selectedFolderPair = remember(selectedFolderItemIndex, folderItemsWithNew) {
         if (selectedFolderItemIndex in folderItemsWithNew.indices) folderItemsWithNew[selectedFolderItemIndex] else null
@@ -803,24 +810,7 @@ fun MainLauncherScreen() {
         label = "Disc2CenterX"
     )
 
-    val selectedIndex = remember(leftRotation, INDEX_ITEMS.size) {
-        if (INDEX_ITEMS.isEmpty()) -1
-        else {
-            val rawIdx = (-leftRotation / stepAngle).roundToInt()
-            ((rawIdx % INDEX_ITEMS.size) + INDEX_ITEMS.size) % INDEX_ITEMS.size
-        }
-    }
-    val selectedIndexChar = remember(selectedIndex) {
-        if (selectedIndex in INDEX_ITEMS.indices) INDEX_ITEMS[selectedIndex] else null
-    }
-
-    var lastHapticIndex by remember { mutableIntStateOf(-1) }
-    LaunchedEffect(selectedIndex) {
-        if ((selectedIndex != -1) && (selectedIndex != lastHapticIndex) && (lastHapticIndex != -1)) {
-            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-        }
-        lastHapticIndex = selectedIndex
-    }
+    val selectedIndexChar = if (indexSelected in INDEX_ITEMS.indices) INDEX_ITEMS[indexSelected] else null
 
     val onAppClick: (String) -> Unit = { packageName ->
         coroutineScope.launch {
@@ -1034,15 +1024,13 @@ fun MainLauncherScreen() {
                     )
 
                     if (!vinylRackOpen) {
-                    RotatableAppDisc(
-                        iconTilt3d = disc3d,
-                        rainbowGlow = dopagakiMode,
+                    DiscCarousel(
+                        itemCount = homeDiscItems.size,
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer {
                                 alpha = if (isLyricsBrowsing) 0f else 1f
                                 if (disc3d) {
-                                    // 円の中心を軸に少し奥へ倒す（3Dモード）
                                     transformOrigin = TransformOrigin(
                                         (animatedDisc2CenterX / screenWidthDp).coerceIn(-2f, 3f),
                                         ((disc2CenterY + lyricsDiscDrop) / screenHeightDp).coerceIn(-2f, 3f)
@@ -1052,25 +1040,38 @@ fun MainLauncherScreen() {
                                     cameraDistance = 6.5f * density
                                 }
                             },
-                        apps = favoriteApps,
                         discCenterXDp = animatedDisc2CenterX,
                         discCenterYDp = disc2CenterY + lyricsDiscDrop,
                         discRadiusDp = disc2RadiusDp,
-                        textSizeSp = appDiscTextSize,
-                        iconSizeDp = appDiscIconSize,
-                        letterSpacingSp = appDiscLetterSpacing,
                         stepAngle = appDiscStepAngle,
-                        selectedIndexChar = null,
                         isRightDisc = true,
-                        showIndices = false,
-                        showLabels = !isBigDiscLayout, // アートワーク大きめレイアウトではお気に入り名を隠す
-                        isLoopable = false, // ホームお気に入りはループしない
-                        accentColor = accentColor,
-                        onAppClick = { onAppClick(it.packageName) },
-                        onLongClick = { selectedAppForOption = it },
+                        isLoopable = false,
+                        state = homeDiscState,
                         onHoldingChanged = { isHoldingRight = it },
-                        onEmptyTap = { } // 円の中のタップは消費だけする（再生操作は円の外・右半分のレイヤーに分離）
-                    )
+                        onEmptyTap = { }
+                    ) { index, rad, labelAlpha, _ ->
+                        val di = homeDiscItems.getOrNull(index)
+                        if (di != null) {
+                            DiscAppItem(
+                                item = di,
+                                discCenterXDp = animatedDisc2CenterX,
+                                discCenterYDp = disc2CenterY + lyricsDiscDrop,
+                                discRadiusDp = disc2RadiusDp,
+                                rad = rad,
+                                labelAlpha = labelAlpha,
+                                textSizeSp = appDiscTextSize,
+                                iconSizeDp = appDiscIconSize,
+                                letterSpacingSp = appDiscLetterSpacing,
+                                accentColor = accentColor,
+                                selectedPackages = null,
+                                iconTilt3d = disc3d,
+                                rainbowGlow = dopagakiMode,
+                                showLabels = !isBigDiscLayout,
+                                onAppClick = { onAppClick(it.packageName) },
+                                onLongClick = { selectedAppForOption = it }
+                            )
+                        }
+                    }
                     }
 
                     Box(
@@ -1105,7 +1106,9 @@ fun MainLauncherScreen() {
                 }
                 2 -> {
                     // --- 2: アプリ一覧画面 ---
-                    RotatableIndexWheel(
+                    DiscIndexWheel(
+                        items = INDEX_ITEMS,
+                        state = indexDiscState,
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer {
@@ -1122,23 +1125,9 @@ fun MainLauncherScreen() {
                         discCenterXDp = animatedDisc1CenterX,
                         discCenterYDp = disc1CenterY,
                         discRadiusDp = disc1RadiusDp,
-                        currentRotation = leftRotation,
                         isHolding = isHoldingLeft,
-                        stepAngle = stepAngle,
                         accentColor = accentColor,
-                        centerIcon = {
-                            if (isReadyToOpenHiddenList) {
-                                Text(
-                                    text = "非表示\nリストへ",
-                                    color = accentColor,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    textAlign = TextAlign.Center
-                                )
-                            } else {
-                                WhiteSearchIcon(size = 24.dp)
-                            }
-                        }
+                        onSelectedIndexChange = { indexSelected = it }
                     )
 
                     val displayedApps = remember(searchQuery, allApps, isHideMode) {
@@ -1156,9 +1145,25 @@ fun MainLauncherScreen() {
                         }
                     }
 
-                    RotatableAppDisc(
-                        iconTilt3d = disc3d,
-                        rainbowGlow = dopagakiMode,
+                    val appDiscItems = remember(displayedApps) { buildDiscItems(displayedApps, true) }
+                    LaunchedEffect(selectedIndexChar) {
+                        if (!selectedIndexChar.isNullOrEmpty() && appDiscItems.isNotEmpty()) {
+                            val targetIndex = appDiscItems.indexOfFirst { item ->
+                                when (item) {
+                                    is DiscItem.IndexEntry -> item.char.equals(selectedIndexChar, ignoreCase = true)
+                                    is DiscItem.AppEntry -> (item.app.initialJapanese == selectedIndexChar) || (item.app.initialEnglish.equals(selectedIndexChar, ignoreCase = true))
+                                }
+                            }
+                            if (targetIndex != -1) {
+                                val rawTarget = -targetIndex * appDiscStepAngle
+                                val loopable = !isHideMode && searchQuery.isBlank()
+                                val targetAngle = if (loopable) rawTarget else rawTarget.coerceIn(-((appDiscItems.size - 1) * appDiscStepAngle).coerceAtLeast(0f), 0f)
+                                snapDiscTo(appListDiscState, targetAngle)
+                            }
+                        }
+                    }
+                    DiscCarousel(
+                        itemCount = appDiscItems.size,
                         modifier = Modifier.fillMaxSize()
                                 .graphicsLayer {
                                     if (disc3d) {
@@ -1168,28 +1173,43 @@ fun MainLauncherScreen() {
                                         cameraDistance = 6.5f * density
                                     }
                                 },
-                        apps = displayedApps,
                         discCenterXDp = animatedDisc2CenterX,
                         discCenterYDp = disc2CenterY,
                         discRadiusDp = disc2RadiusDp,
-                        textSizeSp = appDiscTextSize,
-                        iconSizeDp = appDiscIconSize,
-                        letterSpacingSp = appDiscLetterSpacing,
                         stepAngle = appDiscStepAngle,
-                        selectedIndexChar = selectedIndexChar,
                         isRightDisc = true,
-                        showIndices = true,
-                        isLoopable = (!isHideMode && searchQuery.isBlank()), // 通常アプリ一覧(検索なし)のみ循環ループ、検索時や非表示リスト表示時はループなし
-                        accentColor = accentColor,
-                        onAppClick = { onAppClick(it.packageName) },
-                        onLongClick = { selectedAppForOption = it },
+                        isLoopable = (!isHideMode && searchQuery.isBlank()),
+                        state = appListDiscState,
                         onHoldingChanged = { isHoldingRight = it }
-                    )
+                    ) { index, rad, labelAlpha, _ ->
+                        val di = appDiscItems.getOrNull(index)
+                        if (di != null) {
+                            DiscAppItem(
+                                item = di,
+                                discCenterXDp = animatedDisc2CenterX,
+                                discCenterYDp = disc2CenterY,
+                                discRadiusDp = disc2RadiusDp,
+                                rad = rad,
+                                labelAlpha = labelAlpha,
+                                textSizeSp = appDiscTextSize,
+                                iconSizeDp = appDiscIconSize,
+                                letterSpacingSp = appDiscLetterSpacing,
+                                accentColor = accentColor,
+                                selectedPackages = null,
+                                iconTilt3d = disc3d,
+                                rainbowGlow = dopagakiMode,
+                                onAppClick = { onAppClick(it.packageName) },
+                                onLongClick = { selectedAppForOption = it }
+                            )
+                        }
+                    }
                 }
                 3 -> {
                     // --- 3: フォルダ画面 ---
                     if (isEditingFolder) {
-                        RotatableIndexWheel(
+                        DiscIndexWheel(
+                            items = INDEX_ITEMS,
+                            state = indexDiscState,
                             modifier = Modifier.fillMaxSize()
                                 .graphicsLayer {
                                     if (disc3d) {
@@ -1202,16 +1222,15 @@ fun MainLauncherScreen() {
                             discCenterXDp = animatedDisc1CenterX,
                             discCenterYDp = disc1CenterY,
                             discRadiusDp = disc1RadiusDp,
-                            currentRotation = leftRotation,
                             isHolding = isHoldingLeft,
-                            stepAngle = stepAngle,
                             accentColor = accentColor,
-                            centerIcon = { WhiteSearchIcon(size = 24.dp) }
+                            onSelectedIndexChange = { indexSelected = it }
                         )
                     } else {
                         // 左側: フォルダ選択ダイヤル
-                        RotatableFolderWheel(
+                        DiscFolderWheel(
                             folders = folderList,
+                            state = folderDiscState,
                             modifier = Modifier.fillMaxSize()
                                 .graphicsLayer {
                                     if (disc3d) {
@@ -1224,29 +1243,11 @@ fun MainLauncherScreen() {
                             discCenterXDp = animatedDisc1CenterX,
                             discCenterYDp = disc1CenterY,
                             discRadiusDp = disc1RadiusDp,
-                            currentRotation = folderWheelRotation,
                             isHolding = isHoldingFolderWheel,
-                            stepAngle = folderStepAngle,
                             textSizeSp = appDiscTextSize,
                             letterSpacingSp = appDiscLetterSpacing,
                             accentColor = accentColor,
-                            onNewFolderClick = {
-                                val idx = folderItemsWithNew.indexOfFirst { it.first == "NEW_FOLDER" }
-                                if (idx != -1) {
-                                    coroutineScope.launch {
-                                        folderWheelRotationAnim.animateTo(-idx * folderStepAngle, animationSpec = tween(200))
-                                    }
-                                }
-                                newFolderNameInput = ""
-                            },
-                            onRenameFolderClick = { id, _ ->
-                                val idx = folderItemsWithNew.indexOfFirst { it.first == id }
-                                if (idx != -1) {
-                                    coroutineScope.launch {
-                                        folderWheelRotationAnim.animateTo(-idx * folderStepAngle, animationSpec = tween(200))
-                                    }
-                                }
-                            }
+                            onSelectedIndexChange = { folderSelectedIndex = it }
                         )
                     }
 
@@ -1265,9 +1266,24 @@ fun MainLauncherScreen() {
                         allApps.filter { folderPackages.contains(it.packageName) }
                     }
 
-                    RotatableAppDisc(
-                        iconTilt3d = disc3d,
-                        rainbowGlow = dopagakiMode,
+                    val folderDiscItems = remember(discApps, isEditingFolder) { buildDiscItems(discApps, isEditingFolder) }
+                    LaunchedEffect(selectedIndexChar, isEditingFolder) {
+                        val char = if (isEditingFolder) selectedIndexChar else null
+                        if (!char.isNullOrEmpty() && folderDiscItems.isNotEmpty()) {
+                            val targetIndex = folderDiscItems.indexOfFirst { item ->
+                                when (item) {
+                                    is DiscItem.IndexEntry -> item.char.equals(char, ignoreCase = true)
+                                    is DiscItem.AppEntry -> (item.app.initialJapanese == char) || (item.app.initialEnglish.equals(char, ignoreCase = true))
+                                }
+                            }
+                            if (targetIndex != -1) {
+                                val targetAngle = (-targetIndex * appDiscStepAngle).coerceIn(-((folderDiscItems.size - 1) * appDiscStepAngle).coerceAtLeast(0f), 0f)
+                                snapDiscTo(folderAppDiscState, targetAngle)
+                            }
+                        }
+                    }
+                    DiscCarousel(
+                        itemCount = folderDiscItems.size,
                         modifier = Modifier.fillMaxSize()
                                 .graphicsLayer {
                                     if (disc3d) {
@@ -1277,40 +1293,52 @@ fun MainLauncherScreen() {
                                         cameraDistance = 6.5f * density
                                     }
                                 },
-                        apps = discApps,
                         discCenterXDp = animatedDisc2CenterX,
                         discCenterYDp = disc2CenterY,
                         discRadiusDp = disc2RadiusDp,
-                        textSizeSp = appDiscTextSize,
-                        iconSizeDp = appDiscIconSize,
-                        letterSpacingSp = appDiscLetterSpacing,
                         stepAngle = appDiscStepAngle,
-                        selectedIndexChar = if (isEditingFolder) selectedIndexChar else null,
                         isRightDisc = true,
-                        showIndices = isEditingFolder,
-                        isLoopable = false, // フォルダ内アプリはループしない
-                        selectedPackages = if (isEditingFolder) editingSelectedPackages else null,
-                        accentColor = accentColor,
-                        onAppClick = { app ->
-                            if (isEditingFolder) {
-                                val updated = editingSelectedPackages.toMutableSet()
-                                if (updated.contains(app.packageName)) {
-                                    updated.remove(app.packageName)
-                                } else {
-                                    updated.add(app.packageName)
-                                }
-                                editingSelectedPackages = updated
-                            } else {
-                                onAppClick(app.packageName)
-                            }
-                        },
-                        onLongClick = { app ->
-                            if (!isEditingFolder) {
-                                selectedAppForOption = app
-                            }
-                        },
+                        isLoopable = false,
+                        state = folderAppDiscState,
                         onHoldingChanged = { isHoldingRight = it }
-                    )
+                    ) { index, rad, labelAlpha, _ ->
+                        val di = folderDiscItems.getOrNull(index)
+                        if (di != null) {
+                            DiscAppItem(
+                                item = di,
+                                discCenterXDp = animatedDisc2CenterX,
+                                discCenterYDp = disc2CenterY,
+                                discRadiusDp = disc2RadiusDp,
+                                rad = rad,
+                                labelAlpha = labelAlpha,
+                                textSizeSp = appDiscTextSize,
+                                iconSizeDp = appDiscIconSize,
+                                letterSpacingSp = appDiscLetterSpacing,
+                                accentColor = accentColor,
+                                selectedPackages = if (isEditingFolder) editingSelectedPackages else null,
+                                iconTilt3d = disc3d,
+                                rainbowGlow = dopagakiMode,
+                                onAppClick = { app ->
+                                    if (isEditingFolder) {
+                                        val updated = editingSelectedPackages.toMutableSet()
+                                        if (updated.contains(app.packageName)) {
+                                            updated.remove(app.packageName)
+                                        } else {
+                                            updated.add(app.packageName)
+                                        }
+                                        editingSelectedPackages = updated
+                                    } else {
+                                        onAppClick(app.packageName)
+                                    }
+                                },
+                                onLongClick = { app ->
+                                    if (!isEditingFolder) {
+                                        selectedAppForOption = app
+                                    }
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -1360,8 +1388,50 @@ fun MainLauncherScreen() {
             )
         }
 
+        // --- フォルダページ通常時: 左半分は共通部品の操作レイヤーでフォルダホイールを駆動 ---
+        if (!isTransitioning && currentLauncherPage == 3 && !isEditingFolder) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = topPaddingDp + 60.dp, bottom = bottomPaddingDp + 60.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .weight(1f)
+                ) {
+                    DiscTouchHalf(
+                        state = folderDiscState,
+                        isRight = false,
+                        radiusPx = with(LocalDensity.current) { disc1RadiusDp.dp.toPx() },
+                        isReverseScroll = { repo.prefManager.isReverseScroll() },
+                        modifier = Modifier.fillMaxSize(),
+                        onHoldingChanged = { holding ->
+                            isHoldingFolderWheel = holding
+                            if (!holding && selectedFolderId == "NEW_FOLDER") {
+                                newFolderNameInput = ""
+                            }
+                        },
+                        discCenterXPx = with(LocalDensity.current) { animatedDisc1CenterX.dp.toPx() },
+                        discCenterYPx = with(LocalDensity.current) { (disc1CenterY - topPaddingDp - 60f).dp.toPx() },
+                        onItemTap = { idx ->
+                            folderDiscState.animateToIndex(idx)
+                            if (folderItemsWithNew.getOrNull(idx)?.first == "NEW_FOLDER") {
+                                newFolderNameInput = ""
+                            }
+                        }
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .weight(1f)
+                )
+            }
+        }
+
         // --- タッチ操作パネル (左半分: アプリ一覧(2) & フォルダ(3)) ---
-        if (!isTransitioning && (currentLauncherPage == 2 || currentLauncherPage == 3)) {
+        if (!isTransitioning && (currentLauncherPage == 2 || (currentLauncherPage == 3 && isEditingFolder))) {
             Row(
                 modifier = Modifier
                     .fillMaxSize()
@@ -1387,7 +1457,7 @@ fun MainLauncherScreen() {
                                         var lastY = down.position.y
                                         var accumulatedDy = 0f
                                         var currentStepCount = if (isIndexWheel) {
-                                            (-leftRotationAnim.value / stepAngle).roundToInt()
+                                            (-indexDiscState.rawRotation / stepAngle).roundToInt()
                                         } else {
                                             (-folderWheelRotationAnim.value / folderStepAngle).roundToInt().coerceIn(0, folderItemsWithNew.size - 1)
                                         }
@@ -1416,8 +1486,9 @@ fun MainLauncherScreen() {
                                                 currentStepCount++
                                                 if (isIndexWheel) {
                                                     val targetRotation = -currentStepCount * stepAngle
+                                                    indexDiscState.rawRotation = targetRotation
                                                     coroutineScope.launch {
-                                                        leftRotationAnim.animateTo(
+                                                        indexDiscState.rotationAnim.animateTo(
                                                             targetValue = targetRotation,
                                                             animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
                                                         )
@@ -1446,8 +1517,9 @@ fun MainLauncherScreen() {
                                                 currentStepCount--
                                                 if (isIndexWheel) {
                                                     val targetRotation = -currentStepCount * stepAngle
+                                                    indexDiscState.rawRotation = targetRotation
                                                     coroutineScope.launch {
-                                                        leftRotationAnim.animateTo(
+                                                        indexDiscState.rotationAnim.animateTo(
                                                             targetValue = targetRotation,
                                                             animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
                                                         )
