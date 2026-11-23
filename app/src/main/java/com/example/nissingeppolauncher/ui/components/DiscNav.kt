@@ -177,7 +177,8 @@ fun MarqueeText(
         Text(
             text = text,
             color = color,
-            fontSize = 15.sp,
+            fontSize = fontSizeSp.sp,
+            letterSpacing = letterSpacingSp.sp,
             fontWeight = fontWeight,
             maxLines = 1,
             softWrap = false,
