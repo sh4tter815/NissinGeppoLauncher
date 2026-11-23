@@ -142,6 +142,27 @@ class AppPreferenceManager(private val context: Context) {
         saveFoldersMap(currentMap)
     }
 
+    // フォルダの親子関係 (folder_id -> parent_folder_id)。記録が無いフォルダはルート直下
+    fun getFolderParents(): Map<String, String> {
+        val jsonStr = prefs.getString("folder_parents_json", "{}") ?: "{}"
+        val map = mutableMapOf<String, String>()
+        try {
+            val jsonObj = JSONObject(jsonStr)
+            jsonObj.keys().forEach { folderId ->
+                map[folderId] = jsonObj.getString(folderId)
+            }
+        } catch (_: Exception) {}
+        return map
+    }
+
+    fun setFolderParent(folderId: String, parentId: String?) {
+        val map = getFolderParents().toMutableMap()
+        if (parentId == null) map.remove(folderId) else map[folderId] = parentId
+        val jsonObj = JSONObject()
+        map.forEach { (id, pid) -> jsonObj.put(id, pid) }
+        prefs.edit().putString("folder_parents_json", jsonObj.toString()).apply()
+    }
+
     private fun saveFoldersMap(map: Map<String, Pair<String, List<String>>>) {
         val jsonObj = JSONObject()
         map.forEach { (id, pair) ->
