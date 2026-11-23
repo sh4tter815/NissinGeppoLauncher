@@ -1121,6 +1121,7 @@ fun DiscAppItem(
     iconTilt3d: Boolean,
     rainbowGlow: Boolean = false,
     showLabels: Boolean = true,
+    isFocused: Boolean = false,
     onAppClick: (AppInfo) -> Unit,
     onLongClick: (AppInfo) -> Unit
 ) {
@@ -1173,7 +1174,7 @@ fun DiscAppItem(
                             bitmap = iconBitmap,
                             contentDescription = null,
                             modifier = Modifier
-                                .size((iconSizeDp - 4f).coerceAtLeast(12f).dp)
+                                .size((iconSizeDp * 1.125f).coerceAtLeast(12f).dp)
                                 .offset(y = 2.5.dp),
                             colorFilter = ColorFilter.tint(Color.Black.copy(alpha = 0.38f), BlendMode.SrcIn)
                         )
@@ -1181,14 +1182,18 @@ fun DiscAppItem(
                     Image(
                         bitmap = iconBitmap,
                         contentDescription = null,
-                        modifier = Modifier.size((iconSizeDp - 4f).coerceAtLeast(12f).dp)
+                        modifier = Modifier.size((iconSizeDp * 1.125f).coerceAtLeast(12f).dp)
                     )
                 }
             }
             val isChecked = selectedPackages?.contains(app.packageName) == true
             val displayText = if (isChecked) "${app.label}  ✓" else app.label
-            val textColor = if (isChecked) effAccent else Color.White.copy(alpha = 0.9f * labelAlpha)
-            val textWeight = if (isChecked) FontWeight.Bold else FontWeight.Medium
+            val textColor = when {
+                isChecked -> effAccent
+                isFocused -> effAccent.copy(alpha = labelAlpha)
+                else -> Color.White.copy(alpha = 0.9f * labelAlpha)
+            }
+            val textWeight = if (isChecked || isFocused) FontWeight.Bold else FontWeight.Medium
             if (showLabels) Box(
                 modifier = Modifier
                     .offset(x = (appXDp - 240f).dp, y = (appYDp - 22f).dp)
@@ -1227,3 +1232,121 @@ fun DiscAppItem(
 }
 
 /** フォルダ選択ホイール。旧 RotatableFolderWheel と同じ描画。回転は外（DiscTouchHalf）が state 経由で駆動する */
+
+
+/** フォルダページ右円の項目モデル（子フォルダ・アプリ・新規作成が混ざる） */
+sealed class FolderDiscEntry {
+    data class Folder(val folderId: String, val name: String) : FolderDiscEntry()
+    data class App(val app: AppInfo) : FolderDiscEntry()
+    object NewFolder : FolderDiscEntry()
+}
+
+/** フォルダページ右円の1項目。DiscAppItem と同じ配置・見た目で、フォルダと新規作成も描ける */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun DiscFolderItem(
+    entry: FolderDiscEntry,
+    discCenterXDp: Float,
+    discCenterYDp: Float,
+    discRadiusDp: Float,
+    rad: Float,
+    labelAlpha: Float,
+    textSizeSp: Float,
+    iconSizeDp: Float,
+    letterSpacingSp: Float,
+    accentColor: Color,
+    isFocused: Boolean,
+    iconTilt3d: Boolean,
+    onFolderClick: (String) -> Unit,
+    onAppClick: (AppInfo) -> Unit,
+    onAppLongClick: (AppInfo) -> Unit,
+    onNewFolderClick: () -> Unit
+) {
+    val outerAppRadiusDp = discRadiusDp + 8f
+    val innerIconRadiusDp = discRadiusDp - 18f
+    val appXDp = discCenterXDp + outerAppRadiusDp * cos(rad)
+    val appYDp = discCenterYDp + outerAppRadiusDp * sin(rad)
+    val iconXDp = discCenterXDp + innerIconRadiusDp * cos(rad)
+    val iconYDp = discCenterYDp + innerIconRadiusDp * sin(rad)
+    val label = when (entry) {
+        is FolderDiscEntry.Folder -> entry.name
+        is FolderDiscEntry.App -> entry.app.label
+        FolderDiscEntry.NewFolder -> "新規作成"
+    }
+    val click: () -> Unit = when (entry) {
+        is FolderDiscEntry.Folder -> ({ onFolderClick(entry.folderId) })
+        is FolderDiscEntry.App -> ({ onAppClick(entry.app) })
+        FolderDiscEntry.NewFolder -> ({ onNewFolderClick() })
+    }
+    val glyphSize = (iconSizeDp * 1.35f).dp
+    Box(
+        modifier = Modifier
+            .offset(x = (iconXDp - iconSizeDp / 2f).dp, y = (iconYDp - iconSizeDp / 2f).dp)
+            .size(iconSizeDp.dp)
+            .combinedClickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = click,
+                onLongClick = { if (entry is FolderDiscEntry.App) onAppLongClick(entry.app) }
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        when (entry) {
+            is FolderDiscEntry.Folder -> WhiteFolderIcon(size = glyphSize, color = Color.White)
+            FolderDiscEntry.NewFolder -> WhitePlusIcon(size = glyphSize, color = Color.White)
+            is FolderDiscEntry.App -> {
+                val iconBitmap = entry.app.iconBitmap
+                if (iconBitmap != null) {
+                    if (iconTilt3d) {
+                        Image(
+                            bitmap = iconBitmap,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size((iconSizeDp * 1.125f).coerceAtLeast(12f).dp)
+                                .offset(y = 2.5.dp),
+                            colorFilter = ColorFilter.tint(Color.Black.copy(alpha = 0.38f), BlendMode.SrcIn)
+                        )
+                    }
+                    Image(
+                        bitmap = iconBitmap,
+                        contentDescription = null,
+                        modifier = Modifier.size((iconSizeDp * 1.125f).coerceAtLeast(12f).dp)
+                    )
+                }
+            }
+        }
+    }
+    Box(
+        modifier = Modifier
+            .offset(x = (appXDp - 240f).dp, y = (appYDp - 22f).dp)
+            .width(240.dp)
+            .height(44.dp),
+        contentAlignment = Alignment.CenterEnd
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.End,
+            modifier = Modifier
+                .wrapContentSize()
+                .combinedClickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = click,
+                    onLongClick = { if (entry is FolderDiscEntry.App) onAppLongClick(entry.app) }
+                )
+                .padding(horizontal = 4.dp, vertical = 2.dp)
+        ) {
+            Text(
+                text = label,
+                modifier = Modifier.widthIn(max = 140.dp),
+                color = if (isFocused) accentColor.copy(alpha = labelAlpha) else Color.White.copy(alpha = 0.9f * labelAlpha),
+                fontSize = textSizeSp.sp,
+                fontWeight = if (isFocused) FontWeight.Bold else FontWeight.Medium,
+                letterSpacing = letterSpacingSp.sp,
+                textAlign = TextAlign.End,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
