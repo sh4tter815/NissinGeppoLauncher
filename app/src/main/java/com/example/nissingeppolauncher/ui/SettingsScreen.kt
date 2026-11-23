@@ -19,6 +19,7 @@ import androidx.compose.foundation.gestures.drag
 import androidx.compose.animation.core.Animatable
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -648,6 +649,18 @@ fun SettingsScreen(
     // 階層を降りる時、右円で選んだラベルが回転しながら左円の縦ラベルへ飛ぶ
     var flightLabel by remember { mutableStateOf<String?>(null) }
     val flightAnim = remember { Animatable(0f) }
+    var flightReverse by remember { mutableStateOf(false) }
+    val backLabelState = remember { mutableStateOf<String?>(null) }
+    fun startBackFlight() {
+        val label = backLabelState.value ?: return
+        flightReverse = true
+        settingsScope.launch {
+            flightLabel = label
+            flightAnim.snapTo(0f)
+            flightAnim.animateTo(1f, animationSpec = tween(durationMillis = 420, easing = FastOutSlowInEasing))
+            flightLabel = null
+        }
+    }
     var updateChecking by remember { mutableStateOf(false) }
     var knownBuild by remember { mutableStateOf(com.example.nissingeppolauncher.data.UpdateChecker.lastKnownBuild(context)) }
     var updateInfo by remember { mutableStateOf<com.example.nissingeppolauncher.data.UpdateChecker.LatestRelease?>(null) }
@@ -674,6 +687,7 @@ fun SettingsScreen(
             searchQuery = ""
             focusId = null
         } else {
+            startBackFlight()
             navigateAnimated { goBack() }
         }
     }
@@ -1134,9 +1148,11 @@ fun SettingsScreen(
         }
         node
     }
+    backLabelState.value = ownerNode?.label
 
     val leftEntryClick: (Int) -> Unit = { idx ->
         if (idx >= currentList.size) {
+            startBackFlight()
             navigateAnimated { goBack() }
         } else {
             val node = currentList[idx]
@@ -1224,6 +1240,7 @@ fun SettingsScreen(
                                 if (act != null) {
                                     act.invoke()
                                 } else {
+                                    flightReverse = false
                                     flightLabel = child.label
                                     settingsScope.launch {
                                         flightAnim.snapTo(0f)
@@ -1315,18 +1332,30 @@ key("disc-choices-${currentItem.id}") {
             Box(modifier = Modifier.weight(1f).fillMaxHeight())
         }
 
-        // --- 検索バー（旧ヘッダーの位置・幅。タイトルと戻るはチップが担う） ---
+        // --- 検索（下ダイヤルを上下反転した円弧デザイン。弧が枠、文字は中央） ---
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = statusTopDp + 48.dp),
+                .padding(top = statusTopDp),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(600.dp)
+                    .offset(y = (-478).dp)
+                    .border(1.5.dp, Color.White.copy(alpha = 0.85f), CircleShape)
+            )
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = statusTopDp + 38.dp),
             contentAlignment = Alignment.TopCenter
         ) {
             Row(
                 modifier = Modifier
                     .width(320.dp)
                     .height(48.dp)
-                    .border(1.5.dp, Color.White.copy(alpha = 0.85f), RoundedCornerShape(16.dp))
                     .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -1339,17 +1368,20 @@ key("disc-choices-${currentItem.id}") {
                     singleLine = true,
                     textStyle = androidx.compose.ui.text.TextStyle(
                         color = Color.White,
-                        fontSize = 15.sp
+                        fontSize = 15.sp,
+                        textAlign = TextAlign.Center
                     ),
                     cursorBrush = SolidColor(currentAccentColor),
                     modifier = Modifier.weight(1f)
                 ) { innerTextField ->
-                    Box(contentAlignment = Alignment.CenterStart) {
+                    Box(contentAlignment = Alignment.Center) {
                         if (searchQuery.isEmpty()) {
                             Text(
                                 text = "設定を検索",
                                 color = Color.Gray.copy(alpha = 0.7f),
-                                fontSize = 14.sp
+                                fontSize = 14.sp,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
                         innerTextField()
@@ -1375,7 +1407,7 @@ key("disc-choices-${currentItem.id}") {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = statusTopDp + 106.dp),
+                .padding(top = statusTopDp + 134.dp),
             contentAlignment = Alignment.TopCenter
         ) {
             if (searchQuery.isNotBlank()) {
@@ -1391,7 +1423,7 @@ key("disc-choices-${currentItem.id}") {
                 DiscInfoChip(
                     label = "‹ ${ownerNode?.label ?: "設定"}",
                     accentColor = currentAccentColor,
-                    onClick = { navigateAnimated { goBack() } }
+                    onClick = { startBackFlight(); navigateAnimated { goBack() } }
                 )
             }
         }
@@ -1405,16 +1437,18 @@ key("disc-choices-${currentItem.id}") {
                     measurer.measure(label, TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold), softWrap = false).size.width
                 }
                 val boxWDp = with(LocalDensity.current) { textW.toDp().value }.coerceIn(40f, 200f)
-                val startCenterX = maxWidth.value - 93f - boxWDp / 2f
-                val centerX = startCenterX + (25f - startCenterX) * p
+                val rightCenterX = maxWidth.value - 93f - boxWDp / 2f
+                val centerX = if (flightReverse) 25f + (rightCenterX - 25f) * p else rightCenterX + (25f - rightCenterX) * p
                 val centerY = maxHeight.value / 2f
                 Box(
                     modifier = Modifier
                         .offset { IntOffset(((centerX - boxWDp / 2f).dp.roundToPx()), ((centerY - 22f).dp.roundToPx())) }
                         .size(boxWDp.dp, 44.dp)
                         .graphicsLayer {
-                            rotationZ = -90f * p
-                            alpha = if (p < 0.82f) 1f else (1f - (p - 0.82f) / 0.18f).coerceIn(0f, 1f)
+                            rotationZ = if (flightReverse) -90f * (1f - p) else -90f * p
+                            alpha = if (flightReverse) {
+                                if (p < 0.85f) 1f else (1f - (p - 0.85f) / 0.15f).coerceIn(0f, 1f)
+                            } else if (p < 0.82f) 1f else (1f - (p - 0.82f) / 0.18f).coerceIn(0f, 1f)
                         },
                     contentAlignment = Alignment.Center
                 ) {
