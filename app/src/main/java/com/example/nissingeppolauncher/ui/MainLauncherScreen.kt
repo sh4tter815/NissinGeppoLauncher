@@ -671,6 +671,13 @@ fun MainLauncherScreen() {
 
     var newFolderNameInput by remember { mutableStateOf("") }
 
+    // --- フォルダ多重階層の状態 ---
+    var folderParents by remember { mutableStateOf(repo.prefManager.getFolderParents()) }
+    var folderPath by remember { mutableStateOf<List<String>>(emptyList()) }
+    var pendingFocusFolderId by remember { mutableStateOf<String?>(null) }
+    var showCreateFolderBar by remember { mutableStateOf(false) }
+    var createFolderParentId by remember { mutableStateOf<String?>(null) }
+
     val folderList = remember(foldersMap) {
         foldersMap.map { (id, pair) -> Pair(id, pair.first) }
     }
@@ -696,14 +703,35 @@ fun MainLauncherScreen() {
     val folderStepAngle = 24f
 
     val createNewFolderStr = "新規作成"
-    val folderItemsWithNew = remember(folderList, createNewFolderStr) {
-        folderList + Pair("NEW_FOLDER", createNewFolderStr)
+    val currentFolderParentId = folderPath.lastOrNull()
+    val childFolders = remember(folderList, folderParents, currentFolderParentId) {
+        folderList.filter { (folderParents[it.first]) == currentFolderParentId }
+    }
+    val folderItemsWithNew = remember(childFolders, createNewFolderStr, folderPath) {
+        childFolders + Pair("NEW_FOLDER", createNewFolderStr) +
+            (if (folderPath.isNotEmpty()) listOf(Pair("__BACK", "戻る")) else emptyList())
     }
     // フォルダの左円も共通部品 DiscWheel で描く（設定・索引と仕様を統一）
     val folderEntries = remember(folderItemsWithNew) {
         folderItemsWithNew.map { (fid, fname) ->
-            if (fid == "NEW_FOLDER") DiscEntry(id = fid, label = fname, icon = { WhitePlusIcon(size = 22.dp, color = Color.White) })
-            else DiscEntry(id = fid, label = fname, icon = { WhiteFolderIcon(size = 22.dp, color = Color.White) })
+            when (fid) {
+                "NEW_FOLDER" -> DiscEntry(id = fid, label = fname, icon = { WhitePlusIcon(size = 36.dp, color = Color.White) })
+                "__BACK" -> DiscEntry(id = fid, label = fname, immediate = true, icon = { DiscGlyph("back", accentColor) })
+                else -> DiscEntry(id = fid, label = fname, icon = { WhiteFolderIcon(size = 36.dp, color = Color.White) })
+            }
+        }
+    }
+
+    // 階層を移動したら、移動先で対象フォルダ（潜った先・戻る前にいたフォルダ）にフォーカスを合わせる
+    LaunchedEffect(folderPath) {
+        val target = pendingFocusFolderId
+        if (target != null) {
+            val idx = folderItemsWithNew.indexOfFirst { it.first == target }
+            if (idx >= 0) {
+                folderSelectedIndex = idx
+                folderDiscState.animateToIndex(idx)
+            }
+            pendingFocusFolderId = null
         }
     }
 
@@ -723,6 +751,7 @@ fun MainLauncherScreen() {
             allApps = installed
             favoriteApps = installed.filter { it.isFavorite && !it.isHidden }
             foldersMap = repo.prefManager.getFoldersMap()
+            folderParents = repo.prefManager.getFolderParents()
         }
     }
 
@@ -1193,7 +1222,7 @@ fun MainLauncherScreen() {
                         fadeLabelsOnScroll = false,
                         state = appListDiscState,
                         onHoldingChanged = { isHoldingRight = it }
-                    ) { index, rad, labelAlpha, _ ->
+                    ) { index, rad, labelAlpha, isSelected ->
                         val di = appDiscItems.getOrNull(index)
                         if (di != null) {
                             DiscAppItem(
@@ -1210,7 +1239,10 @@ fun MainLauncherScreen() {
                                 selectedPackages = null,
                                 iconTilt3d = disc3d,
                                 rainbowGlow = dopagakiMode,
-                                onAppClick = { onAppClick(it.packageName) },
+                                isFocused = isSelected,
+                                onAppClick = { app ->
+                                    if (isSelected) onAppClick(app.packageName) else appListDiscState.animateToIndex(index)
+                                },
                                 onLongClick = { selectedAppForOption = it }
                             )
                         }
@@ -1283,7 +1315,7 @@ fun MainLauncherScreen() {
 
                     // 右側: 通常時はフォルダ内アプリ、編集時は全アプリ（チェック付き）
                     val folderPackages = remember(selectedFolderId, foldersMap) {
-                        if (selectedFolderId != null && selectedFolderId != "NEW_FOLDER") {
+                        if (selectedFolderId != null && selectedFolderId != "NEW_FOLDER" && selectedFolderId != "__BACK") {
                             foldersMap[selectedFolderId]?.second ?: emptyList()
                         } else {
                             emptyList()
@@ -1296,24 +1328,37 @@ fun MainLauncherScreen() {
                         allApps.filter { folderPackages.contains(it.packageName) }
                     }
 
-                    val folderDiscItems = remember(discApps, isEditingFolder) { buildDiscItems(discApps, isEditingFolder) }
+                    val editDiscItems = remember(discApps, isEditingFolder) { if (isEditingFolder) buildDiscItems(discApps, true) else emptyList() }
+                    // 通常時の右円: フォーカス中フォルダの子フォルダ＋アプリ＋新規作成
+                    val childFoldersOfSelected = remember(folderList, folderParents, selectedFolderId) {
+                        if (selectedFolderId != null && selectedFolderId != "NEW_FOLDER" && selectedFolderId != "__BACK") {
+                            folderList.filter { folderParents[it.first] == selectedFolderId }
+                        } else emptyList()
+                    }
+                    val folderRightEntries = remember(childFoldersOfSelected, discApps, selectedFolderId, isEditingFolder) {
+                        if (isEditingFolder || selectedFolderId == null || selectedFolderId == "NEW_FOLDER" || selectedFolderId == "__BACK") emptyList()
+                        else childFoldersOfSelected.map { FolderDiscEntry.Folder(it.first, it.second) } +
+                            discApps.map { FolderDiscEntry.App(it) } +
+                            listOf(FolderDiscEntry.NewFolder)
+                    }
+                    val rightItemCount = if (isEditingFolder) editDiscItems.size else folderRightEntries.size
                     LaunchedEffect(selectedIndexChar, isEditingFolder) {
                         val char = if (isEditingFolder) selectedIndexChar else null
-                        if (!char.isNullOrEmpty() && folderDiscItems.isNotEmpty()) {
-                            val targetIndex = folderDiscItems.indexOfFirst { item ->
+                        if (!char.isNullOrEmpty() && editDiscItems.isNotEmpty()) {
+                            val targetIndex = editDiscItems.indexOfFirst { item ->
                                 when (item) {
                                     is DiscItem.IndexEntry -> item.char.equals(char, ignoreCase = true)
                                     is DiscItem.AppEntry -> (item.app.initialJapanese == char) || (item.app.initialEnglish.equals(char, ignoreCase = true))
                                 }
                             }
                             if (targetIndex != -1) {
-                                val targetAngle = (-targetIndex * appDiscStepAngle).coerceIn(-((folderDiscItems.size - 1) * appDiscStepAngle).coerceAtLeast(0f), 0f)
+                                val targetAngle = (-targetIndex * appDiscStepAngle).coerceIn(-((editDiscItems.size - 1) * appDiscStepAngle).coerceAtLeast(0f), 0f)
                                 snapDiscTo(folderAppDiscState, targetAngle)
                             }
                         }
                     }
                     DiscCarousel(
-                        itemCount = folderDiscItems.size,
+                        itemCount = rightItemCount,
                         modifier = Modifier.fillMaxSize()
                                 .graphicsLayer {
                                     if (disc3d) {
@@ -1332,42 +1377,83 @@ fun MainLauncherScreen() {
                         fadeLabelsOnScroll = false,
                         state = folderAppDiscState,
                         onHoldingChanged = { isHoldingRight = it }
-                    ) { index, rad, labelAlpha, _ ->
-                        val di = folderDiscItems.getOrNull(index)
-                        if (di != null) {
-                            DiscAppItem(
-                                item = di,
-                                discCenterXDp = animatedDisc2CenterX,
-                                discCenterYDp = disc2CenterY,
-                                discRadiusDp = disc2RadiusDp,
-                                rad = rad,
-                                labelAlpha = labelAlpha,
-                                textSizeSp = appDiscTextSize,
-                                iconSizeDp = appDiscIconSize,
-                                letterSpacingSp = appDiscLetterSpacing,
-                                accentColor = accentColor,
-                                selectedPackages = if (isEditingFolder) editingSelectedPackages else null,
-                                iconTilt3d = disc3d,
-                                rainbowGlow = dopagakiMode,
-                                onAppClick = { app ->
-                                    if (isEditingFolder) {
-                                        val updated = editingSelectedPackages.toMutableSet()
-                                        if (updated.contains(app.packageName)) {
-                                            updated.remove(app.packageName)
+                    ) { index, rad, labelAlpha, isSelected ->
+                        if (isEditingFolder) {
+                            val di = editDiscItems.getOrNull(index)
+                            if (di != null) {
+                                DiscAppItem(
+                                    item = di,
+                                    discCenterXDp = animatedDisc2CenterX,
+                                    discCenterYDp = disc2CenterY,
+                                    discRadiusDp = disc2RadiusDp,
+                                    rad = rad,
+                                    labelAlpha = labelAlpha,
+                                    textSizeSp = appDiscTextSize,
+                                    iconSizeDp = appDiscIconSize,
+                                    letterSpacingSp = appDiscLetterSpacing,
+                                    accentColor = accentColor,
+                                    selectedPackages = editingSelectedPackages,
+                                    iconTilt3d = disc3d,
+                                    rainbowGlow = dopagakiMode,
+                                    isFocused = isSelected,
+                                    onAppClick = { app ->
+                                        if (isSelected) {
+                                            val updated = editingSelectedPackages.toMutableSet()
+                                            if (updated.contains(app.packageName)) {
+                                                updated.remove(app.packageName)
+                                            } else {
+                                                updated.add(app.packageName)
+                                            }
+                                            editingSelectedPackages = updated
                                         } else {
-                                            updated.add(app.packageName)
+                                            folderAppDiscState.animateToIndex(index)
                                         }
-                                        editingSelectedPackages = updated
-                                    } else {
-                                        onAppClick(app.packageName)
+                                    },
+                                    onLongClick = { }
+                                )
+                            }
+                        } else {
+                            val fe = folderRightEntries.getOrNull(index)
+                            if (fe != null) {
+                                DiscFolderItem(
+                                    entry = fe,
+                                    discCenterXDp = animatedDisc2CenterX,
+                                    discCenterYDp = disc2CenterY,
+                                    discRadiusDp = disc2RadiusDp,
+                                    rad = rad,
+                                    labelAlpha = labelAlpha,
+                                    textSizeSp = appDiscTextSize,
+                                    iconSizeDp = appDiscIconSize,
+                                    letterSpacingSp = appDiscLetterSpacing,
+                                    accentColor = accentColor,
+                                    isFocused = isSelected,
+                                    iconTilt3d = disc3d,
+                                    onFolderClick = { fid ->
+                                        if (isSelected) {
+                                            val cur = selectedFolderId
+                                            if (cur != null && cur != "NEW_FOLDER" && cur != "__BACK") {
+                                                pendingFocusFolderId = fid
+                                                folderPath = folderPath + cur
+                                            }
+                                        } else {
+                                            folderAppDiscState.animateToIndex(index)
+                                        }
+                                    },
+                                    onAppClick = { app ->
+                                        if (isSelected) onAppClick(app.packageName) else folderAppDiscState.animateToIndex(index)
+                                    },
+                                    onAppLongClick = { app -> selectedAppForOption = app },
+                                    onNewFolderClick = {
+                                        if (isSelected) {
+                                            createFolderParentId = selectedFolderId
+                                            showCreateFolderBar = true
+                                            newFolderNameInput = ""
+                                        } else {
+                                            folderAppDiscState.animateToIndex(index)
+                                        }
                                     }
-                                },
-                                onLongClick = { app ->
-                                    if (!isEditingFolder) {
-                                        selectedAppForOption = app
-                                    }
-                                }
-                            )
+                                )
+                            }
                         }
                     }
                 }
@@ -1446,9 +1532,16 @@ fun MainLauncherScreen() {
                         discCenterXPx = with(LocalDensity.current) { animatedDisc1CenterX.dp.toPx() },
                         discCenterYPx = with(LocalDensity.current) { (disc1CenterY - topPaddingDp.value - 60f).dp.toPx() },
                         onItemTap = { idx ->
-                            folderDiscState.animateToIndex(idx)
-                            if (folderItemsWithNew.getOrNull(idx)?.first == "NEW_FOLDER") {
-                                newFolderNameInput = ""
+                            val tappedId = folderItemsWithNew.getOrNull(idx)?.first
+                            if (tappedId == "__BACK") {
+                                pendingFocusFolderId = folderPath.lastOrNull()
+                                folderPath = folderPath.dropLast(1)
+                            } else {
+                                folderDiscState.animateToIndex(idx)
+                                if (tappedId == "NEW_FOLDER") {
+                                    newFolderNameInput = ""
+                                    showCreateFolderBar = false
+                                }
                             }
                         }
                     )
@@ -1723,7 +1816,7 @@ fun MainLauncherScreen() {
                     modifier = Modifier.padding(top = topPaddingDp + 10.dp),
                     contentAlignment = Alignment.TopCenter
                 ) {
-                if (selectedFolderId == "NEW_FOLDER") {
+                if (selectedFolderId == "NEW_FOLDER" || showCreateFolderBar) {
                     Row(
                         modifier = Modifier
                             .width(320.dp)
@@ -1764,16 +1857,19 @@ fun MainLauncherScreen() {
                             onClick = {
                                 val name = newFolderNameInput.ifBlank { defaultNewFolderName }
                                 val newId = System.currentTimeMillis().toString()
+                                val parentForNew = if (showCreateFolderBar) createFolderParentId else currentFolderParentId
                                 repo.prefManager.saveFolder(newId, name, emptyList())
+                                if (parentForNew != null) repo.prefManager.setFolderParent(newId, parentForNew)
                                 refreshApps()
                                 newFolderNameInput = ""
+                                showCreateFolderBar = false
                             },
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                         ) {
                             Text("作成", color = accentColor, fontWeight = FontWeight.Bold)
                         }
                     }
-                } else if (selectedFolderId != null) {
+                } else if (selectedFolderId != null && selectedFolderId != "__BACK") {
                     Row(
                         modifier = Modifier
                             .width(320.dp)
@@ -1903,6 +1999,26 @@ fun MainLauncherScreen() {
                     }
                 }
                 }
+            }
+        }
+
+        // --- 現在地チップ（フォルダ階層。タップで1つ戻る） ---
+        if (currentLauncherPage == 3 && folderPath.isNotEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = topPaddingDp + 70.dp)
+                    .zIndex(150f),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                DiscInfoChip(
+                    label = "‹ " + (foldersMap[folderPath.last()]?.first ?: "フォルダ"),
+                    accentColor = accentColor,
+                    onClick = {
+                        pendingFocusFolderId = folderPath.lastOrNull()
+                        folderPath = folderPath.dropLast(1)
+                    }
+                )
             }
         }
 
@@ -2252,13 +2368,30 @@ fun MainLauncherScreen() {
 
 
         // 3. フォルダ削除確認ダイアログ
-        if (showDeleteFolderDialog && selectedFolderId != null) {
+        if (showDeleteFolderDialog && selectedFolderId != null && selectedFolderId != "__BACK") {
             AlertDialog(
                 onDismissRequest = { showDeleteFolderDialog = false },
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            repo.prefManager.deleteFolder(selectedFolderId)
+                            val delId = selectedFolderId
+                            if (delId != null && delId != "__BACK" && delId != "NEW_FOLDER") {
+                                val delParent = folderParents[delId]
+                                // 子フォルダは、削除するフォルダの親へ付け替える
+                                foldersMap.keys.filter { folderParents[it] == delId }.forEach { childId ->
+                                    repo.prefManager.setFolderParent(childId, delParent)
+                                }
+                                // 中のアプリは親フォルダへ移す（ルートの場合はフォルダから外れるだけ）
+                                if (delParent != null) {
+                                    val merged = (foldersMap[delParent]?.second ?: emptyList()).toMutableList()
+                                    (foldersMap[delId]?.second ?: emptyList()).forEach { pkg ->
+                                        if (!merged.contains(pkg)) merged.add(pkg)
+                                    }
+                                    repo.prefManager.saveFolder(delParent, foldersMap[delParent]?.first ?: "", merged)
+                                }
+                                repo.prefManager.deleteFolder(delId)
+                                repo.prefManager.setFolderParent(delId, null)
+                            }
                             refreshApps()
                             showDeleteFolderDialog = false
                         }
