@@ -1,5 +1,5 @@
 {
- "version": 11,
+ "version": 12,
  "items": {
   "reverse": {
    "label": "スクロール方向の反転",
@@ -781,6 +781,13 @@
    "glyph": "languages",
    "type": "action",
    "action": "yomiUpdate"
+  },
+  "notificationBadges": {
+   "label": "通知バッジ",
+   "desc": "アプリアイコンの右上に通知の数を表示します",
+   "glyph": "sparkles",
+   "type": "toggle",
+   "bind": "notificationBadges"
   }
  },
  "tree": [
@@ -899,6 +906,9 @@
       },
       {
        "item": "dialVisibility"
+      },
+      {
+       "item": "notificationBadges"
       }
      ]
     },
