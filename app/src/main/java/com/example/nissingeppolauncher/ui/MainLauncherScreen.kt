@@ -675,6 +675,20 @@ fun MainLauncherScreen() {
     var folderParents by remember { mutableStateOf(repo.prefManager.getFolderParents()) }
     var folderPath by remember { mutableStateOf<List<String>>(emptyList()) }
     var pendingFocusFolderId by remember { mutableStateOf<String?>(null) }
+    // フォルダ切り替え時、右円を引っ込ませてから中身を差し替える（設定画面の navigateAnimated と同じ作法）
+    var folderDiscExiting by remember { mutableStateOf(false) }
+    var folderNavBusy by remember { mutableStateOf(false) }
+    fun navigateFolderAnimated(change: () -> Unit) {
+        if (folderNavBusy) return
+        folderNavBusy = true
+        coroutineScope.launch {
+            folderDiscExiting = true
+            kotlinx.coroutines.delay(175)
+            change()
+            folderDiscExiting = false
+            folderNavBusy = false
+        }
+    }
     var showCreateFolderDialog by remember { mutableStateOf(false) }
     var createFolderParentId by remember { mutableStateOf<String?>(null) }
 
@@ -1379,6 +1393,8 @@ fun MainLauncherScreen() {
                         isLoopable = false,
                         fadeLabelsOnScroll = false,
                         state = folderAppDiscState,
+                        forceSlideOut = folderDiscExiting,
+                        contentKey = folderPath.joinToString("/"),
                         onHoldingChanged = { isHoldingRight = it }
                     ) { index, rad, labelAlpha, isSelected ->
                         if (isEditingFolder) {
@@ -1435,8 +1451,10 @@ fun MainLauncherScreen() {
                                         if (isSelected) {
                                             val cur = selectedFolderId
                                             if (cur != null && cur != "NEW_FOLDER" && cur != "__BACK") {
-                                                pendingFocusFolderId = fid
-                                                folderPath = folderPath + cur
+                                                navigateFolderAnimated {
+                                                    pendingFocusFolderId = fid
+                                                    folderPath = folderPath + cur
+                                                }
                                             }
                                         } else {
                                             folderAppDiscState.animateToIndex(index)
@@ -1537,8 +1555,10 @@ fun MainLauncherScreen() {
                         onItemTap = { idx ->
                             val tappedId = folderItemsWithNew.getOrNull(idx)?.first
                             if (tappedId == "__BACK") {
-                                pendingFocusFolderId = folderPath.lastOrNull()
-                                folderPath = folderPath.dropLast(1)
+                                navigateFolderAnimated {
+                                    pendingFocusFolderId = folderPath.lastOrNull()
+                                    folderPath = folderPath.dropLast(1)
+                                }
                             } else if (tappedId == "NEW_FOLDER" && idx == folderSelectedIndex) {
                                 createFolderParentId = currentFolderParentId
                                 newFolderNameInput = ""
@@ -1955,8 +1975,10 @@ fun MainLauncherScreen() {
                     label = "‹ " + (foldersMap[folderPath.last()]?.first ?: "フォルダ"),
                     accentColor = accentColor,
                     onClick = {
-                        pendingFocusFolderId = folderPath.lastOrNull()
-                        folderPath = folderPath.dropLast(1)
+                        navigateFolderAnimated {
+                            pendingFocusFolderId = folderPath.lastOrNull()
+                            folderPath = folderPath.dropLast(1)
+                        }
                     }
                 )
             }
