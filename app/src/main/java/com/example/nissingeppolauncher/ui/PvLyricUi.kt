@@ -787,6 +787,10 @@ fun PvLyricLine(
     camFlow: Int = -1,
     tilt3d: Boolean = false,
     dopagaki: Boolean = false,
+    // 追加設定: 文字サイズ倍率 / 素の文字色 / ルビ表示
+    fontScale: Float = 1f,
+    baseColor: Color = Color.White,
+    rubyEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val pvEaseIn = CubicBezierEasing(0.42f, 0f, 1f, 1f)
@@ -1051,7 +1055,7 @@ fun PvLyricLine(
         else -> 64f
     }
     val heightCap = if (bigText) heightCapBase * 1.8f else heightCapBase
-    val fitSize = if (dopagaki) minOf((screenWidthDp - 2f) / (longestRowEm * 1.01f), heightCap * 1.7f) else minOf((screenWidthDp - 8f) / (longestRowEm * 1.06f), heightCap)
+    val fitSize = (if (dopagaki) minOf((screenWidthDp - 2f) / (longestRowEm * 1.01f), heightCap * 1.7f) else minOf((screenWidthDp - 8f) / (longestRowEm * 1.06f), heightCap)) * fontScale
     val lineOffsetX = ((baseSeed / 7) % 17 - 8).dp
     val lineOffsetY = ((baseSeed / 11) % 13 - 6).dp
     val row2Indent = ((baseSeed / 13) % 4 * 14).dp
@@ -1506,7 +1510,7 @@ fun PvLyricLine(
         val rubyModeArr = IntArray(rowUnitTexts.size) // 0=なし 1=括弧（表示しない） 2=ルビのかな
         val rubyShiftArr = FloatArray(rowUnitTexts.size)
         val rubyBaseSizeArr = FloatArray(rowUnitTexts.size)
-        run {
+        if (rubyEnabled) run {
             val rowText = rowUnitTexts.joinToString("")
             val unitStartArr = IntArray(rowUnitTexts.size)
             var upos = 0
@@ -1878,6 +1882,7 @@ fun PvLyricLine(
                         windExit = false,
                         crumbleExit = if (fallLine) 0 else if (sandLine) 1 else if (windLine) 2 else 0,
                         chunkColor = unitChunkColor,
+                        baseColor = baseColor,
                         arrowUnder = chunkArrow && ru == "行",
                         swayScale = if (unitCensored || rubyModeHere == 2) 0f else if (bigText) 2.8f else 1f,
                         entryDelayMs = unitDelayMs,
@@ -1959,6 +1964,7 @@ fun PvLyricUnit(
     windExit: Boolean = false,
     crumbleExit: Int = 0,
     chunkColor: Color? = null,
+    baseColor: Color = Color.White,
     arrowUnder: Boolean = false,
     entryDelayMs: Long = -1L,
     partsEntry: Boolean = false,
@@ -2310,7 +2316,7 @@ fun PvLyricUnit(
                 for (layer in 2 downTo 1) {
                     Text(
                         text = annotatedUnit,
-                        color = Color.White.copy(alpha = (if (dimmed) 0.40f else 0.92f) * (if (layer == 1) 0.38f else 0.20f)),
+                        color = baseColor.copy(alpha = (if (dimmed) 0.40f else 0.92f) * (if (layer == 1) 0.38f else 0.20f)),
                         fontSize = uSize,
                         fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
                         textAlign = TextAlign.Center,
@@ -2333,7 +2339,7 @@ fun PvLyricUnit(
                         val sliceSwayY = if (wordParts) cos(sway.value * 6.2832f + slice * 1.7f + uSeed) * 1.3f else 0f
                         Text(
                             text = annotatedUnit,
-                            color = Color.White.copy(alpha = if (dimmed) 0.40f else 0.92f),
+                            color = baseColor.copy(alpha = if (dimmed) 0.40f else 0.92f),
                             fontSize = uSize,
                             fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
                             textAlign = TextAlign.Center,
@@ -2362,7 +2368,7 @@ fun PvLyricUnit(
             } else {
             Text(
                 text = annotatedUnit,
-            color = Color.White.copy(alpha = if (dimmed) 0.40f else 0.92f),
+            color = baseColor.copy(alpha = if (dimmed) 0.40f else 0.92f),
             fontSize = uSize,
             fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
             textAlign = TextAlign.Center,
@@ -3236,7 +3242,12 @@ fun LyricsPvLayer(
     tiltY: State<Float>? = null,
     onSeek: (Long) -> Unit = {},
     onNextTrack: () -> Unit = {},
-    onLineChange: (Int) -> Unit = {}
+    onLineChange: (Int) -> Unit = {},
+    // 追加設定: PVの文字サイズ倍率 / 素の文字色 / ルビ / 間奏アート
+    pvFontScale: Float = 1f,
+    pvBaseColor: Color = Color.White,
+    pvRuby: Boolean = true,
+    pvInterludeArt: Boolean = true
 ) {
     val pvPos = positionMs + lyricOffsetMs
     val pvIndex = lines.indexOfLast { it.timeMs <= pvPos }
@@ -3415,7 +3426,7 @@ fun LyricsPvLayer(
                         partsEntry = partsEntry,
                         enFontFamily = enFontFamily,
                         camFlow = pvCurrent?.let { pvCamFlowFor(it.first, it.second) } ?: pvCamFlowFor(exIdx + 1, lines.getOrNull(exIdx + 1)?.text ?: ""),
-                        tilt3d = pvTilt3d, dopagaki = dopagaki,
+                        tilt3d = pvTilt3d, dopagaki = dopagaki, fontScale = pvFontScale, baseColor = pvBaseColor, rubyEnabled = pvRuby,
                         modifier = Modifier.padding(top = pvTopDp)
                     )
                 }
@@ -3437,7 +3448,7 @@ fun LyricsPvLayer(
                                 partsEntry = partsEntry,
                         enFontFamily = enFontFamily,
                                 camFlow = pvCamFlowFor(curIdx, curText),
-                                tilt3d = pvTilt3d, dopagaki = dopagaki,
+                                tilt3d = pvTilt3d, dopagaki = dopagaki, fontScale = pvFontScale, baseColor = pvBaseColor, rubyEnabled = pvRuby,
                                 effectKind = pvKindFor(curIdx, curText),
                                 lineDurationMs = lines.getOrNull(curIdx + 1)?.let { it.timeMs - lines[curIdx].timeMs } ?: Long.MAX_VALUE,
                                 startsInParen = pvStartsInParen(lines, curIdx),
@@ -3449,7 +3460,7 @@ fun LyricsPvLayer(
             }
         }
         if (pvDisplayIndex == -2) {
-            PvInterludeArt(accentColor = accentColor, modifier = Modifier.fillMaxWidth().padding(top = interludeTopDp).height(230.dp))
+            if (pvInterludeArt) PvInterludeArt(accentColor = accentColor, modifier = Modifier.fillMaxWidth().padding(top = interludeTopDp).height(230.dp))
             // ドパガキモードの間奏中だけ、ギラギラボタンを出す（通常は次の行へスキップ、ラストの間奏は次の曲へ）
             val pvSkipTarget = pvNextLine?.let { (it.timeMs - lyricOffsetMs - 300L).coerceAtLeast(0L) }
             val pvSkipLabel = if (pvCurLine == null) "前奏をスキップ▷" else "間奏をスキップ▷"
@@ -4066,7 +4077,14 @@ fun LyricsFullscreenOverlay(
     tiltX: State<Float>? = null,
     tiltY: State<Float>? = null,
     onSeek: (Long) -> Unit = {},
-    onNextTrack: () -> Unit = {}
+    onNextTrack: () -> Unit = {},
+    // 追加設定: PVと共通（文字サイズ・色・ルビ・間奏アート・液体）
+    pvFontScale: Float = 1f,
+    pvBaseColor: Color = Color.White,
+    pvRuby: Boolean = true,
+    pvInterludeArt: Boolean = true,
+    liquidSpeed: Float = 1f,
+    liquidAlphaMul: Float = 1f
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize().zIndex(96f)) {
         val fsWidth = maxWidth.value
@@ -4089,7 +4107,7 @@ fun LyricsFullscreenOverlay(
                 val fsIdxForHue = fsLines.indexOfLast { it.timeMs <= positionMs + lyricOffsetMs }
                 Color.hsv(Math.floorMod(fsIdxForHue * 47, 360).toFloat(), 0.72f, 1f)
             } else accentColor
-            LiquidGradientBackground(baseColor = fsLiquidBase, onBlack = false, layerAlpha = 1f, alphaBoost = 1.9f)
+            LiquidGradientBackground(baseColor = fsLiquidBase, onBlack = false, layerAlpha = 1f, alphaBoost = 1.9f, speedFactor = liquidSpeed, alphaMul = liquidAlphaMul)
         }
         if (fsLines.isEmpty()) {
             // 歌詞が無い曲: 左にアートワーク、右に曲名などの情報だけを出す
@@ -4244,7 +4262,7 @@ fun LyricsFullscreenOverlay(
                                 partsEntry = partsEntry,
                                 enFontFamily = enFontFamily,
                                 camFlow = fsCurrent?.let { fsCamFlowFor(it.first, it.second) } ?: fsCamFlowFor(exIdx + 1, fsLines.getOrNull(exIdx + 1)?.text ?: ""),
-                                tilt3d = pvTilt3d, dopagaki = dopagaki,
+                                tilt3d = pvTilt3d, dopagaki = dopagaki, fontScale = pvFontScale, baseColor = pvBaseColor, rubyEnabled = pvRuby,
                                 exiting = true,
                                 effectKind = Math.floorMod(Math.floorMod(exIdx * 31 + exText.hashCode(), 997), 8),
                                 modifier = Modifier
@@ -4266,7 +4284,7 @@ fun LyricsFullscreenOverlay(
                                 partsEntry = partsEntry,
                                 enFontFamily = enFontFamily,
                                 camFlow = fsCamFlowFor(curIdx, curText),
-                                tilt3d = pvTilt3d, dopagaki = dopagaki,
+                                tilt3d = pvTilt3d, dopagaki = dopagaki, fontScale = pvFontScale, baseColor = pvBaseColor, rubyEnabled = pvRuby,
                                 exiting = false,
                                 words = fsLines[curIdx].words,
                                 lineStartMs = fsLines[curIdx].timeMs,
@@ -4277,7 +4295,7 @@ fun LyricsFullscreenOverlay(
                     }
                 }
                 if (fsDisplayIndex == -2) {
-                    PvInterludeArt(accentColor = accentColor, modifier = Modifier.fillMaxSize().padding(60.dp))
+                    if (pvInterludeArt) PvInterludeArt(accentColor = accentColor, modifier = Modifier.fillMaxSize().padding(60.dp))
                     val fsSkipTarget = fsNextLine?.let { (it.timeMs - lyricOffsetMs - 300L).coerceAtLeast(0L) }
                     val fsSkipLabel = if (fsCurLine == null) "前奏をスキップ▷" else "間奏をスキップ▷"
                     if (fsSkipTarget != null) {

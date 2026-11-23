@@ -191,6 +191,14 @@ fun MainLauncherScreen() {
     var pageTransitionSpeed by remember { mutableFloatStateOf(repo.prefManager.getPageTransitionSpeed()) }
     var dialVisibility by remember { mutableStateOf(repo.prefManager.getDialVisibility()) }
     var keepScreenOn by remember { mutableStateOf(repo.prefManager.isKeepScreenOn()) }
+    var pvFontScale by remember { mutableFloatStateOf(repo.prefManager.getPvFontScale()) }
+    var pvTopOffset by remember { mutableFloatStateOf(repo.prefManager.getPvTopOffsetDp()) }
+    var pvTextColor by remember { mutableStateOf(repo.prefManager.getPvTextColor()) }
+    var pvRuby by remember { mutableStateOf(repo.prefManager.isPvRubyEnabled()) }
+    var pvInterludeArt by remember { mutableStateOf(repo.prefManager.isPvInterludeArtEnabled()) }
+    var liquidSpeed by remember { mutableFloatStateOf(repo.prefManager.getLiquidSpeed()) }
+    var liquidAlpha by remember { mutableFloatStateOf(repo.prefManager.getLiquidAlpha()) }
+    var wallpaperBlur by remember { mutableFloatStateOf(repo.prefManager.getWallpaperBlurDp()) }
     var lyricsPvFont by remember { mutableStateOf(repo.prefManager.getLyricsPvFont()) }
     var lyricsEnFont by remember { mutableStateOf(repo.prefManager.getLyricsEnFont()) }
     var lyricsEnCustomPath by remember { mutableStateOf(repo.prefManager.getLyricsEnCustomFontPath()) }
@@ -944,7 +952,10 @@ fun MainLauncherScreen() {
             modifier = Modifier.fillMaxSize()
         ) {
                 WallpaperBackground(
-                    customPath = customBackgroundPath,
+                    liquidSpeed = liquidSpeed,
+                    liquidAlphaMul = liquidAlpha,
+                    wallpaperBlurDp = wallpaperBlur,
+                    customPath = repo.prefManager.getPageWallpaperPath(currentLauncherPage) ?: customBackgroundPath,
                     updateKey = backgroundUpdateKey,
                     isHome = (currentLauncherPage == 1),
                     currentAlbumArt = if (matchArtwork || useArtworkBg) sessionAlbumArt else null,
@@ -994,7 +1005,11 @@ fun MainLauncherScreen() {
                     screenWidthDp = screenWidthDp,
                     translationEnabled = translationEnabled,
                     translations = lyricTranslations,
-                    pvTopDp = topPaddingDp + 165.dp,
+                    pvFontScale = pvFontScale,
+                    pvBaseColor = when (pvTextColor) { "accent" -> effectiveAccent; "black" -> Color.Black; else -> Color.White },
+                    pvRuby = pvRuby,
+                    pvInterludeArt = pvInterludeArt,
+                    pvTopDp = topPaddingDp + 165.dp + pvTopOffset.dp,
                     interludeTopDp = topPaddingDp + 145.dp,
                     translationTopDp = topPaddingDp + 320.dp,
                     partsEntry = pvPartsEntry,
@@ -1058,6 +1073,14 @@ fun MainLauncherScreen() {
                                 pageTransitionSpeed = repo.prefManager.getPageTransitionSpeed()
                                 dialVisibility = repo.prefManager.getDialVisibility()
                                 keepScreenOn = repo.prefManager.isKeepScreenOn()
+                                pvFontScale = repo.prefManager.getPvFontScale()
+                                pvTopOffset = repo.prefManager.getPvTopOffsetDp()
+                                pvTextColor = repo.prefManager.getPvTextColor()
+                                pvRuby = repo.prefManager.isPvRubyEnabled()
+                                pvInterludeArt = repo.prefManager.isPvInterludeArtEnabled()
+                                liquidSpeed = repo.prefManager.getLiquidSpeed()
+                                liquidAlpha = repo.prefManager.getLiquidAlpha()
+                                wallpaperBlur = repo.prefManager.getWallpaperBlurDp()
                                 if (!lyricsEnabled) {
                                     com.example.nissingeppolauncher.service.LyricsOverlayService.stop(context)
                                 } else if (repo.prefManager.isStatusBarLyricsEnabled() && android.provider.Settings.canDrawOverlays(context)) {
@@ -1827,7 +1850,7 @@ fun MainLauncherScreen() {
                                 if (searchQuery.isEmpty()) {
                                     Text(
                                         text = "アプリを検索…",
-                                        color = Color.Gray.copy(alpha = 0.7f),
+                                        color = Color.White.copy(alpha = 0.85f),
                                         fontSize = 14.sp,
                                         textAlign = TextAlign.Center
                                     )
@@ -2301,6 +2324,12 @@ fun MainLauncherScreen() {
                 dopagaki = dopagakiMode,
                 tiltX = discTiltX,
                 tiltY = discTiltY,
+                pvFontScale = pvFontScale,
+                pvBaseColor = when (pvTextColor) { "accent" -> effectiveAccent; "black" -> Color.Black; else -> Color.White },
+                pvRuby = pvRuby,
+                pvInterludeArt = pvInterludeArt,
+                liquidSpeed = liquidSpeed,
+                liquidAlphaMul = liquidAlpha,
                 onClose = { pvFullscreen = false },
                 onSeek = { pos -> seekSessionTo(pos) },
                 onNextTrack = { skipToNextTrack() }
