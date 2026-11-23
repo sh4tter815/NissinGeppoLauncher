@@ -604,6 +604,8 @@ fun SettingsScreen(
     var wallpaperBlur by remember { mutableFloatStateOf(repo.prefManager.getWallpaperBlurDp()) }
     var pageWallpapers by remember { mutableStateOf((0..3).map { repo.prefManager.getPageWallpaperPath(it) }) }
     var pendingWallpaperPage by remember { mutableIntStateOf(-1) }
+    var artworkVisible by remember { mutableStateOf(repo.prefManager.isArtworkEnabled()) }
+    var rackReverse by remember { mutableStateOf(repo.prefManager.isRackReverseScroll()) }
     var backgroundPath by remember { mutableStateOf(repo.prefManager.getCustomBackgroundPath()) }
     var wallpaperAlpha by remember { mutableFloatStateOf(repo.prefManager.getHomeWallpaperAlpha()) }
     var showPasscodeChangeDialog by remember { mutableStateOf(false) }
@@ -895,7 +897,9 @@ fun SettingsScreen(
         "clock12h" to Pair({ clock12h }, { v: Boolean -> clock12h = v; repo.prefManager.setClock12h(v); onChanged() }),
         "clockBattery" to Pair({ clockBattery }, { v: Boolean -> clockBattery = v; repo.prefManager.setClockShowBattery(v); onChanged() }),
         "dateWareki" to Pair({ dateWareki }, { v: Boolean -> dateWareki = v; repo.prefManager.setDateWareki(v); onChanged() }),
-        "keepScreenOn" to Pair({ keepScreenOn }, { v: Boolean -> keepScreenOn = v; repo.prefManager.setKeepScreenOn(v); onChanged() })
+        "keepScreenOn" to Pair({ keepScreenOn }, { v: Boolean -> keepScreenOn = v; repo.prefManager.setKeepScreenOn(v); onChanged() }),
+        "artworkEnabled" to Pair({ artworkVisible }, { v: Boolean -> artworkVisible = v; repo.prefManager.setArtworkEnabled(v); onChanged() }),
+        "rackReverse" to Pair({ rackReverse }, { v: Boolean -> rackReverse = v; repo.prefManager.setRackReverseScroll(v); onChanged() })
     )
 
     val stringBinds: Map<String, Pair<() -> String, (String) -> Unit>> = mapOf(
