@@ -7,6 +7,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.material3.LocalTextStyle
@@ -135,9 +136,15 @@ fun DiscWheel(
     focusedLabelOnly: Boolean = false,
     fadeLabelsOnScroll: Boolean = true,
     accentSelectedLabel: Boolean = false,
-    tapToApply: Boolean = false
+    tapToApply: Boolean = false,
+    dimmed: Boolean = false
 ) {
     if (entries.isEmpty()) return
+    val dimFactor by animateFloatAsState(
+        targetValue = if (dimmed) 0.2f else 1f,
+        animationSpec = tween(durationMillis = 120),
+        label = "DiscWheelDim"
+    )
     // 中身だけを設定用に入れ替えて、円盤のエンジン自体はアプリ円盤と共通の DiscCarousel を使う
     BoxWithConstraints(modifier = modifier) {
         val centerX = if (side == DiscSide.LEFT) -80f else maxWidth.value + 80f
@@ -192,7 +199,7 @@ fun DiscWheel(
                     .offset(x = (if (side == DiscSide.LEFT) ax else ax - 240f).dp, y = (ay - 22f).dp)
                     .width(240.dp)
                     .height(44.dp)
-                    .graphicsLayer { this.alpha = if (focusedLabelOnly && !isSelected && !carouselState.isScrolling) 0f else labelAlpha },
+                    .graphicsLayer { this.alpha = (if (focusedLabelOnly && !isSelected && !carouselState.isScrolling) 0f else labelAlpha) * dimFactor },
                 contentAlignment = if (side == DiscSide.LEFT) Alignment.CenterStart else Alignment.CenterEnd
             ) {
                 Row(
