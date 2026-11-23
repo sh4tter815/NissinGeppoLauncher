@@ -69,6 +69,7 @@ import com.example.nissingeppolauncher.data.SettingNodeDef
 import com.example.nissingeppolauncher.ui.components.DiscInfoChip
 import com.example.nissingeppolauncher.ui.components.DiscValueWheel
 import com.example.nissingeppolauncher.ui.components.DiscGlyph
+import com.example.nissingeppolauncher.ui.components.WhiteSearchIcon
 import com.example.nissingeppolauncher.ui.components.DiscMiniSwitch
 import com.example.nissingeppolauncher.ui.components.lucidePath
 import com.example.nissingeppolauncher.ui.components.DiscSide
@@ -1332,20 +1333,7 @@ key("disc-choices-${currentItem.id}") {
             Box(modifier = Modifier.weight(1f).fillMaxHeight())
         }
 
-        // --- 検索（下ダイヤルを上下反転した円弧デザイン。弧が枠、文字は中央） ---
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = statusTopDp),
-            contentAlignment = Alignment.TopCenter
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(330.dp)
-                    .offset(y = (-264).dp)
-                    .border(1.5.dp, Color.White.copy(alpha = 0.85f), CircleShape)
-            )
-        }
+        // --- 検索（文字だけ＋検索アイコン） ---
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1359,6 +1347,8 @@ key("disc-choices-${currentItem.id}") {
                     .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                WhiteSearchIcon(size = 18.dp, color = Color.White.copy(alpha = 0.85f))
+                Spacer(modifier = Modifier.width(8.dp))
                 BasicTextField(
                     value = searchQuery,
                     onValueChange = {
