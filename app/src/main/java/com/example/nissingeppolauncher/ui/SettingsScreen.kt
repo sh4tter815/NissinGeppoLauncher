@@ -1194,7 +1194,7 @@ fun SettingsScreen(
                 )
                 // 左円: 現在の階層の一覧（パネル駆動）
                 key("tree-left-${navPath.joinToString("/")}-$searchQuery") {
-                    val lState = rememberDiscCarouselState(currentList.indexOfFirst { it.id == focusId }.coerceAtLeast(0), 20f)
+                    val lState = rememberDiscCarouselState(currentList.indexOfFirst { it.id == focusId }.coerceAtLeast(0), stepAngle)
                     LaunchedEffect(lState) { leftDiscState = lState }
                     DiscWheel(
                         entries = currentList.map { nodeEntry(it) } + (
@@ -1222,7 +1222,7 @@ fun SettingsScreen(
                 val fNode = if (backFocused) null else focusedNode
                 if (fNode != null && fNode.item == null && fNode.children.isNotEmpty()) {
                     key("tree-right-${navPath.joinToString("/")}-${fNode.id}") {
-                        val rState = rememberDiscCarouselState(0, 20f)
+                        val rState = rememberDiscCarouselState(0, stepAngle)
                         LaunchedEffect(rState) { rightDiscState = rState }
                         DiscWheel(
                             entries = fNode.children.map { nodeEntry(it) },
@@ -1271,7 +1271,7 @@ fun SettingsScreen(
                     }
                 } else if (currentItem != null) {
 key("disc-choices-${currentItem.id}") {
-                    val choiceState = rememberDiscCarouselState(currentItem.choices.indexOfFirst { it.checked }.coerceAtLeast(0), 20f)
+                    val choiceState = rememberDiscCarouselState(currentItem.choices.indexOfFirst { it.checked }.coerceAtLeast(0), stepAngle)
                     LaunchedEffect(choiceState) { rightDiscState = choiceState }
                     DiscWheel(
                         entries = currentItem.choices.map { choice ->
