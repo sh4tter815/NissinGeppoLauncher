@@ -461,10 +461,10 @@ class LyricsOverlayService : Service() {
                     }
                     if (w > 0) f = minOf(f, 20f * availPx / w)
                 }
-                (f * 0.94f).coerceIn(7f, 18f)
+                (f * 0.80f).coerceIn(7f, 15f)
             }
             val fitSp = if (rowTexts.size == 2) {
-                val cap = (maxHeight.value / 2f) / 1.42f / LocalDensity.current.fontScale
+                val cap = (maxHeight.value / 2f) / 1.60f / LocalDensity.current.fontScale
                 minOf(rawFit, cap).coerceAtLeast(6f)
             } else rawFit
             Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy((-1).dp, Alignment.CenterVertically)) {
