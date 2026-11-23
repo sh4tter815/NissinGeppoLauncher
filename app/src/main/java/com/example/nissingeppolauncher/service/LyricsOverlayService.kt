@@ -477,14 +477,17 @@ class LyricsOverlayService : Service() {
         )
         BoxWithConstraints(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             val style20 = TextStyle(fontFamily = fontFam, fontSize = 20.sp, fontWeight = weight)
+            val style20En = TextStyle(fontFamily = enFam ?: fontFam, fontSize = 20.sp, fontWeight = weight)
             val availPx = with(LocalDensity.current) { maxWidth.toPx() }
-            val rawFit = remember(line.text, rowTexts, availPx, fontFam, weight, charFactors, splitIdx) {
+            val rawFit = remember(line.text, rowTexts, availPx, fontFam, enFam, weight, charFactors, charUseEn, splitIdx) {
                 var f = 18f
                 rowTexts.forEachIndexed { r, rt ->
                     val st = if (r == 0) 0 else splitIdx
                     var w = 0f
                     for (j in rt.indices) {
-                        w += measurer.measure(rt[j].toString(), style20, softWrap = false).size.width * charFactors.getOrElse(st + j) { 0.98f }
+                        // 実際に描くフォントで測る（英字フォントは幅が違うので、日本語フォントで測ると英語がはみ出す）
+                        val stl = if (charUseEn.getOrElse(st + j) { false }) style20En else style20
+                        w += measurer.measure(rt[j].toString(), stl, softWrap = false).size.width * charFactors.getOrElse(st + j) { 0.98f }
                     }
                     if (w > 0) f = minOf(f, 20f * availPx / w)
                 }
