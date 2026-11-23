@@ -1332,10 +1332,25 @@ object LyricsManager {
         artist: String,
         album: String,
         lines: List<LyricLine>,
-        fillChunkLines: Boolean = false
+        fillChunkLines: Boolean = false,
+        placeAtGroupEnd: Boolean = false
     ): List<String> {
         val head = translateToJapaneseHead(context, title, artist, album, lines)
-        if (!fillChunkLines) return head
+        if (!fillChunkLines) {
+            if (!placeAtGroupEnd) return head
+            // まとまりの訳は末尾の行へ移す（全体歌詞で、文が終わる行の下に訳を出すため）
+            val moved = head.toMutableList()
+            for (g in translationGroups(lines)) {
+                if (g.size > 1) {
+                    val t = head.getOrNull(g.first()) ?: ""
+                    if (t.isNotEmpty()) {
+                        moved[g.first()] = ""
+                        moved[g.last()] = t
+                    }
+                }
+            }
+            return moved
+        }
         val filled = head.toMutableList()
         for (g in translationGroups(lines)) {
             val t = head.getOrNull(g.first()) ?: ""
