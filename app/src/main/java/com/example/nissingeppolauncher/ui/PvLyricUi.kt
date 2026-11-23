@@ -573,6 +573,17 @@ fun fitFontSizeSp(text: String, baseSp: Float, availWidthDp: Float): Float {
 }
 
 /** コーラスの掛け声（yeah / ah / ラララ等）かどうか */
+/**
+ * 間奏とみなす行間のしきい値（ミリ秒）。曲全体の行間隔の平均 + 10秒。
+ * 曲のペースに合わせて変わるので、速い曲では短い空白でも間奏になり、遅い曲では相当長くないとならない。
+ */
+fun lyricInterludeThresholdMs(lines: List<LyricLine>): Long {
+    if (lines.size < 2) return Long.MAX_VALUE / 4
+    var sum = 0L
+    for (i in 0 until lines.size - 1) sum += (lines[i + 1].timeMs - lines[i].timeMs).coerceAtLeast(0L)
+    return sum / (lines.size - 1) + 10000L
+}
+
 /** 間奏中に出す、曲線がいろんな方向に交差するビジュアルアート */
 @Composable
 fun PvInterludeArt(accentColor: Color, modifier: Modifier = Modifier) {
@@ -3235,10 +3246,11 @@ fun LyricsPvLayer(
     // PVは間奏では何も表示しない（音符マークも出さない）
     val pvCurLine = lines.getOrNull(pvIndex)
     val pvNextLine = lines.getOrNull(pvIndex + 1)
+    val pvInterludeThreshold = remember(lines) { lyricInterludeThresholdMs(lines) }
     val pvInterlude = when {
-        pvCurLine == null -> pvIndex < 0 && (lines.firstOrNull()?.let { (it.timeMs - pvPos) > 2500 } ?: false) // 前奏も間奏アートを出す
-        pvNextLine == null -> (pvPos - pvCurLine.timeMs) > 8000
-        else -> (pvNextLine.timeMs - pvCurLine.timeMs) > 15000 && (pvPos - pvCurLine.timeMs) > 5000 // 行間が長い間奏だけ。次の行が近づいたら前の行に戻る、をしない
+        pvCurLine == null -> pvIndex < 0 && (lines.firstOrNull()?.let { (it.timeMs - pvPos) > pvInterludeThreshold } ?: false) // 前奏も間奏アートを出す（相当長い時だけ）
+        pvNextLine == null -> (pvPos - pvCurLine.timeMs) > 15000
+        else -> (pvNextLine.timeMs - pvCurLine.timeMs) > pvInterludeThreshold && (pvPos - pvCurLine.timeMs) > 10000 // 行間が平均+10秒を超える間奏だけ。次の行が近づいたら前の行に戻る、をしない
     }
     val pvDisplayIndex = if (pvInterlude) -2 else pvIndex
     // 色名・連想色に当たった行では、その色（文字と同じ淡色）を親に知らせてアクセントを一瞬変える
@@ -4116,10 +4128,11 @@ fun LyricsFullscreenOverlay(
         val fsIndex = fsLines.indexOfLast { it.timeMs <= fsPos }
         val fsCurLine = fsLines.getOrNull(fsIndex)
         val fsNextLine = fsLines.getOrNull(fsIndex + 1)
+        val fsInterludeThreshold = remember(fsLines) { lyricInterludeThresholdMs(fsLines) }
         val fsInterlude = when {
-            fsCurLine == null -> fsIndex < 0 && (fsLines.firstOrNull()?.let { (it.timeMs - fsPos) > 2500 } ?: false) // 前奏も間奏アートを出す
-            fsNextLine == null -> (fsPos - fsCurLine.timeMs) > 8000
-            else -> (fsNextLine.timeMs - fsCurLine.timeMs) > 15000 && (fsPos - fsCurLine.timeMs) > 5000
+            fsCurLine == null -> fsIndex < 0 && (fsLines.firstOrNull()?.let { (it.timeMs - fsPos) > fsInterludeThreshold } ?: false) // 前奏も間奏アートを出す（相当長い時だけ）
+            fsNextLine == null -> (fsPos - fsCurLine.timeMs) > 15000
+            else -> (fsNextLine.timeMs - fsCurLine.timeMs) > fsInterludeThreshold && (fsPos - fsCurLine.timeMs) > 10000
         }
         if (displayMode == "video") {
             // PVだけを中央に

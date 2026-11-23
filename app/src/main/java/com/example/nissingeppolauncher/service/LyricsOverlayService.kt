@@ -36,6 +36,7 @@ import android.text.style.MetricAffectingSpan
 import androidx.core.content.res.ResourcesCompat
 import com.example.nissingeppolauncher.R
 import com.example.nissingeppolauncher.data.LyricLine
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
@@ -88,6 +89,7 @@ import com.example.nissingeppolauncher.ui.components.parseFontFamily
 import com.example.nissingeppolauncher.data.LyricsManager
 import com.example.nissingeppolauncher.ui.LyricEffectsData
 import com.example.nissingeppolauncher.ui.splitLyricUnits
+import com.example.nissingeppolauncher.ui.lyricInterludeThresholdMs
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import kotlin.math.abs
@@ -369,7 +371,7 @@ class LyricsOverlayService : Service() {
 
     // PVミニの行描画: 登録ワードの色 + 文字ごとの大きさ・ゆらぎ + 1文字ずつの入場 + 意味の区切りで最大2行
     @Composable
-    private fun MiniPvLine(line: LyricLine, posMs: Long) {
+    private fun MiniPvLine(line: LyricLine, posMs: Long, exitP: Float = 0f) {
         val measurer = rememberTextMeasurer()
         val weight = if (pvBoldState.value) FontWeight.Bold else FontWeight.Normal
         val fontFam = pvFontState.value
@@ -411,6 +413,29 @@ class LyricsOverlayService : Service() {
                 list
             }
         }
+        // 本家PVと同じ文字種ルール: 漢字は大きめ(1.25)、ひらがな小さめ(0.82)、カタカナ1.05、小カナは更に×0.6、ーは前の文字に合わせる、行頭がひらがな続きなら先頭だけ1.25
+        val charFactors = remember(line.text) {
+            val smallKana = "ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ"
+            val leadBoost = line.text.length >= 2 && line.text[0] in 'ぁ'..'ゟ' && line.text[1] in 'ぁ'..'ゟ'
+            val arr = FloatArray(line.text.length)
+            var prev = 0.98f
+            for (idx in line.text.indices) {
+                val ch = line.text[idx]
+                val classCf = when {
+                    ch in smallKana -> 1.0f
+                    ch == 'ー' -> prev
+                    ch in '一'..'鿿' || ch == '々' || ch == '〆' || ch == 'ヶ' -> 1.25f
+                    ch in 'ぁ'..'ゟ' -> 0.82f
+                    ch in '゠'..'ヿ' -> 1.05f
+                    else -> 0.98f
+                }
+                var cf = if (idx == 0 && leadBoost) 1.25f else classCf
+                prev = cf
+                if (ch in smallKana) cf *= 0.6f
+                arr[idx] = cf
+            }
+            arr
+        }
         val chunks = remember(line.text) { try { splitLyricUnits(line.text) } catch (e: Exception) { listOf(line.text) } }
         val splitIdx = remember(line.text, chunks) { computeMiniSplit(line.text, chunks) }
         val rowTexts = if (splitIdx in 1 until line.text.length) {
@@ -425,10 +450,14 @@ class LyricsOverlayService : Service() {
         BoxWithConstraints(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             val style20 = TextStyle(fontFamily = fontFam, fontSize = 20.sp, fontWeight = weight)
             val availPx = with(LocalDensity.current) { maxWidth.toPx() }
-            val rawFit = remember(line.text, rowTexts, availPx, fontFam, weight) {
+            val rawFit = remember(line.text, rowTexts, availPx, fontFam, weight, charFactors, splitIdx) {
                 var f = 18f
-                for (rt in rowTexts) {
-                    val w = measurer.measure(rt, style20, softWrap = false).size.width
+                rowTexts.forEachIndexed { r, rt ->
+                    val st = if (r == 0) 0 else splitIdx
+                    var w = 0f
+                    for (j in rt.indices) {
+                        w += measurer.measure(rt[j].toString(), style20, softWrap = false).size.width * charFactors.getOrElse(st + j) { 0.98f }
+                    }
                     if (w > 0) f = minOf(f, 20f * availPx / w)
                 }
                 (f * 0.94f).coerceIn(7f, 18f)
@@ -457,23 +486,50 @@ class LyricsOverlayService : Service() {
                             val seed = (line.timeMs / 100L).toInt() * 31 + i * 17
                             val factor = 0.92f + ((seed % 22 + 22) % 22) / 100f
                             val phase = ((seed % 628 + 628) % 628) / 100f
-                            Text(
-                                text = ch.toString(),
-                                color = col,
-                                fontSize = (fitSp * factor).sp,
-                                fontWeight = weight,
-                                fontFamily = if (enFam != null && ch in ' '..'~') enFam else fontFam,
-                                style = TextStyle(shadow = shadow),
+                            // 入場の向き（本家のカメラワーク相当）: 0=右から 1=左から 2=上から 3=下から 4=押し込む 5=回転
+                            val dir = ((seed % 6) + 6) % 6
+                            val charFont = if (enFam != null && ch in ' '..'~') enFam else fontFam
+                            val charSp = (fitSp * factor * charFactors.getOrElse(i) { 0.98f }).coerceIn(fitSp * 0.55f, fitSp * 1.35f)
+                            Box(
                                 modifier = Modifier.graphicsLayer {
-                                    alpha = anim.value
-                                    val es = 0.55f + 0.45f * anim.value
+                                    val p = anim.value
+                                    val ep = 1f - p
+                                    alpha = p * (1f - exitP)
+                                    val es = if (dir == 4) (1.7f - 0.7f * p) else (0.55f + 0.45f * p)
                                     val breathe = 1f + 0.03f * sin(swayT * 1.3f + phase).toFloat()
-                                    scaleX = es * breathe
-                                    scaleY = es * breathe
-                                    translationY = (1f - anim.value) * 5.dp.toPx() + sin(swayT + phase).toFloat() * 1.6.dp.toPx()
-                                    rotationZ = ((seed % 13 + 13) % 13 - 6).toFloat() * (1f - anim.value * 0.4f) + sin(swayT * 0.8f + phase * 1.7f).toFloat() * 2.5f
+                                    scaleX = es * breathe * (1f - 0.15f * exitP)
+                                    scaleY = es * breathe * (1f - 0.15f * exitP)
+                                    translationX = when (dir) {
+                                        0 -> ep * 16.dp.toPx()
+                                        1 -> -ep * 16.dp.toPx()
+                                        else -> 0f
+                                    }
+                                    translationY = ep * 5.dp.toPx() + sin(swayT + phase).toFloat() * 1.6.dp.toPx() - exitP * 6.dp.toPx() + when (dir) {
+                                        2 -> -ep * 7.dp.toPx()
+                                        3 -> ep * 7.dp.toPx()
+                                        else -> 0f
+                                    }
+                                    rotationZ = ((seed % 13 + 13) % 13 - 6).toFloat() * (1f - p * 0.4f) + sin(swayT * 0.8f + phase * 1.7f).toFloat() * 2.5f + if (dir == 5) ep * (if (seed % 2 == 0) 40f else -40f) else 0f
                                 }
-                            )
+                            ) {
+                                // グロー層（文字色で光らせる。本家PVのグロー相当＋コントラスト確保）
+                                Text(
+                                    text = ch.toString(),
+                                    color = col,
+                                    fontSize = charSp.sp,
+                                    fontWeight = weight,
+                                    fontFamily = charFont,
+                                    style = TextStyle(shadow = Shadow(col.copy(alpha = 0.85f), Offset(0f, 0f), 9f))
+                                )
+                                Text(
+                                    text = ch.toString(),
+                                    color = col,
+                                    fontSize = charSp.sp,
+                                    fontWeight = weight,
+                                    fontFamily = charFont,
+                                    style = TextStyle(shadow = shadow)
+                                )
+                            }
                         }
                     }
                 }
@@ -532,6 +588,14 @@ class LyricsOverlayService : Service() {
     private fun computeMiniSplit(text: String, chunks: List<String>): Int {
         val nonSpace = text.count { it != ' ' && it != '　' }
         if (nonSpace < 6) return -1
+        // 塊は空白を除いた並びなので、元の文での開始位置を引き直す（位置を間違えると単語の途中で割れる）
+        val starts = IntArray(chunks.size)
+        var searchFrom = 0
+        for (k in chunks.indices) {
+            val at = text.indexOf(chunks[k], searchFrom)
+            starts[k] = if (at >= 0) at else searchFrom
+            searchFrom = starts[k] + chunks[k].length
+        }
         if (chunks.size == 1) {
             val s = chunks[0]
             if (s.length >= 6 && miniChunkEm(s) > 12f) {
@@ -559,7 +623,7 @@ class LyricsOverlayService : Service() {
                 val noStart = "ーぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮ・、。，．！!？?）)】」』\""
                 while (bestI > 1 && bestI < s.length && s[bestI] in noStart) bestI--
                 while (bestI < s.length - 1 && bestI > 0 && s[bestI] in noStart) bestI++
-                if (bestI in 1 until s.length) return bestI
+                if (bestI in 1 until s.length) return starts[0] + bestI
             }
             return -1
         }
@@ -572,7 +636,7 @@ class LyricsOverlayService : Service() {
             val diff = abs(totalEm / 2f - acc)
             if (diff < bestDiff) { bestDiff = diff; best = idx }
         }
-        val split = chunks.take(best).sumOf { it.length }
+        val split = starts[best]
         return if (split in 1 until text.length) split else -1
     }
 
@@ -596,10 +660,29 @@ class LyricsOverlayService : Service() {
                 modifier = Modifier.weight(1f).padding(start = 8.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
-                if (line != null) {
-                    MiniPvLine(line = line, posMs = pvPosState.value)
-                } else if (pvInterludeState.value) {
-                    MiniInterludeWave()
+                // 行の退場: 前の行を少し残して上へ消す（本家の退場保持に相当）
+                var curLine by remember { mutableStateOf<LyricLine?>(null) }
+                var exitLine by remember { mutableStateOf<LyricLine?>(null) }
+                val exitAnim = remember { Animatable(0f) }
+                LaunchedEffect(line) {
+                    if (line != curLine) {
+                        exitLine = curLine
+                        curLine = line
+                        if (exitLine != null) {
+                            exitAnim.snapTo(0f)
+                            exitAnim.animateTo(1f, tween(durationMillis = 260, easing = FastOutSlowInEasing))
+                            exitLine = null
+                        }
+                    }
+                }
+                Box(modifier = Modifier.fillMaxSize()) {
+                    exitLine?.let { MiniPvLine(line = it, posMs = pvPosState.value, exitP = exitAnim.value) }
+                    val cl = curLine
+                    if (cl != null) {
+                        MiniPvLine(line = cl, posMs = pvPosState.value)
+                    } else if (exitLine == null && pvInterludeState.value) {
+                        MiniInterludeWave()
+                    }
                 }
             }
         }
@@ -730,9 +813,9 @@ class LyricsOverlayService : Service() {
                             val curLine = lines.getOrNull(curIdx)
                             val nextLine = lines.getOrNull(curIdx + 1)
                             val inInterlude = when {
-                                curLine == null -> nextLine != null && (nextLine.timeMs - posMs) > 3000
-                                nextLine == null -> (posMs - curLine.timeMs) > 8000
-                                else -> (nextLine.timeMs - curLine.timeMs) > 7000 && (posMs - curLine.timeMs) > 3000
+                                curLine == null -> nextLine != null && (nextLine.timeMs - posMs) > lyricInterludeThresholdMs(lines)
+                                nextLine == null -> (posMs - curLine.timeMs) > 15000
+                                else -> (nextLine.timeMs - curLine.timeMs) > lyricInterludeThresholdMs(lines) && (posMs - curLine.timeMs) > 10000
                             }
                             val newLine = when {
                                 inInterlude -> "♪"
