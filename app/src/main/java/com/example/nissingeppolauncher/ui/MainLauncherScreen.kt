@@ -192,6 +192,7 @@ fun MainLauncherScreen() {
     var dialVisibility by remember { mutableStateOf(repo.prefManager.getDialVisibility()) }
     var keepScreenOn by remember { mutableStateOf(repo.prefManager.isKeepScreenOn()) }
     var pvFontScale by remember { mutableFloatStateOf(repo.prefManager.getPvFontScale()) }
+    var notificationBadges by remember { mutableStateOf(repo.prefManager.isNotificationBadgesEnabled()) }
     var pvTopOffset by remember { mutableFloatStateOf(repo.prefManager.getPvTopOffsetDp()) }
     var pvTextColor by remember { mutableStateOf(repo.prefManager.getPvTextColor()) }
     var pvRuby by remember { mutableStateOf(repo.prefManager.isPvRubyEnabled()) }
@@ -733,7 +734,9 @@ fun MainLauncherScreen() {
     val folderAppDiscState = rememberDiscCarouselState(initialIndex = 0, stepAngle = 20f)
     val appListDiscState = rememberDiscCarouselState(initialIndex = 0, stepAngle = 20f)
     val homeDiscState = rememberDiscCarouselState(initialIndex = 0, stepAngle = 20f)
-    val homeDiscItems = remember(favoriteApps) { buildDiscItems(favoriteApps, false) }
+    val badgeCounts by com.example.nissingeppolauncher.service.LauncherMediaListenerService.badgeCounts.collectAsState()
+    val effBadges = if (notificationBadges) badgeCounts else emptyMap()
+    val homeDiscItems = remember(favoriteApps, effBadges) { buildDiscItems(favoriteApps, false, effBadges) }
     val indexDiscState = rememberDiscCarouselState(initialIndex = 0, stepAngle = 360f / INDEX_ITEMS.size)
     val indexEntries = remember { INDEX_ITEMS.map { DiscEntry(id = it, label = it, icon = {}) } }
     var indexSelected by remember { mutableIntStateOf(0) }
@@ -1073,6 +1076,7 @@ fun MainLauncherScreen() {
                                 pageTransitionSpeed = repo.prefManager.getPageTransitionSpeed()
                                 dialVisibility = repo.prefManager.getDialVisibility()
                                 keepScreenOn = repo.prefManager.isKeepScreenOn()
+                                notificationBadges = repo.prefManager.isNotificationBadgesEnabled()
                                 pvFontScale = repo.prefManager.getPvFontScale()
                                 pvTopOffset = repo.prefManager.getPvTopOffsetDp()
                                 pvTextColor = repo.prefManager.getPvTextColor()
@@ -1259,7 +1263,7 @@ fun MainLauncherScreen() {
                         }
                     }
 
-                    val appDiscItems = remember(displayedApps) { buildDiscItems(displayedApps, true) }
+                    val appDiscItems = remember(displayedApps, effBadges) { buildDiscItems(displayedApps, true, effBadges) }
                     LaunchedEffect(selectedIndexChar) {
                         if (!selectedIndexChar.isNullOrEmpty() && appDiscItems.isNotEmpty()) {
                             val targetIndex = appDiscItems.indexOfFirst { item ->
@@ -1404,7 +1408,7 @@ fun MainLauncherScreen() {
                         allApps.filter { folderPackages.contains(it.packageName) }
                     }
 
-                    val editDiscItems = remember(discApps, isEditingFolder) { if (isEditingFolder) buildDiscItems(discApps, true) else emptyList() }
+                    val editDiscItems = remember(discApps, isEditingFolder, effBadges) { if (isEditingFolder) buildDiscItems(discApps, true, effBadges) else emptyList() }
                     // 通常時の右円: フォーカス中フォルダの子フォルダ＋アプリ＋新規作成
                     val childFoldersOfSelected = remember(folderList, folderParents, selectedFolderId) {
                         if (selectedFolderId != null && selectedFolderId != "NEW_FOLDER" && selectedFolderId != "__BACK") {

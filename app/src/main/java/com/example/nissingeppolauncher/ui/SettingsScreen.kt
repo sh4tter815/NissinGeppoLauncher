@@ -605,6 +605,7 @@ fun SettingsScreen(
     var pageWallpapers by remember { mutableStateOf((0..3).map { repo.prefManager.getPageWallpaperPath(it) }) }
     var pendingWallpaperPage by remember { mutableIntStateOf(-1) }
     var artworkVisible by remember { mutableStateOf(repo.prefManager.isArtworkEnabled()) }
+    var notificationBadges by remember { mutableStateOf(repo.prefManager.isNotificationBadgesEnabled()) }
     var rackReverse by remember { mutableStateOf(repo.prefManager.isRackReverseScroll()) }
     var backgroundPath by remember { mutableStateOf(repo.prefManager.getCustomBackgroundPath()) }
     var wallpaperAlpha by remember { mutableFloatStateOf(repo.prefManager.getHomeWallpaperAlpha()) }
@@ -934,6 +935,7 @@ fun SettingsScreen(
         "dateWareki" to Pair({ dateWareki }, { v: Boolean -> dateWareki = v; repo.prefManager.setDateWareki(v); onChanged() }),
         "keepScreenOn" to Pair({ keepScreenOn }, { v: Boolean -> keepScreenOn = v; repo.prefManager.setKeepScreenOn(v); onChanged() }),
         "artworkEnabled" to Pair({ artworkVisible }, { v: Boolean -> artworkVisible = v; repo.prefManager.setArtworkEnabled(v); onChanged() }),
+        "notificationBadges" to Pair({ notificationBadges }, { v: Boolean -> notificationBadges = v; repo.prefManager.setNotificationBadgesEnabled(v); onChanged() }),
         "rackReverse" to Pair({ rackReverse }, { v: Boolean -> rackReverse = v; repo.prefManager.setRackReverseScroll(v); onChanged() })
     )
 
