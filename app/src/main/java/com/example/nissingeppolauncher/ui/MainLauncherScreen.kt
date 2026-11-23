@@ -25,6 +25,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
@@ -202,6 +203,10 @@ fun MainLauncherScreen() {
         }
     }
     var pvTopOffset by remember { mutableFloatStateOf(repo.prefManager.getPvTopOffsetDp()) }
+    var layoutEditMode by remember { mutableStateOf(false) }
+    var clockOffsetX by remember { mutableFloatStateOf(repo.prefManager.getClockOffsetXDp()) }
+    var clockOffsetY by remember { mutableFloatStateOf(repo.prefManager.getClockOffsetYDp()) }
+    var pvOffsetX by remember { mutableFloatStateOf(repo.prefManager.getPvOffsetXDp()) }
     var pvTextColor by remember { mutableStateOf(repo.prefManager.getPvTextColor()) }
     var pvRuby by remember { mutableStateOf(repo.prefManager.isPvRubyEnabled()) }
     var pvInterludeArt by remember { mutableStateOf(repo.prefManager.isPvInterludeArtEnabled()) }
@@ -1005,7 +1010,7 @@ fun MainLauncherScreen() {
 
             // リリックビデオ（文字PV）: 再生中セッション（Spotify等も含む）の歌詞を大きく散らして表示する
             if (lyricsEnabled && lyricsDisplayMode == "video" && currentLauncherPage == 1 && !isLyricsBrowsing && syncedLyricLines.isNotEmpty()) {
-              Box(Modifier.fillMaxSize().zIndex(if (dopagakiMode) 60f else 0f)) {
+              Box(Modifier.fillMaxSize().offset(x = pvOffsetX.dp).zIndex(if (dopagakiMode) 60f else 0f)) {
                 LyricsPvLayer(
                     pvTilt3d = disc3d,
                     lines = syncedLyricLines,
@@ -1035,6 +1040,58 @@ fun MainLauncherScreen() {
                     onLineChange = { pvLineIndex = it }
                 )
               }
+            }
+
+            // レイアウト編集モード: PVのドラッグハンドル＋完了ボタン＋ヒント
+            if (layoutEditMode && currentLauncherPage == 1) {
+                Box(
+                    modifier = Modifier
+                        .padding(start = (44f + pvOffsetX).dp, top = topPaddingDp + 165.dp + pvTopOffset.dp)
+                        .size(width = 104.dp, height = 44.dp)
+                        .zIndex(190f)
+                        .border(1.dp, accentColor.copy(alpha = 0.9f), RoundedCornerShape(8.dp))
+                        .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(8.dp))
+                        .pointerInput(Unit) {
+                            detectDragGestures(
+                                onDragEnd = {
+                                    repo.prefManager.setPvOffsetX(pvOffsetX)
+                                    repo.prefManager.setPvTopOffsetDp(pvTopOffset)
+                                },
+                                onDrag = { change, drag ->
+                                    change.consume()
+                                    pvOffsetX += drag.x / density
+                                    pvTopOffset += drag.y / density
+                                }
+                            )
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = "PV", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(top = topPaddingDp + 6.dp).zIndex(195f),
+                    contentAlignment = Alignment.TopCenter
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(accentColor)
+                            .clickable { layoutEditMode = false }
+                            .padding(horizontal = 22.dp, vertical = 9.dp)
+                    ) {
+                        Text(text = "完了", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(bottom = 108.dp).zIndex(195f),
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    Text(
+                        text = "時計とPVの枠をドラッグで移動できます",
+                        color = Color.White.copy(alpha = 0.85f),
+                        fontSize = 12.sp
+                    )
+                }
             }
 
             // 複数行モード: 時計の下に前・今・次の3行を表示（今の行が大きめ）
@@ -1088,6 +1145,15 @@ fun MainLauncherScreen() {
                                 notificationBadges = repo.prefManager.isNotificationBadgesEnabled()
                                 appSortMode = repo.prefManager.getAppSortMode()
                                 indexShowEnglish = repo.prefManager.isIndexShowEnglish()
+                                clockOffsetX = repo.prefManager.getClockOffsetXDp()
+                                clockOffsetY = repo.prefManager.getClockOffsetYDp()
+                                pvOffsetX = repo.prefManager.getPvOffsetXDp()
+                                pvTopOffset = repo.prefManager.getPvTopOffsetDp()
+                                if (repo.prefManager.isLayoutEditRequested()) {
+                                    repo.prefManager.clearLayoutEditRequest()
+                                    layoutEditMode = true
+                                    if (currentLauncherPage != 1) changePageWithTransition(1)
+                                }
                                 pvFontScale = repo.prefManager.getPvFontScale()
                                 pvTopOffset = repo.prefManager.getPvTopOffsetDp()
                                 pvTextColor = repo.prefManager.getPvTextColor()
@@ -1126,6 +1192,22 @@ fun MainLauncherScreen() {
                         wareki = dateWareki,
                         modifier = Modifier
                             .padding(start = 28.dp, top = topPaddingDp + 48.dp)
+                            .offset(x = clockOffsetX.dp, y = clockOffsetY.dp)
+                            .then(if (layoutEditMode) Modifier.border(1.dp, accentColor.copy(alpha = 0.8f), RoundedCornerShape(10.dp)) else Modifier)
+                            .pointerInput(layoutEditMode) {
+                                if (layoutEditMode) {
+                                    detectDragGestures(
+                                        onDragEnd = { repo.prefManager.setClockOffset(clockOffsetX, clockOffsetY) },
+                                        onDrag = { change, drag ->
+                                            change.consume()
+                                            clockOffsetX += drag.x / density
+                                            clockOffsetY += drag.y / density
+                                        }
+                                    )
+                                } else {
+                                    detectTapGestures(onLongPress = { layoutEditMode = true })
+                                }
+                            }
                             .zIndex(10f)
                             .graphicsLayer {
                                 alpha = if (isLyricsBrowsing) 0f else 1f
@@ -2125,6 +2207,9 @@ fun MainLauncherScreen() {
             } else if (currentLauncherPage != 1) {
                 changePageWithTransition(1)
             }
+        }
+        BackHandler(enabled = layoutEditMode) {
+            layoutEditMode = false
         }
 
         // 歌詞ボタン: 時計と同じ高さ、画面右側。タップで歌詞全文表示（歌詞が無いときはタグ検索）、長押しで歌詞を再取得
