@@ -1124,6 +1124,7 @@ fun SettingsScreen(
         } else {
             val node = currentList[idx]
             val act = node.item?.onAction
+            leftDiscState?.animateToIndex(idx)
             if (act != null) act.invoke() else focusId = node.id
         }
     }
