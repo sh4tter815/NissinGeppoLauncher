@@ -1,5 +1,5 @@
 {
- "version": 13,
+ "version": 14,
  "items": {
   "reverse": {
    "label": "スクロール方向の反転",
@@ -845,6 +845,13 @@
    "glyph": "a-large-small",
    "type": "toggle",
    "bind": "indexShowEnglish"
+  },
+  "layoutEdit": {
+   "label": "レイアウトを編集",
+   "desc": "ホームの時計とPVの位置をドラッグで動かします（時計の長押しでも開けます）",
+   "glyph": "move-diagonal",
+   "type": "action",
+   "action": "layoutEdit"
   }
  },
  "tree": [
@@ -1156,6 +1163,9 @@
     },
     {
      "item": "startupPage"
+    },
+    {
+     "item": "layoutEdit"
     }
    ]
   },
