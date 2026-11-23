@@ -1080,6 +1080,16 @@ fun SettingsScreen(
                 }
             )
         },
+        "layoutEdit" to { def: SettingItemDef ->
+            SettingItem(
+                def.id, def.label, def.desc, def.glyph, valueText = "",
+                onAction = {
+                    repo.prefManager.requestLayoutEdit()
+                    onChanged()
+                    android.widget.Toast.makeText(context, "ホームで編集モードを開きます", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            )
+        },
         "usageAccess" to { def: SettingItemDef ->
             SettingItem(
                 def.id, def.label, def.desc, def.glyph, valueText = "",
