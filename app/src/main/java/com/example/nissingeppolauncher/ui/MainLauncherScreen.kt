@@ -1054,6 +1054,7 @@ fun MainLauncherScreen() {
                         stepAngle = appDiscStepAngle,
                         isRightDisc = true,
                         isLoopable = false,
+                        fadeLabelsOnScroll = false,
                         state = homeDiscState,
                         onHoldingChanged = { isHoldingRight = it },
                         onEmptyTap = { }
@@ -1194,6 +1195,7 @@ fun MainLauncherScreen() {
                         stepAngle = appDiscStepAngle,
                         isRightDisc = true,
                         isLoopable = (!isHideMode && searchQuery.isBlank()),
+                        fadeLabelsOnScroll = false,
                         state = appListDiscState,
                         onHoldingChanged = { isHoldingRight = it }
                     ) { index, rad, labelAlpha, _ ->
@@ -1321,6 +1323,7 @@ fun MainLauncherScreen() {
                         stepAngle = appDiscStepAngle,
                         isRightDisc = true,
                         isLoopable = false,
+                        fadeLabelsOnScroll = false,
                         state = folderAppDiscState,
                         onHoldingChanged = { isHoldingRight = it }
                     ) { index, rad, labelAlpha, _ ->
