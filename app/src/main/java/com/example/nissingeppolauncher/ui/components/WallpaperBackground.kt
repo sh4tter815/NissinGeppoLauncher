@@ -45,7 +45,11 @@ fun WallpaperBackground(
     // 液体グラデーション背景を使うか（壁紙なし時／再生中はアート背景の上に薄く）
     liquidEnabled: Boolean = false,
     // 液体の基準色（アートワークから抽出した明るいアクセント色。音楽アプリと同じ見え方にする）
-    liquidAccent: Color? = null
+    liquidAccent: Color? = null,
+    // 追加設定: 液体の速さ・濃さ倍率 / 壁紙のぼかし
+    liquidSpeed: Float = 1f,
+    liquidAlphaMul: Float = 1f,
+    wallpaperBlurDp: Float = 0f
 ) {
     val context = LocalContext.current
     val prefManager = remember { AppPreferenceManager(context) }
@@ -106,7 +110,7 @@ fun WallpaperBackground(
             )
             // 液体ONのときは、アートワーク背景の一番上に液体を薄く重ねる
             if (liquidEnabled) {
-                LiquidGradientBackground(baseColor = liquidAccent ?: dynamicBackground ?: accentBase, onBlack = false, layerAlpha = 1f, alphaBoost = 1.9f)
+                LiquidGradientBackground(baseColor = liquidAccent ?: dynamicBackground ?: accentBase, onBlack = false, layerAlpha = 1f, alphaBoost = 1.9f, speedFactor = liquidSpeed, alphaMul = liquidAlphaMul)
             }
         } else if (currentAlbumArt != null) {
             // アートワーク連動: 抽出した背景色で単色に塗る
@@ -116,14 +120,14 @@ fun WallpaperBackground(
                     .background(dynamicBackground ?: Color(0xFF0B101D))
             )
             if (liquidEnabled) {
-                LiquidGradientBackground(baseColor = liquidAccent ?: dynamicBackground ?: accentBase, onBlack = false, layerAlpha = 1f, alphaBoost = 1.9f)
+                LiquidGradientBackground(baseColor = liquidAccent ?: dynamicBackground ?: accentBase, onBlack = false, layerAlpha = 1f, alphaBoost = 1.9f, speedFactor = liquidSpeed, alphaMul = liquidAlphaMul)
             }
         } else if (backgroundBitmap != null) {
             Image(
                 bitmap = backgroundBitmap,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize().then(if (wallpaperBlurDp > 0f) Modifier.blur(wallpaperBlurDp.dp) else Modifier)
             )
             // ホーム画面は設定された不透明度（alpha）、他画面は暗め（0.8f）のオーバーレイ
             Box(
@@ -133,11 +137,11 @@ fun WallpaperBackground(
             )
             // 壁紙画像を適用していても、液体ONなら画像の上に薄く液体を流す
             if (liquidEnabled) {
-                LiquidGradientBackground(baseColor = liquidAccent ?: accentBase, onBlack = false, layerAlpha = 0.85f, alphaBoost = 1.7f)
+                LiquidGradientBackground(baseColor = liquidAccent ?: accentBase, onBlack = false, layerAlpha = 0.85f, alphaBoost = 1.7f, speedFactor = liquidSpeed, alphaMul = liquidAlphaMul)
             }
         } else if (customPath.isNullOrBlank() && liquidEnabled) {
             // 壁紙未選択＋液体ON: 黒地に液体グラデーションを流す
-            LiquidGradientBackground(baseColor = liquidAccent ?: accentBase, alphaBoost = 1.6f)
+            LiquidGradientBackground(baseColor = liquidAccent ?: accentBase, alphaBoost = 1.6f, speedFactor = liquidSpeed, alphaMul = liquidAlphaMul)
         } else {
             // 壁紙未選択なら真っ暗な黒
             val bgColor = if (customPath.isNullOrBlank()) Color.Black
@@ -158,26 +162,27 @@ fun WallpaperBackground(
  * パレットは基準色から色相をずらして作る。
  */
 @Composable
-fun LiquidGradientBackground(baseColor: Color, onBlack: Boolean = true, layerAlpha: Float = 1f, alphaBoost: Float = 1f) {
+fun LiquidGradientBackground(baseColor: Color, onBlack: Boolean = true, layerAlpha: Float = 1f, alphaBoost: Float = 1f, speedFactor: Float = 1f, alphaMul: Float = 1f) {
+    val effBoost = alphaBoost * alphaMul
     val transition = rememberInfiniteTransition(label = "liquid")
     val t1 by transition.animateFloat(
         initialValue = 0f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(11000, easing = LinearEasing), RepeatMode.Reverse),
+        animationSpec = infiniteRepeatable(tween((11000 / speedFactor).toInt().coerceAtLeast(500), easing = LinearEasing), RepeatMode.Reverse),
         label = "liquid1"
     )
     val t2 by transition.animateFloat(
         initialValue = 0f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(14000, easing = LinearEasing), RepeatMode.Reverse),
+        animationSpec = infiniteRepeatable(tween((14000 / speedFactor).toInt().coerceAtLeast(500), easing = LinearEasing), RepeatMode.Reverse),
         label = "liquid2"
     )
     val t3 by transition.animateFloat(
         initialValue = 0f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(17000, easing = LinearEasing), RepeatMode.Reverse),
+        animationSpec = infiniteRepeatable(tween((17000 / speedFactor).toInt().coerceAtLeast(500), easing = LinearEasing), RepeatMode.Reverse),
         label = "liquid3"
     )
     val t4 by transition.animateFloat(
         initialValue = 0f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(9000, easing = LinearEasing), RepeatMode.Reverse),
+        animationSpec = infiniteRepeatable(tween((9000 / speedFactor).toInt().coerceAtLeast(500), easing = LinearEasing), RepeatMode.Reverse),
         label = "liquid4"
     )
     val c1 = remember(baseColor) { shiftHue(baseColor, 0f, 1.0f) }
@@ -197,19 +202,19 @@ fun LiquidGradientBackground(baseColor: Color, onBlack: Boolean = true, layerAlp
                     modifier = Modifier
                         .offset(x = w * (-0.25f + 0.55f * t1), y = h * (-0.15f + 0.35f * t2))
                         .size(w * 0.95f)
-                        .background(Brush.radialGradient(listOf(c1.copy(alpha = (0.55f * alphaBoost).coerceAtMost(1f)), Color.Transparent)))
+                        .background(Brush.radialGradient(listOf(c1.copy(alpha = (0.55f * effBoost).coerceAtMost(1f)), Color.Transparent)))
                 )
                 Box(
                     modifier = Modifier
                         .offset(x = w * (0.35f - 0.50f * t3), y = h * (0.30f - 0.35f * t1))
                         .size(w * 0.85f)
-                        .background(Brush.radialGradient(listOf(c2.copy(alpha = (0.45f * alphaBoost).coerceAtMost(1f)), Color.Transparent)))
+                        .background(Brush.radialGradient(listOf(c2.copy(alpha = (0.45f * effBoost).coerceAtMost(1f)), Color.Transparent)))
                 )
                 Box(
                     modifier = Modifier
                         .offset(x = w * (-0.10f + 0.45f * t4), y = h * (0.55f - 0.40f * t3))
                         .size(w * 1.05f)
-                        .background(Brush.radialGradient(listOf(c3.copy(alpha = (0.50f * alphaBoost).coerceAtMost(1f)), Color.Transparent)))
+                        .background(Brush.radialGradient(listOf(c3.copy(alpha = (0.50f * effBoost).coerceAtMost(1f)), Color.Transparent)))
                 )
             }
         }
