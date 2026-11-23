@@ -193,6 +193,14 @@ fun MainLauncherScreen() {
     var keepScreenOn by remember { mutableStateOf(repo.prefManager.isKeepScreenOn()) }
     var pvFontScale by remember { mutableFloatStateOf(repo.prefManager.getPvFontScale()) }
     var notificationBadges by remember { mutableStateOf(repo.prefManager.isNotificationBadgesEnabled()) }
+    var appSortMode by remember { mutableStateOf(repo.prefManager.getAppSortMode()) }
+    var indexShowEnglish by remember { mutableStateOf(repo.prefManager.isIndexShowEnglish()) }
+    var usageStatsMap by remember { mutableStateOf<Map<String, Long>>(emptyMap()) }
+    LaunchedEffect(appSortMode) {
+        if (appSortMode == "usage" || appSortMode == "recent") {
+            usageStatsMap = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { loadUsageStats(context, appSortMode) }
+        }
+    }
     var pvTopOffset by remember { mutableFloatStateOf(repo.prefManager.getPvTopOffsetDp()) }
     var pvTextColor by remember { mutableStateOf(repo.prefManager.getPvTextColor()) }
     var pvRuby by remember { mutableStateOf(repo.prefManager.isPvRubyEnabled()) }
@@ -737,8 +745,9 @@ fun MainLauncherScreen() {
     val badgeCounts by com.example.nissingeppolauncher.service.LauncherMediaListenerService.badgeCounts.collectAsState()
     val effBadges = if (notificationBadges) badgeCounts else emptyMap()
     val homeDiscItems = remember(favoriteApps, effBadges) { buildDiscItems(favoriteApps, false, effBadges) }
-    val indexDiscState = rememberDiscCarouselState(initialIndex = 0, stepAngle = 360f / INDEX_ITEMS.size)
-    val indexEntries = remember { INDEX_ITEMS.map { DiscEntry(id = it, label = it, icon = {}) } }
+    val indexItems = if (indexShowEnglish) INDEX_ITEMS else INDEX_ITEMS.filter { it[0].code > 128 }
+    val indexDiscState = key(indexItems.size) { rememberDiscCarouselState(initialIndex = 0, stepAngle = 360f / indexItems.size) }
+    val indexEntries = remember(indexItems) { indexItems.map { DiscEntry(id = it, label = it, icon = {}) } }
     var indexSelected by remember { mutableIntStateOf(0) }
     fun snapDiscTo(state: DiscCarouselState, angle: Float) {
         state.rawRotation = angle
@@ -870,7 +879,7 @@ fun MainLauncherScreen() {
     val leftRotation = leftRotationAnim.value
     var isHoldingLeft by remember { mutableStateOf(false) }
     var isHoldingRight by remember { mutableStateOf(false) }
-    val stepAngle = 360f / INDEX_ITEMS.size
+    val stepAngle = 360f / indexItems.size
 
     val animatedDisc1CenterX by animateFloatAsState(
         targetValue = when {
@@ -891,7 +900,7 @@ fun MainLauncherScreen() {
         label = "Disc2CenterX"
     )
 
-    val selectedIndexChar = if (indexSelected in INDEX_ITEMS.indices) INDEX_ITEMS[indexSelected] else null
+    val selectedIndexChar = if (indexSelected in indexItems.indices) indexItems[indexSelected] else null
 
     val onAppClick: (String) -> Unit = { packageName ->
         coroutineScope.launch {
@@ -1077,6 +1086,8 @@ fun MainLauncherScreen() {
                                 dialVisibility = repo.prefManager.getDialVisibility()
                                 keepScreenOn = repo.prefManager.isKeepScreenOn()
                                 notificationBadges = repo.prefManager.isNotificationBadgesEnabled()
+                                appSortMode = repo.prefManager.getAppSortMode()
+                                indexShowEnglish = repo.prefManager.isIndexShowEnglish()
                                 pvFontScale = repo.prefManager.getPvFontScale()
                                 pvTopOffset = repo.prefManager.getPvTopOffsetDp()
                                 pvTextColor = repo.prefManager.getPvTextColor()
@@ -1248,7 +1259,7 @@ fun MainLauncherScreen() {
                         onFocusChange = { indexSelected = it }
                     )
 
-                    val displayedApps = remember(searchQuery, allApps, isHideMode) {
+                    val displayedApps = remember(searchQuery, allApps, isHideMode, appSortMode, usageStatsMap) {
                         if (isHideMode) {
                             allApps.filter { it.isHidden }
                         } else if (searchQuery.isNotBlank()) {
@@ -1259,11 +1270,16 @@ fun MainLauncherScreen() {
                                         it.searchAliases.any { alias -> alias.contains(searchQuery, ignoreCase = true) }) && !it.isHidden
                             }
                         } else {
-                            allApps.filter { !it.isHidden }
+                            val base = allApps.filter { !it.isHidden }
+                            if (appSortMode == "usage" || appSortMode == "recent") {
+                                base.sortedWith(compareByDescending<AppInfo> { usageStatsMap[it.packageName] ?: 0L }.thenBy { it.label.lowercase() })
+                            } else {
+                                base
+                            }
                         }
                     }
 
-                    val appDiscItems = remember(displayedApps, effBadges) { buildDiscItems(displayedApps, true, effBadges) }
+                    val appDiscItems = remember(displayedApps, effBadges, appSortMode, searchQuery, isHideMode) { buildDiscItems(displayedApps, appSortMode == "name" || searchQuery.isNotBlank() || isHideMode, effBadges) }
                     LaunchedEffect(selectedIndexChar) {
                         if (!selectedIndexChar.isNullOrEmpty() && appDiscItems.isNotEmpty()) {
                             val targetIndex = appDiscItems.indexOfFirst { item ->
@@ -2750,5 +2766,38 @@ private fun LauncherMultiLineLyrics(
                 }
             }
         }
+    }
+}
+
+
+// アプリの並び順用: 使用統計（よく使う順=総使用時間、最近順=最終使用時刻）。
+// 使用状況へのアクセス許可が無い場合は空が返り、名前順のままになる
+private fun loadUsageStats(context: android.content.Context, mode: String): Map<String, Long> {
+    return try {
+        val usm = context.getSystemService(android.content.Context.USAGE_STATS_SERVICE) as android.app.usage.UsageStatsManager
+        val now = System.currentTimeMillis()
+        val from = now - 30L * 24 * 3600 * 1000
+        if (mode == "usage") {
+            val stats = usm.queryUsageStats(android.app.usage.UsageStatsManager.INTERVAL_DAILY, from, now)
+            val map = mutableMapOf<String, Long>()
+            for (s in stats) {
+                map[s.packageName] = (map[s.packageName] ?: 0L) + s.totalTimeInForeground
+            }
+            map
+        } else {
+            val events = usm.queryEvents(from, now)
+            val map = mutableMapOf<String, Long>()
+            val e = android.app.usage.UsageEvents.Event()
+            while (events.hasNextEvent()) {
+                events.getNextEvent(e)
+                if (e.eventType == android.app.usage.UsageEvents.Event.ACTIVITY_RESUMED) {
+                    val prev = map[e.packageName] ?: 0L
+                    if (e.timeStamp > prev) map[e.packageName] = e.timeStamp
+                }
+            }
+            map
+        }
+    } catch (_: Exception) {
+        emptyMap()
     }
 }

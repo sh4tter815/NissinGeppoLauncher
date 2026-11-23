@@ -606,6 +606,9 @@ fun SettingsScreen(
     var pendingWallpaperPage by remember { mutableIntStateOf(-1) }
     var artworkVisible by remember { mutableStateOf(repo.prefManager.isArtworkEnabled()) }
     var notificationBadges by remember { mutableStateOf(repo.prefManager.isNotificationBadgesEnabled()) }
+    var appSortMode by remember { mutableStateOf(repo.prefManager.getAppSortMode()) }
+    var englishAppSort by remember { mutableStateOf(repo.prefManager.getEnglishAppSort()) }
+    var indexShowEnglish by remember { mutableStateOf(repo.prefManager.isIndexShowEnglish()) }
     var rackReverse by remember { mutableStateOf(repo.prefManager.isRackReverseScroll()) }
     var backgroundPath by remember { mutableStateOf(repo.prefManager.getCustomBackgroundPath()) }
     var wallpaperAlpha by remember { mutableFloatStateOf(repo.prefManager.getHomeWallpaperAlpha()) }
@@ -936,6 +939,7 @@ fun SettingsScreen(
         "keepScreenOn" to Pair({ keepScreenOn }, { v: Boolean -> keepScreenOn = v; repo.prefManager.setKeepScreenOn(v); onChanged() }),
         "artworkEnabled" to Pair({ artworkVisible }, { v: Boolean -> artworkVisible = v; repo.prefManager.setArtworkEnabled(v); onChanged() }),
         "notificationBadges" to Pair({ notificationBadges }, { v: Boolean -> notificationBadges = v; repo.prefManager.setNotificationBadgesEnabled(v); onChanged() }),
+        "indexShowEnglish" to Pair({ indexShowEnglish }, { v: Boolean -> indexShowEnglish = v; repo.prefManager.setIndexShowEnglish(v); onChanged() }),
         "rackReverse" to Pair({ rackReverse }, { v: Boolean -> rackReverse = v; repo.prefManager.setRackReverseScroll(v); onChanged() })
     )
 
@@ -951,7 +955,9 @@ fun SettingsScreen(
         "lyricsEnFont" to Pair({ lyricsEnFont }, { v: String -> lyricsEnFont = v; repo.prefManager.setLyricsEnFont(v); onChanged() }),
         "pvTextColor" to Pair({ pvTextColor }, { v: String -> pvTextColor = v; repo.prefManager.setPvTextColor(v); onChanged() }),
         "startupPage" to Pair({ startupPage }, { v: String -> startupPage = v; repo.prefManager.setStartupPage(v); onChanged() }),
-        "dialVisibility" to Pair({ dialVisibility }, { v: String -> dialVisibility = v; repo.prefManager.setDialVisibility(v); onChanged() })
+        "dialVisibility" to Pair({ dialVisibility }, { v: String -> dialVisibility = v; repo.prefManager.setDialVisibility(v); onChanged() }),
+        "appSort" to Pair({ appSortMode }, { v: String -> appSortMode = v; repo.prefManager.setAppSortMode(v); onChanged() }),
+        "englishAppSort" to Pair({ englishAppSort }, { v: String -> englishAppSort = v; repo.prefManager.setEnglishAppSort(v); onChanged(); onAppsUpdated() })
     )
 
     val floatBinds: Map<String, Pair<() -> Float, (Float) -> Unit>> = mapOf(
@@ -1070,6 +1076,17 @@ fun SettingsScreen(
                             android.widget.Toast.makeText(context, "アプリ一覧を更新しました（全 ${apps.size} 件）", android.widget.Toast.LENGTH_SHORT).show()
                             onAppsUpdated()
                         }
+                    }
+                }
+            )
+        },
+        "usageAccess" to { def: SettingItemDef ->
+            SettingItem(
+                def.id, def.label, def.desc, def.glyph, valueText = "",
+                onAction = {
+                    try {
+                        context.startActivity(android.content.Intent(android.provider.Settings.ACTION_USAGE_ACCESS_SETTINGS).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                    } catch (_: Exception) {
                     }
                 }
             )
