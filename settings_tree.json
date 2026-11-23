@@ -1,5 +1,5 @@
 {
- "version": 12,
+ "version": 13,
  "items": {
   "reverse": {
    "label": "スクロール方向の反転",
@@ -788,6 +788,63 @@
    "glyph": "sparkles",
    "type": "toggle",
    "bind": "notificationBadges"
+  },
+  "appSort": {
+   "label": "アプリの並び順",
+   "desc": "アプリ一覧の並べ方です",
+   "glyph": "arrow-up-down",
+   "type": "choices",
+   "bind": "appSort",
+   "choices": [
+    {
+     "v": "name",
+     "label": "名前順",
+     "short": "名前順"
+    },
+    {
+     "v": "usage",
+     "label": "よく使う順",
+     "short": "よく使う順"
+    },
+    {
+     "v": "recent",
+     "label": "最近使った順",
+     "short": "最近順"
+    }
+   ]
+  },
+  "englishAppSort": {
+   "label": "英語名アプリの並び",
+   "desc": "InstagramやXなど、英語名のアプリを読み仮名で並べるか、スペルで並べるかです",
+   "glyph": "languages",
+   "type": "choices",
+   "bind": "englishAppSort",
+   "choices": [
+    {
+     "v": "yomi",
+     "label": "読み仮名で並べる",
+     "short": "読み仮名"
+    },
+    {
+     "v": "spell",
+     "label": "スペルで並べる",
+     "short": "スペル"
+    }
+   ]
+  },
+  "usageAccess": {
+   "label": "使用状況へのアクセスを許可",
+   "desc": "「よく使う順」「最近使った順」に必要です。システム設定が開きます",
+   "glyph": "eye",
+   "type": "action",
+   "action": "usageAccess"
+  },
+  "indexShowEnglish": {
+   "label": "インデックスに英語を表示",
+   "desc": "アプリ一覧の索引に A〜Z を含めます。オフで あ〜わ と ＃ だけになります",
+   "glyph": "a-large-small",
+   "type": "toggle",
+   "bind": "indexShowEnglish"
   }
  },
  "tree": [
@@ -841,13 +898,20 @@
      "item": "brightness"
     },
     {
-     "item": "liquid"
-    },
-    {
-     "item": "liquidSpeed"
-    },
-    {
-     "item": "liquidAlpha"
+     "id": "bg_liquid",
+     "label": "液体グラデーション効果",
+     "glyph": "droplets",
+     "children": [
+      {
+       "item": "liquid"
+      },
+      {
+       "item": "liquidAlpha"
+      },
+      {
+       "item": "liquidSpeed"
+      }
+     ]
     }
    ]
   },
@@ -1051,6 +1115,21 @@
    "children": [
     {
      "item": "updateApps"
+    },
+    {
+     "item": "appSort"
+    },
+    {
+     "item": "englishAppSort"
+    },
+    {
+     "item": "indexShowEnglish"
+    },
+    {
+     "item": "yomiUpdate"
+    },
+    {
+     "item": "usageAccess"
     }
    ]
   },
@@ -1096,9 +1175,6 @@
     },
     {
      "item": "guideReshow"
-    },
-    {
-     "item": "yomiUpdate"
     },
     {
      "item": "settingsExport"
