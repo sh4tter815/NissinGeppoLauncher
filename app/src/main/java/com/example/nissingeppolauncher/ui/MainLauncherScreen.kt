@@ -687,6 +687,7 @@ fun MainLauncherScreen() {
     val homeDiscState = rememberDiscCarouselState(initialIndex = 0, stepAngle = 20f)
     val homeDiscItems = remember(favoriteApps) { buildDiscItems(favoriteApps, false) }
     val indexDiscState = rememberDiscCarouselState(initialIndex = 0, stepAngle = 360f / INDEX_ITEMS.size)
+    val indexEntries = remember { INDEX_ITEMS.map { DiscEntry(id = it, label = it, icon = {}) } }
     var indexSelected by remember { mutableIntStateOf(0) }
     fun snapDiscTo(state: DiscCarouselState, angle: Float) {
         state.rawRotation = angle
@@ -1106,9 +1107,10 @@ fun MainLauncherScreen() {
                 }
                 2 -> {
                     // --- 2: アプリ一覧画面 ---
-                    DiscIndexWheel(
-                        items = INDEX_ITEMS,
-                        state = indexDiscState,
+                    DiscWheel(
+                        entries = indexEntries,
+                        side = DiscSide.LEFT,
+                        accentColor = accentColor,
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer {
@@ -1122,12 +1124,18 @@ fun MainLauncherScreen() {
                                     cameraDistance = 6.5f * density
                                 }
                             },
+                        state = indexDiscState,
+                        gesturesEnabled = false,
+                        holdExpand = true,
+                        holdActive = isHoldingLeft,
+                        fadeLabelsOnScroll = false,
+                        accentSelectedLabel = true,
+                        verticalRestLabel = true,
+                        stepAngle = stepAngle,
+                        isLoopable = true,
                         discCenterXDp = animatedDisc1CenterX,
                         discCenterYDp = disc1CenterY,
-                        discRadiusDp = disc1RadiusDp,
-                        isHolding = isHoldingLeft,
-                        accentColor = accentColor,
-                        onSelectedIndexChange = { indexSelected = it }
+                        onFocusChange = { indexSelected = it }
                     )
 
                     val displayedApps = remember(searchQuery, allApps, isHideMode) {
@@ -1207,9 +1215,10 @@ fun MainLauncherScreen() {
                 3 -> {
                     // --- 3: フォルダ画面 ---
                     if (isEditingFolder) {
-                        DiscIndexWheel(
-                            items = INDEX_ITEMS,
-                            state = indexDiscState,
+                        DiscWheel(
+                            entries = indexEntries,
+                            side = DiscSide.LEFT,
+                            accentColor = accentColor,
                             modifier = Modifier.fillMaxSize()
                                 .graphicsLayer {
                                     if (disc3d) {
@@ -1219,12 +1228,18 @@ fun MainLauncherScreen() {
                                         cameraDistance = 6.5f * density
                                     }
                                 },
+                            state = indexDiscState,
+                            gesturesEnabled = false,
+                            holdExpand = true,
+                            holdActive = isHoldingLeft,
+                            fadeLabelsOnScroll = false,
+                            accentSelectedLabel = true,
+                            verticalRestLabel = true,
+                            stepAngle = stepAngle,
+                            isLoopable = true,
                             discCenterXDp = animatedDisc1CenterX,
                             discCenterYDp = disc1CenterY,
-                            discRadiusDp = disc1RadiusDp,
-                            isHolding = isHoldingLeft,
-                            accentColor = accentColor,
-                            onSelectedIndexChange = { indexSelected = it }
+                            onFocusChange = { indexSelected = it }
                         )
                     } else {
                         // 左側: フォルダ選択ダイヤル
