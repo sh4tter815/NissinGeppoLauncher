@@ -1428,7 +1428,7 @@ fun MainLauncherScreen() {
                             }
                         },
                         discCenterXPx = with(LocalDensity.current) { animatedDisc1CenterX.dp.toPx() },
-                        discCenterYPx = with(LocalDensity.current) { (disc1CenterY - topPaddingDp - 60f).dp.toPx() },
+                        discCenterYPx = with(LocalDensity.current) { (disc1CenterY - topPaddingDp.value - 60f).dp.toPx() },
                         onItemTap = { idx ->
                             folderDiscState.animateToIndex(idx)
                             if (folderItemsWithNew.getOrNull(idx)?.first == "NEW_FOLDER") {
