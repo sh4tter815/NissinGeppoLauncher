@@ -52,6 +52,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.onSizeChanged
 import kotlinx.coroutines.delay
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
@@ -123,6 +124,7 @@ enum class DiscSide { LEFT, RIGHT }
 
 
 // 長いラベル用のティッカー表示: 収まりきらない時だけ、少し待ってからゆっくり流して繰り返す
+// 幅は TextMeasurer で測り、移動はレイアウトオフセット(整数px)で行う(レイヤー経由だと文字がにじむため)
 @Composable
 fun MarqueeText(
     text: String,
@@ -132,13 +134,17 @@ fun MarqueeText(
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
-    val maxWidthPx = with(density) { 150.dp.toPx() }
-    var textWidthPx by remember { mutableStateOf(0) }
-    val overflow = textWidthPx > maxWidthPx + 1f
+    val viewportPx = with(density) { 128.dp.toPx() }
+    val textMeasurer = rememberTextMeasurer()
+    val style = LocalTextStyle.current.copy(color = color, fontSize = 15.sp, fontWeight = fontWeight)
+    val textWidthPx = remember(text, style) {
+        textMeasurer.measure(text, style, softWrap = false).size.width.toFloat()
+    }
+    val overflow = textWidthPx > viewportPx + 1f
     val offset = remember { Animatable(0f) }
     LaunchedEffect(text, overflow) {
         if (overflow) {
-            val distance = textWidthPx - maxWidthPx
+            val distance = textWidthPx - viewportPx
             val duration = (distance * 25).toInt().coerceIn(700, 4500)
             while (true) {
                 offset.snapTo(0f)
@@ -151,7 +157,7 @@ fun MarqueeText(
         }
     }
     Box(
-        modifier = modifier.width(150.dp).clipToBounds(),
+        modifier = modifier.width(128.dp).clipToBounds(),
         contentAlignment = if (overflow || !alignEnd) Alignment.CenterStart else Alignment.CenterEnd
     ) {
         Text(
@@ -162,9 +168,8 @@ fun MarqueeText(
             maxLines = 1,
             softWrap = false,
             modifier = Modifier
-                .wrapContentWidth(unbounded = true)
-                .graphicsLayer { translationX = offset.value }
-                .onSizeChanged { textWidthPx = it.width }
+                .width(with(density) { textWidthPx.toDp() })
+                .offset { IntOffset(offset.value.roundToInt(), 0) }
         )
     }
 }
