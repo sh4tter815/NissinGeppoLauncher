@@ -25,6 +25,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,8 +36,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -600,7 +602,6 @@ fun MusicVinylWidget(
             } else {
             Box(
                 modifier = Modifier
-            }
                     .size((discRadiusDp * 2f * 0.92f).dp)
                     .graphicsLayer {
                         rotationZ = currentRotation
@@ -736,6 +737,7 @@ fun MusicVinylWidget(
                 }
                 // アートワークが無い（再生していない）ときは色を塗らない。
                 // センターホール（中心の点）は再生中・停止中ともに出さない（CDスタイルの穴は除く）
+            }
             }
         }
     }
@@ -1051,56 +1053,96 @@ private fun MdCase(boxSizeDp: Float, accentColor: Color, rotation: Float, bitmap
         modifier = Modifier
             .size(caseW.dp, caseH.dp)
             .clip(RoundedCornerShape(10.dp))
-            .background(
-                Brush.linearGradient(
-                    listOf(accentColor.copy(alpha = 0.90f), accentColor.copy(alpha = 0.55f), accentColor.copy(alpha = 0.80f))
-                )
-            )
-            .border(1.dp, Color.White.copy(alpha = 0.35f), RoundedCornerShape(10.dp)),
-        contentAlignment = Alignment.Center
     ) {
+        // 透けて見えるディスク本体（回転する）
         Box(
             modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 9.dp)
-                .size((caseW * 0.46f).dp, 6.dp)
-                .clip(RoundedCornerShape(3.dp))
-                .background(Color.Black.copy(alpha = 0.28f))
-        )
-        Box(
-            modifier = Modifier
-                .size((caseW * 0.54f).dp)
-                .offset(x = (-caseW * 0.15f).dp)
+                .size((caseW * 0.88f).dp)
+                .align(Alignment.Center)
+                .offset(x = (-caseW * 0.03f).dp, y = (caseH * 0.02f).dp)
                 .graphicsLayer { rotationZ = rotation }
                 .clip(CircleShape)
-                .background(Color(0xFF14161A)),
+                .background(Color(0xFFB9BEC6)),
             contentAlignment = Alignment.Center
         ) {
+            Canvas(Modifier.fillMaxSize()) {
+                val rMax = size.minDimension / 2f
+                drawCircle(
+                    Brush.sweepGradient(
+                        listOf(
+                            Color(0xFFFF9D9D).copy(alpha = 0.35f),
+                            Color(0xFFFFFF9D).copy(alpha = 0.35f),
+                            Color(0xFF9DFF9D).copy(alpha = 0.35f),
+                            Color(0xFF9DFFFF).copy(alpha = 0.35f),
+                            Color(0xFF9D9DFF).copy(alpha = 0.35f),
+                            Color(0xFFFF9DFF).copy(alpha = 0.35f),
+                            Color(0xFFFF9D9D).copy(alpha = 0.35f)
+                        )
+                    )
+                )
+                for (i in 1..6) {
+                    drawCircle(Color.White.copy(alpha = 0.10f), radius = rMax * (0.46f + i * 0.085f), style = Stroke(width = 1f))
+                }
+                drawCircle(Color(0xFFD8D8D8).copy(alpha = 0.9f), radius = rMax * 0.16f, style = Stroke(width = 3f))
+            }
             if (bitmapImage != null) {
                 Image(
                     bitmap = bitmapImage,
                     contentDescription = null,
-                    modifier = Modifier.fillMaxSize(0.58f).clip(CircleShape)
+                    modifier = Modifier.fillMaxSize(0.42f).clip(CircleShape)
                 )
             }
         }
-        if (lineArtImage != null) {
-            Image(
-                bitmap = lineArtImage,
-                contentDescription = null,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(10.dp)
-                    .size((caseW * 0.30f).dp)
+        // 半透明の色つきケース（アクセント色）
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.linearGradient(
+                        listOf(accentColor.copy(alpha = 0.34f), accentColor.copy(alpha = 0.16f), accentColor.copy(alpha = 0.28f))
+                    )
+                )
+                .border(1.dp, accentColor.copy(alpha = 0.65f), RoundedCornerShape(10.dp))
+        )
+        // シャッター（不透明プレート、右上）
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .size((caseW * 0.54f).dp, (caseH * 0.44f).dp)
+                .clip(RoundedCornerShape(bottomStart = 14.dp))
+                .background(Brush.linearGradient(listOf(accentColor.copy(alpha = 0.95f), accentColor.copy(alpha = 0.78f))))
+        ) {
+            if (lineArtImage != null) {
+                Image(
+                    bitmap = lineArtImage,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(6.dp)
+                        .size((caseW * 0.24f).dp)
+                )
+            }
+            Text(
+                text = "MD",
+                color = Color.White.copy(alpha = 0.9f),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)
             )
         }
-        Text(
-            text = "MD",
-            color = Color.White.copy(alpha = 0.85f),
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.align(Alignment.BottomStart).padding(10.dp)
-        )
+        // ラベルシール（斜め）
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(start = 10.dp, bottom = 12.dp)
+                .graphicsLayer { rotationZ = -10f }
+                .size((caseW * 0.30f).dp, (caseH * 0.15f).dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(Color.White.copy(alpha = 0.92f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(text = "74  MD", color = Color(0xFF222222), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        }
     }
 }
 
@@ -1132,23 +1174,58 @@ private fun CassetteReel(reelSizeDp: Float, rotation: Float) {
 private fun CassetteCase(boxSizeDp: Float, accentColor: Color, rotation: Float, title: String, artist: String) {
     val caseW = boxSizeDp
     val caseH = boxSizeDp * 0.64f
+    val packR = caseH * 0.30f
     Box(
         modifier = Modifier
             .size(caseW.dp, caseH.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(Brush.verticalGradient(listOf(Color(0xFF2B2D33), Color(0xFF16171B))))
-            .border(1.dp, accentColor.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+            .background(Brush.verticalGradient(listOf(Color(0xFFD8DCE2).copy(alpha = 0.30f), Color(0xFF9AA0A8).copy(alpha = 0.20f))))
+            .border(1.dp, Color.White.copy(alpha = 0.40f), RoundedCornerShape(12.dp))
     ) {
+        // テープの帯と巻き（左右で量が違う）
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(caseH.dp)
+        ) {
+            val cy = size.height * 0.52f
+            val lx = size.width * 0.26f
+            val rx = size.width * 0.74f
+            val pr = packR.dp.toPx()
+            drawRect(Color(0xFF241A12), Offset(lx, cy - pr * 0.30f), androidx.compose.ui.geometry.Size(rx - lx, pr * 0.60f))
+            drawCircle(Color(0xFF241A12), radius = pr, center = Offset(lx, cy))
+            drawCircle(Color(0xFF241A12), radius = pr * 0.62f, center = Offset(rx, cy))
+            drawCircle(Color(0xFF3A2A1A), radius = pr * 0.94f, center = Offset(lx, cy), style = Stroke(width = 2f))
+            drawCircle(Color(0xFF3A2A1A), radius = pr * 0.56f, center = Offset(rx, cy), style = Stroke(width = 2f))
+        }
+        // リール
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = (caseW * 0.26f - caseH * 0.17f).dp)
+                .offset(y = (caseH * 0.02f).dp)
+        ) {
+            CassetteReel(reelSizeDp = caseH * 0.34f, rotation = rotation)
+        }
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = (caseW * 0.26f - caseH * 0.17f).dp)
+                .offset(y = (caseH * 0.02f).dp)
+        ) {
+            CassetteReel(reelSizeDp = caseH * 0.34f, rotation = rotation)
+        }
+        // ラベルシール（クリーム色の帯、曲名入り）
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 9.dp)
-                .size((caseW * 0.88f).dp, (caseH * 0.58f).dp)
-                .clip(RoundedCornerShape(6.dp))
+                .padding(top = 8.dp)
+                .size((caseW * 0.92f).dp, (caseH * 0.30f).dp)
+                .clip(RoundedCornerShape(4.dp))
                 .background(Color(0xFFF2EDE3))
         ) {
-            Box(modifier = Modifier.fillMaxWidth().height(5.dp).background(accentColor))
-            Column(modifier = Modifier.padding(start = 10.dp, top = 11.dp, end = 10.dp)) {
+            Box(modifier = Modifier.fillMaxWidth().height(4.dp).background(accentColor))
+            Column(modifier = Modifier.padding(start = 10.dp, top = 8.dp, end = 10.dp)) {
                 Text(
                     text = title.ifBlank { "NO TITLE" },
                     color = Color(0xFF222222),
@@ -1158,26 +1235,41 @@ private fun CassetteCase(boxSizeDp: Float, accentColor: Color, rotation: Float, 
                 )
                 Text(text = artist, color = Color(0xFF777777), fontSize = 10.sp, maxLines = 1)
             }
-            Row(
+            Box(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 6.dp)
-                    .fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
+                    .align(Alignment.TopEnd)
+                    .padding(6.dp)
+                    .size(16.dp)
+                    .background(accentColor),
+                contentAlignment = Alignment.Center
             ) {
-                CassetteReel(reelSizeDp = caseH * 0.27f, rotation = rotation)
-                Box(modifier = Modifier.size((caseW * 0.16f).dp, 3.dp).background(Color(0xFF3A2A1A)))
-                CassetteReel(reelSizeDp = caseH * 0.27f, rotation = rotation)
+                Text(text = "A", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
         }
+        // 下の台形まわり: 穴2つ
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 8.dp)
-                .size((caseW * 0.52f).dp, (caseH * 0.15f).dp)
+                .padding(bottom = 7.dp)
+                .size((caseW * 0.54f).dp, (caseH * 0.17f).dp)
                 .clip(RoundedCornerShape(4.dp))
-                .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(4.dp))
-        )
+                .background(Color.White.copy(alpha = 0.10f))
+                .border(1.dp, Color.White.copy(alpha = 0.22f), RoundedCornerShape(4.dp))
+        ) {
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(modifier = Modifier.size(11.dp).clip(CircleShape).background(Color(0xFF101114)))
+                Box(modifier = Modifier.size((caseW * 0.16f).dp, 5.dp).background(Color(0xFF101114)))
+                Box(modifier = Modifier.size(11.dp).clip(CircleShape).background(Color(0xFF101114)))
+            }
+        }
+        // 四隅のネジ
+        Box(modifier = Modifier.align(Alignment.TopStart).padding(5.dp).size(7.dp).clip(CircleShape).background(Color(0xFF6E747C)))
+        Box(modifier = Modifier.align(Alignment.TopEnd).padding(5.dp).size(7.dp).clip(CircleShape).background(Color(0xFF6E747C)))
+        Box(modifier = Modifier.align(Alignment.BottomStart).padding(5.dp).size(7.dp).clip(CircleShape).background(Color(0xFF6E747C)))
+        Box(modifier = Modifier.align(Alignment.BottomEnd).padding(5.dp).size(7.dp).clip(CircleShape).background(Color(0xFF6E747C)))
     }
 }
