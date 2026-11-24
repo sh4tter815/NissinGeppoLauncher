@@ -593,15 +593,79 @@ fun MusicVinylWidget(
             ) {
                 val bitmap = if (artworkEnabled) albumArtBitmap else null
                 val bitmapImage = remember(bitmap) { bitmap?.asImageBitmap() }
-                if (bitmapImage != null) {
-                    Image(
-                        bitmap = bitmapImage,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                when (prefManager.getDiscStyle()) {
+                    "vinyl" -> {
+                        // レコード盤: 黒い盤面に溝、中央のレーベルがアートワーク
+                        Canvas(Modifier.fillMaxSize()) {
+                            val rMax = size.minDimension / 2f
+                            drawCircle(Color(0xFF0A0A0C))
+                            for (i in 1..9) {
+                                drawCircle(
+                                    Color.White.copy(alpha = if (i % 3 == 0) 0.10f else 0.05f),
+                                    radius = rMax * (0.50f + i * 0.052f),
+                                    style = Stroke(width = 1.2f)
+                                )
+                            }
+                            drawCircle(Color.White.copy(alpha = 0.18f), radius = rMax * 0.99f, style = Stroke(width = 2f))
+                        }
+                        if (bitmapImage != null) {
+                            Image(
+                                bitmap = bitmapImage,
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(0.44f).clip(CircleShape)
+                            )
+                        }
+                    }
+                    "cd" -> {
+                        // CD: アートワークに虹色の光沢、中央は透明リング＋穴（Clearで抜く）
+                        Box(
+                            modifier = Modifier.fillMaxSize().graphicsLayer {
+                                compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen
+                            }
+                        ) {
+                            if (bitmapImage != null) {
+                                Image(
+                                    bitmap = bitmapImage,
+                                    contentDescription = null,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Canvas(Modifier.fillMaxSize()) { drawCircle(Color(0xFFB9BEC6)) }
+                            }
+                            Canvas(Modifier.fillMaxSize()) {
+                                val rMax = size.minDimension / 2f
+                                drawCircle(
+                                    brush = Brush.sweepGradient(
+                                        listOf(
+                                            Color(0xFFFF9E9E).copy(alpha = 0.20f),
+                                            Color(0xFFFFFF9E).copy(alpha = 0.20f),
+                                            Color(0xFF9EFFA8).copy(alpha = 0.20f),
+                                            Color(0xFF9ED8FF).copy(alpha = 0.20f),
+                                            Color(0xFFD09EFF).copy(alpha = 0.20f),
+                                            Color(0xFFFF9E9E).copy(alpha = 0.20f)
+                                        )
+                                    )
+                                )
+                                for (i in 1..7) {
+                                    drawCircle(Color.White.copy(alpha = 0.06f), radius = rMax * (0.30f + i * 0.09f), style = Stroke(width = 1f))
+                                }
+                                drawCircle(Color(0xFFD8D8D8).copy(alpha = 0.85f), radius = rMax * 0.16f)
+                                drawCircle(Color.Black, radius = rMax * 0.07f, blendMode = androidx.compose.ui.graphics.BlendMode.Clear)
+                            }
+                        }
+                    }
+                    else -> {
+                        if (bitmapImage != null) {
+                            Image(
+                                bitmap = bitmapImage,
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
                 }
                 // アートワークが無い（再生していない）ときは色を塗らない。
-                // センターホール（中心の点）は再生中・停止中ともに出さない
+                // センターホール（中心の点）は再生中・停止中ともに出さない（CDスタイルの穴は除く）
             }
         }
     }
