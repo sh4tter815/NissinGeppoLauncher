@@ -415,6 +415,12 @@ class AppPreferenceManager(private val context: Context) {
     fun setIndexMode(v: String) = prefs.edit().putString("index_mode", v).apply()
 
     // アプリ一覧の並び順 ("name" = 名前順, "usage" = よく使う順, "recent" = 最近使った順)
+    fun isAppSortDescending(): Boolean = prefs.getBoolean("app_sort_descending", false)
+
+    fun setAppSortDescending(v: Boolean) {
+        prefs.edit().putBoolean("app_sort_descending", v).apply()
+    }
+
     fun getAppSortMode(): String = prefs.getString("app_sort_mode", "name") ?: "name"
     fun setAppSortMode(v: String) = prefs.edit().putString("app_sort_mode", v).apply()
     // 英語名アプリの並び ("yomi" = 読み仮名で並べる, "spell" = スペルで並べる)
