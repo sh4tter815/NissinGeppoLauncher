@@ -1346,6 +1346,42 @@ fun MainLauncherScreen() {
                                     ) {
                                         Text(text = "×", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                                     }
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.BottomEnd)
+                                            .offset(x = 6.dp, y = 6.dp)
+                                            .size(24.dp)
+                                            .clip(CircleShape)
+                                            .background(accentColor)
+                                            .border(2.dp, Color.White, CircleShape)
+                                            .pointerInput(placement.id) {
+                                                detectDragGestures(
+                                                    onDragEnd = {
+                                                        repo.prefManager.setWidgetPlacements(widgetPlacements)
+                                                        val p = widgetPlacements.firstOrNull { it.id == placement.id }
+                                                        if (p != null) {
+                                                            val opts = android.os.Bundle().apply {
+                                                                putInt(android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, p.w.toInt())
+                                                                putInt(android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, p.w.toInt())
+                                                                putInt(android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, p.h.toInt())
+                                                                putInt(android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, p.h.toInt())
+                                                            }
+                                                            appWidgetManager.updateAppWidgetSize(placement.id, opts)
+                                                        }
+                                                    },
+                                                    onDrag = { change, drag ->
+                                                        change.consume()
+                                                        widgetPlacements = widgetPlacements.map {
+                                                            if (it.id == placement.id) it.copy(
+                                                                w = (it.w + drag.x / density).coerceIn(80f, 360f),
+                                                                h = (it.h + drag.y / density).coerceIn(60f, 400f)
+                                                            ) else it
+                                                        }
+                                                    }
+                                                )
+                                            }
+                                            .zIndex(5f)
+                                    )
                                 }
                             }
                         }
