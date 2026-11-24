@@ -99,14 +99,28 @@ fun ClockWidget(
     val ampmText = ampmFormat.format(currentTime)
     val dateText = dateFormat.format(currentTime)
     // バッテリー残量はスティッキーインテントから毎秒ついでに読む（レシーバ登録はしない）
-    val batteryPct = if (showBattery) {
+    val batteryInfo = if (showBattery) {
         try {
             val bi = context.registerReceiver(null, android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED))
             val level = bi?.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1) ?: -1
             val scale = bi?.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, -1) ?: -1
-            if (level >= 0 && scale > 0) level * 100 / scale else -1
-        } catch (_: Exception) { -1 }
-    } else -1
+            val status = bi?.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1) ?: -1
+            val pct = if (level >= 0 && scale > 0) level * 100 / scale else -1
+            val charging = status == android.os.BatteryManager.BATTERY_STATUS_CHARGING ||
+                status == android.os.BatteryManager.BATTERY_STATUS_FULL
+            pct to charging
+        } catch (_: Exception) { -1 to false }
+    } else -1 to false
+    val batteryPct = batteryInfo.first
+    val batteryCharging = batteryInfo.second
+    // 充電中は緑、残り20%以下は赤、それ以外は通常の白
+    val batteryTint: Color? = when {
+        batteryCharging -> Color(0xFF4CAF50)
+        batteryPct in 0..20 -> Color(0xFFEF5350)
+        else -> null
+    }
+    val batteryIconColor = batteryTint?.copy(alpha = 0.9f) ?: Color.White.copy(alpha = 0.85f)
+    val batteryTextColor = batteryTint?.copy(alpha = 0.9f) ?: Color.White.copy(alpha = 0.7f)
 
     val openClock = {
         try {
@@ -167,8 +181,8 @@ fun ClockWidget(
         } else if (!showTime && !showDate && showBattery) {
             if (batteryPct >= 0) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                    BatteryLevelIcon(pct = batteryPct, color = Color.White.copy(alpha = 0.85f))
-                    Text(text = "$batteryPct%", color = Color.White.copy(alpha = 0.7f), fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                    BatteryLevelIcon(pct = batteryPct, color = batteryIconColor)
+                    Text(text = "$batteryPct%", color = batteryTextColor, fontSize = 15.sp, fontWeight = FontWeight.Medium)
                 }
             }
         } else if (sideways) {
@@ -296,10 +310,10 @@ fun ClockWidget(
                     horizontalArrangement = Arrangement.spacedBy(5.dp),
                     modifier = Modifier.padding(top = 8.dp)
                 ) {
-                    BatteryLevelIcon(pct = batteryPct, color = Color.White.copy(alpha = 0.85f))
+                    BatteryLevelIcon(pct = batteryPct, color = batteryIconColor)
                     Text(
                         text = "$batteryPct%",
-                        color = Color.White.copy(alpha = 0.7f),
+                        color = batteryTextColor,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium
                     )
@@ -462,10 +476,10 @@ fun ClockWidget(
                 )
                 if (showBattery && batteryPct >= 0) {
                     Spacer(modifier = Modifier.width(10.dp))
-                    BatteryLevelIcon(pct = batteryPct, color = Color.White.copy(alpha = 0.85f))
+                    BatteryLevelIcon(pct = batteryPct, color = batteryIconColor)
                     Text(
                         text = "$batteryPct%",
-                        color = Color.White.copy(alpha = 0.7f),
+                        color = batteryTextColor,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(start = 4.dp)
