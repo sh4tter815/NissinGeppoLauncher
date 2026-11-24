@@ -1,0 +1,556 @@
+package com.example.nissingeppolauncher.data
+
+import android.content.Context
+import android.content.SharedPreferences
+import org.json.JSONArray
+import org.json.JSONObject
+
+class AppPreferenceManager(private val context: Context) {
+    private val prefs: SharedPreferences = context.getSharedPreferences("nisshin_geppo_prefs", Context.MODE_PRIVATE)
+
+    fun getFavoritePackages(): Set<String> {
+        return prefs.getStringSet("favorite_packages", emptySet()) ?: emptySet()
+    }
+
+    fun setFavoritePackage(packageName: String, isFavorite: Boolean) {
+        val current = getFavoritePackages().toMutableSet()
+        if (isFavorite) {
+            current.add(packageName)
+        } else {
+            current.remove(packageName)
+        }
+        prefs.edit().putStringSet("favorite_packages", current).apply()
+    }
+
+    fun getHiddenPackages(): Set<String> {
+        return prefs.getStringSet("hidden_packages", emptySet()) ?: emptySet()
+    }
+
+    fun setHiddenPackage(packageName: String, isHidden: Boolean) {
+        val current = getHiddenPackages().toMutableSet()
+        if (isHidden) {
+            current.add(packageName)
+        } else {
+            current.remove(packageName)
+        }
+        prefs.edit().putStringSet("hidden_packages", current).apply()
+    }
+
+    fun getYomiMap(): Map<String, String> {
+        val jsonStr = prefs.getString("yomi_map_json", "{}") ?: "{}"
+        val map = mutableMapOf<String, String>()
+        try {
+            val jsonObj = JSONObject(jsonStr)
+            jsonObj.keys().forEach { key ->
+                map[key] = jsonObj.getString(key)
+            }
+        } catch (_: Exception) {}
+        return map
+    }
+
+    fun setYomi(packageName: String, yomi: String) {
+        val currentMap = getYomiMap().toMutableMap()
+        if (yomi.isBlank()) {
+            currentMap.remove(packageName)
+        } else {
+            currentMap[packageName] = yomi.trim()
+        }
+        val jsonObj = JSONObject(currentMap as Map<*, *>)
+        prefs.edit().putString("yomi_map_json", jsonObj.toString()).apply()
+    }
+
+    // 検索可能な別名（複数登録可能）
+    fun getAliasesMap(): Map<String, List<String>> {
+        val jsonStr = prefs.getString("aliases_map_json", "{}") ?: "{}"
+        val map = mutableMapOf<String, List<String>>()
+        try {
+            val jsonObj = JSONObject(jsonStr)
+            jsonObj.keys().forEach { key ->
+                val arr = jsonObj.getJSONArray(key)
+                val list = mutableListOf<String>()
+                for (i in 0 until arr.length()) {
+                    list.add(arr.getString(i))
+                }
+                map[key] = list
+            }
+        } catch (_: Exception) {}
+        return map
+    }
+
+    fun addAlias(packageName: String, alias: String) {
+        val cleanAlias = alias.trim()
+        if (cleanAlias.isBlank()) return
+        val currentMap = getAliasesMap().toMutableMap()
+        val currentList = (currentMap[packageName] ?: emptyList()).toMutableList()
+        if (!currentList.contains(cleanAlias)) {
+            currentList.add(cleanAlias)
+        }
+        currentMap[packageName] = currentList
+        saveAliasesMap(currentMap)
+    }
+
+    fun removeAlias(packageName: String, alias: String) {
+        val currentMap = getAliasesMap().toMutableMap()
+        val currentList = (currentMap[packageName] ?: emptyList()).toMutableList()
+        currentList.remove(alias)
+        if (currentList.isEmpty()) {
+            currentMap.remove(packageName)
+        } else {
+            currentMap[packageName] = currentList
+        }
+        saveAliasesMap(currentMap)
+    }
+
+    private fun saveAliasesMap(map: Map<String, List<String>>) {
+        val jsonObj = JSONObject()
+        map.forEach { (pkg, list) ->
+            val arr = JSONArray(list)
+            jsonObj.put(pkg, arr)
+        }
+        prefs.edit().putString("aliases_map_json", jsonObj.toString()).apply()
+    }
+
+    // フォルダ管理 (folder_id -> Pair<folderName, List<packageName>>)
+    fun getFoldersMap(): Map<String, Pair<String, List<String>>> {
+        val jsonStr = prefs.getString("folders_map_json", "{}") ?: "{}"
+        val map = mutableMapOf<String, Pair<String, List<String>>>()
+        try {
+            val jsonObj = JSONObject(jsonStr)
+            jsonObj.keys().forEach { folderId ->
+                val obj = jsonObj.getJSONObject(folderId)
+                val name = obj.getString("name")
+                val pkgArray = obj.getJSONArray("packages")
+                val pkgs = mutableListOf<String>()
+                for (i in 0 until pkgArray.length()) {
+                    pkgs.add(pkgArray.getString(i))
+                }
+                map[folderId] = Pair(name, pkgs)
+            }
+        } catch (_: Exception) {}
+        return map
+    }
+
+    fun saveFolder(folderId: String, name: String, packages: List<String>) {
+        val currentMap = getFoldersMap().toMutableMap()
+        currentMap[folderId] = Pair(name, packages)
+        saveFoldersMap(currentMap)
+    }
+
+    fun deleteFolder(folderId: String) {
+        val currentMap = getFoldersMap().toMutableMap()
+        currentMap.remove(folderId)
+        saveFoldersMap(currentMap)
+    }
+
+    // フォルダの親子関係 (folder_id -> parent_folder_id)。記録が無いフォルダはルート直下
+    fun getFolderParents(): Map<String, String> {
+        val jsonStr = prefs.getString("folder_parents_json", "{}") ?: "{}"
+        val map = mutableMapOf<String, String>()
+        try {
+            val jsonObj = JSONObject(jsonStr)
+            jsonObj.keys().forEach { folderId ->
+                map[folderId] = jsonObj.getString(folderId)
+            }
+        } catch (_: Exception) {}
+        return map
+    }
+
+    fun setFolderParent(folderId: String, parentId: String?) {
+        val map = getFolderParents().toMutableMap()
+        if (parentId == null) map.remove(folderId) else map[folderId] = parentId
+        val jsonObj = JSONObject()
+        map.forEach { (id, pid) -> jsonObj.put(id, pid) }
+        prefs.edit().putString("folder_parents_json", jsonObj.toString()).apply()
+    }
+
+    private fun saveFoldersMap(map: Map<String, Pair<String, List<String>>>) {
+        val jsonObj = JSONObject()
+        map.forEach { (id, pair) ->
+            val folderObj = JSONObject()
+            folderObj.put("name", pair.first)
+            folderObj.put("packages", JSONArray(pair.second))
+            jsonObj.put(id, folderObj)
+        }
+        prefs.edit().putString("folders_map_json", jsonObj.toString()).apply()
+    }
+
+    // 非表示説明ダイアログを今後は表示しない設定
+    fun isDontShowHideGuide(): Boolean {
+        return prefs.getBoolean("dont_show_hide_guide", false)
+    }
+
+    fun setDontShowHideGuide(dontShow: Boolean) {
+        prefs.edit().putBoolean("dont_show_hide_guide", dontShow).apply()
+    }
+
+    // カスタム背景画像のURI/パス
+    fun getCustomBackgroundPath(): String? {
+        return prefs.getString("custom_background_path", null)
+    }
+
+    fun setCustomBackgroundPath(path: String?) {
+        prefs.edit().putString("custom_background_path", path).apply()
+    }
+
+    // App Disc Customization Settings
+    fun getAppDiscIconSizeDp(): Float = prefs.getFloat("app_disc_icon_size", 25f)
+    fun setAppDiscIconSizeDp(size: Float) = prefs.edit().putFloat("app_disc_icon_size", size).apply()
+
+    fun getAppDiscTextSizeSp(): Float = prefs.getFloat("app_disc_text_size", 14f)
+    fun setAppDiscTextSizeSp(size: Float) = prefs.edit().putFloat("app_disc_text_size", size).apply()
+
+    fun getAppDiscLetterSpacingSp(): Float = prefs.getFloat("app_disc_letter_spacing", 2.6f)
+    fun setAppDiscLetterSpacingSp(spacing: Float) = prefs.edit().putFloat("app_disc_letter_spacing", spacing).apply()
+
+    fun getAppDiscStepAngle(): Float = prefs.getFloat("app_disc_step_angle", 18.6f)
+    // ページ切り替え方法 ("buttons" / "dial")
+    fun getPageSwitchStyle(): String = prefs.getString("page_switch_style", "dial") ?: "dial"
+    fun setPageSwitchStyle(style: String) { prefs.edit().putString("page_switch_style", style).apply() }
+    fun setAppDiscStepAngle(angle: Float) = prefs.edit().putFloat("app_disc_step_angle", angle).apply()
+
+    // アクセントカラー (デフォルト: 赤 #E53935)
+    fun getAccentColorHex(): String = prefs.getString("accent_color_hex", "#E53935") ?: "#E53935"
+    fun setAccentColorHex(hex: String) = prefs.edit().putString("accent_color_hex", hex).apply()
+
+    // アートワーク連動カラー（再生中の曲のアートワークから配色を決める）
+    fun isMatchArtworkColor(): Boolean = prefs.getBoolean("match_artwork_color", false)
+    fun setMatchArtworkColor(enabled: Boolean) = prefs.edit().putBoolean("match_artwork_color", enabled).apply()
+
+    fun isBlurArtworkBackground(): Boolean = prefs.getBoolean("blur_artwork_background", false)
+    fun setBlurArtworkBackground(enabled: Boolean) = prefs.edit().putBoolean("blur_artwork_background", enabled).apply()
+
+    /** アートワーク背景の見せ方: "solid"（単色）/ "blur"（ぼかし画像） */
+    fun getArtworkBackgroundStyle(): String = prefs.getString("artwork_background_style", "solid") ?: "solid"
+
+    // 背景モード: "wallpaper"（設定した壁紙画像）/ "artwork_solid"（アートワーク単色）/ "artwork_blur"（アートワークぼかし）
+    // 未設定のときは旧設定（再生中はアートワーク背景を使う＋見せ方）から引き継ぐ
+    fun getBackgroundMode(): String {
+        val saved = prefs.getString("background_mode", null)
+        if (saved != null) return saved
+        return if (isBlurArtworkBackground()) {
+            if (getArtworkBackgroundStyle() == "blur") "artwork_blur" else "artwork_solid"
+        } else {
+            "wallpaper"
+        }
+    }
+
+    fun setBackgroundMode(mode: String) = prefs.edit().putString("background_mode", mode).apply()
+    fun setArtworkBackgroundStyle(style: String) = prefs.edit().putString("artwork_background_style", style).apply()
+
+    fun isLiquidBackgroundEnabled(): Boolean = prefs.getBoolean("liquid_background", true)
+    fun setLiquidBackgroundEnabled(enabled: Boolean) { prefs.edit().putBoolean("liquid_background", enabled).apply() }
+    fun getHomeDiscLayout(): String = prefs.getString("home_disc_layout", "classic") ?: "classic"
+    fun setHomeDiscLayout(layout: String) { prefs.edit().putString("home_disc_layout", layout).apply() }
+    fun isDisc3dEnabled(): Boolean = prefs.getBoolean("disc_3d", false)
+    fun setDisc3dEnabled(enabled: Boolean) { prefs.edit().putBoolean("disc_3d", enabled).apply() }
+    fun isDisc3dTiltEnabled(): Boolean = prefs.getBoolean("disc_3d_tilt", false)
+    fun setDisc3dTiltEnabled(enabled: Boolean) { prefs.edit().putBoolean("disc_3d_tilt", enabled).apply() }
+
+    fun isLyricsPvMode(): Boolean = prefs.getBoolean("lyrics_pv_mode", false)
+    fun setLyricsPvMode(enabled: Boolean) { prefs.edit().putBoolean("lyrics_pv_mode", enabled).apply() }
+    fun getLyricsPvFont(): String = prefs.getString("lyrics_pv_font", "default") ?: "default"
+    fun setLyricsPvFont(value: String) { prefs.edit().putString("lyrics_pv_font", value).apply() }
+    // 歌詞の英字フォント: "same"=日本語フォントと同じ / それ以外は歌詞フォントと同じキー体系
+    fun getLyricsEnFont(): String = prefs.getString("lyrics_pv_font_en", "same") ?: "same"
+    fun setLyricsEnFont(value: String) { prefs.edit().putString("lyrics_pv_font_en", value).apply() }
+    fun getLyricsEnCustomFontPath(): String? = prefs.getString("lyrics_en_custom_font_path", null)
+    fun setLyricsEnCustomFontPath(value: String?) { prefs.edit().putString("lyrics_en_custom_font_path", value).apply() }
+    fun isLyricsBold(): Boolean = prefs.getBoolean("lyrics_bold", false)
+    fun setLyricsBold(value: Boolean) { prefs.edit().putBoolean("lyrics_bold", value).apply() }
+    fun isPvPartsEntryEnabled(): Boolean = prefs.getBoolean("pv_parts_entry", false)
+    fun setPvPartsEntryEnabled(value: Boolean) { prefs.edit().putBoolean("pv_parts_entry", value).apply() }
+    fun isDopagakiEnabled(): Boolean = prefs.getBoolean("dopagaki_mode", false)
+    fun setDopagakiEnabled(value: Boolean) { prefs.edit().putBoolean("dopagaki_mode", value).apply() }
+    fun isDopaBlackFontEnabled(): Boolean = prefs.getBoolean("dopagaki_black_font", true)
+    fun setDopaBlackFontEnabled(value: Boolean) { prefs.edit().putBoolean("dopagaki_black_font", value).apply() }
+    fun isStatusBarLyricsEnabled(): Boolean = prefs.getBoolean("status_bar_lyrics", false)
+    fun setStatusBarLyricsEnabled(value: Boolean) { prefs.edit().putBoolean("status_bar_lyrics", value).apply() }
+    // ステータスバー歌詞のモード: "off" / "line"(1行) / "pv"(PVミニ)。未設定なら旧オンオフから引き継ぐ
+    fun getStatusBarMode(): String {
+        val m = prefs.getString("status_bar_mode", null)
+        if (m != null) return m
+        return if (isStatusBarLyricsEnabled()) "line" else "off"
+    }
+    fun setStatusBarMode(value: String) {
+        prefs.edit().putString("status_bar_mode", value)
+            .putBoolean("status_bar_lyrics", value != "off").apply()
+    }
+    // スリープタイマー: 終了時刻（epoch ms、0=無効）と選択中の分数
+    fun getSleepTimerEndMs(): Long = prefs.getLong("sleep_timer_end_ms", 0L)
+    fun setSleepTimerEndMs(value: Long) { prefs.edit().putLong("sleep_timer_end_ms", value).apply() }
+    fun getSleepTimerMinutes(): Int = prefs.getInt("sleep_timer_minutes", 0)
+    fun setSleepTimerMinutes(value: Int) { prefs.edit().putInt("sleep_timer_minutes", value).apply() }
+
+    fun isLyricTranslationEnabled(): Boolean = prefs.getBoolean("lyric_translation", false)
+    fun setLyricTranslationEnabled(value: Boolean) { prefs.edit().putBoolean("lyric_translation", value).apply() }
+    /** 歌詞の表示モード: "line"=現在の行のみ / "video"=リリックビデオ（文字PV） / "multi"=複数行 */
+    fun getLyricsDisplayMode(): String {
+        val saved = prefs.getString("lyrics_display_mode", null)
+        if (saved != null) return saved
+        return if (isLyricsPvMode()) "video" else "line"
+    }
+    fun setLyricsDisplayMode(value: String) { prefs.edit().putString("lyrics_display_mode", value).apply() }
+
+    /** 曲ごとの歌詞タイミング補正（ミリ秒）。キーはタイトル|アーティストのMD5 */
+    fun getLyricOffsetMs(title: String, artist: String): Long {
+        return prefs.getLong("lyric_offset_" + lyricOffsetKey(title, artist), 0L)
+    }
+    fun setLyricOffsetMs(title: String, artist: String, offsetMs: Long) {
+        prefs.edit().putLong("lyric_offset_" + lyricOffsetKey(title, artist), offsetMs).apply()
+    }
+    private fun lyricOffsetKey(title: String, artist: String): String {
+        val digest = java.security.MessageDigest.getInstance("MD5")
+            .digest("$title|$artist".toByteArray(Charsets.UTF_8))
+        return digest.joinToString("") { "%02x".format(it) }
+    }
+
+    // ホーム時計の日付の表示方式: "sideways"=常時横倒し（時刻の右） / "under"=常時時計の下 / "auto"=歌詞の有無で切替
+    fun getDateDisplayMode(): String = prefs.getString("date_display_mode", "auto") ?: "auto"
+    fun setDateDisplayMode(mode: String) { prefs.edit().putString("date_display_mode", mode).apply() }
+
+    // ホーム画面背景の不透明度 (暗さ)
+    fun getHomeWallpaperAlpha(): Float = prefs.getFloat("home_wallpaper_alpha", 0.35f)
+    fun setHomeWallpaperAlpha(alpha: Float) = prefs.edit().putFloat("home_wallpaper_alpha", alpha).apply()
+
+    // フォント設定
+    fun getFontFamilyName(): String = prefs.getString("font_family_name", "Default") ?: "Default"
+    fun setFontFamilyName(name: String) = prefs.edit().putString("font_family_name", name).apply()
+
+    fun getFontWeightIndex(): Int = prefs.getInt("font_weight_index", 0) // 0: Light
+    fun setFontWeightIndex(index: Int) = prefs.edit().putInt("font_weight_index", index).apply()
+
+    fun getCustomFontPath(): String? = prefs.getString("custom_font_path", null)
+    fun setCustomFontPath(path: String?) = prefs.edit().putString("custom_font_path", path).apply()
+
+    fun isUseCustomFont(): Boolean = prefs.getBoolean("use_custom_font", true)
+    fun setUseCustomFont(use: Boolean) = prefs.edit().putBoolean("use_custom_font", use).apply()
+
+    // セキュリティ設定 (パスコード & 生体認証)
+    fun getPasscode(): String = prefs.getString("security_passcode", "1234") ?: "1234"
+    fun setPasscode(code: String) = prefs.edit().putString("security_passcode", code).apply()
+
+    fun getUseBiometric(): Boolean = prefs.getBoolean("security_use_biometric", true)
+    fun setUseBiometric(use: Boolean) = prefs.edit().putBoolean("security_use_biometric", use).apply()
+
+    fun isUsePasscodeForHidden(): Boolean = prefs.getBoolean("security_use_passcode_for_hidden", true)
+    fun setUsePasscodeForHidden(use: Boolean) = prefs.edit().putBoolean("security_use_passcode_for_hidden", use).apply()
+
+    // チュートリアル表示フラグ
+    fun isFirstWelcomeTutorialShown(): Boolean = prefs.getBoolean("tutorial_welcome_shown", false)
+    fun setFirstWelcomeTutorialShown(shown: Boolean) = prefs.edit().putBoolean("tutorial_welcome_shown", shown).apply()
+
+    fun isFirstIndexTutorialShown(): Boolean = prefs.getBoolean("tutorial_index_shown", false)
+    fun setFirstIndexTutorialShown(shown: Boolean) = prefs.edit().putBoolean("tutorial_index_shown", shown).apply()
+
+    fun isFirstHideTutorialShown(): Boolean = prefs.getBoolean("tutorial_hide_shown", false)
+    fun setFirstHideTutorialShown(shown: Boolean) = prefs.edit().putBoolean("tutorial_hide_shown", shown).apply()
+
+    // 動作設定 (スクロール方向反転)
+    fun isReverseScroll(): Boolean = prefs.getBoolean("reverse_scroll", false)
+    fun setReverseScroll(reverse: Boolean) = prefs.edit().putBoolean("reverse_scroll", reverse).apply()
+
+    // ===== 追加設定（2026-11-23 一括追加分） =====
+    // 円盤の慣性の強さ（フリックの飛び具合の倍率）
+    fun getDiscInertia(): Float = prefs.getFloat("disc_inertia", 1.0f)
+    fun setDiscInertia(v: Float) = prefs.edit().putFloat("disc_inertia", v).apply()
+    // 振動フィードバック（円盤のカチッという触覚）
+    fun isHapticsEnabled(): Boolean = prefs.getBoolean("haptics_enabled", true)
+    fun setHapticsEnabled(v: Boolean) = prefs.edit().putBoolean("haptics_enabled", v).apply()
+    // 時計: 秒表示 / 12時間表示 / バッテリー残量 / 和暦
+    fun isClockShowSeconds(): Boolean = prefs.getBoolean("clock_show_seconds", false)
+    fun setClockShowSeconds(v: Boolean) = prefs.edit().putBoolean("clock_show_seconds", v).apply()
+
+    fun isClockHorizontal(): Boolean = prefs.getBoolean("clock_horizontal", false)
+    fun setClockHorizontal(v: Boolean) = prefs.edit().putBoolean("clock_horizontal", v).apply()
+    fun isClock12h(): Boolean = prefs.getBoolean("clock_12h", false)
+    fun setClock12h(v: Boolean) = prefs.edit().putBoolean("clock_12h", v).apply()
+    fun isClockShowBattery(): Boolean = prefs.getBoolean("clock_show_battery", false)
+    fun setClockShowBattery(v: Boolean) = prefs.edit().putBoolean("clock_show_battery", v).apply()
+    fun isDateWareki(): Boolean = prefs.getBoolean("date_wareki", false)
+    fun setDateWareki(v: Boolean) = prefs.edit().putBoolean("date_wareki", v).apply()
+    // 歌詞マスター（オフでPV・時計下・ステータスバーの歌詞を全部消す）
+    fun isLyricsEnabled(): Boolean = prefs.getBoolean("lyrics_enabled", true)
+    fun setLyricsEnabled(v: Boolean) = prefs.edit().putBoolean("lyrics_enabled", v).apply()
+    // PV: 文字サイズ倍率 / 縦位置オフセット(dp) / 文字色 / ルビ / 間奏アート
+    fun getPvFontScale(): Float = prefs.getFloat("pv_font_scale", 1.0f)
+    fun setPvFontScale(v: Float) = prefs.edit().putFloat("pv_font_scale", v).apply()
+    fun getPvTopOffsetDp(): Float = prefs.getFloat("pv_top_offset", 0f)
+    fun setPvTopOffsetDp(v: Float) = prefs.edit().putFloat("pv_top_offset", v).apply()
+    fun getPvTextColor(): String = prefs.getString("pv_text_color", "white") ?: "white"
+    fun setPvTextColor(v: String) = prefs.edit().putString("pv_text_color", v).apply()
+    fun isPvRubyEnabled(): Boolean = prefs.getBoolean("pv_ruby_enabled", true)
+    fun setPvRubyEnabled(v: Boolean) = prefs.edit().putBoolean("pv_ruby_enabled", v).apply()
+    fun isPvInterludeArtEnabled(): Boolean = prefs.getBoolean("pv_interlude_art", true)
+    fun setPvInterludeArtEnabled(v: Boolean) = prefs.edit().putBoolean("pv_interlude_art", v).apply()
+    // 液体: 速さ倍率 / 濃さ倍率
+    fun getLiquidSpeed(): Float = prefs.getFloat("liquid_speed", 1.0f)
+    fun setLiquidSpeed(v: Float) = prefs.edit().putFloat("liquid_speed", v).apply()
+    fun getLiquidAlpha(): Float = prefs.getFloat("liquid_alpha", 1.0f)
+    fun setLiquidAlpha(v: Float) = prefs.edit().putFloat("liquid_alpha", v).apply()
+    // 起動時に開くページ: "home" / "last"（last のときは getLastPage を使う）
+    fun getStartupPage(): String = prefs.getString("startup_page", "home") ?: "home"
+    fun setStartupPage(v: String) = prefs.edit().putString("startup_page", v).apply()
+    fun getLastPage(): Int = prefs.getInt("last_page", 1)
+    fun setLastPage(v: Int) = prefs.edit().putInt("last_page", v).apply()
+    // ステータスバー歌詞の横幅（画面幅に対する割合）
+    fun getStatusBarWidthFactor(): Float = prefs.getFloat("status_bar_width", 0.33f)
+    fun setStatusBarWidthFactor(v: Float) = prefs.edit().putFloat("status_bar_width", v).apply()
+    // 下ダイヤルの表示方法: "auto"（ラック中などは隠れる） / "always" / "hidden"
+    fun getDialVisibility(): String = prefs.getString("dial_visibility", "auto") ?: "auto"
+    fun setDialVisibility(v: String) = prefs.edit().putString("dial_visibility", v).apply()
+    // ページ切り替えアニメの速さ倍率
+    fun getPageTransitionSpeed(): Float = prefs.getFloat("page_transition_speed", 1.0f)
+    fun setPageTransitionSpeed(v: Float) = prefs.edit().putFloat("page_transition_speed", v).apply()
+    // 再生中は画面を点けたまま
+    fun isKeepScreenOn(): Boolean = prefs.getBoolean("keep_screen_on", false)
+    fun setKeepScreenOn(v: Boolean) = prefs.edit().putBoolean("keep_screen_on", v).apply()
+    // 壁紙のぼかし (dp)
+    fun getWallpaperBlurDp(): Float = prefs.getFloat("wallpaper_blur", 0f)
+    fun setWallpaperBlurDp(v: Float) = prefs.edit().putFloat("wallpaper_blur", v).apply()
+    // ページごとの壁紙（未設定のページは共通の壁紙にフォールバック）
+    fun getPageWallpaperPath(page: Int): String? = prefs.getString("wallpaper_path_page_$page", null)
+    fun setPageWallpaperPath(page: Int, path: String?) = prefs.edit().putString("wallpaper_path_page_$page", path).apply()
+
+    // インデックスに英語（A〜Z）を含めるか
+    fun isIndexShowEnglish(): Boolean = prefs.getBoolean("index_show_english", false)
+    fun setIndexShowEnglish(v: Boolean) = prefs.edit().putBoolean("index_show_english", v).apply()
+    fun getIndexMode(): String = prefs.getString("index_mode", "row") ?: "row"
+    fun setIndexMode(v: String) = prefs.edit().putString("index_mode", v).apply()
+
+    // アプリ一覧の並び順 ("name" = 名前順, "usage" = よく使う順, "recent" = 最近使った順)
+    fun isAppSortDescending(): Boolean = prefs.getBoolean("app_sort_descending", false)
+
+    fun setAppSortDescending(v: Boolean) {
+        prefs.edit().putBoolean("app_sort_descending", v).apply()
+    }
+
+    fun getAppSortMode(): String = prefs.getString("app_sort_mode", "name") ?: "name"
+    fun setAppSortMode(v: String) = prefs.edit().putString("app_sort_mode", v).apply()
+    // 英語名アプリの並び ("yomi" = 読み仮名で並べる, "spell" = スペルで並べる)
+    fun getEnglishAppSort(): String = prefs.getString("english_app_sort", "yomi") ?: "yomi"
+    fun setEnglishAppSort(v: String) = prefs.edit().putString("english_app_sort", v).apply()
+
+    // 通知バッジ（アプリアイコン右上に通知数）
+    fun isNotificationBadgesEnabled(): Boolean = prefs.getBoolean("notification_badges", true)
+    fun setNotificationBadgesEnabled(v: Boolean) = prefs.edit().putBoolean("notification_badges", v).apply()
+
+    // アートワーク表示（左円とラックの画像そのもの）
+    fun isArtworkEnabled(): Boolean = prefs.getBoolean("artwork_enabled", true)
+    fun setArtworkEnabled(v: Boolean) = prefs.edit().putBoolean("artwork_enabled", v).apply()
+    // ラック専用のスクロール反転（円盤の反転とは別）
+    fun isRackReverseScroll(): Boolean = prefs.getBoolean("rack_reverse", false)
+    fun setRackReverseScroll(v: Boolean) = prefs.edit().putBoolean("rack_reverse", v).apply()
+
+    // レイアウト自由移動のオフセット（dp）
+    fun getClockOffsetXDp(): Float = prefs.getFloat("clock_offset_x", 0f)
+    fun getClockOffsetYDp(): Float = prefs.getFloat("clock_offset_y", 0f)
+    fun setClockOffset(x: Float, y: Float) = prefs.edit().putFloat("clock_offset_x", x).putFloat("clock_offset_y", y).apply()
+    fun getDiscOffsetX(): Float = prefs.getFloat("disc_offset_x", 0f)
+    fun getDiscOffsetY(): Float = prefs.getFloat("disc_offset_y", 0f)
+    fun setDiscOffset(x: Float, y: Float) = prefs.edit().putFloat("disc_offset_x", x).putFloat("disc_offset_y", y).apply()
+    fun getHeaderOffsetY(): Float = prefs.getFloat("header_offset_y", 0f)
+    fun setHeaderOffsetY(v: Float) = prefs.edit().putFloat("header_offset_y", v).apply()
+    fun getDateOffsetX(): Float = prefs.getFloat("date_offset_x", Float.NaN)
+    fun getDateOffsetY(): Float = prefs.getFloat("date_offset_y", Float.NaN)
+    fun setDateOffset(x: Float, y: Float) = prefs.edit().putFloat("date_offset_x", x).putFloat("date_offset_y", y).apply()
+    fun getBatteryOffsetX(): Float = prefs.getFloat("battery_offset_x", Float.NaN)
+    fun getBatteryOffsetY(): Float = prefs.getFloat("battery_offset_y", Float.NaN)
+    fun setBatteryOffset(x: Float, y: Float) = prefs.edit().putFloat("battery_offset_x", x).putFloat("battery_offset_y", y).apply()
+    fun getSecondsOffsetX(): Float = prefs.getFloat("seconds_offset_x", Float.NaN)
+    fun getSecondsOffsetY(): Float = prefs.getFloat("seconds_offset_y", Float.NaN)
+    fun setSecondsOffset(x: Float, y: Float) = prefs.edit().putFloat("seconds_offset_x", x).putFloat("seconds_offset_y", y).apply()
+    fun getLayoutScale(key: String): Float = prefs.getFloat("layout_scale_$key", 1f)
+    fun setLayoutScale(key: String, v: Float) = prefs.edit().putFloat("layout_scale_$key", v).apply()
+    fun getPvOffsetXDp(): Float = prefs.getFloat("pv_offset_x", 0f)
+    fun setPvOffsetX(v: Float) = prefs.edit().putFloat("pv_offset_x", v).apply()
+    // 設定画面からレイアウト編集モードを開くための一時フラグ
+    fun requestLayoutEdit() = prefs.edit().putBoolean("layout_edit_request", true).apply()
+    fun isLayoutEditRequested(): Boolean = prefs.getBoolean("layout_edit_request", false)
+    fun clearLayoutEditRequest() = prefs.edit().putBoolean("layout_edit_request", false).apply()
+
+    // ===== 設定バックアップ（読み仮名・お気に入り・フォルダを含む全設定をJSONへ） =====
+    // --- 他社製ウィジェットの配置 ---
+    fun getWidgetPlacements(): List<WidgetPlacement> {
+        val raw = prefs.getString("widget_placements", null) ?: return emptyList()
+        return try {
+            val arr = org.json.JSONArray(raw)
+            val out = ArrayList<WidgetPlacement>()
+            for (i in 0 until arr.length()) {
+                val o = arr.getJSONObject(i)
+                out.add(WidgetPlacement(o.getInt("id"), o.getDouble("x").toFloat(), o.getDouble("y").toFloat(), o.getDouble("w").toFloat(), o.getDouble("h").toFloat()))
+            }
+            out
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun setWidgetPlacements(list: List<WidgetPlacement>) {
+        val arr = org.json.JSONArray()
+        list.forEach { p ->
+            arr.put(org.json.JSONObject().put("id", p.id).put("x", p.x.toDouble()).put("y", p.y.toDouble()).put("w", p.w.toDouble()).put("h", p.h.toDouble()))
+        }
+        prefs.edit().putString("widget_placements", arr.toString()).apply()
+    }
+
+    fun exportAllJson(): String {
+        val prefsObj = org.json.JSONObject()
+        for ((k, v) in prefs.all) {
+            val o = org.json.JSONObject()
+            when (v) {
+                is Boolean -> { o.put("t", "b"); o.put("v", v) }
+                is Int -> { o.put("t", "i"); o.put("v", v) }
+                is Long -> { o.put("t", "l"); o.put("v", v) }
+                is Float -> { o.put("t", "f"); o.put("v", v.toDouble()) }
+                is String -> { o.put("t", "s"); o.put("v", v) }
+                is Set<*> -> { o.put("t", "set"); o.put("v", org.json.JSONArray(v.map { it.toString() })) }
+                else -> continue
+            }
+            prefsObj.put(k, o)
+        }
+        return org.json.JSONObject().apply {
+            put("app", "NissinGeppoLauncher")
+            put("kind", "settings-backup")
+            put("version", 1)
+            put("prefs", prefsObj)
+        }.toString()
+    }
+
+    fun importAllJson(text: String): Boolean {
+        return try {
+            val root = org.json.JSONObject(text)
+            if (root.optString("kind") != "settings-backup") return false
+            val prefsObj = root.getJSONObject("prefs")
+            val e = prefs.edit()
+            e.clear()
+            val keys = prefsObj.keys()
+            while (keys.hasNext()) {
+                val k = keys.next()
+                val o = prefsObj.getJSONObject(k)
+                when (o.getString("t")) {
+                    "b" -> e.putBoolean(k, o.getBoolean("v"))
+                    "i" -> e.putInt(k, o.getInt("v"))
+                    "l" -> e.putLong(k, o.getLong("v"))
+                    "f" -> e.putFloat(k, o.getDouble("v").toFloat())
+                    "s" -> e.putString(k, o.getString("v"))
+                    "set" -> {
+                        val arr = o.getJSONArray("v")
+                        val s = mutableSetOf<String>()
+                        for (i in 0 until arr.length()) s.add(arr.getString(i))
+                        e.putStringSet(k, s)
+                    }
+                }
+            }
+            e.apply()
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    // フォント選択 ("default" = デフォルト, "receipt" = レシートフォント, "custom" = カスタムファイル)
+    fun getFontChoice(): String = prefs.getString("font_choice", "default") ?: "default"
+    fun setFontChoice(choice: String) = prefs.edit().putString("font_choice", choice).apply()
+}
+
+data class WidgetPlacement(val id: Int, val x: Float, val y: Float, val w: Float, val h: Float)
