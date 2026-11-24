@@ -452,6 +452,30 @@ class AppPreferenceManager(private val context: Context) {
     fun clearLayoutEditRequest() = prefs.edit().putBoolean("layout_edit_request", false).apply()
 
     // ===== 設定バックアップ（読み仮名・お気に入り・フォルダを含む全設定をJSONへ） =====
+    // --- 他社製ウィジェットの配置 ---
+    fun getWidgetPlacements(): List<WidgetPlacement> {
+        val raw = prefs.getString("widget_placements", null) ?: return emptyList()
+        return try {
+            val arr = org.json.JSONArray(raw)
+            val out = ArrayList<WidgetPlacement>()
+            for (i in 0 until arr.length()) {
+                val o = arr.getJSONObject(i)
+                out.add(WidgetPlacement(o.getInt("id"), o.getDouble("x").toFloat(), o.getDouble("y").toFloat(), o.getDouble("w").toFloat(), o.getDouble("h").toFloat()))
+            }
+            out
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun setWidgetPlacements(list: List<WidgetPlacement>) {
+        val arr = org.json.JSONArray()
+        list.forEach { p ->
+            arr.put(org.json.JSONObject().put("id", p.id).put("x", p.x.toDouble()).put("y", p.y.toDouble()).put("w", p.w.toDouble()).put("h", p.h.toDouble()))
+        }
+        prefs.edit().putString("widget_placements", arr.toString()).apply()
+    }
+
     fun exportAllJson(): String {
         val prefsObj = org.json.JSONObject()
         for ((k, v) in prefs.all) {
@@ -511,3 +535,5 @@ class AppPreferenceManager(private val context: Context) {
     fun getFontChoice(): String = prefs.getString("font_choice", "default") ?: "default"
     fun setFontChoice(choice: String) = prefs.edit().putString("font_choice", choice).apply()
 }
+
+data class WidgetPlacement(val id: Int, val x: Float, val y: Float, val w: Float, val h: Float)
