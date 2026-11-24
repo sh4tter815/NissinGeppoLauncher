@@ -1423,7 +1423,7 @@ fun MainLauncherScreen() {
                                     val down = awaitFirstDown(requireUnconsumed = false)
                                     val downPos = down.position
                                     var maxDist = 0f
-                                    val timer = launch {
+                                    val timer = coroutineScope.launch {
                                         kotlinx.coroutines.delay(500)
                                         if (maxDist < 14f) {
                                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
