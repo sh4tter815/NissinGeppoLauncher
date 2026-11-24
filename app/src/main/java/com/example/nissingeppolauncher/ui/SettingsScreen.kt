@@ -609,6 +609,7 @@ fun SettingsScreen(
     var pendingWallpaperPage by remember { mutableIntStateOf(-1) }
     var artworkVisible by remember { mutableStateOf(repo.prefManager.isArtworkEnabled()) }
     var tonearmEnabled by remember { mutableStateOf(repo.prefManager.isTonearmEnabled()) }
+    var discDropOnPv by remember { mutableStateOf(repo.prefManager.isDiscDropOnPvEnabled()) }
     var widgetLongPressAction by remember { mutableStateOf(repo.prefManager.getWidgetLongPressAction()) }
     var widgetTapAction by remember { mutableStateOf(repo.prefManager.getWidgetTapAction()) }
     var notificationBadges by remember { mutableStateOf(repo.prefManager.isNotificationBadgesEnabled()) }
@@ -947,6 +948,7 @@ fun SettingsScreen(
         "keepScreenOn" to Pair({ keepScreenOn }, { v: Boolean -> keepScreenOn = v; repo.prefManager.setKeepScreenOn(v); onChanged() }),
         "artworkEnabled" to Pair({ artworkVisible }, { v: Boolean -> artworkVisible = v; repo.prefManager.setArtworkEnabled(v); onChanged() }),
         "tonearmEnabled" to Pair({ tonearmEnabled }, { v: Boolean -> tonearmEnabled = v; repo.prefManager.setTonearmEnabled(v); onChanged() }),
+        "discDropOnPv" to Pair({ discDropOnPv }, { v: Boolean -> discDropOnPv = v; repo.prefManager.setDiscDropOnPvEnabled(v); onChanged() }),
         "notificationBadges" to Pair({ notificationBadges }, { v: Boolean -> notificationBadges = v; repo.prefManager.setNotificationBadgesEnabled(v); onChanged() }),
         "indexShowEnglish" to Pair({ indexShowEnglish }, { v: Boolean -> indexShowEnglish = v; repo.prefManager.setIndexShowEnglish(v); onChanged() }),
         "rackReverse" to Pair({ rackReverse }, { v: Boolean -> rackReverse = v; repo.prefManager.setRackReverseScroll(v); onChanged() })
