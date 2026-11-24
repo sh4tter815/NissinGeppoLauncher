@@ -590,9 +590,7 @@ fun MusicVinylWidget(
                 val caseBitmapImage = remember(caseBitmap) { caseBitmap?.asImageBitmap() }
                 val lineArtImage = remember(caseBitmap) { extractLineArtBitmap(caseBitmap)?.asImageBitmap() }
                 Box(
-                    modifier = Modifier
-                        .size((discRadiusDp * 2f * 0.92f).dp)
-                        .then(if (discStyleNow == "cassette") Modifier.offset(x = (discRadiusDp * 2f * 0.92f * 0.33f).dp) else Modifier),
+                    modifier = Modifier.size((discRadiusDp * 2f * 0.92f).dp),
                     contentAlignment = Alignment.Center
                 ) {
                     if (discStyleNow == "md") {
@@ -1062,7 +1060,10 @@ private fun MdCase(boxSizeDp: Float, accentColor: Color, rotation: Float, bitmap
                 .size((caseW * 0.88f).dp)
                 .align(Alignment.Center)
                 .offset(x = (-caseW * 0.03f).dp, y = (caseH * 0.02f).dp)
-                .graphicsLayer { rotationZ = rotation }
+                .graphicsLayer {
+                    rotationZ = rotation
+                    compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen
+                }
                 .clip(CircleShape)
                 .background(Color(0xFFB9BEC6)),
             contentAlignment = Alignment.Center
@@ -1088,7 +1089,7 @@ private fun MdCase(boxSizeDp: Float, accentColor: Color, rotation: Float, bitmap
                 drawCircle(Color(0xFFD8D8D8).copy(alpha = 0.9f), radius = rMax * 0.16f, style = Stroke(width = 3f))
             }
             Canvas(Modifier.fillMaxSize()) {
-                drawCircle(Color(0xFF8E939B), radius = size.minDimension / 2f * 0.07f)
+                drawCircle(Color.Black, radius = size.minDimension / 2f * 0.075f, blendMode = androidx.compose.ui.graphics.BlendMode.Clear)
             }
         }
         // 半透明の色つきケース（アクセント色）
@@ -1191,10 +1192,10 @@ private fun CassetteCase(boxSizeDp: Float, accentColor: Color, rotation: Float, 
             val rx = size.width * 0.74f
             val pr = packR.dp.toPx()
             drawRect(Color(0xFF241A12), Offset(lx, cy - pr * 0.30f), androidx.compose.ui.geometry.Size(rx - lx, pr * 0.60f))
-            drawCircle(Color(0xFF241A12), radius = pr, center = Offset(lx, cy))
-            drawCircle(Color(0xFF241A12), radius = pr * 0.62f, center = Offset(rx, cy))
-            drawCircle(Color(0xFF3A2A1A), radius = pr * 0.94f, center = Offset(lx, cy), style = Stroke(width = 2f))
-            drawCircle(Color(0xFF3A2A1A), radius = pr * 0.56f, center = Offset(rx, cy), style = Stroke(width = 2f))
+            drawCircle(Color(0xFF241A12), radius = pr * 0.62f, center = Offset(lx, cy))
+            drawCircle(Color(0xFF241A12), radius = pr, center = Offset(rx, cy))
+            drawCircle(Color(0xFF3A2A1A), radius = pr * 0.56f, center = Offset(lx, cy), style = Stroke(width = 2f))
+            drawCircle(Color(0xFF3A2A1A), radius = pr * 0.94f, center = Offset(rx, cy), style = Stroke(width = 2f))
         }
         // リール
         Box(
@@ -1223,7 +1224,10 @@ private fun CassetteCase(boxSizeDp: Float, accentColor: Color, rotation: Float, 
                 .background(Color(0xFFF2EDE3))
         ) {
             Box(modifier = Modifier.fillMaxWidth().height(4.dp).background(accentColor))
-            Column(modifier = Modifier.padding(start = 10.dp, top = 8.dp, end = 10.dp)) {
+            Column(
+                modifier = Modifier.align(Alignment.Center).padding(start = 10.dp, end = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Text(
                     text = title.ifBlank { "NO TITLE" },
                     color = Color(0xFF222222),
