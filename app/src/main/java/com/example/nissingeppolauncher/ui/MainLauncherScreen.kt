@@ -795,8 +795,11 @@ fun MainLauncherScreen() {
     var editingSelectedPackages by remember { mutableStateOf<Set<String>>(emptySet()) }
 
     var isHideMode by remember { mutableStateOf(false) }
+    var hideRippleTick by remember { mutableIntStateOf(0) }
+    var hideModeSeen by remember { mutableStateOf<Boolean?>(null) }
     var showPasscodeDialog by remember { mutableStateOf(false) }
-    var isReadyToOpenHiddenList by remember { mutableStateOf(false) }
+    var indexTapCount by remember { mutableIntStateOf(0) }
+    var lastIndexTapMs by remember { mutableLongStateOf(0L) }
 
     var newFolderNameInput by remember { mutableStateOf("") }
 
@@ -1048,7 +1051,6 @@ fun MainLauncherScreen() {
     val animatedDisc1CenterX by animateFloatAsState(
         targetValue = when {
             isTransitioning -> -disc1RadiusDp
-            isReadyToOpenHiddenList -> disc1CenterX + 110f // 右へ大きくオフセットしてスイッチが入ったことを視覚化
             else -> disc1CenterX
         },
         animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
@@ -1962,7 +1964,7 @@ fun MainLauncherScreen() {
                         textSizeSp = appDiscTextSize,
                         letterSpacingSp = appDiscLetterSpacing,
                         dotMarkers = true,
-                        restLabelText = selectedIndexChar?.let { "『$it』から始まるアプリ" },
+                        restLabelText = selectedIndexChar?.let { "『$it』を表示中" },
                         onFocusChange = { indexSelected = it }
                     )
 
@@ -2086,7 +2088,7 @@ fun MainLauncherScreen() {
                             textSizeSp = appDiscTextSize,
                             letterSpacingSp = appDiscLetterSpacing,
                             dotMarkers = true,
-                            restLabelText = selectedIndexChar?.let { "『$it』から始まるアプリ" },
+                            restLabelText = selectedIndexChar?.let { "『$it』を表示中" },
                             onFocusChange = { indexSelected = it }
                         )
                     } else {
@@ -2383,7 +2385,7 @@ fun MainLauncherScreen() {
                     modifier = Modifier
                         .fillMaxHeight()
                         .weight(1f)
-                        .pointerInput(currentLauncherPage, isEditingFolder) {
+                        .pointerInput(currentLauncherPage, isEditingFolder, indexDiscState, stepAngle) {
                             awaitPointerEventScope {
                                 try {
                                     while (true) {
@@ -2397,6 +2399,8 @@ fun MainLauncherScreen() {
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
 
                                         var lastY = down.position.y
+                                        var maxDist = 0f
+                                        val downTimeMs = System.currentTimeMillis()
                                         var accumulatedDy = 0f
                                         var currentStepCount = if (isIndexWheel) {
                                             (-indexDiscState.rawRotation / stepAngle).roundToInt()
@@ -2407,19 +2411,9 @@ fun MainLauncherScreen() {
 
                                         drag(down.id) { change ->
                                             change.consume()
+                                            maxDist = maxOf(maxDist, (change.position - down.position).getDistance())
                                             // パネル駆動でもスクロール中フラグを立てる（索引の文字表示などが isScrolling を見ているため）
                                             if (isIndexWheel) indexDiscState.isScrolling = true
-                                            val pos = change.position
-                                            if (currentLauncherPage == 2 && !isEditingFolder) {
-                                                val shouldOpen = pos.x >= size.width * 0.78f
-                                                if (shouldOpen != isReadyToOpenHiddenList) {
-                                                    isReadyToOpenHiddenList = shouldOpen
-                                                    if (shouldOpen) {
-                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                    }
-                                                }
-                                            }
-
                                             val rawDeltaY = change.position.y - lastY
                                             val deltaY = rawDeltaY * (if (repo.prefManager.isReverseScroll()) -1f else 1f)
                                             lastY = change.position.y
@@ -2488,16 +2482,23 @@ fun MainLauncherScreen() {
                                             }
                                         }
 
-                                        // 指を離した瞬間
+                                        // 指を離した瞬間: 索引ダイヤルのタップを数え、5回タップで非表示アプリリストを開く
                                         if (currentLauncherPage == 2 && !isEditingFolder) {
-                                            if (isReadyToOpenHiddenList) {
-                                                if (repo.prefManager.isUsePasscodeForHidden()) {
-                                                    showPasscodeDialog = true
-                                                } else {
-                                                    isHideMode = true
+                                            val heldMs = System.currentTimeMillis() - downTimeMs
+                                            if (maxDist < 14f && heldMs < 300L) {
+                                                val nowTap = System.currentTimeMillis()
+                                                indexTapCount = if (nowTap - lastIndexTapMs < 3000L) indexTapCount + 1 else 1
+                                                lastIndexTapMs = nowTap
+                                                if (indexTapCount >= 5) {
+                                                    indexTapCount = 0
+                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    if (repo.prefManager.isUsePasscodeForHidden()) {
+                                                        showPasscodeDialog = true
+                                                    } else {
+                                                        isHideMode = true
+                                                    }
                                                 }
                                             }
-                                            isReadyToOpenHiddenList = false
                                         }
 
                                         if (currentLauncherPage == 3 && folderItemsWithNew.isNotEmpty()) {
@@ -3242,6 +3243,41 @@ fun MainLauncherScreen() {
             )
         }
 
+        // 非表示リストを開いた瞬間の波紋エフェクト（左円盤の中心から広がる）
+        LaunchedEffect(isHideMode) {
+            if (hideModeSeen != null && hideModeSeen != isHideMode) hideRippleTick++
+            hideModeSeen = isHideMode
+        }
+        if (currentLauncherPage == 2 && hideRippleTick > 0) {
+            val rippleAnim = remember(hideRippleTick) { Animatable(0f) }
+            LaunchedEffect(hideRippleTick) {
+                rippleAnim.snapTo(0f)
+                rippleAnim.animateTo(1f, animationSpec = tween(durationMillis = 900, easing = FastOutSlowInEasing))
+            }
+            if (rippleAnim.value < 1f) {
+                Canvas(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .zIndex(45f)
+                ) {
+                    val cx = animatedDisc1CenterX.dp.toPx()
+                    val cy = (disc1CenterY + lyricsDiscDrop).dp.toPx()
+                    val maxR = size.width * 0.95f
+                    for (i in 0..2) {
+                        val p = ((rippleAnim.value - i * 0.13f) / (1f - i * 0.13f)).coerceIn(0f, 1f)
+                        if (p > 0f && p < 1f) {
+                            drawCircle(
+                                color = accentColor.copy(alpha = (1f - p) * 0.55f),
+                                radius = maxR * p,
+                                center = Offset(cx, cy),
+                                style = Stroke(width = (1f + (1f - p) * 3f).dp.toPx())
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         // --- ダイアログ類 ---
         // 0. パスコード認証ダイアログ (非表示リスト用)
         if (showPasscodeDialog) {
@@ -3289,7 +3325,7 @@ fun MainLauncherScreen() {
         if (showHideTutorial) {
             TutorialDialog(
                 title = "非表示リストの開き方",
-                message = "左の円を長押ししたまま、画面の右端までグッとスワイプすると、パスコード認証を経て「非表示アプリリスト」を開くことができます。",
+                message = "アプリ一覧の左にある索引ダイヤルを5回タップすると、パスコード認証を経て「非表示アプリリスト」を開くことができます。",
                 onDismiss = { dontShow ->
                     if (dontShow) {
                         repo.prefManager.setFirstHideTutorialShown(true)
