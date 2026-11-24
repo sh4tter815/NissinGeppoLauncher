@@ -216,7 +216,7 @@ fun AppOptionDialog(
                                         fontSize = 13.sp,
                                         fontFamily = fontFamily,
                                         fontWeight = fontWeight,
-                                        modifier = Modifier.clickable {
+                                        modifier = Modifier.pressScale().clickable {
                                             onRemoveAlias(app, alias)
                                         }
                                     )
@@ -433,6 +433,7 @@ private fun DialogOptionItem(
         shape = RoundedCornerShape(14.dp),
         modifier = Modifier
             .fillMaxWidth()
+            .pressScale()
             .clickable { onClick() }
     ) {
         Row(
