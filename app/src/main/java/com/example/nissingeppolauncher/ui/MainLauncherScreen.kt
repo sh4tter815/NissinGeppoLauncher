@@ -254,6 +254,61 @@ fun MainLauncherScreen() {
         LyricEffectsData.init(context)
     }
     val pvActivity = LocalContext.current as? android.app.Activity
+
+    // --- 他社製ウィジェット（AppWidget）: ホストと配置 ---
+    val appWidgetManager = remember { android.appwidget.AppWidgetManager.getInstance(context) }
+    val appWidgetHost = remember { android.appwidget.AppWidgetHost(context, 42) }
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        appWidgetHost.startListening()
+        onDispose { appWidgetHost.stopListening() }
+    }
+    var widgetPlacements by remember { mutableStateOf(repo.prefManager.getWidgetPlacements()) }
+    var pendingWidgetId by remember { mutableStateOf(-1) }
+    val addWidgetPlacement: (Int) -> Unit = { wid ->
+        val info = appWidgetManager.getAppWidgetInfo(wid)
+        val wDp = (info?.minWidth ?: 180).toFloat().coerceIn(80f, 340f)
+        val hDp = (info?.minHeight ?: 110).toFloat().coerceIn(60f, 340f)
+        val next = widgetPlacements + com.example.nissingeppolauncher.data.WidgetPlacement(wid, 16f, 380f, wDp, hDp)
+        widgetPlacements = next
+        repo.prefManager.setWidgetPlacements(next)
+    }
+    val widgetConfigureLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val wid = pendingWidgetId
+        if (wid >= 0) {
+            if (result.resultCode == android.app.Activity.RESULT_OK) {
+                addWidgetPlacement(wid)
+            } else {
+                appWidgetHost.deleteAppWidgetId(wid)
+            }
+        }
+        pendingWidgetId = -1
+    }
+    val widgetPickLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val wid = result.data?.getIntExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_ID, -1) ?: -1
+        if (result.resultCode == android.app.Activity.RESULT_OK && wid >= 0) {
+            val info = appWidgetManager.getAppWidgetInfo(wid)
+            val configure = info?.configure
+            if (configure != null) {
+                pendingWidgetId = wid
+                widgetConfigureLauncher.launch(
+                    android.content.Intent(android.appwidget.AppWidgetManager.ACTION_APPWIDGET_CONFIGURE)
+                        .setComponent(configure)
+                        .putExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_ID, wid)
+                )
+            } else {
+                addWidgetPlacement(wid)
+            }
+        } else if (wid >= 0) {
+            appWidgetHost.deleteAppWidgetId(wid)
+        }
+    }
+    LaunchedEffect(widgetPlacements) {
+        val valid = widgetPlacements.filter { appWidgetManager.getAppWidgetInfo(it.id) != null }
+        if (valid.size != widgetPlacements.size) {
+            widgetPlacements = valid
+            repo.prefManager.setWidgetPlacements(valid)
+        }
+    }
     LaunchedEffect(pvFullscreen) {
         pvActivity?.requestedOrientation = if (pvFullscreen) {
             android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
@@ -1157,20 +1212,98 @@ fun MainLauncherScreen() {
                 }
             }
 
+            // 他社製ウィジェット（ホームのみ）
+            if (currentLauncherPage == 1 && !pvFullscreen && !isLyricsBrowsing) {
+                widgetPlacements.forEach { placement ->
+                    val info = appWidgetManager.getAppWidgetInfo(placement.id)
+                    if (info != null) {
+                        androidx.compose.runtime.key(placement.id) {
+                            Box(
+                                modifier = Modifier
+                                    .offset(x = placement.x.dp, y = placement.y.dp)
+                                    .size(placement.w.dp, placement.h.dp)
+                                    .zIndex(30f)
+                            ) {
+                                androidx.compose.ui.viewinterop.AndroidView(
+                                    factory = { ctx -> appWidgetHost.createView(ctx, placement.id, info) },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                                if (layoutEditMode) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .border(2.dp, accentColor, RoundedCornerShape(12.dp))
+                                            .pointerInput(placement.id) {
+                                                detectDragGestures(
+                                                    onDragEnd = { repo.prefManager.setWidgetPlacements(widgetPlacements) },
+                                                    onDrag = { change, drag ->
+                                                        change.consume()
+                                                        widgetPlacements = widgetPlacements.map {
+                                                            if (it.id == placement.id) it.copy(x = it.x + drag.x / density, y = it.y + drag.y / density) else it
+                                                        }
+                                                    }
+                                                )
+                                            }
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .offset(x = 6.dp, y = (-6).dp)
+                                            .size(26.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFFE5484D))
+                                            .clickable {
+                                                appWidgetHost.deleteAppWidgetId(placement.id)
+                                                val next = widgetPlacements.filter { it.id != placement.id }
+                                                widgetPlacements = next
+                                                repo.prefManager.setWidgetPlacements(next)
+                                            }
+                                            .zIndex(5f),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(text = "×", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // レイアウト編集モード: 完了ボタンとヒント（全ページ共通）
             if (layoutEditMode) {
                 Box(
                     modifier = Modifier.fillMaxWidth().padding(top = topPaddingDp + 6.dp).zIndex(195f),
                     contentAlignment = Alignment.TopCenter
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(999.dp))
-                            .background(accentColor)
-                            .clickable { layoutEditMode = false }
-                            .padding(horizontal = 22.dp, vertical = 9.dp)
-                    ) {
-                        Text(text = "完了", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(accentColor)
+                                .clickable { layoutEditMode = false }
+                                .padding(horizontal = 22.dp, vertical = 9.dp)
+                        ) {
+                            Text(text = "完了", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        }
+                        if (currentLauncherPage == 1) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(999.dp))
+                                    .background(Color.White.copy(alpha = 0.92f))
+                                    .clickable {
+                                        val newId = appWidgetHost.allocateAppWidgetId()
+                                        val pickIntent = android.content.Intent(android.appwidget.AppWidgetManager.ACTION_APPWIDGET_PICK)
+                                            .putExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_ID, newId)
+                                            .putExtra(android.appwidget.AppWidgetManager.EXTRA_CUSTOM_INFO, arrayListOf<android.appwidget.AppWidgetProviderInfo>())
+                                            .putExtra(android.appwidget.AppWidgetManager.EXTRA_CUSTOM_EXTRAS, arrayListOf<android.os.Bundle>())
+                                        widgetPickLauncher.launch(pickIntent)
+                                    }
+                                    .padding(horizontal = 18.dp, vertical = 9.dp)
+                            ) {
+                                Text(text = "＋ ウィジェット", color = Color(0xFF222222), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
                 }
                 Box(
@@ -1178,7 +1311,7 @@ fun MainLauncherScreen() {
                     contentAlignment = Alignment.BottomCenter
                 ) {
                     Text(
-                        text = if (currentLauncherPage == 1) "時計・日付・PVの枠をドラッグで移動できます" else "円盤とヘッダーの枠をドラッグで移動できます",
+                        text = if (currentLauncherPage == 1) "時計・日付・PVの枠をドラッグで移動できます（＋でウィジェット追加）" else "円盤とヘッダーの枠をドラッグで移動できます",
                         color = Color.White.copy(alpha = 0.85f),
                         fontSize = 12.sp
                     )
