@@ -474,6 +474,7 @@ fun DiscTouchHalf(
                     var accumulatedDy = 0f
                     var stepCount = (-st.rawRotation / st.stepAngle).roundToInt()
                         .coerceIn(0, (st.itemCount - 1).coerceAtLeast(0))
+                    val initialStepCount = stepCount
                     var upChange: PointerInputChange? = null
                     while (true) {
                         val event = awaitPointerEvent()
@@ -530,7 +531,7 @@ fun DiscTouchHalf(
                     }
                     holdCb?.invoke(false)
                     val tapSlopPx = radiusPx * (18f / 165f)
-                    if (tapCb != null && upChange != null && maxDist <= tapSlopPx) {
+                    if (tapCb != null && upChange != null && maxDist <= tapSlopPx && stepCount == initialStepCount) {
                         val dx = down.position.x - discCenterXPx
                         val dyv = down.position.y - discCenterYPx
                         val dist = sqrt(dx * dx + dyv * dyv)

@@ -335,7 +335,6 @@ fun AppOptionDialog(
                     .fillMaxWidth(0.94f)
                     .height(480.dp)
                     .clip(RoundedCornerShape(24.dp))
-                    .background(Color(0xFF141C2E).copy(alpha = 0.88f))
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -358,7 +357,7 @@ fun AppOptionDialog(
                                 id = cat.kind,
                                 label = cat.label,
                                 valueText = cat.valueText,
-                                icon = { OptionKindIcon(kind = cat.kind, danger = false) }
+                                icon = { DiscGlyph(optionGlyph(cat.kind), Color(0xFF88C0FF)) }
                             )
                         },
                         side = DiscSide.LEFT,
@@ -382,7 +381,7 @@ fun AppOptionDialog(
                                 id = act.kind + ":" + act.label,
                                 label = act.label,
                                 valueText = act.valueText,
-                                icon = { OptionKindIcon(kind = act.kind, danger = act.danger) }
+                                icon = { DiscGlyph(optionGlyph(act.kind), if (act.danger) Color(0xFFEF5350) else Color(0xFF88C0FF)) }
                             )
                         },
                         side = DiscSide.RIGHT,
@@ -538,6 +537,20 @@ private fun OptionKindIcon(kind: String, danger: Boolean) {
             }
         }
     }
+}
+
+/** ポップアップの項目種別 → Lucideグリフ名 */
+private fun optionGlyph(kind: String): String = when (kind) {
+    "favorite" -> "star"
+    "yomi" -> "languages"
+    "alias" -> "tag"
+    "hide" -> "eye-off"
+    "info" -> "info"
+    "close" -> "x"
+    "plus" -> "plus"
+    "trash" -> "trash"
+    "open" -> "external-link"
+    else -> "cursor"
 }
 
 private class OptionAction(
