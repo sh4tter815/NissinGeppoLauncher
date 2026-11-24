@@ -1257,326 +1257,39 @@ fun MainLauncherScreen() {
               }
             }
 
-            // レイアウト編集モード: PVの表示範囲を大きな四角で囲む（ホームのみ）
-            if (layoutEditMode && currentLauncherPage == 1) {
-                Box(
-                    modifier = Modifier
-                        .padding(start = (28f + pvOffsetX).coerceAtLeast(0f).dp, top = (topPaddingDp.value + 150f + pvTopOffset).coerceAtLeast(0f).dp, end = 28.dp)
-                        .width(pvEffWidth.dp)
-                        .height(pvEffHeight.dp)
-                        .zIndex(190f)
-                        .drawBehind {
-                            drawRoundRect(color = Color.Black.copy(alpha = 0.06f), cornerRadius = CornerRadius(10.dp.toPx(), 10.dp.toPx()))
-                            drawRoundRect(
-                                color = accentColor.copy(alpha = 0.6f),
-                                cornerRadius = CornerRadius(10.dp.toPx(), 10.dp.toPx()),
-                                style = Stroke(width = 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 9f), 0f))
-                            )
-                        }
-                        .pointerInput(Unit) {
-                            detectDragGestures(
-                                onDragEnd = {
-                                    repo.prefManager.setPvOffsetX(pvOffsetX)
-                                    repo.prefManager.setPvTopOffsetDp(pvTopOffset)
-                                },
-                                onDrag = { change, drag ->
-                                    change.consume()
-                                    pvOffsetX = (pvOffsetX + drag.x / density).coerceAtLeast(-28f)
-                                    pvTopOffset = (pvTopOffset + drag.y / density).coerceAtLeast(-(topPaddingDp.value + 150f))
-                                }
-                            )
-                        }
-                ) {
-                    Text(
-                        text = "PV",
-                        color = Color.White.copy(alpha = 0.8f),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(start = 30.dp, top = 10.dp, end = 10.dp, bottom = 10.dp)
-                    )
-                    MoveHandle(
-                        color = accentColor,
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .offset(x = -6.dp, y = -6.dp)
-                            .zIndex(5f)
-                            .pointerInput(Unit) {
-                                detectDragGestures(
-                                    onDragEnd = {
-                                        repo.prefManager.setPvOffsetX(pvOffsetX)
-                                        repo.prefManager.setPvTopOffsetDp(pvTopOffset)
-                                    },
-                                    onDrag = { change, drag ->
-                                        change.consume()
-                                        pvOffsetX = (pvOffsetX + drag.x / density).coerceAtLeast(-28f)
-                                        pvTopOffset = (pvTopOffset + drag.y / density).coerceAtLeast(-(topPaddingDp.value + 150f))
-                                    }
-                                )
-                            }
-                    )
-                    ResizeHandle(
-                        color = accentColor,
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .offset(x = 6.dp, y = 6.dp)
-                            .zIndex(5f)
-                            .pointerInput(Unit) {
-                                detectDragGestures(
-                                    onDragEnd = {
-                                        repo.prefManager.setPvWidth(pvWidthDp)
-                                        repo.prefManager.setPvHeight(pvHeightDp)
-                                    },
-                                    onDrag = { change, drag ->
-                                        change.consume()
-                                        val curW = if (pvWidthDp.isNaN()) screenWidthDp - 56f else pvWidthDp
-                                        val curH = if (pvHeightDp.isNaN()) 200f else pvHeightDp
-                                        pvWidthDp = (curW + drag.x / density).coerceIn(120f, 800f)
-                                        pvHeightDp = (curH + drag.y / density).coerceIn(80f, 800f)
-                                    }
-                                )
-                            }
-                    )
-                }
-            }
-
-            // レイアウト編集モード: 円盤の位置ハンドル（ホームは左円=アートワークのみ、他ページは左右）
-            if (layoutEditMode) {
-                for ((discCx, discCy) in if (currentLauncherPage == 1) listOf(disc1CenterX to disc1CenterY) else listOf(disc1CenterX to disc1CenterY, disc2CenterX to disc2CenterY)) {
-                    Box(
-                        modifier = Modifier
-                            .offset(x = (discCx - 165f).dp, y = (discCy - 165f).dp)
-                            .size(330.dp)
-                            .zIndex(190f)
-                            .border(2.dp, accentColor.copy(alpha = 0.9f), CircleShape)
-                            .background(Color.Black.copy(alpha = 0.15f), CircleShape)
-                            .pointerInput(Unit) {
-                                detectDragGestures(
-                                    onDragEnd = { repo.prefManager.setDiscOffset(0f, discOffsetY) },
-                                    onDrag = { change, drag ->
-                                        change.consume()
-                                        discOffsetY += drag.y / density
-                                    }
-                                )
-                            }
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .offset(x = ((if (currentLauncherPage == 1) disc1CenterX else disc2CenterX) - 30f).dp, y = ((if (currentLauncherPage == 1) disc1CenterY else disc2CenterY) - 185f).dp)
-                        .zIndex(191f)
-                        .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(6.dp))
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
-                ) {
-                    Text(text = "円盤", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-
-            // レイアウト編集モード: レコード針の大きさハンドル（ホームのみ、針の軸の位置）
-            if (layoutEditMode && currentLauncherPage == 1 && repo.prefManager.isTonearmEnabled()) {
-                val pivotX = animatedDisc1CenterX + disc1RadiusDp * 1.02f
-                val pivotY = disc1CenterY + lyricsDiscDrop - disc1RadiusDp * 1.02f
-                Box(modifier = Modifier.fillMaxSize().zIndex(195f)) {
-                    ResizeHandle(
-                        color = accentColor,
-                        modifier = Modifier
-                            .padding(start = (pivotX - 12f).dp.coerceAtLeast(0.dp), top = (pivotY - 12f).dp.coerceAtLeast(0.dp))
-                            .pointerInput(Unit) {
-                                detectDragGestures(
-                                    onDragEnd = { repo.prefManager.setTonearmScale(tonearmScale) },
-                                    onDrag = { change, drag ->
-                                        change.consume()
-                                        tonearmScale = (tonearmScale + (drag.x + drag.y) / 2f / density / 150f).coerceIn(0.5f, 2f)
-                                    }
-                                )
-                            }
-                    )
-                }
-            }
-
-            // レイアウト編集モード: ヘッダーの位置ハンドル（設定・アプリ一覧・フォルダ）
-            if (layoutEditMode && (currentLauncherPage == 0 || currentLauncherPage == 2 || currentLauncherPage == 3)) {
-                Box(
-                    modifier = Modifier
-                        .padding(top = headerTopDp + 4.dp, start = 16.dp, end = 16.dp)
-                        .fillMaxWidth()
-                        .height(118.dp)
-                        .zIndex(189f)
-                        .border(2.dp, accentColor.copy(alpha = 0.9f), RoundedCornerShape(10.dp))
-                        .background(Color.Black.copy(alpha = 0.15f), RoundedCornerShape(10.dp))
-                        .pointerInput(Unit) {
-                            detectDragGestures(
-                                onDragEnd = { repo.prefManager.setHeaderOffsetY(headerOffsetY) },
-                                onDrag = { change, drag ->
-                                    change.consume()
-                                    headerOffsetY = (headerOffsetY + drag.y / density).coerceIn(-30f, 150f)
-                                }
-                            )
-                        }
-                ) {
-                    Text(
-                        text = "ヘッダー",
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(8.dp)
-                    )
-                }
-            }
+            // レイアウト編集モードの各種ハンドル（別コンポーザブルに分離）
+            LayoutEditHandles(
+                repo = repo, accentColor = accentColor, layoutEditMode = layoutEditMode, currentPage = currentLauncherPage,
+                topPaddingDp = topPaddingDp, headerTopDp = headerTopDp, screenWidthDp = screenWidthDp,
+                pvOffset = rememberUpdatedState(pvOffsetX), onPvOffsetChange = { pvOffsetX = it },
+                pvTop = rememberUpdatedState(pvTopOffset), onPvTopChange = { pvTopOffset = it },
+                pvWidth = rememberUpdatedState(pvWidthDp), onPvWidthChange = { pvWidthDp = it },
+                pvHeight = rememberUpdatedState(pvHeightDp), onPvHeightChange = { pvHeightDp = it },
+                pvEffWidth = pvEffWidth, pvEffHeight = pvEffHeight,
+                disc1CenterX = disc1CenterX, disc1CenterY = disc1CenterY, disc2CenterX = disc2CenterX, disc2CenterY = disc2CenterY,
+                discOffsetY = rememberUpdatedState(discOffsetY), onDiscOffsetYChange = { discOffsetY = it },
+                animatedDisc1CenterX = animatedDisc1CenterX, disc1RadiusDp = disc1RadiusDp, lyricsDiscDrop = lyricsDiscDrop,
+                tonearmScale = rememberUpdatedState(tonearmScale), onTonearmScaleChange = { tonearmScale = it },
+                headerOffsetY = rememberUpdatedState(headerOffsetY), onHeaderOffsetYChange = { headerOffsetY = it }
+            )
 
             // 他社製ウィジェット（ホームのみ）
             if (currentLauncherPage == 1 && !pvFullscreen && !isLyricsBrowsing) {
-                widgetPlacements.forEach { placement ->
-                    val info = appWidgetManager.getAppWidgetInfo(placement.id)
-                    // PV表示中は、PVの場所（レイアウト編集のPV枠の範囲）に重なるウィジェットを隠す。再生が止まってPVが消えれば自動で戻る
-                    val pvActive = lyricsEnabled && lyricsDisplayMode == "video" && !isLyricsBrowsing && syncedLyricLines.isNotEmpty()
-                    val pvLeft = 28f + pvOffsetX
-                    val pvTop = topPaddingDp.value + 150f + pvTopOffset
-                    val hiddenByPv = !layoutEditMode && pvActive &&
-                        placement.x < pvLeft + pvEffWidth && placement.x + placement.w > pvLeft &&
-                        placement.y < pvTop + pvEffHeight && placement.y + placement.h > pvTop
-                    if (info != null && !hiddenByPv) {
-                        androidx.compose.runtime.key(placement.id) {
-                            Box(
-                                modifier = Modifier
-                                    .offset(x = placement.x.dp, y = placement.y.dp)
-                                    .size(placement.w.dp, placement.h.dp)
-                                    .zIndex(if (layoutEditMode) 200f else 30f)
-                            ) {
-                                androidx.compose.ui.viewinterop.AndroidView(
-                                    factory = { ctx ->
-                                        try { appWidgetHost.createView(ctx, placement.id, info) }
-                                        catch (_: Exception) { android.view.View(ctx) }
-                                    },
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                                if (layoutEditMode) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .border(2.dp, accentColor, RoundedCornerShape(12.dp))
-                                            .pointerInput(placement.id) {
-                                                detectDragGestures(
-                                                    onDragEnd = { repo.prefManager.setWidgetPlacements(widgetPlacements) },
-                                                    onDrag = { change, drag ->
-                                                        change.consume()
-                                                        widgetPlacements = widgetPlacements.map {
-                                                            if (it.id == placement.id) it.copy(x = it.x + drag.x / density, y = it.y + drag.y / density) else it
-                                                        }
-                                                    }
-                                                )
-                                            }
-                                    )
-                                    Box(
-                                        modifier = Modifier
-                                            .align(Alignment.TopEnd)
-                                            .offset(x = 6.dp, y = (-6).dp)
-                                            .size(26.dp)
-                                            .clip(CircleShape)
-                                            .background(Color(0xFFE5484D))
-                                            .pressScale()
-                                            .clickable {
-                                                val removedId = placement.id
-                                                val next = widgetPlacements.filter { it.id != removedId }
-                                                widgetPlacements = next
-                                                repo.prefManager.setWidgetPlacements(next)
-                                                coroutineScope.launch {
-                                                    kotlinx.coroutines.delay(80)
-                                                    try { appWidgetHost.deleteAppWidgetId(removedId) } catch (_: Exception) { }
-                                                }
-                                            }
-                                            .zIndex(5f),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(text = "×", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                    MoveHandle(
-                                        color = accentColor,
-                                        modifier = Modifier
-                                            .align(Alignment.TopStart)
-                                            .offset(x = -6.dp, y = -6.dp)
-                                            .zIndex(5f)
-                                            .pointerInput(placement.id) {
-                                                detectDragGestures(
-                                                    onDragEnd = { repo.prefManager.setWidgetPlacements(widgetPlacements) },
-                                                    onDrag = { change, drag ->
-                                                        change.consume()
-                                                        widgetPlacements = widgetPlacements.map {
-                                                            if (it.id == placement.id) it.copy(x = it.x + drag.x / density, y = it.y + drag.y / density) else it
-                                                        }
-                                                    }
-                                                )
-                                            }
-                                    )
-                                    ResizeHandle(
-                                        color = accentColor,
-                                        modifier = Modifier
-                                            .align(Alignment.BottomEnd)
-                                            .offset(x = 6.dp, y = 6.dp)
-                                            .pointerInput(placement.id) {
-                                                detectDragGestures(
-                                                    onDragEnd = { repo.prefManager.setWidgetPlacements(widgetPlacements) },
-                                                    onDrag = { change, drag ->
-                                                        change.consume()
-                                                        widgetPlacements = widgetPlacements.map {
-                                                            if (it.id == placement.id) it.copy(
-                                                                w = (it.w + drag.x / density).coerceIn(80f, 360f),
-                                                                h = (it.h + drag.y / density).coerceIn(60f, 400f)
-                                                            ) else it
-                                                        }
-                                                    }
-                                                )
-                                            }
-                                            .zIndex(5f)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+                HomeWidgetsLayer(
+                    placements = rememberUpdatedState(widgetPlacements), onPlacementsChange = { widgetPlacements = it },
+                    appWidgetManager = appWidgetManager, appWidgetHost = appWidgetHost,
+                    layoutEditMode = layoutEditMode, accentColor = accentColor, repo = repo,
+                    pvActive = lyricsEnabled && lyricsDisplayMode == "video" && !isLyricsBrowsing && syncedLyricLines.isNotEmpty(),
+                    pvLeft = 28f + pvOffsetX, pvTop = topPaddingDp.value + 150f + pvTopOffset,
+                    pvEffWidth = pvEffWidth, pvEffHeight = pvEffHeight
+                )
             }
 
             // レイアウト編集モード: 完了ボタンとヒント（全ページ共通）
-            if (layoutEditMode) {
-                Box(
-                    modifier = Modifier.fillMaxWidth().padding(top = topPaddingDp + 6.dp).zIndex(195f),
-                    contentAlignment = Alignment.TopCenter
-                ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(999.dp))
-                                .background(accentColor)
-                                .pressScale()
-                                .clickable { layoutEditMode = false }
-                                .padding(horizontal = 22.dp, vertical = 9.dp)
-                        ) {
-                            Text(text = "完了", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        }
-                        if (currentLauncherPage == 1) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(999.dp))
-                                    .background(Color.White.copy(alpha = 0.92f))
-                                    .pressScale()
-                                    .clickable { showWidgetPicker = true }
-                                    .padding(horizontal = 18.dp, vertical = 9.dp)
-                            ) {
-                                Text(text = "＋ ウィジェット", color = Color(0xFF222222), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(bottom = 108.dp).zIndex(195f),
-                    contentAlignment = Alignment.BottomCenter
-                ) {
-                    Text(
-                        text = if (currentLauncherPage == 1) "時計・日付・秒・バッテリー・PV・円盤の枠をドラッグで移動、左上の矢印で移動、右下の矢印で大きさ変更（＋でウィジェット追加）" else "円盤とヘッダーの枠をドラッグで移動できます",
-                        color = Color.White.copy(alpha = 0.85f),
-                        fontSize = 12.sp
-                    )
-                }
-            }
+            LayoutEditFinishBar(
+                accentColor = accentColor, topPaddingDp = topPaddingDp, currentPage = currentLauncherPage,
+                layoutEditMode = layoutEditMode, onFinish = { layoutEditMode = false }, onAddWidget = { showWidgetPicker = true }
+            )
 
             // 複数行モード: 時計の下に前・今・次の3行を表示（今の行が大きめ）
             if (lyricsEnabled && lyricsDisplayMode == "multi" && currentLauncherPage == 1 && !isLyricsBrowsing && syncedLyricLines.isNotEmpty()) {
@@ -3952,6 +3665,348 @@ private fun TurntableDeck(deckStyle: String, deckTopDp: Float, deckHeightDp: Flo
                 drawCircle(Color(0xFF101010).copy(alpha = 0.55f), radius = 8f, center = c)
                 drawCircle(Color.White.copy(alpha = 0.35f), radius = 3.5f, center = c)
             }
+        }
+    }
+}
+@Composable
+private fun LayoutEditHandles(
+    repo: AppRepository, accentColor: Color, layoutEditMode: Boolean, currentPage: Int,
+    topPaddingDp: Dp, headerTopDp: Dp, screenWidthDp: Float,
+    pvOffset: State<Float>, onPvOffsetChange: (Float) -> Unit,
+    pvTop: State<Float>, onPvTopChange: (Float) -> Unit,
+    pvWidth: State<Float>, onPvWidthChange: (Float) -> Unit,
+    pvHeight: State<Float>, onPvHeightChange: (Float) -> Unit,
+    pvEffWidth: Float, pvEffHeight: Float,
+    disc1CenterX: Float, disc1CenterY: Float, disc2CenterX: Float, disc2CenterY: Float,
+    discOffsetY: State<Float>, onDiscOffsetYChange: (Float) -> Unit,
+    animatedDisc1CenterX: Float, disc1RadiusDp: Float, lyricsDiscDrop: Float,
+    tonearmScale: State<Float>, onTonearmScaleChange: (Float) -> Unit,
+    headerOffsetY: State<Float>, onHeaderOffsetYChange: (Float) -> Unit
+) {
+    // レイアウト編集モード: PVの表示範囲を大きな四角で囲む（ホームのみ）
+    if (layoutEditMode && currentPage == 1) {
+        Box(
+            modifier = Modifier
+                .padding(start = (28f + pvOffset.value).coerceAtLeast(0f).dp, top = (topPaddingDp.value + 150f + pvTop.value).coerceAtLeast(0f).dp, end = 28.dp)
+                .width(pvEffWidth.dp)
+                .height(pvEffHeight.dp)
+                .zIndex(190f)
+                .drawBehind {
+                    drawRoundRect(color = Color.Black.copy(alpha = 0.06f), cornerRadius = CornerRadius(10.dp.toPx(), 10.dp.toPx()))
+                    drawRoundRect(
+                        color = accentColor.copy(alpha = 0.6f),
+                        cornerRadius = CornerRadius(10.dp.toPx(), 10.dp.toPx()),
+                        style = Stroke(width = 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 9f), 0f))
+                    )
+                }
+                .pointerInput(Unit) {
+                    detectDragGestures(
+                        onDragEnd = {
+                            repo.prefManager.setPvOffsetX(pvOffset.value)
+                            repo.prefManager.setPvTopOffsetDp(pvTop.value)
+                        },
+                        onDrag = { change, drag ->
+                            change.consume()
+                            onPvOffsetChange((pvOffset.value + drag.x / density).coerceAtLeast(-28f))
+                            onPvTopChange((pvTop.value + drag.y / density).coerceAtLeast(-(topPaddingDp.value + 150f)))
+                        }
+                    )
+                }
+        ) {
+            Text(
+                text = "PV",
+                color = Color.White.copy(alpha = 0.8f),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(start = 30.dp, top = 10.dp, end = 10.dp, bottom = 10.dp)
+            )
+            MoveHandle(
+                color = accentColor,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .offset(x = -6.dp, y = -6.dp)
+                    .zIndex(5f)
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragEnd = {
+                                repo.prefManager.setPvOffsetX(pvOffset.value)
+                                repo.prefManager.setPvTopOffsetDp(pvTop.value)
+                            },
+                            onDrag = { change, drag ->
+                                change.consume()
+                                onPvOffsetChange((pvOffset.value + drag.x / density).coerceAtLeast(-28f))
+                                onPvTopChange((pvTop.value + drag.y / density).coerceAtLeast(-(topPaddingDp.value + 150f)))
+                            }
+                        )
+                    }
+            )
+            ResizeHandle(
+                color = accentColor,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .offset(x = 6.dp, y = 6.dp)
+                    .zIndex(5f)
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragEnd = {
+                                repo.prefManager.setPvWidth(pvWidth.value)
+                                repo.prefManager.setPvHeight(pvHeight.value)
+                            },
+                            onDrag = { change, drag ->
+                                change.consume()
+                                val curW = if (pvWidth.value.isNaN()) screenWidthDp - 56f else pvWidth.value
+                                val curH = if (pvHeight.value.isNaN()) 200f else pvHeight.value
+                                onPvWidthChange((curW + drag.x / density).coerceIn(120f, 800f))
+                                onPvHeightChange((curH + drag.y / density).coerceIn(80f, 800f))
+                            }
+                        )
+                    }
+            )
+        }
+    }
+
+    // レイアウト編集モード: 円盤の位置ハンドル（ホームは左円=アートワークのみ、他ページは左右）
+    if (layoutEditMode) {
+        for ((discCx, discCy) in if (currentPage == 1) listOf(disc1CenterX to disc1CenterY) else listOf(disc1CenterX to disc1CenterY, disc2CenterX to disc2CenterY)) {
+            Box(
+                modifier = Modifier
+                    .offset(x = (discCx - 165f).dp, y = (discCy - 165f).dp)
+                    .size(330.dp)
+                    .zIndex(190f)
+                    .border(2.dp, accentColor.copy(alpha = 0.9f), CircleShape)
+                    .background(Color.Black.copy(alpha = 0.15f), CircleShape)
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragEnd = { repo.prefManager.setDiscOffset(0f, discOffsetY.value) },
+                            onDrag = { change, drag ->
+                                change.consume()
+                                onDiscOffsetYChange(discOffsetY.value.value + drag.y / density)
+                            }
+                        )
+                    }
+            )
+        }
+        Box(
+            modifier = Modifier
+                .offset(x = ((if (currentPage == 1) disc1CenterX else disc2CenterX) - 30f).dp, y = ((if (currentPage == 1) disc1CenterY else disc2CenterY) - 185f).dp)
+                .zIndex(191f)
+                .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(6.dp))
+                .padding(horizontal = 8.dp, vertical = 3.dp)
+        ) {
+            Text(text = "円盤", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+
+    // レイアウト編集モード: レコード針の大きさハンドル（ホームのみ、針の軸の位置）
+    if (layoutEditMode && currentPage == 1 && repo.prefManager.isTonearmEnabled()) {
+        val pivotX = animatedDisc1CenterX + disc1RadiusDp * 1.02f
+        val pivotY = disc1CenterY + lyricsDiscDrop - disc1RadiusDp * 1.02f
+        Box(modifier = Modifier.fillMaxSize().zIndex(195f)) {
+            ResizeHandle(
+                color = accentColor,
+                modifier = Modifier
+                    .padding(start = (pivotX - 12f).dp.coerceAtLeast(0.dp), top = (pivotY - 12f).dp.coerceAtLeast(0.dp))
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragEnd = { repo.prefManager.setTonearmScale(tonearmScale.value) },
+                            onDrag = { change, drag ->
+                                change.consume()
+                                onTonearmScaleChange((tonearmScale.value + (drag.x + drag.y) / 2f / density / 150f).coerceIn(0.5f, 2f))
+                            }
+                        )
+                    }
+            )
+        }
+    }
+
+    // レイアウト編集モード: ヘッダーの位置ハンドル（設定・アプリ一覧・フォルダ）
+    if (layoutEditMode && (currentPage == 0 || currentPage == 2 || currentPage == 3)) {
+        Box(
+            modifier = Modifier
+                .padding(top = headerTopDp + 4.dp, start = 16.dp, end = 16.dp)
+                .fillMaxWidth()
+                .height(118.dp)
+                .zIndex(189f)
+                .border(2.dp, accentColor.copy(alpha = 0.9f), RoundedCornerShape(10.dp))
+                .background(Color.Black.copy(alpha = 0.15f), RoundedCornerShape(10.dp))
+                .pointerInput(Unit) {
+                    detectDragGestures(
+                        onDragEnd = { repo.prefManager.setHeaderOffsetY(headerOffsetY.value) },
+                        onDrag = { change, drag ->
+                            change.consume()
+                            onHeaderOffsetYChange((headerOffsetY.value + drag.y / density).coerceIn(-30f, 150f))
+                        }
+                    )
+                }
+        ) {
+            Text(
+                text = "ヘッダー",
+                color = Color.White,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(8.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun HomeWidgetsLayer(
+    placements: State<List<WidgetPlacement>>, onPlacementsChange: (List<WidgetPlacement>) -> Unit,
+    appWidgetManager: android.appwidget.AppWidgetManager, appWidgetHost: android.appwidget.AppWidgetHost,
+    layoutEditMode: Boolean, accentColor: Color, repo: AppRepository,
+    pvActive: Boolean, pvLeft: Float, pvTop: Float, pvEffWidth: Float, pvEffHeight: Float
+) {
+    val coroutineScope = rememberCoroutineScope()
+        placements.value.forEach { placement ->
+            val info = appWidgetManager.getAppWidgetInfo(placement.id)
+            // PV表示中は、PVの場所（レイアウト編集のPV枠の範囲）に重なるウィジェットを隠す。再生が止まってPVが消えれば自動で戻る
+            val hiddenByPv = !layoutEditMode && pvActive &&
+                placement.x < pvLeft + pvEffWidth && placement.x + placement.w > pvLeft &&
+                placement.y < pvTop + pvEffHeight && placement.y + placement.h > pvTop
+            if (info != null && !hiddenByPv) {
+                androidx.compose.runtime.key(placement.id) {
+                    Box(
+                        modifier = Modifier
+                            .offset(x = placement.x.dp, y = placement.y.dp)
+                            .size(placement.w.dp, placement.h.dp)
+                            .zIndex(if (layoutEditMode) 200f else 30f)
+                    ) {
+                        androidx.compose.ui.viewinterop.AndroidView(
+                            factory = { ctx ->
+                                try { appWidgetHost.createView(ctx, placement.id, info) }
+                                catch (_: Exception) { android.view.View(ctx) }
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        if (layoutEditMode) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .border(2.dp, accentColor, RoundedCornerShape(12.dp))
+                                    .pointerInput(placement.id) {
+                                        detectDragGestures(
+                                            onDragEnd = { repo.prefManager.setWidgetPlacements(placements.value) },
+                                            onDrag = { change, drag ->
+                                                change.consume()
+                                                onPlacementsChange(placements.value.map {)
+                                                    if (it.id == placement.id) it.copy(x = it.x + drag.x / density, y = it.y + drag.y / density) else it
+                                                }
+                                            }
+                                        )
+                                    }
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .offset(x = 6.dp, y = (-6).dp)
+                                    .size(26.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFE5484D))
+                                    .pressScale()
+                                    .clickable {
+                                        val removedId = placement.id
+                                        val next = placements.value.filter { it.id != removedId }
+                                        onPlacementsChange(next)
+                                        repo.prefManager.setWidgetPlacements(next)
+                                        coroutineScope.launch {
+                                            kotlinx.coroutines.delay(80)
+                                            try { appWidgetHost.deleteAppWidgetId(removedId) } catch (_: Exception) { }
+                                        }
+                                    }
+                                    .zIndex(5f),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(text = "×", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            }
+                            MoveHandle(
+                                color = accentColor,
+                                modifier = Modifier
+                                    .align(Alignment.TopStart)
+                                    .offset(x = -6.dp, y = -6.dp)
+                                    .zIndex(5f)
+                                    .pointerInput(placement.id) {
+                                        detectDragGestures(
+                                            onDragEnd = { repo.prefManager.setWidgetPlacements(placements.value) },
+                                            onDrag = { change, drag ->
+                                                change.consume()
+                                                onPlacementsChange(placements.value.map {)
+                                                    if (it.id == placement.id) it.copy(x = it.x + drag.x / density, y = it.y + drag.y / density) else it
+                                                }
+                                            }
+                                        )
+                                    }
+                            )
+                            ResizeHandle(
+                                color = accentColor,
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .offset(x = 6.dp, y = 6.dp)
+                                    .pointerInput(placement.id) {
+                                        detectDragGestures(
+                                            onDragEnd = { repo.prefManager.setWidgetPlacements(placements.value) },
+                                            onDrag = { change, drag ->
+                                                change.consume()
+                                                onPlacementsChange(placements.value.map {)
+                                                    if (it.id == placement.id) it.copy(
+                                                        w = (it.w + drag.x / density).coerceIn(80f, 360f),
+                                                        h = (it.h + drag.y / density).coerceIn(60f, 400f)
+                                                    ) else it
+                                                }
+                                            }
+                                        )
+                                    }
+                                    .zIndex(5f)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+}
+
+@Composable
+private fun LayoutEditFinishBar(accentColor: Color, topPaddingDp: Dp, currentPage: Int, layoutEditMode: Boolean, onFinish: () -> Unit, onAddWidget: () -> Unit) {
+    // レイアウト編集モード: 完了ボタンとヒント（全ページ共通）
+    if (layoutEditMode) {
+        Box(
+            modifier = Modifier.fillMaxWidth().padding(top = topPaddingDp + 6.dp).zIndex(195f),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(accentColor)
+                        .pressScale()
+                        .clickable { onFinish() }
+                        .padding(horizontal = 22.dp, vertical = 9.dp)
+                ) {
+                    Text(text = "完了", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                }
+                if (currentPage == 1) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(Color.White.copy(alpha = 0.92f))
+                            .pressScale()
+                            .clickable { onAddWidget() }
+                            .padding(horizontal = 18.dp, vertical = 9.dp)
+                    ) {
+                        Text(text = "＋ ウィジェット", color = Color(0xFF222222), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+        Box(
+            modifier = Modifier.fillMaxSize().padding(bottom = 108.dp).zIndex(195f),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            Text(
+                text = if (currentPage == 1) "時計・日付・秒・バッテリー・PV・円盤の枠をドラッグで移動、左上の矢印で移動、右下の矢印で大きさ変更（＋でウィジェット追加）" else "円盤とヘッダーの枠をドラッグで移動できます",
+                color = Color.White.copy(alpha = 0.85f),
+                fontSize = 12.sp
+            )
         }
     }
 }
