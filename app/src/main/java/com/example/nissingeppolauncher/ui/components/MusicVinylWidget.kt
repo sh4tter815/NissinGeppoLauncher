@@ -34,6 +34,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -53,7 +54,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
+import kotlin.math.cos
 import kotlin.math.min
+import kotlin.math.sin
 import kotlin.math.roundToInt
 import kotlin.math.sign
 
@@ -251,6 +254,12 @@ fun MusicVinylWidget(
         else -> "次の曲"
     }
     val artworkEnabled = prefManager.isArtworkEnabled()
+    val tonearmEnabled = prefManager.isTonearmEnabled()
+    val tonearmAngle by animateFloatAsState(
+        targetValue = if (isPlaying) 97f else 63f,
+        animationSpec = tween(durationMillis = 850, easing = FastOutSlowInEasing),
+        label = "TonearmAngle"
+    )
     fun rackArtAt(index: Int): Bitmap? = if (!artworkEnabled) null else when {
         queueMode -> sessionQueue.getOrNull(index)?.description?.let { d -> d.iconBitmap ?: d.iconUri?.toString()?.let { queueArtCache[it] } } ?: if (index == rackCurrentIndex) albumArtBitmap else null
         index == rackCurrentIndex -> albumArtBitmap
@@ -705,6 +714,37 @@ fun MusicVinylWidget(
             val centerPos = (35f - textStartAngle) / 180f * arcLen
             val hOff = (centerPos - textW / 2f).coerceIn(0f, maxOf(0f, arcLen - textW))
             drawContext.canvas.nativeCanvas.drawTextOnPath(displayInfo, textPath, hOff, 0f, paint)
+        }
+        // トーンアーム（レコード針）: 再生中は針が盤の右端に乗り、停止中は右へ離れる
+        if (tonearmEnabled) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val cx = discCenterXDp.dp.toPx()
+                val cy = discCenterYDp.dp.toPx()
+                val r = discRadiusDp.dp.toPx()
+                val px = cx + r * 1.02f
+                val py = cy - r * 1.02f
+                val armLen = r * 1.106f
+                val rad = Math.toRadians(tonearmAngle.toDouble())
+                val cosA = cos(rad).toFloat()
+                val sinA = sin(rad).toFloat()
+                val tipX = px + armLen * cosA
+                val tipY = py + armLen * sinA
+                // カウンターウェイト（ピボットの反対側）
+                drawLine(color = Color(0xFF9E9E9E), start = Offset(px - cosA * 16.dp.toPx(), py - sinA * 16.dp.toPx()), end = Offset(px, py), strokeWidth = 10.dp.toPx(), cap = StrokeCap.Round)
+                // アーム本体（二重線で金属感）
+                drawLine(color = Color(0xFFC9C9C9), start = Offset(px, py), end = Offset(tipX, tipY), strokeWidth = 4.5.dp.toPx(), cap = StrokeCap.Round)
+                drawLine(color = Color(0xFFFFFFFF), start = Offset(px, py), end = Offset(tipX, tipY), strokeWidth = 1.6.dp.toPx(), cap = StrokeCap.Round)
+                // ヘッドシェル（先端を内側へ少し曲げた太い部分）
+                val shellRad = rad + Math.toRadians(18.0)
+                val shellLen = 17.dp.toPx()
+                drawLine(color = accentColor, start = Offset(tipX - (cos(shellRad) * shellLen).toFloat(), tipY - (sin(shellRad) * shellLen).toFloat()), end = Offset(tipX, tipY), strokeWidth = 7.dp.toPx(), cap = StrokeCap.Round)
+                // 針
+                drawLine(color = Color.White, start = Offset(tipX, tipY), end = Offset(tipX, tipY + 4.dp.toPx()), strokeWidth = 1.6.dp.toPx(), cap = StrokeCap.Round)
+                // ピボット（軸受け）
+                drawCircle(color = Color(0xFF424242), radius = 13.dp.toPx(), center = Offset(px, py))
+                drawCircle(color = accentColor, radius = 13.dp.toPx(), center = Offset(px, py), style = Stroke(width = 1.5.dp.toPx()))
+                drawCircle(color = Color(0xFFBDBDBD), radius = 4.5.dp.toPx(), center = Offset(px, py))
+            }
         }
     }
 }
