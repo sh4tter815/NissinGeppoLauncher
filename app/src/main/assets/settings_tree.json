@@ -1,5 +1,5 @@
 {
- "version": 14,
+ "version": 15,
  "items": {
   "reverse": {
    "label": "スクロール方向の反転",
@@ -852,6 +852,25 @@
    "glyph": "move-diagonal",
    "type": "action",
    "action": "layoutEdit"
+  },
+  "indexMode": {
+   "label": "インデックスの単位",
+   "desc": "アプリ一覧の索引を「あかさたな」の行単位にするか、「あいうえお」の文字単位にするかです",
+   "glyph": "a-large-small",
+   "type": "choices",
+   "bind": "indexMode",
+   "choices": [
+    {
+     "v": "row",
+     "label": "あかさたな（行単位）",
+     "short": "あかさたな"
+    },
+    {
+     "v": "kana",
+     "label": "あいうえお（文字単位）",
+     "short": "あいうえお"
+    }
+   ]
   }
  },
  "tree": [
@@ -1131,6 +1150,9 @@
     },
     {
      "item": "indexShowEnglish"
+    },
+    {
+     "item": "indexMode"
     },
     {
      "item": "yomiUpdate"
