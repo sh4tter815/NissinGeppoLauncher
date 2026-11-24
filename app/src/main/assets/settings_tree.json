@@ -1,5 +1,5 @@
 {
-  "version": 27,
+  "version": 28,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -897,6 +897,31 @@
       "type": "toggle",
       "bind": "tonearmEnabled"
     },
+    "discStyle": {
+      "label": "ディスク",
+      "desc": "左円盤の見た目です",
+      "glyph": "disc",
+      "type": "choices",
+      "bind": "discStyle",
+      "choices": [
+        {"v": "digital", "label": "デジタル"},
+        {"v": "vinyl", "label": "レコード"},
+        {"v": "cd", "label": "CD"}
+      ]
+    },
+    "deckStyle": {
+      "label": "ターンテーブル",
+      "desc": "ホームの円盤の後ろに敷くターンテーブルの素材です",
+      "glyph": "box",
+      "type": "choices",
+      "bind": "deckStyle",
+      "choices": [
+        {"v": "none", "label": "なし"},
+        {"v": "wood", "label": "木製"},
+        {"v": "silver", "label": "シルバー"},
+        {"v": "black", "label": "黒"}
+      ]
+    },
     "widgetLongPress": {
       "label": "左円盤の長押し",
       "desc": "ホーム左のレコード盤を長押ししたときの動作です",
@@ -1167,19 +1192,39 @@
               "item": "artworkVisible"
             },
             {
-              "item": "rackReverse"
+              "id": "music_theme",
+              "label": "テーマ",
+              "glyph": "sparkles",
+              "children": [
+                {
+                  "item": "discStyle"
+                },
+                {
+                  "item": "deckStyle"
+                },
+                {
+                  "item": "tonearm"
+                }
+              ]
             },
             {
-              "item": "tonearm"
-            },
-            {
-              "item": "widgetTap"
-            },
-            {
-              "item": "widgetDoubleTap"
-            },
-            {
-              "item": "widgetLongPress"
+              "id": "music_actions",
+              "label": "操作",
+              "glyph": "cursor",
+              "children": [
+                {
+                  "item": "widgetTap"
+                },
+                {
+                  "item": "widgetDoubleTap"
+                },
+                {
+                  "item": "widgetLongPress"
+                },
+                {
+                  "item": "rackReverse"
+                }
+              ]
             }
           ]
         },

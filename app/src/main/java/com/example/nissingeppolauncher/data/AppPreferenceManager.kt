@@ -465,6 +465,11 @@ class AppPreferenceManager(private val context: Context) {
     fun setArtworkEnabled(v: Boolean) = prefs.edit().putBoolean("artwork_enabled", v).apply()
     fun isTonearmEnabled(): Boolean = prefs.getBoolean("tonearm_enabled", false)
     fun setTonearmEnabled(v: Boolean) = prefs.edit().putBoolean("tonearm_enabled", v).apply()
+    // テーマ: ディスクの見た目（digital / vinyl / cd）とターンテーブル（none / wood / silver / black）
+    fun getDiscStyle(): String = prefs.getString("disc_style", "digital") ?: "digital"
+    fun setDiscStyle(v: String) = prefs.edit().putString("disc_style", v).apply()
+    fun getDeckStyle(): String = prefs.getString("deck_style", "none") ?: "none"
+    fun setDeckStyle(v: String) = prefs.edit().putString("deck_style", v).apply()
     fun isDiscDropOnPvEnabled(): Boolean = prefs.getBoolean("disc_drop_on_pv", true)
     fun setDiscDropOnPvEnabled(v: Boolean) = prefs.edit().putBoolean("disc_drop_on_pv", v).apply()
     fun getWidgetLongPressAction(): String = prefs.getString("widget_long_press_action", "rack") ?: "rack"
