@@ -1183,6 +1183,81 @@ fun MainLauncherScreen() {
                 )
             }
 
+            // ターンテーブル: ホームの2つの円をすっぽり収める土台を円盤の後ろに敷く（PVには被せない）
+            val deckStyleNow = repo.prefManager.getDeckStyle()
+            if (currentLauncherPage == 1 && deckStyleNow != "none") {
+                val deckCenterY = disc1CenterY + lyricsDiscDrop
+                var deckTopDp = deckCenterY - 181f
+                val pvShowingDeck = lyricsEnabled && lyricsDisplayMode == "video" && !isLyricsBrowsing && syncedLyricLines.isNotEmpty()
+                if (pvShowingDeck) {
+                    val pvBottomDeck = topPaddingDp.value + 150f + pvTopOffset + pvEffHeight
+                    if (deckTopDp < pvBottomDeck + 10f) deckTopDp = pvBottomDeck + 10f
+                }
+                val deckHeightDp = (deckCenterY + 181f - deckTopDp).coerceAtLeast(120f)
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(start = 10.dp, end = 10.dp, top = deckTopDp.dp)
+                        .fillMaxWidth()
+                        .height(deckHeightDp.dp)
+                        .clip(RoundedCornerShape(28.dp))
+                ) {
+                    Canvas(Modifier.fillMaxSize()) {
+                        val w = size.width
+                        val h = size.height
+                        when (deckStyleNow) {
+                            "wood" -> {
+                                drawRect(
+                                    brush = Brush.verticalGradient(
+                                        listOf(Color(0xFF7A5230), Color(0xFF5E3D22), Color(0xFF6E482A))
+                                    )
+                                )
+                                for (i in 0 until 16) {
+                                    val baseY = h * (i + 0.5f) / 16f
+                                    val grainPath = androidx.compose.ui.graphics.Path()
+                                    var gx = 0f
+                                    while (gx <= w) {
+                                        val gy = baseY + kotlin.math.sin((gx / w) * 6.28f * (1 + i % 3) + i * 1.7f) * 3.5f
+                                        if (gx == 0f) grainPath.moveTo(gx, gy) else grainPath.lineTo(gx, gy)
+                                        gx += 24f
+                                    }
+                                    drawPath(grainPath, Color(0xFF3E2716).copy(alpha = 0.20f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.2f))
+                                }
+                            }
+                            "silver" -> {
+                                drawRect(
+                                    brush = Brush.verticalGradient(
+                                        listOf(Color(0xFFD9DDE2), Color(0xFFAEB4BC), Color(0xFFC9CED4), Color(0xFF9AA1A9))
+                                    )
+                                )
+                                for (i in 0 until 40) {
+                                    val y = h * i / 40f
+                                    drawLine(Color.White.copy(alpha = 0.05f), androidx.compose.ui.geometry.Offset(0f, y), androidx.compose.ui.geometry.Offset(w, y), strokeWidth = 1f)
+                                }
+                            }
+                            else -> {
+                                drawRect(
+                                    brush = Brush.verticalGradient(
+                                        listOf(Color(0xFF2A2A2E), Color(0xFF131315), Color(0xFF1D1D20))
+                                    )
+                                )
+                                drawRect(Color.White.copy(alpha = 0.10f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f))
+                            }
+                        }
+                        // 四隅のネジ
+                        listOf(
+                            androidx.compose.ui.geometry.Offset(30f, 30f),
+                            androidx.compose.ui.geometry.Offset(w - 30f, 30f),
+                            androidx.compose.ui.geometry.Offset(30f, h - 30f),
+                            androidx.compose.ui.geometry.Offset(w - 30f, h - 30f)
+                        ).forEach { c ->
+                            drawCircle(Color(0xFF101010).copy(alpha = 0.55f), radius = 8f, center = c)
+                            drawCircle(Color.White.copy(alpha = 0.35f), radius = 3.5f, center = c)
+                        }
+                    }
+                }
+            }
+
             if (dopagakiMode && currentLauncherPage == 1) {
                 // ドパガキ中は画面の縁に虹色の回る枠を出す
             }

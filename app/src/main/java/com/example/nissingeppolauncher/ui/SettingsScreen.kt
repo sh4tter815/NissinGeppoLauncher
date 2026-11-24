@@ -617,6 +617,8 @@ fun SettingsScreen(
     var discDropOnPv by remember { mutableStateOf(repo.prefManager.isDiscDropOnPvEnabled()) }
     var widgetLongPressAction by remember { mutableStateOf(repo.prefManager.getWidgetLongPressAction()) }
     var widgetTapAction by remember { mutableStateOf(repo.prefManager.getWidgetTapAction()) }
+    var discStyle by remember { mutableStateOf(repo.prefManager.getDiscStyle()) }
+    var deckStyle by remember { mutableStateOf(repo.prefManager.getDeckStyle()) }
     var notificationBadges by remember { mutableStateOf(repo.prefManager.isNotificationBadgesEnabled()) }
     var appSortMode by remember { mutableStateOf(repo.prefManager.getAppSortMode()) }
     var englishAppSort by remember { mutableStateOf(repo.prefManager.getEnglishAppSort()) }
@@ -976,7 +978,9 @@ fun SettingsScreen(
         "englishAppSort" to Pair({ englishAppSort }, { v: String -> englishAppSort = v; repo.prefManager.setEnglishAppSort(v); onChanged(); onAppsUpdated() }),
         "indexMode" to Pair({ indexMode }, { v: String -> indexMode = v; repo.prefManager.setIndexMode(v); onChanged() }),
         "widgetLongPressAction" to Pair({ widgetLongPressAction }, { v: String -> widgetLongPressAction = v; repo.prefManager.setWidgetLongPressAction(v); onChanged() }),
-        "widgetTapAction" to Pair({ widgetTapAction }, { v: String -> widgetTapAction = v; repo.prefManager.setWidgetTapAction(v); onChanged() })
+        "widgetTapAction" to Pair({ widgetTapAction }, { v: String -> widgetTapAction = v; repo.prefManager.setWidgetTapAction(v); onChanged() }),
+        "discStyle" to Pair({ discStyle }, { v: String -> discStyle = v; repo.prefManager.setDiscStyle(v); onChanged() }),
+        "deckStyle" to Pair({ deckStyle }, { v: String -> deckStyle = v; repo.prefManager.setDeckStyle(v); onChanged() })
     )
 
     val floatBinds: Map<String, Pair<() -> Float, (Float) -> Unit>> = mapOf(
