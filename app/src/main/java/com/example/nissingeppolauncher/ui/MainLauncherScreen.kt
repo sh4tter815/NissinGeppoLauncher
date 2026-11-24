@@ -3647,6 +3647,21 @@ private fun TurntableDeck(deckStyle: String, deckTopDp: Float, deckHeightDp: Flo
                         drawLine(Color.White.copy(alpha = 0.05f), androidx.compose.ui.geometry.Offset(0f, y), androidx.compose.ui.geometry.Offset(w, y), strokeWidth = 1f)
                     }
                 }
+                "acrylic" -> {
+                    // 透明アクリル: うっすら白い板＋明るいフチ＋斜めの映り込み
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            listOf(Color.White.copy(alpha = 0.10f), Color.White.copy(alpha = 0.04f), Color.White.copy(alpha = 0.08f))
+                        )
+                    )
+                    drawRect(Color.White.copy(alpha = 0.35f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f))
+                    drawLine(
+                        Color.White.copy(alpha = 0.10f),
+                        androidx.compose.ui.geometry.Offset(w * 0.15f, h),
+                        androidx.compose.ui.geometry.Offset(w * 0.45f, 0f),
+                        strokeWidth = 60f
+                    )
+                }
                 else -> {
                     drawRect(
                         brush = Brush.verticalGradient(

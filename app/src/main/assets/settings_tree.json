@@ -1,5 +1,5 @@
 {
-  "version": 28,
+  "version": 29,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -906,6 +906,7 @@
       "choices": [
         {"v": "digital", "label": "デジタル"},
         {"v": "vinyl", "label": "レコード"},
+        {"v": "clear", "label": "クリアレコード"},
         {"v": "cd", "label": "CD"}
       ]
     },
@@ -919,7 +920,22 @@
         {"v": "none", "label": "なし"},
         {"v": "wood", "label": "木製"},
         {"v": "silver", "label": "シルバー"},
-        {"v": "black", "label": "黒"}
+        {"v": "black", "label": "黒"},
+        {"v": "acrylic", "label": "透明アクリル"}
+      ]
+    },
+    "themePreset": {
+      "label": "プリセット",
+      "desc": "ディスク・ターンテーブル・レコード針の組み合わせをまとめて切り替えます。個別に変えると「カスタム」になります",
+      "glyph": "sparkles",
+      "type": "choices",
+      "bind": "themePreset",
+      "choices": [
+        {"v": "custom", "label": "カスタム"},
+        {"v": "analog", "label": "アナログ"},
+        {"v": "cd", "label": "CD全盛期"},
+        {"v": "modern", "label": "モダン"},
+        {"v": "clear", "label": "透明"}
       ]
     },
     "widgetLongPress": {
@@ -1196,6 +1212,9 @@
               "label": "テーマ",
               "glyph": "sparkles",
               "children": [
+                {
+                  "item": "themePreset"
+                },
                 {
                   "item": "discStyle"
                 },

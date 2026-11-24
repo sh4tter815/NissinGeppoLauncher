@@ -616,6 +616,29 @@ fun MusicVinylWidget(
                             )
                         }
                     }
+                    "clear" -> {
+                        // クリアレコード: 半透明の盤面（アクセント色の色味）に溝、中央レーベルがアートワーク
+                        Canvas(Modifier.fillMaxSize()) {
+                            val rMax = size.minDimension / 2f
+                            drawCircle(effAccent.copy(alpha = 0.28f))
+                            drawCircle(Color.Black.copy(alpha = 0.16f))
+                            for (i in 1..9) {
+                                drawCircle(
+                                    Color.White.copy(alpha = if (i % 3 == 0) 0.16f else 0.09f),
+                                    radius = rMax * (0.50f + i * 0.052f),
+                                    style = Stroke(width = 1.2f)
+                                )
+                            }
+                            drawCircle(Color.White.copy(alpha = 0.30f), radius = rMax * 0.99f, style = Stroke(width = 2f))
+                        }
+                        if (bitmapImage != null) {
+                            Image(
+                                bitmap = bitmapImage,
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(0.44f).clip(CircleShape)
+                            )
+                        }
+                    }
                     "cd" -> {
                         // CD: アートワークに虹色の光沢、中央は透明リング＋穴（Clearで抜く）
                         Box(

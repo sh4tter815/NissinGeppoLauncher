@@ -980,7 +980,32 @@ fun SettingsScreen(
         "widgetLongPressAction" to Pair({ widgetLongPressAction }, { v: String -> widgetLongPressAction = v; repo.prefManager.setWidgetLongPressAction(v); onChanged() }),
         "widgetTapAction" to Pair({ widgetTapAction }, { v: String -> widgetTapAction = v; repo.prefManager.setWidgetTapAction(v); onChanged() }),
         "discStyle" to Pair({ discStyle }, { v: String -> discStyle = v; repo.prefManager.setDiscStyle(v); onChanged() }),
-        "deckStyle" to Pair({ deckStyle }, { v: String -> deckStyle = v; repo.prefManager.setDeckStyle(v); onChanged() })
+        "deckStyle" to Pair({ deckStyle }, { v: String -> deckStyle = v; repo.prefManager.setDeckStyle(v); onChanged() }),
+        "themePreset" to Pair(
+            {
+                when {
+                    discStyle == "vinyl" && deckStyle == "wood" && tonearmEnabled -> "analog"
+                    discStyle == "cd" && deckStyle == "silver" && !tonearmEnabled -> "cd"
+                    discStyle == "digital" && deckStyle == "black" && !tonearmEnabled -> "modern"
+                    discStyle == "clear" && deckStyle == "acrylic" && tonearmEnabled -> "clear"
+                    else -> "custom"
+                }
+            },
+            { v: String ->
+                when (v) {
+                    "analog" -> { discStyle = "vinyl"; deckStyle = "wood"; tonearmEnabled = true }
+                    "cd" -> { discStyle = "cd"; deckStyle = "silver"; tonearmEnabled = false }
+                    "modern" -> { discStyle = "digital"; deckStyle = "black"; tonearmEnabled = false }
+                    "clear" -> { discStyle = "clear"; deckStyle = "acrylic"; tonearmEnabled = true }
+                }
+                if (v != "custom") {
+                    repo.prefManager.setDiscStyle(discStyle)
+                    repo.prefManager.setDeckStyle(deckStyle)
+                    repo.prefManager.setTonearmEnabled(tonearmEnabled)
+                }
+                onChanged()
+            }
+        )
     )
 
     val floatBinds: Map<String, Pair<() -> Float, (Float) -> Unit>> = mapOf(
