@@ -1,5 +1,5 @@
 {
-  "version": 23,
+  "version": 24,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -923,6 +923,13 @@
           "label": "再生／停止"
         }
       ]
+    },
+    "discDropOnPv": {
+      "label": "PV表示時に円を下げる",
+      "desc": "歌詞のPVや複数行表示のとき、円盤を自動で下へ逃がします",
+      "glyph": "arrow-up-down",
+      "type": "toggle",
+      "bind": "discDropOnPv"
     }
   },
   "tree": [
@@ -1033,6 +1040,9 @@
             },
             {
               "item": "disc3dTilt"
+            },
+            {
+              "item": "discDropOnPv"
             },
             {
               "item": "pageSwitch"
