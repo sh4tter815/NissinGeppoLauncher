@@ -984,23 +984,22 @@ fun SettingsScreen(
         "themePreset" to Pair(
             {
                 when {
-                    discStyle == "vinyl" && deckStyle == "wood" && tonearmEnabled -> "analog"
-                    discStyle == "cd" && deckStyle == "silver" && !tonearmEnabled -> "cd"
-                    discStyle == "digital" && deckStyle == "black" && !tonearmEnabled -> "modern"
-                    discStyle == "clear" && deckStyle == "acrylic" && tonearmEnabled -> "clear"
+                    discStyle == "vinyl" && tonearmEnabled -> "analog"
+                    discStyle == "cd" && !tonearmEnabled -> "cd"
+                    discStyle == "digital" && !tonearmEnabled -> "modern"
+                    discStyle == "clear" && tonearmEnabled -> "clear"
                     else -> "custom"
                 }
             },
             { v: String ->
                 when (v) {
-                    "analog" -> { discStyle = "vinyl"; deckStyle = "wood"; tonearmEnabled = true }
-                    "cd" -> { discStyle = "cd"; deckStyle = "silver"; tonearmEnabled = false }
-                    "modern" -> { discStyle = "digital"; deckStyle = "black"; tonearmEnabled = false }
-                    "clear" -> { discStyle = "clear"; deckStyle = "acrylic"; tonearmEnabled = true }
+                    "analog" -> { discStyle = "vinyl"; tonearmEnabled = true }
+                    "cd" -> { discStyle = "cd"; tonearmEnabled = false }
+                    "modern" -> { discStyle = "digital"; tonearmEnabled = false }
+                    "clear" -> { discStyle = "clear"; tonearmEnabled = true }
                 }
                 if (v != "custom") {
                     repo.prefManager.setDiscStyle(discStyle)
-                    repo.prefManager.setDeckStyle(deckStyle)
                     repo.prefManager.setTonearmEnabled(tonearmEnabled)
                 }
                 onChanged()
