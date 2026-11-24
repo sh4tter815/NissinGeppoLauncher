@@ -124,6 +124,8 @@ fun MainLauncherScreen() {
 
     val screenWidthDp = configuration.screenWidthDp.toFloat()
     val screenHeightDp = configuration.screenHeightDp.toFloat()
+    val pvEffWidth = if (pvWidthDp.isNaN()) screenWidthDp - 56f else pvWidthDp
+    val pvEffHeight = if (pvHeightDp.isNaN()) 200f else pvHeightDp
 
     val coroutineScope = rememberCoroutineScope()
     val repo = remember { AppRepository(context) }
@@ -226,12 +228,12 @@ fun MainLauncherScreen() {
         }
     }
     var headerOffsetY by remember { mutableFloatStateOf(repo.prefManager.getHeaderOffsetY()) }
-    var dateOffsetX by remember { mutableFloatStateOf(repo.prefManager.getDateOffsetX().let { if (it.isNaN()) 0f else it }) }
-    var dateOffsetY by remember { mutableFloatStateOf(repo.prefManager.getDateOffsetY().let { if (it.isNaN()) 112f else it }) }
-    var batteryOffsetX by remember { mutableFloatStateOf(repo.prefManager.getBatteryOffsetX().let { if (it.isNaN()) 0f else it }) }
-    var batteryOffsetY by remember { mutableFloatStateOf(repo.prefManager.getBatteryOffsetY().let { if (it.isNaN()) 148f else it }) }
-    var secondsOffsetX by remember { mutableFloatStateOf(repo.prefManager.getSecondsOffsetX().let { if (it.isNaN()) 76f else it }) }
-    var secondsOffsetY by remember { mutableFloatStateOf(repo.prefManager.getSecondsOffsetY().let { if (it.isNaN()) 84f else it }) }
+    var dateOffsetX by remember { mutableFloatStateOf(repo.prefManager.getDateOffsetX().let { if (it.isNaN()) 40.40f else it }) }
+    var dateOffsetY by remember { mutableFloatStateOf(repo.prefManager.getDateOffsetY().let { if (it.isNaN()) (-26.56f) else it }) }
+    var batteryOffsetX by remember { mutableFloatStateOf(repo.prefManager.getBatteryOffsetX().let { if (it.isNaN()) (-2.31f) else it }) }
+    var batteryOffsetY by remember { mutableFloatStateOf(repo.prefManager.getBatteryOffsetY().let { if (it.isNaN()) 70.73f else it }) }
+    var secondsOffsetX by remember { mutableFloatStateOf(repo.prefManager.getSecondsOffsetX().let { if (it.isNaN()) 43.34f else it }) }
+    var secondsOffsetY by remember { mutableFloatStateOf(repo.prefManager.getSecondsOffsetY().let { if (it.isNaN()) 46.20f else it }) }
     var clockPartScale by remember { mutableFloatStateOf(repo.prefManager.getLayoutScale("clock")) }
     var datePartScale by remember { mutableFloatStateOf(repo.prefManager.getLayoutScale("date")) }
     var batteryPartScale by remember { mutableFloatStateOf(repo.prefManager.getLayoutScale("battery")) }
@@ -239,6 +241,9 @@ fun MainLauncherScreen() {
     val headerTopDp = topPaddingDp + headerOffsetY.dp
     var clockOffsetY by remember { mutableFloatStateOf(repo.prefManager.getClockOffsetYDp()) }
     var pvOffsetX by remember { mutableFloatStateOf(repo.prefManager.getPvOffsetXDp()) }
+    var pvWidthDp by remember { mutableFloatStateOf(repo.prefManager.getPvWidth()) }
+    var pvHeightDp by remember { mutableFloatStateOf(repo.prefManager.getPvHeight()) }
+    var tonearmScale by remember { mutableFloatStateOf(repo.prefManager.getTonearmScale()) }
     var pvTextColor by remember { mutableStateOf(repo.prefManager.getPvTextColor()) }
     var pvRuby by remember { mutableStateOf(repo.prefManager.isPvRubyEnabled()) }
     var pvInterludeArt by remember { mutableStateOf(repo.prefManager.isPvInterludeArtEnabled()) }
@@ -1187,10 +1192,10 @@ fun MainLauncherScreen() {
                     bold = lyricsBold,
                     fontFamily = pvFontFamily,
                     accentColor = effectiveAccent,
-                    screenWidthDp = screenWidthDp,
+                    screenWidthDp = pvEffWidth,
                     translationEnabled = translationEnabled,
                     translations = lyricTranslations,
-                    pvFontScale = pvFontScale,
+                    pvFontScale = pvFontScale * (pvEffHeight / 200f),
                     pvBaseColor = when (pvTextColor) { "accent" -> effectiveAccent; "black" -> Color.Black; else -> Color.White },
                     pvRuby = pvRuby,
                     pvInterludeArt = pvInterludeArt,
@@ -1215,8 +1220,8 @@ fun MainLauncherScreen() {
                 Box(
                     modifier = Modifier
                         .padding(start = (28f + pvOffsetX).coerceAtLeast(0f).dp, top = (topPaddingDp.value + 150f + pvTopOffset).coerceAtLeast(0f).dp, end = 28.dp)
-                        .fillMaxWidth()
-                        .height(200.dp)
+                        .width(pvEffWidth.dp)
+                        .height(pvEffHeight.dp)
                         .zIndex(190f)
                         .drawBehind {
                             drawRoundRect(color = Color.Black.copy(alpha = 0.06f), cornerRadius = CornerRadius(10.dp.toPx(), 10.dp.toPx()))
@@ -1245,7 +1250,49 @@ fun MainLauncherScreen() {
                         color = Color.White.copy(alpha = 0.8f),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(10.dp)
+                        modifier = Modifier.padding(start = 30.dp, top = 10.dp, end = 10.dp, bottom = 10.dp)
+                    )
+                    MoveHandle(
+                        color = accentColor,
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .offset(x = -6.dp, y = -6.dp)
+                            .zIndex(5f)
+                            .pointerInput(Unit) {
+                                detectDragGestures(
+                                    onDragEnd = {
+                                        repo.prefManager.setPvOffsetX(pvOffsetX)
+                                        repo.prefManager.setPvTopOffsetDp(pvTopOffset)
+                                    },
+                                    onDrag = { change, drag ->
+                                        change.consume()
+                                        pvOffsetX = (pvOffsetX + drag.x / density).coerceAtLeast(-28f)
+                                        pvTopOffset = (pvTopOffset + drag.y / density).coerceAtLeast(-(topPaddingDp.value + 150f))
+                                    }
+                                )
+                            }
+                    )
+                    ResizeHandle(
+                        color = accentColor,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .offset(x = 6.dp, y = 6.dp)
+                            .zIndex(5f)
+                            .pointerInput(Unit) {
+                                detectDragGestures(
+                                    onDragEnd = {
+                                        repo.prefManager.setPvWidth(pvWidthDp)
+                                        repo.prefManager.setPvHeight(pvHeightDp)
+                                    },
+                                    onDrag = { change, drag ->
+                                        change.consume()
+                                        val curW = if (pvWidthDp.isNaN()) screenWidthDp - 56f else pvWidthDp
+                                        val curH = if (pvHeightDp.isNaN()) 200f else pvHeightDp
+                                        pvWidthDp = (curW + drag.x / density).coerceIn(120f, 800f)
+                                        pvHeightDp = (curH + drag.y / density).coerceIn(80f, 800f)
+                                    }
+                                )
+                            }
                     )
                 }
             }
@@ -1282,8 +1329,30 @@ fun MainLauncherScreen() {
                 }
             }
 
-            // レイアウト編集モード: ヘッダーの位置ハンドル（アプリ一覧・フォルダ）
-            if (layoutEditMode && (currentLauncherPage == 2 || currentLauncherPage == 3)) {
+            // レイアウト編集モード: レコード針の大きさハンドル（ホームのみ、針の軸の位置）
+            if (layoutEditMode && currentLauncherPage == 1 && repo.prefManager.isTonearmEnabled()) {
+                val pivotX = animatedDisc1CenterX + (disc1RadiusDp * 1.02f).dp
+                val pivotY = disc1CenterY + lyricsDiscDrop - (disc1RadiusDp * 1.02f).dp
+                Box(modifier = Modifier.fillMaxSize().zIndex(195f)) {
+                    ResizeHandle(
+                        color = accentColor,
+                        modifier = Modifier
+                            .padding(start = (pivotX - 12.dp).coerceAtLeast(0.dp), top = (pivotY - 12.dp).coerceAtLeast(0.dp))
+                            .pointerInput(Unit) {
+                                detectDragGestures(
+                                    onDragEnd = { repo.prefManager.setTonearmScale(tonearmScale) },
+                                    onDrag = { change, drag ->
+                                        change.consume()
+                                        tonearmScale = (tonearmScale + (drag.x + drag.y) / 2f / density / 150f).coerceIn(0.5f, 2f)
+                                    }
+                                )
+                            }
+                    )
+                }
+            }
+
+            // レイアウト編集モード: ヘッダーの位置ハンドル（設定・アプリ一覧・フォルダ）
+            if (layoutEditMode && (currentLauncherPage == 0 || currentLauncherPage == 2 || currentLauncherPage == 3)) {
                 Box(
                     modifier = Modifier
                         .padding(top = headerTopDp + 4.dp, start = 16.dp, end = 16.dp)
@@ -1321,8 +1390,8 @@ fun MainLauncherScreen() {
                     val pvLeft = 28f + pvOffsetX
                     val pvTop = topPaddingDp.value + 150f + pvTopOffset
                     val hiddenByPv = !layoutEditMode && pvActive &&
-                        placement.x < pvLeft + (screenWidthDp - 56f) && placement.x + placement.w > pvLeft &&
-                        placement.y < pvTop + 200f && placement.y + placement.h > pvTop
+                        placement.x < pvLeft + pvEffWidth && placement.x + placement.w > pvLeft &&
+                        placement.y < pvTop + pvEffHeight && placement.y + placement.h > pvTop
                     if (info != null && !hiddenByPv) {
                         androidx.compose.runtime.key(placement.id) {
                             Box(
@@ -1377,14 +1446,29 @@ fun MainLauncherScreen() {
                                     ) {
                                         Text(text = "×", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                                     }
-                                    Box(
+                                    MoveHandle(
+                                        color = accentColor,
+                                        modifier = Modifier
+                                            .align(Alignment.TopStart)
+                                            .offset(x = -6.dp, y = -6.dp)
+                                            .zIndex(5f)
+                                            .pointerInput(placement.id) {
+                                                detectDragGestures(
+                                                    onDragEnd = { repo.prefManager.setWidgetPlacements(widgetPlacements) },
+                                                    onDrag = { change, drag ->
+                                                        change.consume()
+                                                        widgetPlacements = widgetPlacements.map {
+                                                            if (it.id == placement.id) it.copy(x = it.x + drag.x / density, y = it.y + drag.y / density) else it
+                                                        }
+                                                    }
+                                                )
+                                            }
+                                    )
+                                    ResizeHandle(
+                                        color = accentColor,
                                         modifier = Modifier
                                             .align(Alignment.BottomEnd)
                                             .offset(x = 6.dp, y = 6.dp)
-                                            .size(24.dp)
-                                            .clip(CircleShape)
-                                            .background(accentColor)
-                                            .border(2.dp, Color.White, CircleShape)
                                             .pointerInput(placement.id) {
                                                 detectDragGestures(
                                                     onDragEnd = { repo.prefManager.setWidgetPlacements(widgetPlacements) },
@@ -1442,7 +1526,7 @@ fun MainLauncherScreen() {
                     contentAlignment = Alignment.BottomCenter
                 ) {
                     Text(
-                        text = if (currentLauncherPage == 1) "時計・日付・秒・バッテリー・PV・円盤の枠をドラッグで移動、右下の丸で大きさ変更（＋でウィジェット追加）" else "円盤とヘッダーの枠をドラッグで移動できます",
+                        text = if (currentLauncherPage == 1) "時計・日付・秒・バッテリー・PV・円盤の枠をドラッグで移動、左上の矢印で移動、右下の矢印で大きさ変更（＋でウィジェット追加）" else "円盤とヘッダーの枠をドラッグで移動できます",
                         color = Color.White.copy(alpha = 0.85f),
                         fontSize = 12.sp
                     )
@@ -1614,12 +1698,26 @@ fun MainLauncherScreen() {
                                     .size(width = (partSize.width * clockPartScale / partDensity).dp, height = (partSize.height * clockPartScale / partDensity).dp)
                                     .border(1.dp, accentColor.copy(alpha = 0.8f), RoundedCornerShape(10.dp))
                             )
-                            Box(
+                            MoveHandle(
+                                color = accentColor,
+                                modifier = Modifier
+                                    .offset(x = -12.dp, y = -12.dp)
+                                    .zIndex(20f)
+                                    .pointerInput(Unit) {
+                                        detectDragGestures(
+                                            onDragEnd = { repo.prefManager.setClockOffset(clockOffsetX, clockOffsetY) },
+                                            onDrag = { change, drag ->
+                                                change.consume()
+                                                clockOffsetX += drag.x / density
+                                                clockOffsetY += drag.y / density
+                                            }
+                                        )
+                                    }
+                            )
+                            ResizeHandle(
+                                color = accentColor,
                                 modifier = Modifier
                                     .offset(x = (partSize.width * clockPartScale / partDensity).dp - 12.dp, y = (partSize.height * clockPartScale / partDensity).dp - 12.dp)
-                                    .size(24.dp)
-                                    .background(accentColor, CircleShape)
-                                    .border(2.dp, Color.White, CircleShape)
                                     .zIndex(20f)
                                     .pointerInput(Unit) {
                                         detectDragGestures(
@@ -1686,12 +1784,26 @@ fun MainLauncherScreen() {
                                     .size(width = (partSize.width * datePartScale / partDensity).dp, height = (partSize.height * datePartScale / partDensity).dp)
                                     .border(1.dp, accentColor.copy(alpha = 0.8f), RoundedCornerShape(10.dp))
                             )
-                            Box(
+                            MoveHandle(
+                                color = accentColor,
+                                modifier = Modifier
+                                    .offset(x = -12.dp, y = -12.dp)
+                                    .zIndex(20f)
+                                    .pointerInput(Unit) {
+                                        detectDragGestures(
+                                            onDragEnd = { repo.prefManager.setDateOffset(dateOffsetX, dateOffsetY) },
+                                            onDrag = { change, drag ->
+                                                change.consume()
+                                                dateOffsetX += drag.x / density
+                                                dateOffsetY += drag.y / density
+                                            }
+                                        )
+                                    }
+                            )
+                            ResizeHandle(
+                                color = accentColor,
                                 modifier = Modifier
                                     .offset(x = (partSize.width * datePartScale / partDensity).dp - 12.dp, y = (partSize.height * datePartScale / partDensity).dp - 12.dp)
-                                    .size(24.dp)
-                                    .background(accentColor, CircleShape)
-                                    .border(2.dp, Color.White, CircleShape)
                                     .zIndex(20f)
                                     .pointerInput(Unit) {
                                         detectDragGestures(
@@ -1760,12 +1872,26 @@ fun MainLauncherScreen() {
                                     .size(width = (partSize.width * batteryPartScale / partDensity).dp, height = (partSize.height * batteryPartScale / partDensity).dp)
                                     .border(1.dp, accentColor.copy(alpha = 0.8f), RoundedCornerShape(10.dp))
                             )
-                            Box(
+                            MoveHandle(
+                                color = accentColor,
+                                modifier = Modifier
+                                    .offset(x = -12.dp, y = -12.dp)
+                                    .zIndex(20f)
+                                    .pointerInput(Unit) {
+                                        detectDragGestures(
+                                            onDragEnd = { repo.prefManager.setBatteryOffset(batteryOffsetX, batteryOffsetY) },
+                                            onDrag = { change, drag ->
+                                                change.consume()
+                                                batteryOffsetX += drag.x / density
+                                                batteryOffsetY += drag.y / density
+                                            }
+                                        )
+                                    }
+                            )
+                            ResizeHandle(
+                                color = accentColor,
                                 modifier = Modifier
                                     .offset(x = (partSize.width * batteryPartScale / partDensity).dp - 12.dp, y = (partSize.height * batteryPartScale / partDensity).dp - 12.dp)
-                                    .size(24.dp)
-                                    .background(accentColor, CircleShape)
-                                    .border(2.dp, Color.White, CircleShape)
                                     .zIndex(20f)
                                     .pointerInput(Unit) {
                                         detectDragGestures(
@@ -1836,12 +1962,26 @@ fun MainLauncherScreen() {
                                     .size(width = (partSize.width * secondsPartScale / partDensity).dp, height = (partSize.height * secondsPartScale / partDensity).dp)
                                     .border(1.dp, accentColor.copy(alpha = 0.8f), RoundedCornerShape(10.dp))
                             )
-                            Box(
+                            MoveHandle(
+                                color = accentColor,
+                                modifier = Modifier
+                                    .offset(x = -12.dp, y = -12.dp)
+                                    .zIndex(20f)
+                                    .pointerInput(Unit) {
+                                        detectDragGestures(
+                                            onDragEnd = { repo.prefManager.setSecondsOffset(secondsOffsetX, secondsOffsetY) },
+                                            onDrag = { change, drag ->
+                                                change.consume()
+                                                secondsOffsetX += drag.x / density
+                                                secondsOffsetY += drag.y / density
+                                            }
+                                        )
+                                    }
+                            )
+                            ResizeHandle(
+                                color = accentColor,
                                 modifier = Modifier
                                     .offset(x = (partSize.width * secondsPartScale / partDensity).dp - 12.dp, y = (partSize.height * secondsPartScale / partDensity).dp - 12.dp)
-                                    .size(24.dp)
-                                    .background(accentColor, CircleShape)
-                                    .border(2.dp, Color.White, CircleShape)
                                     .zIndex(20f)
                                     .pointerInput(Unit) {
                                         detectDragGestures(
@@ -1935,6 +2075,7 @@ fun MainLauncherScreen() {
                             rainbowGlow = dopagakiMode,
                             textStartAngle = lyricsTextAngle,
                             artworkTilt3d = disc3d,
+                            tonearmScaleOverride = tonearmScale,
                             onRackVisibilityChanged = { vinylRackOpen = it }
                         )
                     }
@@ -3727,5 +3868,63 @@ private fun loadUsageStats(context: android.content.Context, mode: String): Map<
         }
     } catch (_: Exception) {
         emptyMap()
+    }
+}
+
+/** レイアウト編集モード用: 右下の拡縮ハンドル（アクセント色の丸＋白の斜め両矢印） */
+@Composable
+private fun ResizeHandle(modifier: Modifier = Modifier, color: Color) {
+    Box(
+        modifier = modifier
+            .size(24.dp)
+            .background(color, CircleShape)
+            .border(2.dp, Color.White, CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(Modifier.size(13.dp)) {
+            val sw = 1.8.dp.toPx()
+            val c = Color.White
+            val a = Offset(size.width * 0.14f, size.height * 0.86f)
+            val b = Offset(size.width * 0.86f, size.height * 0.14f)
+            drawLine(c, a, b, strokeWidth = sw, cap = StrokeCap.Round)
+            drawLine(c, b, Offset(size.width * 0.48f, size.height * 0.14f), strokeWidth = sw, cap = StrokeCap.Round)
+            drawLine(c, b, Offset(size.width * 0.86f, size.height * 0.48f), strokeWidth = sw, cap = StrokeCap.Round)
+            drawLine(c, a, Offset(size.width * 0.52f, size.height * 0.86f), strokeWidth = sw, cap = StrokeCap.Round)
+            drawLine(c, a, Offset(size.width * 0.14f, size.height * 0.52f), strokeWidth = sw, cap = StrokeCap.Round)
+        }
+    }
+}
+
+/** レイアウト編集モード用: 移動ハンドル（アクセント色の丸＋白の十字両矢印） */
+@Composable
+private fun MoveHandle(modifier: Modifier = Modifier, color: Color) {
+    Box(
+        modifier = modifier
+            .size(24.dp)
+            .background(color, CircleShape)
+            .border(2.dp, Color.White, CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(Modifier.size(14.dp)) {
+            val sw = 1.8.dp.toPx()
+            val c = Color.White
+            val cx = size.width / 2f
+            val cy = size.height / 2f
+            val l = size.width * 0.10f
+            val r = size.width * 0.90f
+            val tp = size.height * 0.10f
+            val bt = size.height * 0.90f
+            val ah = size.width * 0.20f
+            drawLine(c, Offset(l, cy), Offset(r, cy), strokeWidth = sw, cap = StrokeCap.Round)
+            drawLine(c, Offset(cx, tp), Offset(cx, bt), strokeWidth = sw, cap = StrokeCap.Round)
+            drawLine(c, Offset(l, cy), Offset(l + ah, cy - ah), strokeWidth = sw, cap = StrokeCap.Round)
+            drawLine(c, Offset(l, cy), Offset(l + ah, cy + ah), strokeWidth = sw, cap = StrokeCap.Round)
+            drawLine(c, Offset(r, cy), Offset(r - ah, cy - ah), strokeWidth = sw, cap = StrokeCap.Round)
+            drawLine(c, Offset(r, cy), Offset(r - ah, cy + ah), strokeWidth = sw, cap = StrokeCap.Round)
+            drawLine(c, Offset(cx, tp), Offset(cx - ah, tp + ah), strokeWidth = sw, cap = StrokeCap.Round)
+            drawLine(c, Offset(cx, tp), Offset(cx + ah, tp + ah), strokeWidth = sw, cap = StrokeCap.Round)
+            drawLine(c, Offset(cx, bt), Offset(cx - ah, bt - ah), strokeWidth = sw, cap = StrokeCap.Round)
+            drawLine(c, Offset(cx, bt), Offset(cx + ah, bt - ah), strokeWidth = sw, cap = StrokeCap.Round)
+        }
     }
 }

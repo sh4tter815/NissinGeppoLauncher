@@ -1,3 +1,4 @@
+
 package com.example.nissingeppolauncher.ui.components
 
 import android.content.ComponentName
@@ -78,7 +79,8 @@ fun MusicVinylWidget(
     artworkTilt3d: Boolean = false,
     onRackVisibilityChanged: (Boolean) -> Unit = {},
     dopagaki: Boolean = false,
-    rainbowGlow: Boolean = false
+    rainbowGlow: Boolean = false,
+    tonearmScaleOverride: Float? = null
 ) {
     val context = LocalContext.current
     val effAccent = if (rainbowGlow) dopaRainbowColor(seed = 13) else accentColor
@@ -255,6 +257,7 @@ fun MusicVinylWidget(
     }
     val artworkEnabled = prefManager.isArtworkEnabled()
     val tonearmEnabled = prefManager.isTonearmEnabled()
+    val tonearmScale = tonearmScaleOverride ?: prefManager.getTonearmScale()
     val tonearmAngle by animateFloatAsState(
         targetValue = if (isPlaying) 97f else 63f,
         animationSpec = tween(durationMillis = 850, easing = FastOutSlowInEasing),
@@ -754,27 +757,27 @@ fun MusicVinylWidget(
                 val r = discRadiusDp.dp.toPx()
                 val px = cx + r * 1.02f
                 val py = cy - r * 1.02f
-                val armLen = r * 1.106f
+                val armLen = r * 1.106f * tonearmScale
                 val rad = Math.toRadians(tonearmAngle.toDouble())
                 val cosA = cos(rad).toFloat()
                 val sinA = sin(rad).toFloat()
                 val tipX = px + armLen * cosA
                 val tipY = py + armLen * sinA
                 // カウンターウェイト（ピボットの反対側）
-                drawLine(color = Color(0xFF9E9E9E), start = Offset(px - cosA * 16.dp.toPx(), py - sinA * 16.dp.toPx()), end = Offset(px, py), strokeWidth = 10.dp.toPx(), cap = StrokeCap.Round)
+                drawLine(color = Color(0xFF9E9E9E), start = Offset(px - cosA * (16f * tonearmScale).dp.toPx(), py - sinA * (16f * tonearmScale).dp.toPx()), end = Offset(px, py), strokeWidth = (10f * tonearmScale).dp.toPx(), cap = StrokeCap.Round)
                 // アーム本体（二重線で金属感）
-                drawLine(color = Color(0xFFC9C9C9), start = Offset(px, py), end = Offset(tipX, tipY), strokeWidth = 4.5.dp.toPx(), cap = StrokeCap.Round)
-                drawLine(color = Color(0xFFFFFFFF), start = Offset(px, py), end = Offset(tipX, tipY), strokeWidth = 1.6.dp.toPx(), cap = StrokeCap.Round)
+                drawLine(color = Color(0xFFC9C9C9), start = Offset(px, py), end = Offset(tipX, tipY), strokeWidth = (4.5f * tonearmScale).dp.toPx(), cap = StrokeCap.Round)
+                drawLine(color = Color(0xFFFFFFFF), start = Offset(px, py), end = Offset(tipX, tipY), strokeWidth = (1.6f * tonearmScale).dp.toPx(), cap = StrokeCap.Round)
                 // ヘッドシェル（先端を内側へ少し曲げた太い部分）
                 val shellRad = rad + Math.toRadians(18.0)
-                val shellLen = 17.dp.toPx()
-                drawLine(color = accentColor, start = Offset(tipX - (cos(shellRad) * shellLen).toFloat(), tipY - (sin(shellRad) * shellLen).toFloat()), end = Offset(tipX, tipY), strokeWidth = 7.dp.toPx(), cap = StrokeCap.Round)
+                val shellLen = (17f * tonearmScale).dp.toPx()
+                drawLine(color = accentColor, start = Offset(tipX - (cos(shellRad) * shellLen).toFloat(), tipY - (sin(shellRad) * shellLen).toFloat()), end = Offset(tipX, tipY), strokeWidth = (7f * tonearmScale).dp.toPx(), cap = StrokeCap.Round)
                 // 針
-                drawLine(color = Color.White, start = Offset(tipX, tipY), end = Offset(tipX, tipY + 4.dp.toPx()), strokeWidth = 1.6.dp.toPx(), cap = StrokeCap.Round)
+                drawLine(color = Color.White, start = Offset(tipX, tipY), end = Offset(tipX, tipY + (4f * tonearmScale).dp.toPx()), strokeWidth = (1.6f * tonearmScale).dp.toPx(), cap = StrokeCap.Round)
                 // ピボット（軸受け）
-                drawCircle(color = Color(0xFF424242), radius = 13.dp.toPx(), center = Offset(px, py))
-                drawCircle(color = accentColor, radius = 13.dp.toPx(), center = Offset(px, py), style = Stroke(width = 1.5.dp.toPx()))
-                drawCircle(color = Color(0xFFBDBDBD), radius = 4.5.dp.toPx(), center = Offset(px, py))
+                drawCircle(color = Color(0xFF424242), radius = (13f * tonearmScale).dp.toPx(), center = Offset(px, py))
+                drawCircle(color = accentColor, radius = (13f * tonearmScale).dp.toPx(), center = Offset(px, py), style = Stroke(width = (1.5f * tonearmScale).dp.toPx()))
+                drawCircle(color = Color(0xFFBDBDBD), radius = (4.5f * tonearmScale).dp.toPx(), center = Offset(px, py))
             }
         }
     }

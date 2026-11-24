@@ -450,27 +450,41 @@ class AppPreferenceManager(private val context: Context) {
     fun setRackReverseScroll(v: Boolean) = prefs.edit().putBoolean("rack_reverse", v).apply()
 
     // レイアウト自由移動のオフセット（dp）
-    fun getClockOffsetXDp(): Float = prefs.getFloat("clock_offset_x", 0f)
-    fun getClockOffsetYDp(): Float = prefs.getFloat("clock_offset_y", 0f)
+    fun getClockOffsetXDp(): Float = prefs.getFloat("clock_offset_x", -3.51f)
+    fun getClockOffsetYDp(): Float = prefs.getFloat("clock_offset_y", -24.98f)
     fun setClockOffset(x: Float, y: Float) = prefs.edit().putFloat("clock_offset_x", x).putFloat("clock_offset_y", y).apply()
     fun getDiscOffsetX(): Float = prefs.getFloat("disc_offset_x", 0f)
     fun getDiscOffsetY(): Float = prefs.getFloat("disc_offset_y", 0f)
     fun setDiscOffset(x: Float, y: Float) = prefs.edit().putFloat("disc_offset_x", x).putFloat("disc_offset_y", y).apply()
     fun getHeaderOffsetY(): Float = prefs.getFloat("header_offset_y", 0f)
     fun setHeaderOffsetY(v: Float) = prefs.edit().putFloat("header_offset_y", v).apply()
-    fun getDateOffsetX(): Float = prefs.getFloat("date_offset_x", Float.NaN)
-    fun getDateOffsetY(): Float = prefs.getFloat("date_offset_y", Float.NaN)
+    fun getDateOffsetX(): Float = prefs.getFloat("date_offset_x", 40.40f)
+    fun getDateOffsetY(): Float = prefs.getFloat("date_offset_y", -26.56f)
     fun setDateOffset(x: Float, y: Float) = prefs.edit().putFloat("date_offset_x", x).putFloat("date_offset_y", y).apply()
-    fun getBatteryOffsetX(): Float = prefs.getFloat("battery_offset_x", Float.NaN)
-    fun getBatteryOffsetY(): Float = prefs.getFloat("battery_offset_y", Float.NaN)
+    fun getBatteryOffsetX(): Float = prefs.getFloat("battery_offset_x", -2.31f)
+    fun getBatteryOffsetY(): Float = prefs.getFloat("battery_offset_y", 70.73f)
     fun setBatteryOffset(x: Float, y: Float) = prefs.edit().putFloat("battery_offset_x", x).putFloat("battery_offset_y", y).apply()
-    fun getSecondsOffsetX(): Float = prefs.getFloat("seconds_offset_x", Float.NaN)
-    fun getSecondsOffsetY(): Float = prefs.getFloat("seconds_offset_y", Float.NaN)
+    fun getSecondsOffsetX(): Float = prefs.getFloat("seconds_offset_x", 43.34f)
+    fun getSecondsOffsetY(): Float = prefs.getFloat("seconds_offset_y", 46.20f)
     fun setSecondsOffset(x: Float, y: Float) = prefs.edit().putFloat("seconds_offset_x", x).putFloat("seconds_offset_y", y).apply()
-    fun getLayoutScale(key: String): Float = prefs.getFloat("layout_scale_$key", 1f)
+    fun getLayoutScale(key: String): Float = prefs.getFloat(
+        "layout_scale_$key",
+        when (key) {
+            "date" -> 0.776f
+            "battery" -> 1.271f
+            "seconds" -> 0.964f
+            else -> 1f
+        }
+    )
     fun setLayoutScale(key: String, v: Float) = prefs.edit().putFloat("layout_scale_$key", v).apply()
     fun getPvOffsetXDp(): Float = prefs.getFloat("pv_offset_x", 0f)
     fun setPvOffsetX(v: Float) = prefs.edit().putFloat("pv_offset_x", v).apply()
+    fun getPvWidth(): Float = prefs.getFloat("pv_width", Float.NaN)
+    fun setPvWidth(v: Float) = prefs.edit().putFloat("pv_width", v).apply()
+    fun getPvHeight(): Float = prefs.getFloat("pv_height", Float.NaN)
+    fun setPvHeight(v: Float) = prefs.edit().putFloat("pv_height", v).apply()
+    fun getTonearmScale(): Float = prefs.getFloat("tonearm_scale", 1f)
+    fun setTonearmScale(v: Float) = prefs.edit().putFloat("tonearm_scale", v).apply()
     // 設定画面からレイアウト編集モードを開くための一時フラグ
     fun requestLayoutEdit() = prefs.edit().putBoolean("layout_edit_request", true).apply()
     fun isLayoutEditRequested(): Boolean = prefs.getBoolean("layout_edit_request", false)

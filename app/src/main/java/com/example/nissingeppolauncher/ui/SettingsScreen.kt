@@ -582,6 +582,7 @@ fun SettingsScreen(
     var stepAngle by remember { mutableFloatStateOf(repo.prefManager.getAppDiscStepAngle()) }
     val discOffX = repo.prefManager.getDiscOffsetX()
     val discOffY = repo.prefManager.getDiscOffsetY()
+    val headerOffY = repo.prefManager.getHeaderOffsetY()
     // 2026-11-23 一括追加分の状態
     var lyricsEnabled by remember { mutableStateOf(repo.prefManager.isLyricsEnabled()) }
     var lyricTranslation by remember { mutableStateOf(repo.prefManager.isLyricTranslationEnabled()) }
@@ -1567,7 +1568,7 @@ key("disc-choices-${currentItem.id}") {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = statusTopDp + 10.dp),
+                .padding(top = statusTopDp + 10.dp + headerOffY.dp),
             contentAlignment = Alignment.TopCenter
         ) {
             Row(
@@ -1627,7 +1628,7 @@ key("disc-choices-${currentItem.id}") {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = statusTopDp + 106.dp),
+                .padding(top = statusTopDp + 106.dp + headerOffY.dp),
             contentAlignment = Alignment.TopCenter
         ) {
             if (searchQuery.isNotBlank()) {
