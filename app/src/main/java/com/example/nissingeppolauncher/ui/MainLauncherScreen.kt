@@ -1909,6 +1909,7 @@ fun MainLauncherScreen() {
                             allApps.filter {
                                 (it.label.contains(searchQuery, ignoreCase = true) ||
                                         it.customYomi.contains(searchQuery, ignoreCase = true) ||
+                                        it.customYomiKana.contains(searchQuery, ignoreCase = true) ||
                                         it.initialJapanese.contains(searchQuery, ignoreCase = true) ||
                                         it.searchAliases.any { alias -> alias.contains(searchQuery, ignoreCase = true) }) && !it.isHidden
                             }
@@ -3394,6 +3395,10 @@ fun MainLauncherScreen() {
                 },
                 onSetYomi = { targetApp, yomi ->
                     repo.setYomi(targetApp.packageName, yomi)
+                    refreshApps()
+                },
+                onSetYomiKana = { targetApp, yomi ->
+                    repo.setYomiKana(targetApp.packageName, yomi)
                     refreshApps()
                 },
                 onAddAlias = { targetApp, alias ->
