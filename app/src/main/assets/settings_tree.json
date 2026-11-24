@@ -1,5 +1,5 @@
 {
-  "version": 26,
+  "version": 27,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -935,6 +935,35 @@
         }
       ]
     },
+    "widgetDoubleTap": {
+      "label": "左円盤のダブルタップ",
+      "desc": "ホーム左のレコード盤をダブルタップしたときの動作です",
+      "glyph": "cursor",
+      "type": "choices",
+      "bind": "widgetDoubleTapAction",
+      "choices": [
+        {
+          "v": "app",
+          "label": "再生中のアプリを開く"
+        },
+        {
+          "v": "toggle",
+          "label": "再生／停止"
+        },
+        {
+          "v": "next",
+          "label": "次の曲"
+        },
+        {
+          "v": "prev",
+          "label": "前の曲"
+        },
+        {
+          "v": "none",
+          "label": "なし"
+        }
+      ]
+    },
     "discDropOnPv": {
       "label": "PV表示時に円を下げる",
       "desc": "歌詞のPVや複数行表示のとき、円盤を自動で下へ逃がします",
@@ -1145,6 +1174,9 @@
             },
             {
               "item": "widgetTap"
+            },
+            {
+              "item": "widgetDoubleTap"
             },
             {
               "item": "widgetLongPress"

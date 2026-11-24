@@ -1,4 +1,3 @@
-
 package com.example.nissingeppolauncher.ui.components
 
 import android.content.ComponentName
@@ -44,14 +43,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.nissingeppolauncher.data.AppPreferenceManager
 import com.example.nissingeppolauncher.service.LauncherMediaListenerService
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -121,6 +123,9 @@ fun MusicVinylWidget(
     val rackScrollAnim = remember { Animatable(0f) }
     var rackTargetOffset by remember { mutableIntStateOf(0) }
     var rackStepAnimRunning by remember { mutableStateOf(false) }
+    // ダブルタップ判定: シングルタップは少し保留し、その間に2回目のタップが来たらダブルタップとして扱う
+    var pendingTapJob by remember { mutableStateOf<Job?>(null) }
+    var lastTapReleaseMs by remember { mutableLongStateOf(0L) }
     fun runRackSteps() {
         if (rackStepAnimRunning) return
         rackStepAnimRunning = true
@@ -273,15 +278,7 @@ fun MusicVinylWidget(
     val latestRackSize by rememberUpdatedState(rackSize)
     val latestQueueMode by rememberUpdatedState(queueMode)
     val latestSessionQueue by rememberUpdatedState(sessionQueue)
-    val rackFocusedIndex = if (rackSize == 0) 0 else (rackCurrentIndex + rackScrollAnim.value.roundToInt()).coerceIn(0, rackSize - 1)
-    var rackLastHapticIndex by remember { mutableIntStateOf(-1) }
-    LaunchedEffect(rackShow, rackFocusedIndex) {
-        if (rackShow && rackLastHapticIndex != -1 && rackFocusedIndex != rackLastHapticIndex) {
-            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-        }
-        if (rackShow) rackLastHapticIndex = rackFocusedIndex
-    }
-    val rackTiltX by animateFloatAsState(
+    val rackTiltXState = animateFloatAsState(
         targetValue = if (rackShow) 55f else 0f,
         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
         label = "RackTiltX"
@@ -421,6 +418,21 @@ fun MusicVinylWidget(
                     }
     }
 
+    // 左円タップ系アクションの実行（"app" / "toggle" / "next" / "prev" / それ以外は無動作）
+    fun runWidgetAction(action: String) {
+        try {
+            val tc = sessionController?.transportControls
+            when (action) {
+                "toggle" -> if (isPlaying) tc?.pause() else tc?.play()
+                "next" -> tc?.skipToNext()
+                "prev" -> tc?.skipToPrevious()
+                "app" -> openPlayerApp()
+            }
+        } catch (e: Exception) {
+            // 操作できないセッションでは何もしない
+        }
+    }
+
     Box(
         modifier = modifier.fillMaxSize()
     ) {
@@ -448,17 +460,11 @@ fun MusicVinylWidget(
                                 if (!moved && maxDist < 14.dp.toPx()) {
                                     longPressFired = true
                                     rackOpen = false
+                                    pendingTapJob?.cancel()
+                                    pendingTapJob = null
+                                    lastTapReleaseMs = 0L
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    if (prefManager.getWidgetLongPressAction() == "toggle") {
-                                        try {
-                                            val tc = sessionController?.transportControls
-                                            if (isPlaying) tc?.pause() else tc?.play()
-                                        } catch (e: Exception) {
-                                            // 操作できないセッションでは何もしない
-                                        }
-                                    } else {
-                                        openPlayerApp()
-                                    }
+                                    runWidgetAction(prefManager.getWidgetLongPressAction())
                                 }
                             } else null
                             drag(down.id) { change ->
@@ -471,6 +477,11 @@ fun MusicVinylWidget(
                                         if (startIdx + newTarget in 0 until latestRackSize) {
                                             rackTargetOffset = newTarget
                                             moved = true
+                                            if (pendingTapJob != null) {
+                                                pendingTapJob?.cancel()
+                                                pendingTapJob = null
+                                                lastTapReleaseMs = 0L
+                                            }
                                             runRackSteps()
                                         }
                                         if (dy <= -40f) {
@@ -515,18 +526,27 @@ fun MusicVinylWidget(
                                     rackTargetOffset = 0
                                 }
                             } else {
-                                // 短いタップ（またはセッション無し）: ラックを閉じてプレイヤーを開く。ドラッグだった場合は何もしない
+                                // 短いタップ（またはセッション無し）: ラックを閉じる。ドラッグだった場合は何もしない
                                 rackOpen = false
                                 if (!longPressFired && maxDist < 14.dp.toPx() && heldMs < 300L) {
-                                    if (prefManager.getWidgetTapAction() == "toggle") {
-                                        try {
-                                            val tc = sessionController?.transportControls
-                                            if (isPlaying) tc?.pause() else tc?.play()
-                                        } catch (e: Exception) {
-                                            // 操作できないセッションでは何もしない
-                                        }
+                                    val doubleAction = prefManager.getWidgetDoubleTapAction()
+                                    val nowMs = System.currentTimeMillis()
+                                    if (doubleAction != "none" && lastTapReleaseMs > 0L && nowMs - lastTapReleaseMs < 300L) {
+                                        // ダブルタップ成立: 保留中のシングルタップを取り消してダブル側を実行
+                                        pendingTapJob?.cancel()
+                                        pendingTapJob = null
+                                        lastTapReleaseMs = 0L
+                                        runWidgetAction(doubleAction)
+                                    } else if (doubleAction == "none") {
+                                        runWidgetAction(prefManager.getWidgetTapAction())
                                     } else {
-                                        openPlayerApp()
+                                        // シングルタップ候補: ダブルタップ判定のため少しだけ保留する
+                                        lastTapReleaseMs = nowMs
+                                        pendingTapJob = widgetScope.launch {
+                                            delay(300)
+                                            pendingTapJob = null
+                                            runWidgetAction(prefManager.getWidgetTapAction())
+                                        }
                                     }
                                 }
                             }
@@ -572,9 +592,10 @@ fun MusicVinylWidget(
                 contentAlignment = Alignment.Center
             ) {
                 val bitmap = if (artworkEnabled) albumArtBitmap else null
-                if (bitmap != null) {
+                val bitmapImage = remember(bitmap) { bitmap?.asImageBitmap() }
+                if (bitmapImage != null) {
                     Image(
-                        bitmap = bitmap.asImageBitmap(),
+                        bitmap = bitmapImage,
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize()
                     )
@@ -586,74 +607,22 @@ fun MusicVinylWidget(
     }
 
     // --- ディスクラック: 横倒しのレコード盤がカスケード状に並ぶ（音楽アプリと同じ見た目） ---
+    // 描画は専用コンポーザブルに分離し、スクロールアニメ中は本体を再コンポーズしない
     if (rackShow && rackSize > 0) {
-        val virtualPos = rackCurrentIndex + rackScrollAnim.value
-        val firstIdx = maxOf(0, floor(virtualPos - 6f).toInt())
-        val lastIdx = minOf(rackSize - 1, ceil(virtualPos + 6f).toInt())
-        for (targetIdx in firstIdx..lastIdx) {
-            val relPos = targetIdx - virtualPos
-            val gapOffset = sign(relPos) * 24f * min(1f, abs(relPos))
-            val yPosDp = discCenterYDp + (relPos * 42f) + gapOffset
-            val isFocused = targetIdx == rackFocusedIndex
-            val focusBump = (1f - min(1f, abs(relPos))) * 30f
-            val xShiftDp = relPos * 7f + focusBump
-            val edgeFade = (1f - (abs(relPos) - 4.2f) / 2f).coerceIn(0f, 1f)
-            Box(
-                modifier = Modifier
-                    .offset(x = (discCenterXDp - discRadiusDp + xShiftDp).dp, y = (yPosDp - discRadiusDp).dp)
-                    .size((discRadiusDp * 2f).dp)
-                    .graphicsLayer {
-                        rotationX = rackTiltX
-                        cameraDistance = 12f * density
-                        alpha = edgeFade
-                    }
-                    .clip(CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val center = Offset(size.width / 2f, size.height / 2f)
-                    drawCircle(
-                        color = if (isFocused) effAccent else Color.White.copy(alpha = 0.5f),
-                        radius = size.width / 2f,
-                        center = center,
-                        style = Stroke(width = if (isFocused) 3f else 1.5f)
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .size((discRadiusDp * 2f * 0.92f).dp)
-                        .clip(CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    val art = rackArtAt(targetIdx)
-                    if (art != null) {
-                        Image(
-                            bitmap = art.asImageBitmap(),
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        Canvas(modifier = Modifier.fillMaxSize()) {
-                            drawCircle(color = effAccent.copy(alpha = 0.5f))
-                        }
-                    }
-                }
-            }
-            // 各ディスクの右に曲名を表示
-            Text(
-                text = rackTitleAt(targetIdx),
-                color = if (isFocused) Color.White.copy(alpha = edgeFade) else Color.White.copy(alpha = 0.65f * edgeFade),
-                fontSize = if (isFocused) 14.sp else 12.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .offset(
-                        x = (discCenterXDp + discRadiusDp + xShiftDp + 10f).dp,
-                        y = (yPosDp - 9f).dp
-                    )
-                    .width(105.dp)
-            )
-        }
+        RackDiscLayer(
+            rackScrollAnim = rackScrollAnim,
+            rackCurrentIndex = rackCurrentIndex,
+            rackSize = rackSize,
+            rackShow = rackShow,
+            discCenterXDp = discCenterXDp,
+            discCenterYDp = discCenterYDp,
+            discRadiusDp = discRadiusDp,
+            effAccent = effAccent,
+            rackTiltXState = rackTiltXState,
+            haptic = haptic,
+            artAt = { rackArtAt(it) },
+            titleAt = { rackTitleAt(it) }
+        )
     }
 
     // --- 円の右側（画面内）の円周に沿って湾曲描画する曲情報 ---
@@ -780,5 +749,121 @@ fun MusicVinylWidget(
                 drawCircle(color = Color(0xFFBDBDBD), radius = (4.5f * tonearmScale).dp.toPx(), center = Offset(px, py))
             }
         }
+    }
+}
+
+/**
+ * ディスクラック専用の描画レイヤー。
+ * スクロールアニメの値（rackScrollAnim）はこの中だけで読み、本体（MusicVinylWidget）を
+ * 毎フレーム再コンポーズしない。各ディスクの位置と透明度はレイアウト／描画フェーズで
+ * 計算する（offset ラムダ形式と graphicsLayer）ため、スクロール中の再コンポーズも最小限。
+ * 見た目の計算式は分離前と同一。
+ */
+@Composable
+private fun RackDiscLayer(
+    rackScrollAnim: Animatable<Float, AnimationVector1D>,
+    rackCurrentIndex: Int,
+    rackSize: Int,
+    rackShow: Boolean,
+    discCenterXDp: Float,
+    discCenterYDp: Float,
+    discRadiusDp: Float,
+    effAccent: Color,
+    rackTiltXState: State<Float>,
+    haptic: HapticFeedback,
+    artAt: (Int) -> Bitmap?,
+    titleAt: (Int) -> String
+) {
+    val rackFocusedIndex = if (rackSize == 0) 0 else (rackCurrentIndex + rackScrollAnim.value.roundToInt()).coerceIn(0, rackSize - 1)
+    var rackLastHapticIndex by remember { mutableIntStateOf(-1) }
+    LaunchedEffect(rackShow, rackFocusedIndex) {
+        if (rackShow && rackLastHapticIndex != -1 && rackFocusedIndex != rackLastHapticIndex) {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        }
+        if (rackShow) rackLastHapticIndex = rackFocusedIndex
+    }
+    val virtualPos = rackCurrentIndex + rackScrollAnim.value
+    val firstIdx = maxOf(0, floor(virtualPos - 6f).toInt())
+    val lastIdx = minOf(rackSize - 1, ceil(virtualPos + 6f).toInt())
+    for (targetIdx in firstIdx..lastIdx) {
+        val isFocused = targetIdx == rackFocusedIndex
+        Box(
+            modifier = Modifier
+                .offset {
+                    val relPos = targetIdx - (rackCurrentIndex + rackScrollAnim.value)
+                    val gapOffset = sign(relPos) * 24f * min(1f, abs(relPos))
+                    val yPosDp = discCenterYDp + (relPos * 42f) + gapOffset
+                    val focusBump = (1f - min(1f, abs(relPos))) * 30f
+                    val xShiftDp = relPos * 7f + focusBump
+                    IntOffset(
+                        x = ((discCenterXDp - discRadiusDp + xShiftDp) * density).roundToInt(),
+                        y = ((yPosDp - discRadiusDp) * density).roundToInt()
+                    )
+                }
+                .size((discRadiusDp * 2f).dp)
+                .graphicsLayer {
+                    val relPos = targetIdx - (rackCurrentIndex + rackScrollAnim.value)
+                    rotationX = rackTiltXState.value
+                    cameraDistance = 12f * density
+                    alpha = (1f - (abs(relPos) - 4.2f) / 2f).coerceIn(0f, 1f)
+                }
+                .clip(CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val center = Offset(size.width / 2f, size.height / 2f)
+                drawCircle(
+                    color = if (isFocused) effAccent else Color.White.copy(alpha = 0.5f),
+                    radius = size.width / 2f,
+                    center = center,
+                    style = Stroke(width = if (isFocused) 3f else 1.5f)
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .size((discRadiusDp * 2f * 0.92f).dp)
+                    .clip(CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                val art = artAt(targetIdx)
+                val artImage = remember(art) { art?.asImageBitmap() }
+                if (artImage != null) {
+                    Image(
+                        bitmap = artImage,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        drawCircle(color = effAccent.copy(alpha = 0.5f))
+                    }
+                }
+            }
+        }
+        // 各ディスクの右に曲名を表示
+        Text(
+            text = titleAt(targetIdx),
+            color = if (isFocused) Color.White else Color.White.copy(alpha = 0.65f),
+            fontSize = if (isFocused) 14.sp else 12.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .offset {
+                    val relPos = targetIdx - (rackCurrentIndex + rackScrollAnim.value)
+                    val gapOffset = sign(relPos) * 24f * min(1f, abs(relPos))
+                    val yPosDp = discCenterYDp + (relPos * 42f) + gapOffset
+                    val focusBump = (1f - min(1f, abs(relPos))) * 30f
+                    val xShiftDp = relPos * 7f + focusBump
+                    IntOffset(
+                        x = ((discCenterXDp + discRadiusDp + xShiftDp + 10f) * density).roundToInt(),
+                        y = ((yPosDp - 9f) * density).roundToInt()
+                    )
+                }
+                .graphicsLayer {
+                    val relPos = targetIdx - (rackCurrentIndex + rackScrollAnim.value)
+                    alpha = (1f - (abs(relPos) - 4.2f) / 2f).coerceIn(0f, 1f)
+                }
+                .width(105.dp)
+        )
     }
 }
