@@ -1,5 +1,5 @@
 {
-  "version": 29,
+  "version": 30,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -904,38 +904,51 @@
       "type": "choices",
       "bind": "discStyle",
       "choices": [
-        {"v": "digital", "label": "デジタル"},
-        {"v": "vinyl", "label": "レコード"},
-        {"v": "clear", "label": "クリアレコード"},
-        {"v": "cd", "label": "CD"}
-      ]
-    },
-    "deckStyle": {
-      "label": "ターンテーブル",
-      "desc": "ホームの円盤の後ろに敷くターンテーブルの素材です",
-      "glyph": "box",
-      "type": "choices",
-      "bind": "deckStyle",
-      "choices": [
-        {"v": "none", "label": "なし"},
-        {"v": "wood", "label": "木製"},
-        {"v": "silver", "label": "シルバー"},
-        {"v": "black", "label": "黒"},
-        {"v": "acrylic", "label": "透明アクリル"}
+        {
+          "v": "digital",
+          "label": "デジタル"
+        },
+        {
+          "v": "vinyl",
+          "label": "レコード"
+        },
+        {
+          "v": "clear",
+          "label": "クリアレコード"
+        },
+        {
+          "v": "cd",
+          "label": "CD"
+        }
       ]
     },
     "themePreset": {
       "label": "プリセット",
-      "desc": "ディスク・ターンテーブル・レコード針の組み合わせをまとめて切り替えます。個別に変えると「カスタム」になります",
+      "desc": "ディスクとレコード針の組み合わせをまとめて切り替えます。個別に変えると「カスタム」になります",
       "glyph": "sparkles",
       "type": "choices",
       "bind": "themePreset",
       "choices": [
-        {"v": "custom", "label": "カスタム"},
-        {"v": "analog", "label": "アナログ"},
-        {"v": "cd", "label": "CD全盛期"},
-        {"v": "modern", "label": "モダン"},
-        {"v": "clear", "label": "透明"}
+        {
+          "v": "custom",
+          "label": "カスタム"
+        },
+        {
+          "v": "analog",
+          "label": "アナログ"
+        },
+        {
+          "v": "cd",
+          "label": "CD全盛期"
+        },
+        {
+          "v": "modern",
+          "label": "モダン"
+        },
+        {
+          "v": "clear",
+          "label": "透明"
+        }
       ]
     },
     "widgetLongPress": {
@@ -1217,9 +1230,6 @@
                 },
                 {
                   "item": "discStyle"
-                },
-                {
-                  "item": "deckStyle"
                 },
                 {
                   "item": "tonearm"
