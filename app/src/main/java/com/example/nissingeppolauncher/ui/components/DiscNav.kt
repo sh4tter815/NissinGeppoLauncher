@@ -219,6 +219,8 @@ fun DiscWheel(
     isLoopable: Boolean = false,
     discCenterXDp: Float? = null,
     discCenterYDp: Float? = null,
+    centerOffsetXDp: Float = 0f,
+    centerOffsetYDp: Float = 0f,
     dotMarkers: Boolean = false,
     restLabelText: String? = null
 ) {
@@ -231,8 +233,8 @@ fun DiscWheel(
     )
     // 中身だけを設定用に入れ替えて、円盤のエンジン自体はアプリ円盤と共通の DiscCarousel を使う
     BoxWithConstraints(modifier = modifier) {
-        val centerX = discCenterXDp ?: if (side == DiscSide.LEFT) -80f else maxWidth.value + 80f
-        val centerY = discCenterYDp ?: (maxHeight.value / 2f)
+        val centerX = (discCenterXDp ?: if (side == DiscSide.LEFT) -80f else maxWidth.value + 80f) + centerOffsetXDp
+        val centerY = (discCenterYDp ?: (maxHeight.value / 2f)) + centerOffsetYDp
         val carouselState = state
         val restP by animateFloatAsState(
             targetValue = if (verticalRestLabel && side == DiscSide.LEFT && !(holdActive == true || carouselState.isScrolling)) 1f else 0f,
@@ -445,6 +447,8 @@ fun DiscValueWheel(
     format: (Float) -> String,
     accentColor: Color,
     modifier: Modifier = Modifier,
+    centerOffsetXDp: Float = 0f,
+    centerOffsetYDp: Float = 0f,
     onSave: (Float) -> Unit
 ) {
     val stepSize = (range.endInclusive - range.start) / (steps + 1)
@@ -475,8 +479,8 @@ fun DiscValueWheel(
         val wDp = maxWidth.value
         val hDp = maxHeight.value
         val rDp = 165f
-        val centerX = wDp + 80f
-        val centerY = hDp / 2f
+        val centerX = wDp + 80f + centerOffsetXDp
+        val centerY = hDp / 2f + centerOffsetYDp
         val displayIndex = indexAnim.value
         val currentIndex = Math.round(displayIndex).coerceIn(0, maxIndex)
         val totalSpanDegrees = 300f

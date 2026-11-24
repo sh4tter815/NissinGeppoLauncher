@@ -68,6 +68,7 @@ fun ClockWidget(
     hour12: Boolean = false,
     // 時刻を横一列（10:34）で表示する
     horizontal: Boolean = false,
+    secondsOnly: Boolean = false,
     showBattery: Boolean = false,
     wareki: Boolean = false,
     // 時計と日付の分離表示用（レイアウト編集で別々に動かすため、片方だけ出す使い方ができる）
@@ -155,7 +156,22 @@ fun ClockWidget(
     )
 
     Column(modifier = modifier) {
-        if (sideways) {
+        if (secondsOnly) {
+            Text(
+                text = ":$secondText",
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { openClock() }
+            )
+        } else if (!showTime && !showDate && showBattery) {
+            if (batteryPct >= 0) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    BatteryLevelIcon(pct = batteryPct, color = Color.White.copy(alpha = 0.85f))
+                    Text(text = "$batteryPct%", color = Color.White.copy(alpha = 0.7f), fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                }
+            }
+        } else if (sideways) {
             Row {
                 // 時刻ブロック (タップで時計アプリ起動)
                 if (showTime) Column(
