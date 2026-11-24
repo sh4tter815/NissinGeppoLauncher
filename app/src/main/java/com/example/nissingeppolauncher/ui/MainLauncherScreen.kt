@@ -211,7 +211,7 @@ fun MainLauncherScreen() {
     var headerOffsetY by remember { mutableFloatStateOf(repo.prefManager.getHeaderOffsetY()) }
     var dateOffsetX by remember { mutableFloatStateOf(repo.prefManager.getDateOffsetX().let { if (it.isNaN()) 0f else it }) }
     var dateOffsetY by remember { mutableFloatStateOf(repo.prefManager.getDateOffsetY().let { if (it.isNaN()) 112f else it }) }
-    val headerTopDp: Dp get() = topPaddingDp + headerOffsetY.dp
+    val headerTopDp = topPaddingDp + headerOffsetY.dp
     var clockOffsetY by remember { mutableFloatStateOf(repo.prefManager.getClockOffsetYDp()) }
     var pvOffsetX by remember { mutableFloatStateOf(repo.prefManager.getPvOffsetXDp()) }
     var pvTextColor by remember { mutableStateOf(repo.prefManager.getPvTextColor()) }
