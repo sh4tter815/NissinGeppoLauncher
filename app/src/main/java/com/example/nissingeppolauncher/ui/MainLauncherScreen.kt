@@ -1112,6 +1112,7 @@ fun MainLauncherScreen() {
     )
 
     val appDiscIconSize = repo.prefManager.getAppDiscIconSizeDp()
+    val iconCornerPercent = (repo.prefManager.getIconCornerRatio() * 50).toInt()
     val appDiscTextSize = repo.prefManager.getAppDiscTextSizeSp()
     val appDiscLetterSpacing = repo.prefManager.getAppDiscLetterSpacingSp()
     val appDiscStepAngle = repo.prefManager.getAppDiscStepAngle()
@@ -1826,6 +1827,7 @@ fun MainLauncherScreen() {
                                 labelAlpha = labelAlpha,
                                 textSizeSp = appDiscTextSize,
                                 iconSizeDp = appDiscIconSize,
+                                iconCornerPercent = iconCornerPercent,
                                 letterSpacingSp = appDiscLetterSpacing,
                                 accentColor = accentColor,
                                 selectedPackages = null,
@@ -1978,6 +1980,7 @@ fun MainLauncherScreen() {
                                 labelAlpha = labelAlpha,
                                 textSizeSp = appDiscTextSize,
                                 iconSizeDp = appDiscIconSize,
+                                iconCornerPercent = iconCornerPercent,
                                 letterSpacingSp = appDiscLetterSpacing,
                                 accentColor = accentColor,
                                 selectedPackages = null,
@@ -2138,6 +2141,7 @@ fun MainLauncherScreen() {
                                     labelAlpha = labelAlpha,
                                     textSizeSp = appDiscTextSize,
                                     iconSizeDp = appDiscIconSize,
+                                    iconCornerPercent = iconCornerPercent,
                                     letterSpacingSp = appDiscLetterSpacing,
                                     accentColor = accentColor,
                                     selectedPackages = editingSelectedPackages,
@@ -2172,6 +2176,7 @@ fun MainLauncherScreen() {
                                     labelAlpha = labelAlpha,
                                     textSizeSp = appDiscTextSize,
                                     iconSizeDp = appDiscIconSize,
+                                    iconCornerPercent = iconCornerPercent,
                                     letterSpacingSp = appDiscLetterSpacing,
                                     accentColor = accentColor,
                                     isFocused = isSelected,

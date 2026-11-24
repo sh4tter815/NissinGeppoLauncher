@@ -600,6 +600,7 @@ fun SettingsScreen(
     var dialVisibility by remember { mutableStateOf(repo.prefManager.getDialVisibility()) }
     var discInertia by remember { mutableFloatStateOf(repo.prefManager.getDiscInertia()) }
     var pvFontScale by remember { mutableFloatStateOf(repo.prefManager.getPvFontScale()) }
+    var iconCornerRatio by remember { mutableFloatStateOf(repo.prefManager.getIconCornerRatio()) }
     var pvTopOffset by remember { mutableFloatStateOf(repo.prefManager.getPvTopOffsetDp()) }
     var liquidSpeed by remember { mutableFloatStateOf(repo.prefManager.getLiquidSpeed()) }
     var liquidAlpha by remember { mutableFloatStateOf(repo.prefManager.getLiquidAlpha()) }
@@ -983,6 +984,7 @@ fun SettingsScreen(
         "stepAngle" to Pair({ stepAngle }, { v: Float -> stepAngle = v; repo.prefManager.setAppDiscStepAngle(v); onChanged() }),
         "discInertia" to Pair({ discInertia }, { v: Float -> discInertia = v; repo.prefManager.setDiscInertia(v); onChanged() }),
         "pvFontScale" to Pair({ pvFontScale }, { v: Float -> pvFontScale = v; repo.prefManager.setPvFontScale(v); onChanged() }),
+        "iconCorner" to Pair({ iconCornerRatio }, { v: Float -> iconCornerRatio = v; repo.prefManager.setIconCornerRatio(v); onChanged() }),
         "pvTopOffset" to Pair({ pvTopOffset }, { v: Float -> pvTopOffset = v; repo.prefManager.setPvTopOffsetDp(v); onChanged() }),
         "liquidSpeed" to Pair({ liquidSpeed }, { v: Float -> liquidSpeed = v; repo.prefManager.setLiquidSpeed(v); onChanged() }),
         "liquidAlpha" to Pair({ liquidAlpha }, { v: Float -> liquidAlpha = v; repo.prefManager.setLiquidAlpha(v); onChanged() }),

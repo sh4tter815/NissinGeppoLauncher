@@ -398,6 +398,8 @@ class AppPreferenceManager(private val context: Context) {
     // PV: 文字サイズ倍率 / 縦位置オフセット(dp) / 文字色 / ルビ / 間奏アート
     fun getPvFontScale(): Float = prefs.getFloat("pv_font_scale", 1.0f)
     fun setPvFontScale(v: Float) = prefs.edit().putFloat("pv_font_scale", v).apply()
+    fun getIconCornerRatio(): Float = prefs.getFloat("icon_corner_ratio", 0.6f)
+    fun setIconCornerRatio(v: Float) = prefs.edit().putFloat("icon_corner_ratio", v).apply()
     fun getPvTopOffsetDp(): Float = prefs.getFloat("pv_top_offset", 0f)
     fun setPvTopOffsetDp(v: Float) = prefs.edit().putFloat("pv_top_offset", v).apply()
     fun getPvTextColor(): String = prefs.getString("pv_text_color", "white") ?: "white"

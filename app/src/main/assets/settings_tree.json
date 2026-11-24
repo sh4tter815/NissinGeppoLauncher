@@ -1,5 +1,5 @@
 {
-  "version": 25,
+  "version": 26,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -261,6 +261,17 @@
       "max": 32,
       "steps": 15,
       "format": "dp"
+    },
+    "iconCorner": {
+      "label": "アイコンの角丸",
+      "desc": "アプリアイコンの角の丸みです。0%で四角、100%で丸になります",
+      "glyph": "box",
+      "type": "slider",
+      "bind": "iconCorner",
+      "min": 0,
+      "max": 1,
+      "steps": 20,
+      "format": "pct"
     },
     "textSize": {
       "label": "UIの文字サイズ",
@@ -1031,6 +1042,9 @@
             },
             {
               "item": "iconSize"
+            },
+            {
+              "item": "iconCorner"
             },
             {
               "item": "stepAngle"
