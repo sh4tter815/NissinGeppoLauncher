@@ -343,7 +343,7 @@ fun AppOptionDialog(
                 ) {
                     val bmp = app.iconBitmap
                     if (bmp != null) {
-                        Image(bitmap = bmp, contentDescription = null, modifier = Modifier.size(40.dp))
+                        Image(bitmap = bmp, contentDescription = null, modifier = Modifier.size(40.dp).clip(RoundedCornerShape(percent = (AppPreferenceManager(context).getIconCornerRatio() * 50).toInt())))
                         Spacer(modifier = Modifier.width(12.dp))
                     }
                     Column {

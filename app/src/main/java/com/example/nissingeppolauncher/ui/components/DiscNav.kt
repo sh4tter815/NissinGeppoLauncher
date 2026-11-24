@@ -1120,6 +1120,7 @@ fun DiscAppItem(
     labelAlpha: Float,
     textSizeSp: Float,
     iconSizeDp: Float,
+    iconCornerPercent: Int = 30,
     letterSpacingSp: Float,
     accentColor: Color,
     selectedPackages: Set<String>?,
@@ -1180,6 +1181,7 @@ fun DiscAppItem(
                             contentDescription = null,
                             modifier = Modifier
                                 .size((iconSizeDp * 1.125f).coerceAtLeast(12f).dp)
+                                .clip(RoundedCornerShape(iconCornerPercent))
                                 .offset(y = 2.5.dp),
                             colorFilter = ColorFilter.tint(Color.Black.copy(alpha = 0.38f), BlendMode.SrcIn)
                         )
@@ -1187,7 +1189,7 @@ fun DiscAppItem(
                     Image(
                         bitmap = iconBitmap,
                         contentDescription = null,
-                        modifier = Modifier.size((iconSizeDp * 1.125f).coerceAtLeast(12f).dp)
+                        modifier = Modifier.size((iconSizeDp * 1.125f).coerceAtLeast(12f).dp).clip(RoundedCornerShape(iconCornerPercent))
                     )
                     // 通知バッジ（アイコン右上）
                     if (item.badge > 0) {
@@ -1277,6 +1279,7 @@ fun DiscFolderItem(
     labelAlpha: Float,
     textSizeSp: Float,
     iconSizeDp: Float,
+    iconCornerPercent: Int = 30,
     letterSpacingSp: Float,
     accentColor: Color,
     isFocused: Boolean,
@@ -1327,6 +1330,7 @@ fun DiscFolderItem(
                             contentDescription = null,
                             modifier = Modifier
                                 .size((iconSizeDp * 1.125f).coerceAtLeast(12f).dp)
+                                .clip(RoundedCornerShape(iconCornerPercent))
                                 .offset(y = 2.5.dp),
                             colorFilter = ColorFilter.tint(Color.Black.copy(alpha = 0.38f), BlendMode.SrcIn)
                         )
@@ -1334,7 +1338,7 @@ fun DiscFolderItem(
                     Image(
                         bitmap = iconBitmap,
                         contentDescription = null,
-                        modifier = Modifier.size((iconSizeDp * 1.125f).coerceAtLeast(12f).dp)
+                        modifier = Modifier.size((iconSizeDp * 1.125f).coerceAtLeast(12f).dp).clip(RoundedCornerShape(iconCornerPercent))
                     )
                 }
             }
