@@ -127,6 +127,7 @@ fun DiscCarousel(
     val density = LocalDensity.current
     val haptic = LocalHapticFeedback.current
     val coroutineScope = rememberCoroutineScope()
+    val longPressEmptyCb by rememberUpdatedState(onLongPressEmpty)
 
     state.itemCount = itemCount
     // 項目間隔が変わったら（初期生成時の間隔と違う場合も含む）、
@@ -456,7 +457,6 @@ fun DiscTouchHalf(
     val scope = rememberCoroutineScope()
     val view = LocalView.current
     val tapCb by rememberUpdatedState(onItemTap)
-    val longPressEmptyCb by rememberUpdatedState(onLongPressEmpty)
     val holdCb by rememberUpdatedState(onHoldingChanged)
     Box(
         modifier = modifier.pointerInput(state, isRight) {
