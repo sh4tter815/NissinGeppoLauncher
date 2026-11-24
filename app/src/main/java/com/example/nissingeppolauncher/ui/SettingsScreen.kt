@@ -941,7 +941,6 @@ fun SettingsScreen(
         "artworkEnabled" to Pair({ artworkVisible }, { v: Boolean -> artworkVisible = v; repo.prefManager.setArtworkEnabled(v); onChanged() }),
         "notificationBadges" to Pair({ notificationBadges }, { v: Boolean -> notificationBadges = v; repo.prefManager.setNotificationBadgesEnabled(v); onChanged() }),
         "indexShowEnglish" to Pair({ indexShowEnglish }, { v: Boolean -> indexShowEnglish = v; repo.prefManager.setIndexShowEnglish(v); onChanged() }),
-        "indexMode" to Pair({ indexMode }, { v: String -> indexMode = v; repo.prefManager.setIndexMode(v); onChanged() }),
         "rackReverse" to Pair({ rackReverse }, { v: Boolean -> rackReverse = v; repo.prefManager.setRackReverseScroll(v); onChanged() })
     )
 
@@ -959,7 +958,8 @@ fun SettingsScreen(
         "startupPage" to Pair({ startupPage }, { v: String -> startupPage = v; repo.prefManager.setStartupPage(v); onChanged() }),
         "dialVisibility" to Pair({ dialVisibility }, { v: String -> dialVisibility = v; repo.prefManager.setDialVisibility(v); onChanged() }),
         "appSort" to Pair({ appSortMode }, { v: String -> appSortMode = v; repo.prefManager.setAppSortMode(v); onChanged() }),
-        "englishAppSort" to Pair({ englishAppSort }, { v: String -> englishAppSort = v; repo.prefManager.setEnglishAppSort(v); onChanged(); onAppsUpdated() })
+        "englishAppSort" to Pair({ englishAppSort }, { v: String -> englishAppSort = v; repo.prefManager.setEnglishAppSort(v); onChanged(); onAppsUpdated() }),
+        "indexMode" to Pair({ indexMode }, { v: String -> indexMode = v; repo.prefManager.setIndexMode(v); onChanged() })
     )
 
     val floatBinds: Map<String, Pair<() -> Float, (Float) -> Unit>> = mapOf(
