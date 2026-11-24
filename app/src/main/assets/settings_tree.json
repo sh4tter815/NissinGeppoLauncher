@@ -1,5 +1,5 @@
 {
-  "version": 21,
+  "version": 22,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -878,6 +878,13 @@
       "glyph": "clock",
       "type": "toggle",
       "bind": "clockHorizontal"
+    },
+    "tonearm": {
+      "label": "レコード針（トーンアーム）",
+      "desc": "再生中だけレコード盤に針が乗るアニメーションを表示します",
+      "glyph": "disc",
+      "type": "toggle",
+      "bind": "tonearmEnabled"
     }
   },
   "tree": [
@@ -1070,6 +1077,9 @@
             },
             {
               "item": "rackReverse"
+            },
+            {
+              "item": "tonearm"
             }
           ]
         },
