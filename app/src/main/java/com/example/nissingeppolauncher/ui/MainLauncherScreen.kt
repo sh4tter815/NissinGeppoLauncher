@@ -1299,7 +1299,14 @@ fun MainLauncherScreen() {
             if (currentLauncherPage == 1 && !pvFullscreen && !isLyricsBrowsing) {
                 widgetPlacements.forEach { placement ->
                     val info = appWidgetManager.getAppWidgetInfo(placement.id)
-                    if (info != null) {
+                    // PV表示中は、PVの場所（レイアウト編集のPV枠の範囲）に重なるウィジェットを隠す。再生が止まってPVが消えれば自動で戻る
+                    val pvActive = lyricsEnabled && lyricsDisplayMode == "video" && !isLyricsBrowsing && syncedLyricLines.isNotEmpty()
+                    val pvLeft = 28f + pvOffsetX
+                    val pvTop = topPaddingDp.value + 150f + pvTopOffset
+                    val hiddenByPv = !layoutEditMode && pvActive &&
+                        placement.x < pvLeft + (screenWidthDp - 56f) && placement.x + placement.w > pvLeft &&
+                        placement.y < pvTop + 200f && placement.y + placement.h > pvTop
+                    if (info != null && !hiddenByPv) {
                         androidx.compose.runtime.key(placement.id) {
                             Box(
                                 modifier = Modifier
