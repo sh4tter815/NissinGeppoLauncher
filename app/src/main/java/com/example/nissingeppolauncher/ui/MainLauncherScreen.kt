@@ -206,6 +206,12 @@ fun MainLauncherScreen() {
     var pvTopOffset by remember { mutableFloatStateOf(repo.prefManager.getPvTopOffsetDp()) }
     var layoutEditMode by remember { mutableStateOf(false) }
     var clockOffsetX by remember { mutableFloatStateOf(repo.prefManager.getClockOffsetXDp()) }
+    var discOffsetX by remember { mutableFloatStateOf(repo.prefManager.getDiscOffsetX()) }
+    var discOffsetY by remember { mutableFloatStateOf(repo.prefManager.getDiscOffsetY()) }
+    var headerOffsetY by remember { mutableFloatStateOf(repo.prefManager.getHeaderOffsetY()) }
+    var dateOffsetX by remember { mutableFloatStateOf(repo.prefManager.getDateOffsetX().let { if (it.isNaN()) 0f else it }) }
+    var dateOffsetY by remember { mutableFloatStateOf(repo.prefManager.getDateOffsetY().let { if (it.isNaN()) 112f else it }) }
+    val headerTopDp: Dp get() = topPaddingDp + headerOffsetY.dp
     var clockOffsetY by remember { mutableFloatStateOf(repo.prefManager.getClockOffsetYDp()) }
     var pvOffsetX by remember { mutableFloatStateOf(repo.prefManager.getPvOffsetXDp()) }
     var pvTextColor by remember { mutableStateOf(repo.prefManager.getPvTextColor()) }
@@ -864,12 +870,12 @@ fun MainLauncherScreen() {
     // レイアウト設定「自動」: 再生中だけ大きめレイアウトに切り替える（日付表示の自動と同じ考え方）
     val isBigDiscLayout = (homeDiscLayout == "artwork" || (homeDiscLayout == "auto" && sessionIsPlaying)) && currentLauncherPage == 1
     val disc1RadiusDp = 165f
-    val disc1CenterX = if (isBigDiscLayout) 15f else -80f
-    val disc1CenterY = screenHeightDp * 0.50f
+    val disc1CenterX = (if (isBigDiscLayout) 15f else -80f) + discOffsetX
+    val disc1CenterY = screenHeightDp * 0.50f + discOffsetY
 
     val disc2RadiusDp = 165f
-    val disc2CenterX = screenWidthDp + 80f
-    val disc2CenterY = screenHeightDp * 0.50f
+    val disc2CenterX = screenWidthDp + 80f + discOffsetX
+    val disc2CenterY = screenHeightDp * 0.50f + discOffsetY
 
     // 歌詞のPV／複数行モードでは、音楽アプリと同じように円を下へ逃がす
     val lyricsDiscDrop by animateFloatAsState(
@@ -1054,15 +1060,16 @@ fun MainLauncherScreen() {
               }
             }
 
-            // レイアウト編集モード: PVのドラッグハンドル＋完了ボタン＋ヒント
+            // レイアウト編集モード: PVの表示範囲を大きな四角で囲む（ホームのみ）
             if (layoutEditMode && currentLauncherPage == 1) {
                 Box(
                     modifier = Modifier
-                        .padding(start = (44f + pvOffsetX).dp, top = topPaddingDp + 165.dp + pvTopOffset.dp)
-                        .size(width = 104.dp, height = 44.dp)
+                        .padding(start = (28f + pvOffsetX).dp, top = topPaddingDp + 150.dp + pvTopOffset.dp, end = 28.dp)
+                        .fillMaxWidth()
+                        .height(200.dp)
                         .zIndex(190f)
-                        .border(1.dp, accentColor.copy(alpha = 0.9f), RoundedCornerShape(8.dp))
-                        .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(8.dp))
+                        .border(2.dp, accentColor.copy(alpha = 0.9f), RoundedCornerShape(10.dp))
+                        .background(Color.Black.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
                         .pointerInput(Unit) {
                             detectDragGestures(
                                 onDragEnd = {
@@ -1075,11 +1082,83 @@ fun MainLauncherScreen() {
                                     pvTopOffset += drag.y / density
                                 }
                             )
-                        },
-                    contentAlignment = Alignment.Center
+                        }
                 ) {
-                    Text(text = "PV", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "PV",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(10.dp)
+                    )
                 }
+            }
+
+            // レイアウト編集モード: 円盤の位置ハンドル（設定・アプリ一覧・フォルダ。左右の円に枠を付ける）
+            if (layoutEditMode && currentLauncherPage != 1) {
+                for ((discCx, discCy) in listOf(disc1CenterX to disc1CenterY, disc2CenterX to disc2CenterY)) {
+                    Box(
+                        modifier = Modifier
+                            .offset(x = (discCx - 165f).dp, y = (discCy - 165f).dp)
+                            .size(330.dp)
+                            .zIndex(190f)
+                            .border(2.dp, accentColor.copy(alpha = 0.9f), CircleShape)
+                            .background(Color.Black.copy(alpha = 0.15f), CircleShape)
+                            .pointerInput(Unit) {
+                                detectDragGestures(
+                                    onDragEnd = { repo.prefManager.setDiscOffset(discOffsetX, discOffsetY) },
+                                    onDrag = { change, drag ->
+                                        change.consume()
+                                        discOffsetX += drag.x / density
+                                        discOffsetY += drag.y / density
+                                    }
+                                )
+                            }
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .offset(x = (disc2CenterX - 30f).dp, y = (disc2CenterY - 185f).dp)
+                        .zIndex(191f)
+                        .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Text(text = "円盤", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            // レイアウト編集モード: ヘッダーの位置ハンドル（アプリ一覧・フォルダ）
+            if (layoutEditMode && (currentLauncherPage == 2 || currentLauncherPage == 3)) {
+                Box(
+                    modifier = Modifier
+                        .padding(top = headerTopDp + 4.dp, start = 16.dp, end = 16.dp)
+                        .fillMaxWidth()
+                        .height(118.dp)
+                        .zIndex(189f)
+                        .border(2.dp, accentColor.copy(alpha = 0.9f), RoundedCornerShape(10.dp))
+                        .background(Color.Black.copy(alpha = 0.15f), RoundedCornerShape(10.dp))
+                        .pointerInput(Unit) {
+                            detectDragGestures(
+                                onDragEnd = { repo.prefManager.setHeaderOffsetY(headerOffsetY) },
+                                onDrag = { change, drag ->
+                                    change.consume()
+                                    headerOffsetY = (headerOffsetY + drag.y / density).coerceIn(-30f, 150f)
+                                }
+                            )
+                        }
+                ) {
+                    Text(
+                        text = "ヘッダー",
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(8.dp)
+                    )
+                }
+            }
+
+            // レイアウト編集モード: 完了ボタンとヒント（全ページ共通）
+            if (layoutEditMode) {
                 Box(
                     modifier = Modifier.fillMaxWidth().padding(top = topPaddingDp + 6.dp).zIndex(195f),
                     contentAlignment = Alignment.TopCenter
@@ -1099,7 +1178,7 @@ fun MainLauncherScreen() {
                     contentAlignment = Alignment.BottomCenter
                 ) {
                     Text(
-                        text = "時計とPVの枠をドラッグで移動できます",
+                        text = if (currentLauncherPage == 1) "時計・日付・PVの枠をドラッグで移動できます" else "円盤とヘッダーの枠をドラッグで移動できます",
                         color = Color.White.copy(alpha = 0.85f),
                         fontSize = 12.sp
                     )
@@ -1169,6 +1248,11 @@ fun MainLauncherScreen() {
                                 }
                                 pvFontScale = repo.prefManager.getPvFontScale()
                                 pvTopOffset = repo.prefManager.getPvTopOffsetDp()
+                                discOffsetX = repo.prefManager.getDiscOffsetX()
+                                discOffsetY = repo.prefManager.getDiscOffsetY()
+                                headerOffsetY = repo.prefManager.getHeaderOffsetY()
+                                dateOffsetX = repo.prefManager.getDateOffsetX().let { if (it.isNaN()) dateOffsetX else it }
+                                dateOffsetY = repo.prefManager.getDateOffsetY().let { if (it.isNaN()) dateOffsetY else it }
                                 pvTextColor = repo.prefManager.getPvTextColor()
                                 pvRuby = repo.prefManager.isPvRubyEnabled()
                                 pvInterludeArt = repo.prefManager.isPvInterludeArtEnabled()
@@ -1199,6 +1283,7 @@ fun MainLauncherScreen() {
                 1 -> {
                     // --- 1: ホーム画面 ---
                     ClockWidget(
+                        showDate = false,
                         showSeconds = clockShowSeconds,
                         hour12 = clock12h,
                         showBattery = clockBattery,
@@ -1238,6 +1323,44 @@ fun MainLauncherScreen() {
                         karaokeSungColor = accentColor,
                         lyricFontFamily = lyricsFontFamily,
                         lyricEnFontFamily = lyricsEnFontArg,
+                        dateMode = if (lyricsDisplayMode == "video" && syncedLyricLines.isNotEmpty()) "sideways" else dateDisplayMode,
+                        glowColor = accentColor,
+                        rainbowGlow = dopagakiMode
+                    )
+
+                    // 日付（時計から分離。レイアウト編集で個別に移動できる）
+                    ClockWidget(
+                        showTime = false,
+                        showBattery = false,
+                        wareki = dateWareki,
+                        modifier = Modifier
+                            .padding(start = 28.dp, top = topPaddingDp + 48.dp)
+                            .offset(x = dateOffsetX.dp, y = dateOffsetY.dp)
+                            .then(if (layoutEditMode) Modifier.border(1.dp, accentColor.copy(alpha = 0.8f), RoundedCornerShape(10.dp)) else Modifier)
+                            .pointerInput(layoutEditMode) {
+                                if (layoutEditMode) {
+                                    detectDragGestures(
+                                        onDragEnd = { repo.prefManager.setDateOffset(dateOffsetX, dateOffsetY) },
+                                        onDrag = { change, drag ->
+                                            change.consume()
+                                            dateOffsetX += drag.x / density
+                                            dateOffsetY += drag.y / density
+                                        }
+                                    )
+                                } else {
+                                    detectTapGestures(onLongPress = { layoutEditMode = true })
+                                }
+                            }
+                            .zIndex(10f)
+                            .graphicsLayer {
+                                alpha = if (isLyricsBrowsing) 0f else 1f
+                                if (disc3d) {
+                                    transformOrigin = TransformOrigin(0.5f, 0.5f)
+                                    rotationX = 27f + discTiltX.value
+                                    rotationY = discTiltY.value
+                                    cameraDistance = 6.5f * density
+                                }
+                            },
                         dateMode = if (lyricsDisplayMode == "video" && syncedLyricLines.isNotEmpty()) "sideways" else dateDisplayMode,
                         glowColor = accentColor,
                         rainbowGlow = dopagakiMode
@@ -1941,7 +2064,7 @@ fun MainLauncherScreen() {
                 contentAlignment = Alignment.TopCenter
             ) {
                 Box(
-                    modifier = Modifier.padding(top = topPaddingDp + 10.dp),
+                    modifier = Modifier.padding(top = headerTopDp + 10.dp),
                     contentAlignment = Alignment.TopCenter
                 ) {
                 if (isHideMode) {
@@ -2026,7 +2149,7 @@ fun MainLauncherScreen() {
             ) {
                 Row(
                     modifier = Modifier
-                        .padding(top = topPaddingDp + 66.dp)
+                        .padding(top = headerTopDp + 66.dp)
                         .width(320.dp)
                         .height(48.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -2083,7 +2206,7 @@ fun MainLauncherScreen() {
                 contentAlignment = Alignment.TopCenter
             ) {
                 Box(
-                    modifier = Modifier.padding(top = topPaddingDp + 10.dp),
+                    modifier = Modifier.padding(top = headerTopDp + 10.dp),
                     contentAlignment = Alignment.TopCenter
                 ) {
                 if (selectedFolderId != null && selectedFolderId != "__BACK") {
@@ -2224,7 +2347,7 @@ fun MainLauncherScreen() {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = topPaddingDp + 70.dp)
+                    .padding(top = headerTopDp + 70.dp)
                     .zIndex(150f),
                 contentAlignment = Alignment.TopCenter
             ) {
@@ -2246,7 +2369,7 @@ fun MainLauncherScreen() {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = topPaddingDp + 102.dp)
+                    .padding(top = headerTopDp + 102.dp)
                     .zIndex(150f),
                 contentAlignment = Alignment.TopCenter
             ) {
