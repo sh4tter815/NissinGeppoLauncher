@@ -806,11 +806,7 @@ fun MainLauncherScreen() {
     var editingSelectedPackages by remember { mutableStateOf<Set<String>>(emptySet()) }
 
     var isHideMode by remember { mutableStateOf(false) }
-    var hideRippleTick by remember { mutableIntStateOf(0) }
     var hideDimStep by remember { mutableIntStateOf(0) }
-    var indexSelectedSeen by remember { mutableStateOf<Int?>(null) }
-    var folderSelectedSeen by remember { mutableStateOf<Int?>(null) }
-    var hideModeSeen by remember { mutableStateOf<Boolean?>(null) }
     var showPasscodeDialog by remember { mutableStateOf(false) }
     var indexTapCount by remember { mutableIntStateOf(0) }
     var lastIndexTapMs by remember { mutableLongStateOf(0L) }
@@ -2938,66 +2934,14 @@ fun MainLauncherScreen() {
             )
         }
 
-        // 非表示リストを開いた瞬間の波紋エフェクト（左円盤の中心から広がる）
+        // 非表示モード中は背景を段階的に暗くする
         LaunchedEffect(isHideMode) {
-            if (hideModeSeen != null && hideModeSeen != isHideMode) hideRippleTick++
-            hideModeSeen = isHideMode
             if (isHideMode) {
                 for (i in 1..3) { delay(110); hideDimStep = i }
             } else if (hideDimStep > 0) {
                 for (i in 2 downTo 0) { delay(80); hideDimStep = i }
             }
         }
-        // 索引ダイヤル／フォルダ左円のフォーカスが切り替わったときも同じ波紋を出す
-        LaunchedEffect(indexSelected) {
-            val prevIndex = indexSelectedSeen
-            indexSelectedSeen = indexSelected
-            if (prevIndex == null || prevIndex == indexSelected) return@LaunchedEffect
-            if (currentLauncherPage != 2 && currentLauncherPage != 3) return@LaunchedEffect
-            // 指を離したらすぐ波紋を出す（スクロール終了を最大250msだけ待つ）
-            var waited = 0
-            while (indexDiscState.isScrolling && waited < 120) { delay(20); waited += 20 }
-            hideRippleTick++
-        }
-        LaunchedEffect(folderSelectedIndex) {
-            val prevFolder = folderSelectedSeen
-            folderSelectedSeen = folderSelectedIndex
-            if (prevFolder == null || prevFolder == folderSelectedIndex) return@LaunchedEffect
-            if (currentLauncherPage != 3) return@LaunchedEffect
-            var waited = 0
-            while (folderDiscState.isScrolling && waited < 120) { delay(20); waited += 20 }
-            hideRippleTick++
-        }
-        if ((currentLauncherPage == 2 || currentLauncherPage == 3) && hideRippleTick > 0) {
-            val rippleAnim = remember(hideRippleTick) { Animatable(0f) }
-            LaunchedEffect(hideRippleTick) {
-                rippleAnim.snapTo(0f)
-                rippleAnim.animateTo(1f, animationSpec = tween(durationMillis = 550, easing = FastOutSlowInEasing))
-            }
-            if (rippleAnim.value < 1f) {
-                Canvas(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .zIndex(45f)
-                ) {
-                    val cx = animatedDisc1CenterX.dp.toPx()
-                    val cy = (disc1CenterY + lyricsDiscDrop).dp.toPx()
-                    val maxR = size.width * 0.95f
-                    for (i in 0..2) {
-                        val p = ((rippleAnim.value - i * 0.13f) / (1f - i * 0.13f)).coerceIn(0f, 1f)
-                        if (p > 0f && p < 1f) {
-                            drawCircle(
-                                color = accentColor.copy(alpha = (1f - p) * 0.55f),
-                                radius = maxR * p,
-                                center = Offset(cx, cy),
-                                style = Stroke(width = (1f + (1f - p) * 3f).dp.toPx())
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
         // --- ダイアログ類 ---
         // 0. パスコード認証ダイアログ (非表示リスト用)
         if (showPasscodeDialog) {
