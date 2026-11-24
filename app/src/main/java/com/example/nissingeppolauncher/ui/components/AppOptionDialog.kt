@@ -6,6 +6,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -338,7 +339,7 @@ fun AppOptionDialog(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(start = 20.dp, top = 18.dp, end = 20.dp)
+                    modifier = Modifier.fillMaxWidth().padding(start = 20.dp, top = 18.dp, end = 20.dp)
                 ) {
                     val bmp = app.iconBitmap
                     if (bmp != null) {
@@ -348,6 +349,17 @@ fun AppOptionDialog(
                     Column {
                         Text(text = app.label, color = Color.White, fontSize = 19.sp, fontFamily = fontFamily, fontWeight = fontWeight)
                         Text(text = app.packageName, fontSize = 11.sp, color = Color.Gray, fontFamily = fontFamily, fontWeight = fontWeight)
+                    }
+                    Spacer(Modifier.weight(1f))
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .pressScale()
+                            .clickable { onDismiss() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        DiscGlyph("x", Color.White.copy(alpha = 0.85f))
                     }
                 }
                 Box(modifier = Modifier.fillMaxSize().padding(top = 76.dp)) {

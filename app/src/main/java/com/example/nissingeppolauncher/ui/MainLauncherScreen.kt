@@ -3221,12 +3221,23 @@ fun MainLauncherScreen() {
         }
         // 索引ダイヤル／フォルダ左円のフォーカスが切り替わったときも同じ波紋を出す
         LaunchedEffect(indexSelected) {
-            if ((currentLauncherPage == 2 || currentLauncherPage == 3) && indexSelectedSeen != null && indexSelectedSeen != indexSelected) hideRippleTick++
+            val prevIndex = indexSelectedSeen
             indexSelectedSeen = indexSelected
+            if (prevIndex == null || prevIndex == indexSelected) return@LaunchedEffect
+            if (currentLauncherPage != 2 && currentLauncherPage != 3) return@LaunchedEffect
+            // 指を離してスクロールが収まってから波紋を出す
+            var waited = 0
+            while (indexDiscState.isScrolling && waited < 800) { delay(50); waited += 50 }
+            if (!indexDiscState.isScrolling) hideRippleTick++
         }
         LaunchedEffect(folderSelectedIndex) {
-            if (currentLauncherPage == 3 && folderSelectedSeen != null && folderSelectedSeen != folderSelectedIndex) hideRippleTick++
+            val prevFolder = folderSelectedSeen
             folderSelectedSeen = folderSelectedIndex
+            if (prevFolder == null || prevFolder == folderSelectedIndex) return@LaunchedEffect
+            if (currentLauncherPage != 3) return@LaunchedEffect
+            var waited = 0
+            while (folderDiscState.isScrolling && waited < 800) { delay(50); waited += 50 }
+            if (!folderDiscState.isScrolling) hideRippleTick++
         }
         // 非表示モード中は画面全体を段階的に暗くする
         if (currentLauncherPage == 2 && hideDimStep > 0) {
