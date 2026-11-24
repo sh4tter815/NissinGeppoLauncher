@@ -35,6 +35,7 @@ fun AppOptionDialog(
     onDismiss: () -> Unit,
     onToggleFavorite: (AppInfo) -> Unit,
     onSetYomi: (AppInfo, String) -> Unit,
+    onSetYomiKana: (AppInfo, String) -> Unit,
     onAddAlias: (AppInfo, String) -> Unit,
     onRemoveAlias: (AppInfo, String) -> Unit,
     onToggleHide: (AppInfo) -> Unit
@@ -43,6 +44,7 @@ fun AppOptionDialog(
     var showYomiInputDialog by remember { mutableStateOf(false) }
     var showAliasDialog by remember { mutableStateOf(false) }
     var yomiInputText by remember { mutableStateOf(app.customYomi) }
+    var yomiKanaInputText by remember { mutableStateOf(app.customYomiKana) }
     var aliasInputText by remember { mutableStateOf("") }
 
     val fontFamily = LocalLauncherFontFamily.current
@@ -56,6 +58,7 @@ fun AppOptionDialog(
                 TextButton(
                     onClick = {
                         onSetYomi(app, yomiInputText)
+                        onSetYomiKana(app, yomiKanaInputText)
                         showYomiInputDialog = false
                         onDismiss()
                     }
@@ -72,18 +75,48 @@ fun AppOptionDialog(
             text = {
                 Column {
                     Text(
-                        text = "「${app.label}」のよみがな（ひらがな・カタカナ等）を入力してください。",
+                        text = "「${app.label}」の読みを登録します。漢字の読みが基本的に優先され、カタカナ読みはスペル順モードでは無効になります。",
                         color = Color.LightGray,
                         fontSize = 14.sp,
                         fontFamily = fontFamily,
                         fontWeight = fontWeight
                     )
                     Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "漢字の読み",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontFamily = fontFamily,
+                        fontWeight = fontWeight
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
                     OutlinedTextField(
                         value = yomiInputText,
                         onValueChange = { yomiInputText = it },
                         singleLine = true,
-                        placeholder = { Text("例: らいん", color = Color.Gray, fontFamily = fontFamily, fontWeight = fontWeight) },
+                        placeholder = { Text("例: とけい", color = Color.Gray, fontFamily = fontFamily, fontWeight = fontWeight) },
+                        textStyle = textStyle,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = Color.White,
+                            unfocusedBorderColor = Color.Gray
+                        )
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "カタカナ読み",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontFamily = fontFamily,
+                        fontWeight = fontWeight
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    OutlinedTextField(
+                        value = yomiKanaInputText,
+                        onValueChange = { yomiKanaInputText = it },
+                        singleLine = true,
+                        placeholder = { Text("例: ライン", color = Color.Gray, fontFamily = fontFamily, fontWeight = fontWeight) },
                         textStyle = textStyle,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = Color.White,
@@ -209,11 +242,11 @@ fun AppOptionDialog(
             OptionEntry(
                 kind = "yomi",
                 label = "よみがな",
-                valueText = app.customYomi.ifBlank { "未登録" },
+                valueText = app.customYomi.ifBlank { app.customYomiKana }.ifBlank { "未登録" },
                 actions = buildList {
-                    add(OptionAction("yomi", if (app.customYomi.isNotBlank()) "変更する" else "登録する") { showYomiInputDialog = true })
-                    if (app.customYomi.isNotBlank()) {
-                        add(OptionAction("trash", "削除する", danger = true) { onSetYomi(app, ""); onDismiss() })
+                    add(OptionAction("yomi", if (app.customYomi.isNotBlank() || app.customYomiKana.isNotBlank()) "変更する" else "登録する") { showYomiInputDialog = true })
+                    if (app.customYomi.isNotBlank() || app.customYomiKana.isNotBlank()) {
+                        add(OptionAction("trash", "削除する", danger = true) { onSetYomi(app, ""); onSetYomiKana(app, ""); onDismiss() })
                     }
                 }
             ),

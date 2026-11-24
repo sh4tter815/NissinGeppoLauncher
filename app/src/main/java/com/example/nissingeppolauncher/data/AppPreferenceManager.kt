@@ -59,6 +59,30 @@ class AppPreferenceManager(private val context: Context) {
         prefs.edit().putString("yomi_map_json", jsonObj.toString()).apply()
     }
 
+    // カタカナ読み（漢字の読みとは別枠。スペル順モードでは無効になる）
+    fun getYomiKanaMap(): Map<String, String> {
+        val jsonStr = prefs.getString("yomi_kana_map_json", "{}") ?: "{}"
+        val map = mutableMapOf<String, String>()
+        try {
+            val jsonObj = JSONObject(jsonStr)
+            jsonObj.keys().forEach { key ->
+                map[key] = jsonObj.getString(key)
+            }
+        } catch (_: Exception) {}
+        return map
+    }
+
+    fun setYomiKana(packageName: String, yomi: String) {
+        val currentMap = getYomiKanaMap().toMutableMap()
+        if (yomi.isBlank()) {
+            currentMap.remove(packageName)
+        } else {
+            currentMap[packageName] = yomi.trim()
+        }
+        val jsonObj = JSONObject(currentMap as Map<*, *>)
+        prefs.edit().putString("yomi_kana_map_json", jsonObj.toString()).apply()
+    }
+
     // 検索可能な別名（複数登録可能）
     fun getAliasesMap(): Map<String, List<String>> {
         val jsonStr = prefs.getString("aliases_map_json", "{}") ?: "{}"
