@@ -3737,51 +3737,6 @@ fun LyricsBrowseOverlay(
                     )
                 )
         )
-        // 曲情報ヘッダー（アートワーク＋曲名＋アーティスト名）
-        if (trackTitle.isNotBlank()) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(start = 16.dp, top = topPaddingDp + 34.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color.Black.copy(alpha = 0.38f))
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                val artImg = remember(artwork) { artwork?.asImageBitmap() }
-                if (artImg != null) {
-                    Image(
-                        bitmap = artImg,
-                        contentDescription = null,
-                        modifier = Modifier.size(56.dp).clip(RoundedCornerShape(10.dp))
-                    )
-                    Spacer(Modifier.width(12.dp))
-                }
-                Column {
-                    Text(
-                        text = trackTitle,
-                        color = Color.White,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = fontFamily,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.widthIn(max = 220.dp)
-                    )
-                    if (trackArtist.isNotBlank()) {
-                        Text(
-                            text = trackArtist,
-                            color = Color.White.copy(alpha = 0.65f),
-                            fontSize = 13.sp,
-                            fontFamily = fontFamily,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.widthIn(max = 220.dp)
-                        )
-                    }
-                }
-            }
-        }
         val centerYDp = maxHeight.value / 2f
         val densityNow = LocalDensity.current
         // 折り返した行は高さが変わるので、実測した行高で累積配置する
@@ -3901,6 +3856,48 @@ fun LyricsBrowseOverlay(
                             modifier = Modifier.padding(top = 2.dp)
                         )
                     }
+                }
+            }
+        }
+    }
+    // 曲情報ヘッダー（アートワーク＋曲名＋アーティスト名）: フェードマスクの外（ルートBox直下）に置く
+    if (trackTitle.isNotBlank()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(start = 20.dp, top = topPaddingDp + 42.dp)
+        ) {
+            val artImg = remember(artwork) { artwork?.asImageBitmap() }
+            if (artImg != null) {
+                Image(
+                    bitmap = artImg,
+                    contentDescription = null,
+                    modifier = Modifier.size(56.dp).clip(RoundedCornerShape(10.dp))
+                )
+                Spacer(Modifier.width(12.dp))
+            }
+            Column {
+                Text(
+                    text = trackTitle,
+                    color = Color.White,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = fontFamily,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = 220.dp)
+                )
+                if (trackArtist.isNotBlank()) {
+                    Text(
+                        text = trackArtist,
+                        color = Color.White.copy(alpha = 0.65f),
+                        fontSize = 13.sp,
+                        fontFamily = fontFamily,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.widthIn(max = 220.dp)
+                    )
                 }
             }
         }
