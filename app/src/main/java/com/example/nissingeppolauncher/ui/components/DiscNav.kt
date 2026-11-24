@@ -306,6 +306,7 @@ fun DiscWheel(
                     .offset(x = (iconX - iconSize / 2f).dp, y = (iconY - iconSize / 2f).dp)
                     .size(iconSize.dp)
                     .clickable {
+                        carouselState.pulseTap(index)
                         when {
                                 isSelected || entry.immediate -> onEntryClick(index)
                                 tapToApply -> { carouselState.animateToIndex(index); onEntryClick(index) }
@@ -314,7 +315,7 @@ fun DiscWheel(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                Box(modifier = Modifier.graphicsLayer { val sc = (if (isSelected) 1.12f else 1f) * (iconSizeDp / 36f) * 1.0f; scaleX = sc; scaleY = sc }) {
+                Box(modifier = Modifier.graphicsLayer { val sc = (if (isSelected) 1.12f else 1f) * (iconSizeDp / 36f) * 1.0f * (if (index == carouselState.tapPulseIndex) carouselState.tapPulseAnim.value else 1f); scaleX = sc; scaleY = sc }) {
                     entry.icon()
                 }
             }
@@ -331,6 +332,7 @@ fun DiscWheel(
             ) {
                 Row(
                     modifier = Modifier.clickable {
+                        carouselState.pulseTap(index)
                         when {
                                 isSelected || entry.immediate -> onEntryClick(index)
                                 tapToApply -> { carouselState.animateToIndex(index); onEntryClick(index) }

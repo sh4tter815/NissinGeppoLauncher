@@ -28,6 +28,9 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.changedToDown
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -83,6 +86,17 @@ class DiscCarouselState internal constructor(
                 animationSpec = spring(stiffness = 220f, dampingRatio = 0.65f)
             )
             isScrolling = false
+        }
+    }
+
+    /** タップされた項目のアイコンを一瞬縮めて離す（押した感の共通フィードバック） */
+    var tapPulseIndex by mutableStateOf(-1)
+    val tapPulseAnim = Animatable(1f)
+    fun pulseTap(index: Int) {
+        tapPulseIndex = index
+        scope.launch {
+            tapPulseAnim.snapTo(0.84f)
+            tapPulseAnim.animateTo(1f, animationSpec = spring(dampingRatio = 0.42f, stiffness = 380f))
         }
     }
 }
@@ -554,6 +568,7 @@ fun DiscTouchHalf(
                             }
                             if (best >= 0) {
                                 upChange?.consume()
+                                st.pulseTap(best)
                                 tapCb?.invoke(best)
                             }
                         }
@@ -565,4 +580,35 @@ fun DiscTouchHalf(
             }
         }
     )
+}
+
+/**
+ * ボタン共通の押下フィードバック: 押している間だけ少し縮む。
+ * 自前の clickable / pointerInput を持つ要素に足すだけで効く（イベントは消費しない）。
+ */
+fun Modifier.pressScale(scaleDown: Float = 0.9f): Modifier = composed {
+    var pressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) scaleDown else 1f,
+        animationSpec = spring(dampingRatio = 0.5f, stiffness = 520f),
+        label = "pressScale"
+    )
+    this
+        .graphicsLayer { scaleX = scale; scaleY = scale }
+        .pointerInput(Unit) {
+            awaitPointerEventScope {
+                while (true) {
+                    val ev = awaitPointerEvent(PointerEventPass.Initial)
+                    if (ev.changes.any { it.changedToDown() }) {
+                        pressed = true
+                        var released = false
+                        while (!released) {
+                            val ev2 = awaitPointerEvent(PointerEventPass.Initial)
+                            if (ev2.changes.all { !it.pressed }) released = true
+                        }
+                        pressed = false
+                    }
+                }
+            }
+        }
 }

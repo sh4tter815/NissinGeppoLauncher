@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.sp
 import com.example.nissingeppolauncher.data.AppRepository
 import com.example.nissingeppolauncher.service.LyricsOverlayService
 import com.example.nissingeppolauncher.ui.components.DiscEntry
+import com.example.nissingeppolauncher.ui.components.pressScale
 import com.example.nissingeppolauncher.data.SettingsTreeData
 import com.example.nissingeppolauncher.data.SettingItemDef
 import com.example.nissingeppolauncher.data.SettingNodeDef
@@ -380,7 +381,7 @@ fun IllustratedChoiceCard(
         color = if (selected) accentColor.copy(alpha = 0.25f) else Color(0xFF1F293D),
         shape = RoundedCornerShape(16.dp),
         border = if (selected) BorderStroke(1.5.dp, accentColor) else null,
-        modifier = modifier.height(84.dp).clickable { onClick() }
+        modifier = modifier.height(84.dp).pressScale().clickable { onClick() }
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -503,6 +504,7 @@ fun FontPickerCard(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .pressScale()
                     .clickable { onToggle() }
             ) {
                 Column(modifier = Modifier.weight(1f)) {
@@ -529,6 +531,7 @@ fun FontPickerCard(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .fillMaxWidth()
+                            .pressScale()
                             .clickable { onSelected(key) }
                             .padding(vertical = 2.dp)
                     ) {
@@ -614,7 +617,6 @@ fun SettingsScreen(
     var discDropOnPv by remember { mutableStateOf(repo.prefManager.isDiscDropOnPvEnabled()) }
     var widgetLongPressAction by remember { mutableStateOf(repo.prefManager.getWidgetLongPressAction()) }
     var widgetTapAction by remember { mutableStateOf(repo.prefManager.getWidgetTapAction()) }
-    var widgetDoubleTapAction by remember { mutableStateOf(repo.prefManager.getWidgetDoubleTapAction()) }
     var notificationBadges by remember { mutableStateOf(repo.prefManager.isNotificationBadgesEnabled()) }
     var appSortMode by remember { mutableStateOf(repo.prefManager.getAppSortMode()) }
     var englishAppSort by remember { mutableStateOf(repo.prefManager.getEnglishAppSort()) }
@@ -975,8 +977,7 @@ fun SettingsScreen(
         "indexMode" to Pair({ indexMode }, { v: String -> indexMode = v; repo.prefManager.setIndexMode(v); onChanged() }),
         "widgetLongPressAction" to Pair({ widgetLongPressAction }, { v: String -> widgetLongPressAction = v; repo.prefManager.setWidgetLongPressAction(v); onChanged() }),
         "widgetTapAction" to Pair({ widgetTapAction }, { v: String -> widgetTapAction = v; repo.prefManager.setWidgetTapAction(v); onChanged() })
-,
-        "widgetDoubleTapAction" to Pair({ widgetDoubleTapAction }, { v: String -> widgetDoubleTapAction = v; repo.prefManager.setWidgetDoubleTapAction(v); onChanged() })    )
+    )
 
     val floatBinds: Map<String, Pair<() -> Float, (Float) -> Unit>> = mapOf(
         "wallpaperAlpha" to Pair({ wallpaperAlpha }, { v: Float -> wallpaperAlpha = v; repo.prefManager.setHomeWallpaperAlpha(v); onChanged() }),
@@ -1618,6 +1619,7 @@ key("disc-choices-${currentItem.id}") {
                         color = Color.White,
                         fontSize = 14.sp,
                         modifier = Modifier
+                            .pressScale()
                             .clickable {
                                 searchQuery = ""
                                 focusId = null
