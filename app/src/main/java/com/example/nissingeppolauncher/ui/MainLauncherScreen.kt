@@ -22,6 +22,9 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.window.Dialog
 import androidx.compose.foundation.border
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -266,6 +269,7 @@ fun MainLauncherScreen() {
     }
     var widgetPlacements by remember { mutableStateOf(repo.prefManager.getWidgetPlacements()) }
     var pendingWidgetId by remember { mutableStateOf(-1) }
+    var showWidgetPicker by remember { mutableStateOf(false) }
     val addWidgetPlacement: (Int) -> Unit = { wid ->
         val info = appWidgetManager.getAppWidgetInfo(wid)
         val wDp = (info?.minWidth ?: 180).toFloat().coerceIn(80f, 340f)
@@ -285,23 +289,30 @@ fun MainLauncherScreen() {
         }
         pendingWidgetId = -1
     }
-    val widgetPickLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        val wid = result.data?.getIntExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_ID, -1) ?: -1
-        if (result.resultCode == android.app.Activity.RESULT_OK && wid >= 0) {
-            val info = appWidgetManager.getAppWidgetInfo(wid)
-            val configure = info?.configure
-            if (configure != null) {
-                pendingWidgetId = wid
-                widgetConfigureLauncher.launch(
-                    android.content.Intent(android.appwidget.AppWidgetManager.ACTION_APPWIDGET_CONFIGURE)
-                        .setComponent(configure)
-                        .putExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_ID, wid)
-                )
+    // バインド完了後: 設定画面があるウィジェットは設定へ、なければそのまま配置
+    val proceedAfterWidgetBind: (Int) -> Unit = { wid ->
+        val info = appWidgetManager.getAppWidgetInfo(wid)
+        val configure = info?.configure
+        if (configure != null) {
+            pendingWidgetId = wid
+            widgetConfigureLauncher.launch(
+                android.content.Intent(android.appwidget.AppWidgetManager.ACTION_APPWIDGET_CONFIGURE)
+                    .setComponent(configure)
+                    .putExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_ID, wid)
+            )
+        } else {
+            addWidgetPlacement(wid)
+        }
+    }
+    val widgetBindLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val wid = pendingWidgetId
+        pendingWidgetId = -1
+        if (wid >= 0) {
+            if (result.resultCode == android.app.Activity.RESULT_OK) {
+                proceedAfterWidgetBind(wid)
             } else {
-                addWidgetPlacement(wid)
+                appWidgetHost.deleteAppWidgetId(wid)
             }
-        } else if (wid >= 0) {
-            appWidgetHost.deleteAppWidgetId(wid)
         }
     }
     LaunchedEffect(widgetPlacements) {
@@ -1353,14 +1364,7 @@ fun MainLauncherScreen() {
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(999.dp))
                                     .background(Color.White.copy(alpha = 0.92f))
-                                    .clickable {
-                                        val newId = appWidgetHost.allocateAppWidgetId()
-                                        val pickIntent = android.content.Intent(android.appwidget.AppWidgetManager.ACTION_APPWIDGET_PICK)
-                                            .putExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_ID, newId)
-                                            .putExtra(android.appwidget.AppWidgetManager.EXTRA_CUSTOM_INFO, arrayListOf<android.appwidget.AppWidgetProviderInfo>())
-                                            .putExtra(android.appwidget.AppWidgetManager.EXTRA_CUSTOM_EXTRAS, arrayListOf<android.os.Bundle>())
-                                        widgetPickLauncher.launch(pickIntent)
-                                    }
+                                    .clickable { showWidgetPicker = true }
                                     .padding(horizontal = 18.dp, vertical = 9.dp)
                             ) {
                                 Text(text = "＋ ウィジェット", color = Color(0xFF222222), fontSize = 14.sp, fontWeight = FontWeight.Bold)
@@ -2639,6 +2643,85 @@ fun MainLauncherScreen() {
                 changePageWithTransition(1)
             }
         }
+        // ウィジェット選択ダイアログ（自前。システム標準のピッカーはこの端末だと開くときに落ちるため使わない）
+        if (showWidgetPicker) {
+            val providers = remember(showWidgetPicker) {
+                try {
+                    appWidgetManager.installedProviders.sortedBy { it.loadLabel(context.packageManager).lowercase() }
+                } catch (_: Exception) { emptyList() }
+            }
+            Dialog(onDismissRequest = { showWidgetPicker = false }) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 540.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xFF1C1C22))
+                        .padding(18.dp)
+                ) {
+                    Text(text = "ウィジェットを追加", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    LazyColumn(modifier = Modifier.weight(1f, fill = false)) {
+                        items(providers) { info ->
+                            val label = remember(info.provider) { try { info.loadLabel(context.packageManager) } catch (_: Exception) { info.provider.packageName } }
+                            val preview = remember(info.provider) {
+                                try {
+                                    val d = info.loadPreviewImage(context, context.resources.displayMetrics.densityDpi)
+                                        ?: info.loadIcon(context, context.resources.displayMetrics.densityDpi)
+                                    if (d != null) {
+                                        val bmp = Bitmap.createBitmap(96, 96, Bitmap.Config.ARGB_8888)
+                                        val cv = android.graphics.Canvas(bmp)
+                                        d.setBounds(0, 0, 96, 96)
+                                        d.draw(cv)
+                                        bmp
+                                    } else null
+                                } catch (_: Exception) { null }
+                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        showWidgetPicker = false
+                                        val wid = appWidgetHost.allocateAppWidgetId()
+                                        val bound = try { appWidgetManager.bindAppWidgetIdIfAllowed(wid, info.provider) } catch (_: Exception) { false }
+                                        if (bound) {
+                                            proceedAfterWidgetBind(wid)
+                                        } else {
+                                            pendingWidgetId = wid
+                                            widgetBindLauncher.launch(
+                                                android.content.Intent(android.appwidget.AppWidgetManager.ACTION_APPWIDGET_BIND)
+                                                    .putExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_ID, wid)
+                                                    .putExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, info.provider)
+                                            )
+                                        }
+                                    }
+                                    .padding(horizontal = 8.dp, vertical = 10.dp)
+                            ) {
+                                if (preview != null) {
+                                    Image(bitmap = preview.asImageBitmap(), contentDescription = null, modifier = Modifier.size(40.dp).clip(RoundedCornerShape(8.dp)))
+                                } else {
+                                    Box(modifier = Modifier.size(40.dp).clip(RoundedCornerShape(8.dp)).background(Color.White.copy(alpha = 0.12f)))
+                                }
+                                Column(modifier = Modifier.padding(start = 12.dp)) {
+                                    Text(text = label, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                                    Text(text = "${info.minWidth} × ${info.minHeight} dp", color = Color.White.copy(alpha = 0.55f), fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Box(
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = 0.08f)).clickable { showWidgetPicker = false }.padding(vertical = 11.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "キャンセル", color = Color.White, fontSize = 14.sp)
+                    }
+                }
+            }
+        }
+
         BackHandler(enabled = layoutEditMode) {
             layoutEditMode = false
         }
