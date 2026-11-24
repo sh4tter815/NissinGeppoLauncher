@@ -411,6 +411,8 @@ class AppPreferenceManager(private val context: Context) {
     // インデックスに英語（A〜Z）を含めるか
     fun isIndexShowEnglish(): Boolean = prefs.getBoolean("index_show_english", false)
     fun setIndexShowEnglish(v: Boolean) = prefs.edit().putBoolean("index_show_english", v).apply()
+    fun getIndexMode(): String = prefs.getString("index_mode", "row") ?: "row"
+    fun setIndexMode(v: String) = prefs.edit().putString("index_mode", v).apply()
 
     // アプリ一覧の並び順 ("name" = 名前順, "usage" = よく使う順, "recent" = 最近使った順)
     fun getAppSortMode(): String = prefs.getString("app_sort_mode", "name") ?: "name"

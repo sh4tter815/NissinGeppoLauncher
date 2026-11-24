@@ -28,6 +28,7 @@ data class AppInfo(
     val initialEnglish: String = "＃",   // "A", "B", "C" など
     val customYomi: String = "",
     val discGroup: String = "＃", // 円盤の索引グループ（通常は initialJapanese、スペル順モードの英語名アプリは頭文字）
+    val discKana: String = "＃", // 索引の文字単位グループ（あいうえおモード用。濁点・小文字は基本文字に寄せる）
     val searchAliases: List<String> = emptyList(), // 検索可能な別名（複数保存可能）
     val isFavorite: Boolean = false,
     val isHidden: Boolean = false
@@ -227,6 +228,7 @@ class AppRepository(private val context: Context) {
             val iconBitmapRaw = loadIconBitmap(rec.packageName, allowPackageLoad = false)
             val iconDrawable = iconBitmapRaw?.let { BitmapDrawable(context.resources, it) }
             val (japaneseInitial, englishInitial) = extractInitials(targetForInitials)
+            val japaneseKana = getJapaneseKana(targetForInitials.firstOrNull() ?: '＃')
             val discGroup = if (isLatinLabel && spellMode && effectiveYomi.isBlank()) englishInitial else japaneseInitial
 
             AppInfo(
@@ -238,6 +240,7 @@ class AppRepository(private val context: Context) {
                 initialEnglish = englishInitial,
                 customYomi = customYomi,
                 discGroup = discGroup,
+                discKana = japaneseKana,
                 searchAliases = searchAliases,
                 isFavorite = isFavorite,
                 isHidden = isHidden
@@ -396,6 +399,48 @@ class AppRepository(private val context: Context) {
             else -> {
                 if (ch.isLetter() && ch.code < 128) ch.uppercaseChar().toString() else "＃"
             }
+        }
+    }
+
+    // 索引の文字単位グループ（あいうえおモード用）: 濁点・半濁点・小文字を基本文字に寄せた1文字を返す
+    private fun getJapaneseKana(ch: Char): String {
+        val code = ch.code
+        val hira = if (code in 0x30A1..0x30FA) (code - 0x60).toChar() else ch
+        return when (hira) {
+            'ぁ' -> "あ"
+            'ぃ' -> "い"
+            'ぅ' -> "う"
+            'ぇ' -> "え"
+            'ぉ' -> "お"
+            'が' -> "か"
+            'ぎ' -> "き"
+            'ぐ' -> "く"
+            'げ' -> "け"
+            'ご' -> "こ"
+            'ざ' -> "さ"
+            'じ' -> "し"
+            'ず' -> "す"
+            'ぜ' -> "せ"
+            'ぞ' -> "そ"
+            'だ' -> "た"
+            'ぢ' -> "ち"
+            'づ' -> "つ"
+            'で' -> "て"
+            'ど' -> "と"
+            'ば', 'ぱ' -> "は"
+            'び', 'ぴ' -> "ひ"
+            'ぶ', 'ぷ' -> "ふ"
+            'べ', 'ぺ' -> "へ"
+            'ぼ', 'ぽ' -> "ほ"
+            'っ' -> "つ"
+            'ゃ' -> "や"
+            'ゅ' -> "ゆ"
+            'ょ' -> "よ"
+            'ゎ' -> "わ"
+            'ゐ' -> "い"
+            'ゑ' -> "え"
+            in 'あ'..'ん' -> hira.toString()
+            else -> "＃"
         }
     }
 
