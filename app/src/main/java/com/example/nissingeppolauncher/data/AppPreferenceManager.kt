@@ -439,6 +439,8 @@ class AppPreferenceManager(private val context: Context) {
     fun setArtworkEnabled(v: Boolean) = prefs.edit().putBoolean("artwork_enabled", v).apply()
     fun isTonearmEnabled(): Boolean = prefs.getBoolean("tonearm_enabled", false)
     fun setTonearmEnabled(v: Boolean) = prefs.edit().putBoolean("tonearm_enabled", v).apply()
+    fun isDiscDropOnPvEnabled(): Boolean = prefs.getBoolean("disc_drop_on_pv", true)
+    fun setDiscDropOnPvEnabled(v: Boolean) = prefs.edit().putBoolean("disc_drop_on_pv", v).apply()
     fun getWidgetLongPressAction(): String = prefs.getString("widget_long_press_action", "rack") ?: "rack"
     fun setWidgetLongPressAction(v: String) = prefs.edit().putString("widget_long_press_action", v).apply()
     fun getWidgetTapAction(): String = prefs.getString("widget_tap_action", "app") ?: "app"
