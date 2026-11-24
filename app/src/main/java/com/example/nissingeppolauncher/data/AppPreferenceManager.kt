@@ -437,6 +437,10 @@ class AppPreferenceManager(private val context: Context) {
     // アートワーク表示（左円とラックの画像そのもの）
     fun isArtworkEnabled(): Boolean = prefs.getBoolean("artwork_enabled", true)
     fun setArtworkEnabled(v: Boolean) = prefs.edit().putBoolean("artwork_enabled", v).apply()
+    fun isTonearmEnabled(): Boolean = prefs.getBoolean("tonearm_enabled", false)
+    fun setTonearmEnabled(v: Boolean) = prefs.edit().putBoolean("tonearm_enabled", v).apply()
+    fun getWidgetLongPressAction(): String = prefs.getString("widget_long_press_action", "app") ?: "app"
+    fun setWidgetLongPressAction(v: String) = prefs.edit().putString("widget_long_press_action", v).apply()
     // ラック専用のスクロール反転（円盤の反転とは別）
     fun isRackReverseScroll(): Boolean = prefs.getBoolean("rack_reverse", false)
     fun setRackReverseScroll(v: Boolean) = prefs.edit().putBoolean("rack_reverse", v).apply()
