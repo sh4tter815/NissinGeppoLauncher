@@ -478,6 +478,14 @@ class AppPreferenceManager(private val context: Context) {
     fun setWidgetTapAction(v: String) = prefs.edit().putString("widget_tap_action", v).apply()
     fun getWidgetDoubleTapAction(): String = prefs.getString("widget_double_tap_action", "app") ?: "app"
     fun setWidgetDoubleTapAction(v: String) = prefs.edit().putString("widget_double_tap_action", v).apply()
+    fun getWidgetTripleTapAction(): String = prefs.getString("widget_triple_tap_action", "theme") ?: "theme"
+    fun setWidgetTripleTapAction(v: String) = prefs.edit().putString("widget_triple_tap_action", v).apply()
+    fun requestSettingsPath(csv: String) = prefs.edit().putString("settings_deep_link", csv).apply()
+    fun consumeSettingsPath(): List<String> {
+        val csv = prefs.getString("settings_deep_link", null)
+        if (csv != null) prefs.edit().remove("settings_deep_link").apply()
+        return csv?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+    }
     // ラック専用のスクロール反転（円盤の反転とは別）
     fun isRackReverseScroll(): Boolean = prefs.getBoolean("rack_reverse", false)
     fun setRackReverseScroll(v: Boolean) = prefs.edit().putBoolean("rack_reverse", v).apply()
