@@ -807,6 +807,9 @@ fun MainLauncherScreen() {
 
     var isHideMode by remember { mutableStateOf(false) }
     var hideRippleTick by remember { mutableIntStateOf(0) }
+    var hideDimStep by remember { mutableIntStateOf(0) }
+    var indexSelectedSeen by remember { mutableStateOf<Int?>(null) }
+    var folderSelectedSeen by remember { mutableStateOf<Int?>(null) }
     var hideModeSeen by remember { mutableStateOf<Boolean?>(null) }
     var showPasscodeDialog by remember { mutableStateOf(false) }
     var indexTapCount by remember { mutableIntStateOf(0) }
@@ -1140,6 +1143,16 @@ fun MainLauncherScreen() {
     ) {
         Box(
             modifier = Modifier.fillMaxSize()
+        ) {
+        // 歌詞ブラウズ中はホームの要素をそのまま残し、背面全体をぼかす（ブラウズ表示だけは外に出して鮮明に保つ）
+        Box(
+            modifier = if (isLyricsBrowsing && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                Modifier.fillMaxSize().graphicsLayer {
+                    renderEffect = androidx.compose.ui.graphics.BlurEffect(22f, 22f, androidx.compose.ui.graphics.TileMode.Clamp)
+                }
+            } else {
+                Modifier.fillMaxSize()
+            }
         ) {
                 WallpaperBackground(
                     liquidSpeed = liquidSpeed,
@@ -1658,8 +1671,7 @@ fun MainLauncherScreen() {
                                 showBattery = false,
                                 wareki = dateWareki,
                                 modifier = Modifier.graphicsLayer {
-                                    alpha = if (isLyricsBrowsing) 0f else 1f
-                                    if (disc3d) {
+                                                                        if (disc3d) {
                                         transformOrigin = TransformOrigin(0.5f, 0.5f)
                                         rotationX = 27f + discTiltX.value
                                         rotationY = discTiltY.value
@@ -1698,8 +1710,7 @@ fun MainLauncherScreen() {
                                 showBattery = false,
                                 wareki = dateWareki,
                                 modifier = Modifier.graphicsLayer {
-                                    alpha = if (isLyricsBrowsing) 0f else 1f
-                                    if (disc3d) {
+                                                                        if (disc3d) {
                                         transformOrigin = TransformOrigin(0.5f, 0.5f)
                                         rotationX = 27f + discTiltX.value
                                         rotationY = discTiltY.value
@@ -1733,8 +1744,7 @@ fun MainLauncherScreen() {
                                 secondsOnly = false,
                                 wareki = dateWareki,
                                 modifier = Modifier.graphicsLayer {
-                                    alpha = if (isLyricsBrowsing) 0f else 1f
-                                    if (disc3d) {
+                                                                        if (disc3d) {
                                         transformOrigin = TransformOrigin(0.5f, 0.5f)
                                         rotationX = 27f + discTiltX.value
                                         rotationY = discTiltY.value
@@ -1770,8 +1780,7 @@ fun MainLauncherScreen() {
                                 secondsOnly = true,
                                 wareki = dateWareki,
                                 modifier = Modifier.graphicsLayer {
-                                    alpha = if (isLyricsBrowsing) 0f else 1f
-                                    if (disc3d) {
+                                                                        if (disc3d) {
                                         transformOrigin = TransformOrigin(0.5f, 0.5f)
                                         rotationX = 27f + discTiltX.value
                                         rotationY = discTiltY.value
@@ -1791,8 +1800,7 @@ fun MainLauncherScreen() {
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer {
-                                alpha = if (isLyricsBrowsing) 0f else 1f
-                                if (disc3d) {
+                                                                if (disc3d) {
                                     transformOrigin = TransformOrigin(0.5f, 0.5f)
                                     rotationX = 27f + discTiltX.value
                                     rotationY = discTiltY.value
@@ -1846,8 +1854,7 @@ fun MainLauncherScreen() {
                             .fillMaxSize()
                             .zIndex(50f)
                             .graphicsLayer {
-                                alpha = if (isLyricsBrowsing) 0f else 1f
-                                if (disc3d) {
+                                                                if (disc3d) {
                                     transformOrigin = TransformOrigin(0.5f, 0.5f)
                                     rotationX = 27f + discTiltX.value
                                     rotationY = discTiltY.value
@@ -3092,9 +3099,14 @@ fun MainLauncherScreen() {
             }
         }
 
+        }
+
         // 歌詞ブラウズ（全文表示）: ドラッグでステップスクロール、同期モードでは再生に追従
         if (isLyricsBrowsing && syncedLyricLines.isNotEmpty()) {
             LyricsBrowseOverlay(
+                artwork = sessionAlbumArt,
+                trackTitle = sessionTrackTitle,
+                trackArtist = sessionTrackArtist,
                 lines = syncedLyricLines,
                 startIndex = lyricsBrowseStartIndex,
                 positionMs = sessionPositionMs,
@@ -3187,8 +3199,31 @@ fun MainLauncherScreen() {
         LaunchedEffect(isHideMode) {
             if (hideModeSeen != null && hideModeSeen != isHideMode) hideRippleTick++
             hideModeSeen = isHideMode
+            if (isHideMode) {
+                for (i in 1..3) { delay(110); hideDimStep = i }
+            } else if (hideDimStep > 0) {
+                for (i in 2 downTo 0) { delay(80); hideDimStep = i }
+            }
         }
-        if (currentLauncherPage == 2 && hideRippleTick > 0) {
+        // 索引ダイヤル／フォルダ左円のフォーカスが切り替わったときも同じ波紋を出す
+        LaunchedEffect(indexSelected) {
+            if ((currentLauncherPage == 2 || currentLauncherPage == 3) && indexSelectedSeen != null && indexSelectedSeen != indexSelected) hideRippleTick++
+            indexSelectedSeen = indexSelected
+        }
+        LaunchedEffect(folderSelectedIndex) {
+            if (currentLauncherPage == 3 && folderSelectedSeen != null && folderSelectedSeen != folderSelectedIndex) hideRippleTick++
+            folderSelectedSeen = folderSelectedIndex
+        }
+        // 非表示モード中は画面全体を段階的に暗くする
+        if (currentLauncherPage == 2 && hideDimStep > 0) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(40f)
+                    .background(Color.Black.copy(alpha = 0.15f * hideDimStep))
+            )
+        }
+        if ((currentLauncherPage == 2 || currentLauncherPage == 3) && hideRippleTick > 0) {
             val rippleAnim = remember(hideRippleTick) { Animatable(0f) }
             LaunchedEffect(hideRippleTick) {
                 rippleAnim.snapTo(0f)
