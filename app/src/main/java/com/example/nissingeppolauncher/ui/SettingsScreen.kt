@@ -588,6 +588,7 @@ fun SettingsScreen(
     var haptics by remember { mutableStateOf(repo.prefManager.isHapticsEnabled()) }
     var clockSeconds by remember { mutableStateOf(repo.prefManager.isClockShowSeconds()) }
     var clock12h by remember { mutableStateOf(repo.prefManager.isClock12h()) }
+    var clockHorizontal by remember { mutableStateOf(repo.prefManager.isClockHorizontal()) }
     var clockBattery by remember { mutableStateOf(repo.prefManager.isClockShowBattery()) }
     var dateWareki by remember { mutableStateOf(repo.prefManager.isDateWareki()) }
     var keepScreenOn by remember { mutableStateOf(repo.prefManager.isKeepScreenOn()) }
@@ -935,6 +936,7 @@ fun SettingsScreen(
         "haptics" to Pair({ haptics }, { v: Boolean -> haptics = v; repo.prefManager.setHapticsEnabled(v); onChanged() }),
         "clockSeconds" to Pair({ clockSeconds }, { v: Boolean -> clockSeconds = v; repo.prefManager.setClockShowSeconds(v); onChanged() }),
         "clock12h" to Pair({ clock12h }, { v: Boolean -> clock12h = v; repo.prefManager.setClock12h(v); onChanged() }),
+        "clockHorizontal" to Pair({ clockHorizontal }, { v: Boolean -> clockHorizontal = v; repo.prefManager.setClockHorizontal(v); onChanged() }),
         "clockBattery" to Pair({ clockBattery }, { v: Boolean -> clockBattery = v; repo.prefManager.setClockShowBattery(v); onChanged() }),
         "dateWareki" to Pair({ dateWareki }, { v: Boolean -> dateWareki = v; repo.prefManager.setDateWareki(v); onChanged() }),
         "keepScreenOn" to Pair({ keepScreenOn }, { v: Boolean -> keepScreenOn = v; repo.prefManager.setKeepScreenOn(v); onChanged() }),
