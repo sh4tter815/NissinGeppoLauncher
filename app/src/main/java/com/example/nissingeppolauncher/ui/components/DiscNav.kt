@@ -1086,12 +1086,12 @@ fun DiscGlyph(kind: String, accentColor: Color) {
 // ===== アプリ円盤・フォルダ円盤・索引円盤（DiscCarousel のラッパー。旧 RotatableAppDisc / RotatableFolderWheel / RotatableIndexWheel の見た目と操作感を共通部品で再現） =====
 
 /** RotatableAppDisc と同じ DiscItem 列を作る（showIndices の時は頭文字の IndexEntry を差し込む） */
-fun buildDiscItems(apps: List<AppInfo>, showIndices: Boolean, badges: Map<String, Int> = emptyMap()): List<DiscItem> {
+fun buildDiscItems(apps: List<AppInfo>, showIndices: Boolean, badges: Map<String, Int> = emptyMap(), groupOf: (AppInfo) -> String = { it.discGroup }): List<DiscItem> {
     val items = mutableListOf<DiscItem>()
     if (showIndices) {
         var lastInitial: String? = null
         for (app in apps) {
-            val initial = app.discGroup.ifBlank { "＃" }
+            val initial = groupOf(app).ifBlank { "＃" }
             if (initial != lastInitial) {
                 items.add(DiscItem.IndexEntry(initial))
                 lastInitial = initial
