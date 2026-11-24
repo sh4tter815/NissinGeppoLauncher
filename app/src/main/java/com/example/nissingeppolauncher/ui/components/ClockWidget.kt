@@ -66,6 +66,8 @@ fun ClockWidget(
     // 追加表示: 秒 / 12時間制 / バッテリー残量 / 和暦
     showSeconds: Boolean = false,
     hour12: Boolean = false,
+    // 時刻を横一列（10:34）で表示する
+    horizontal: Boolean = false,
     showBattery: Boolean = false,
     wareki: Boolean = false,
     // 時計と日付の分離表示用（レイアウト編集で別々に動かすため、片方だけ出す使い方ができる）
@@ -163,6 +165,39 @@ fun ClockWidget(
                             indication = null
                         ) { openClock() }
                 ) {
+                    if (horizontal) {
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            if (dopagaki) {
+                                DopaFlashText(text = "$hourText:$minuteText", fontSize = 54.sp, lineHeight = 54.sp)
+                            } else {
+                                Text(
+                                    text = "$hourText:$minuteText",
+                                    color = Color.White,
+                                    fontSize = 54.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    lineHeight = 54.sp
+                                )
+                            }
+                            if (hour12) {
+                                Text(
+                                    text = ampmText,
+                                    color = Color.White.copy(alpha = 0.75f),
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.padding(start = 6.dp, bottom = 8.dp)
+                                )
+                            }
+                            if (showSeconds) {
+                                Text(
+                                    text = ":$secondText",
+                                    color = Color.White.copy(alpha = 0.7f),
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.padding(start = 2.dp, bottom = 6.dp)
+                                )
+                            }
+                        }
+                    } else {
                     Row(verticalAlignment = Alignment.Bottom) {
                         if (dopagaki) {
                             DopaFlashText(text = hourText, fontSize = 54.sp, lineHeight = 54.sp)
@@ -207,6 +242,7 @@ fun ClockWidget(
                             )
                         }
                     }
+                    }
                 }
 
                 // 日付ブロック (時刻の右に横倒しで表示。タップでカレンダーアプリ起動)
@@ -214,7 +250,7 @@ fun ClockWidget(
                     modifier = Modifier
                         .padding(start = 12.dp, top = 2.dp)
                         .width(20.dp)
-                        .height(108.dp)
+                        .height(if (horizontal) 56.dp else 108.dp)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
@@ -312,6 +348,39 @@ fun ClockWidget(
                         indication = null
                     ) { openClock() }
             ) {
+                if (horizontal) {
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        if (dopagaki) {
+                            DopaFlashText(text = "$hourText:$minuteText", fontSize = 54.sp, lineHeight = 54.sp)
+                        } else {
+                            Text(
+                                text = "$hourText:$minuteText",
+                                color = Color.White,
+                                fontSize = 54.sp,
+                                fontWeight = FontWeight.Bold,
+                                lineHeight = 54.sp
+                            )
+                        }
+                        if (hour12) {
+                            Text(
+                                text = ampmText,
+                                color = Color.White.copy(alpha = 0.75f),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(start = 6.dp, bottom = 8.dp)
+                            )
+                        }
+                        if (showSeconds) {
+                            Text(
+                                text = ":$secondText",
+                                color = Color.White.copy(alpha = 0.7f),
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(start = 2.dp, bottom = 6.dp)
+                            )
+                        }
+                    }
+                } else {
                 Row(verticalAlignment = Alignment.Bottom) {
                     if (dopagaki) {
                     DopaFlashText(text = hourText, fontSize = 54.sp, lineHeight = 54.sp)
@@ -355,6 +424,7 @@ fun ClockWidget(
                         modifier = Modifier.padding(start = 2.dp, bottom = 6.dp)
                     )
                     }
+                }
                 }
             }
 

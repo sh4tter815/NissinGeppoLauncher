@@ -186,6 +186,7 @@ fun MainLauncherScreen() {
     // 2026-11-23 追加設定の状態（設定画面の onChanged で読み直す）
     var lyricsEnabled by remember { mutableStateOf(repo.prefManager.isLyricsEnabled()) }
     var clockShowSeconds by remember { mutableStateOf(repo.prefManager.isClockShowSeconds()) }
+    var clockHorizontal by remember { mutableStateOf(repo.prefManager.isClockHorizontal()) }
     var clock12h by remember { mutableStateOf(repo.prefManager.isClock12h()) }
     var clockBattery by remember { mutableStateOf(repo.prefManager.isClockShowBattery()) }
     var dateWareki by remember { mutableStateOf(repo.prefManager.isDateWareki()) }
@@ -1421,6 +1422,7 @@ fun MainLauncherScreen() {
                                 lyricsDisplayMode = repo.prefManager.getLyricsDisplayMode()
                                 lyricsEnabled = repo.prefManager.isLyricsEnabled()
                                 clockShowSeconds = repo.prefManager.isClockShowSeconds()
+                                clockHorizontal = repo.prefManager.isClockHorizontal()
                                 clock12h = repo.prefManager.isClock12h()
                                 clockBattery = repo.prefManager.isClockShowBattery()
                                 dateWareki = repo.prefManager.isDateWareki()
@@ -1480,6 +1482,7 @@ fun MainLauncherScreen() {
                     ClockWidget(
                         showDate = false,
                         showSeconds = clockShowSeconds,
+                        horizontal = clockHorizontal,
                         hour12 = clock12h,
                         showBattery = clockBattery,
                         wareki = dateWareki,

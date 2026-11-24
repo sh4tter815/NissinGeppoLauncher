@@ -359,6 +359,9 @@ class AppPreferenceManager(private val context: Context) {
     // 時計: 秒表示 / 12時間表示 / バッテリー残量 / 和暦
     fun isClockShowSeconds(): Boolean = prefs.getBoolean("clock_show_seconds", false)
     fun setClockShowSeconds(v: Boolean) = prefs.edit().putBoolean("clock_show_seconds", v).apply()
+
+    fun isClockHorizontal(): Boolean = prefs.getBoolean("clock_horizontal", false)
+    fun setClockHorizontal(v: Boolean) = prefs.edit().putBoolean("clock_horizontal", v).apply()
     fun isClock12h(): Boolean = prefs.getBoolean("clock_12h", false)
     fun setClock12h(v: Boolean) = prefs.edit().putBoolean("clock_12h", v).apply()
     fun isClockShowBattery(): Boolean = prefs.getBoolean("clock_show_battery", false)

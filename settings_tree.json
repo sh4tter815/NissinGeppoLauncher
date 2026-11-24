@@ -1,5 +1,5 @@
 {
- "version": 17,
+ "version": 18,
  "items": {
   "reverse": {
    "label": "スクロール方向の反転",
@@ -871,6 +871,13 @@
      "short": "あいうえお"
     }
    ]
+  },
+  "clockHorizontal": {
+   "label": "時計を横向きに表示",
+   "desc": "時刻を「10:34」のように1行で表示します",
+   "glyph": "clock",
+   "type": "toggle",
+   "bind": "clockHorizontal"
   }
  },
  "tree": [
@@ -1031,6 +1038,9 @@
       },
       {
        "item": "clock12h"
+      },
+      {
+       "item": "clockHorizontal"
       },
       {
        "item": "clockBattery"
