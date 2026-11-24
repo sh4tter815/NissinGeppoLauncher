@@ -112,6 +112,7 @@ fun DiscCarousel(
     showOutline: Boolean = true,
     onHoldingChanged: ((Boolean) -> Unit)? = null,
     onEmptyTap: (() -> Unit)? = null,
+    onLongPressEmpty: (() -> Unit)? = null,
     state: DiscCarouselState = rememberDiscCarouselState(0, stepAngle),
     onSelectedIndexChange: (Int) -> Unit = {},
     centerContent: (@Composable BoxScope.() -> Unit)? = null,
@@ -240,6 +241,21 @@ fun DiscCarousel(
                     var lastDeltaAngle = 0f
                     var lastTime = System.currentTimeMillis()
 
+                    // 空きスペースの長押し検出（項目の輪の上は項目側の長押しを優先して発火しない）
+                    var pressHeld = true
+                    val longPressJob = if (longPressEmptyCb != null) {
+                        coroutineScope.launch {
+                            kotlinx.coroutines.delay(500)
+                            if (pressHeld && !isDragStarted) {
+                                val ringCenterPx = radiusPx - 18f * density.density
+                                val ringHalfWidthPx = 34f * density.density
+                                if (abs(distFromCenter - ringCenterPx) > ringHalfWidthPx) {
+                                    longPressEmptyCb?.invoke()
+                                }
+                            }
+                        }
+                    } else null
+
                     drag(down.id) { change: PointerInputChange ->
                         val prevPos = currentPos
                         currentPos = change.position
@@ -284,6 +300,8 @@ fun DiscCarousel(
                         }
                     }
 
+                    pressHeld = false
+                    longPressJob?.cancel()
                     internalHold = false
                     if (isDragStarted && itemCount > 0) {
                         if (isLoopable) {
@@ -438,6 +456,7 @@ fun DiscTouchHalf(
     val scope = rememberCoroutineScope()
     val view = LocalView.current
     val tapCb by rememberUpdatedState(onItemTap)
+    val longPressEmptyCb by rememberUpdatedState(onLongPressEmpty)
     val holdCb by rememberUpdatedState(onHoldingChanged)
     Box(
         modifier = modifier.pointerInput(state, isRight) {

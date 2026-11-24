@@ -1408,44 +1408,6 @@ fun MainLauncherScreen() {
                 }
             }
 
-            // ホーム右半分の長押しでレイアウト編集を開く
-            if (currentLauncherPage == 1 && !layoutEditMode && !pvFullscreen && !isLyricsBrowsing) {
-                Box(
-                    modifier = Modifier
-                        .padding(start = (screenWidthDp / 2f).dp)
-                        .fillMaxSize()
-                        .zIndex(35f)
-                        .pointerInput(Unit) {
-                            // イベントを消費しない監視だけにして、下の円盤のスクロールを妨げない。
-                            // 500ms ほぼ動かさず押し続けたらレイアウト編集を開く
-                            awaitPointerEventScope {
-                                while (true) {
-                                    val down = awaitFirstDown(requireUnconsumed = false)
-                                    val downPos = down.position
-                                    var maxDist = 0f
-                                    val timer = coroutineScope.launch {
-                                        kotlinx.coroutines.delay(500)
-                                        if (maxDist < 14f) {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            layoutEditMode = true
-                                        }
-                                    }
-                                    try {
-                                        while (true) {
-                                            val event = awaitPointerEvent()
-                                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                                            maxDist = maxOf(maxDist, (change.position - downPos).getDistance())
-                                            if (!change.pressed) break
-                                        }
-                                    } finally {
-                                        timer.cancel()
-                                    }
-                                }
-                            }
-                        }
-                )
-            }
-
             // レイアウト編集モード: 完了ボタンとヒント（全ページ共通）
             if (layoutEditMode) {
                 Box(
@@ -1918,7 +1880,13 @@ fun MainLauncherScreen() {
                         fadeLabelsOnScroll = false,
                         state = homeDiscState,
                         onHoldingChanged = { isHoldingRight = it },
-                        onEmptyTap = { }
+                        onEmptyTap = { },
+                        onLongPressEmpty = if (!layoutEditMode && !pvFullscreen && !isLyricsBrowsing) {
+                            {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                layoutEditMode = true
+                            }
+                        } else null
                     ) { index, rad, labelAlpha, _ ->
                         val di = homeDiscItems.getOrNull(index)
                         if (di != null) {
