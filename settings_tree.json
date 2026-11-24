@@ -1,5 +1,5 @@
 {
-  "version": 30,
+  "version": 31,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -919,6 +919,18 @@
         {
           "v": "cd",
           "label": "CD"
+        },
+        {
+          "v": "glow",
+          "label": "蓄光レコード"
+        },
+        {
+          "v": "md",
+          "label": "MD"
+        },
+        {
+          "v": "cassette",
+          "label": "カセットテープ"
         }
       ]
     },

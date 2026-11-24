@@ -16,6 +16,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -33,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.nativeCanvas
@@ -580,8 +582,25 @@ fun MusicVinylWidget(
             }
 
             // 大サイズ（円サイズの92%）の回転するアートワーク / レーベル部分
+            val discStyleNow = prefManager.getDiscStyle()
+            if (discStyleNow == "md" || discStyleNow == "cassette") {
+                val caseBitmap = if (artworkEnabled) albumArtBitmap else null
+                val caseBitmapImage = remember(caseBitmap) { caseBitmap?.asImageBitmap() }
+                val lineArtImage = remember(caseBitmap) { extractLineArtBitmap(caseBitmap)?.asImageBitmap() }
+                Box(
+                    modifier = Modifier.size((discRadiusDp * 2f * 0.92f).dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (discStyleNow == "md") {
+                        MdCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotation = currentRotation, bitmapImage = caseBitmapImage, lineArtImage = lineArtImage)
+                    } else {
+                        CassetteCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotation = currentRotation, title = trackTitle, artist = trackArtist)
+                    }
+                }
+            } else {
             Box(
                 modifier = Modifier
+            }
                     .size((discRadiusDp * 2f * 0.92f).dp)
                     .graphicsLayer {
                         rotationZ = currentRotation
@@ -620,8 +639,8 @@ fun MusicVinylWidget(
                         // クリアレコード: 半透明の盤面（アクセント色の色味）に溝、中央レーベルがアートワーク
                         Canvas(Modifier.fillMaxSize()) {
                             val rMax = size.minDimension / 2f
-                            drawCircle(effAccent.copy(alpha = 0.28f))
-                            drawCircle(Color.Black.copy(alpha = 0.16f))
+                            drawCircle(vividColorOf(effAccent).copy(alpha = 0.36f))
+                            drawCircle(Color.Black.copy(alpha = 0.10f))
                             for (i in 1..9) {
                                 drawCircle(
                                     Color.White.copy(alpha = if (i % 3 == 0) 0.16f else 0.09f),
@@ -630,6 +649,34 @@ fun MusicVinylWidget(
                                 )
                             }
                             drawCircle(Color.White.copy(alpha = 0.30f), radius = rMax * 0.99f, style = Stroke(width = 2f))
+                        }
+                        if (bitmapImage != null) {
+                            Image(
+                                bitmap = bitmapImage,
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(0.44f).clip(CircleShape)
+                            )
+                        }
+                    }
+                    "glow" -> {
+                        // 蓄光レコード: 青緑に光る盤面、中央レーベルがアートワーク
+                        Canvas(Modifier.fillMaxSize()) {
+                            val rMax = size.minDimension / 2f
+                            drawCircle(
+                                Brush.radialGradient(
+                                    listOf(Color(0xFFE4FFF3), Color(0xFF8FFFD6), Color(0xFF4DEBB8)),
+                                    center = center,
+                                    radius = rMax
+                                )
+                            )
+                            for (i in 1..9) {
+                                drawCircle(
+                                    Color(0xFF1E7A5C).copy(alpha = 0.13f),
+                                    radius = rMax * (0.50f + i * 0.052f),
+                                    style = Stroke(width = 1.2f)
+                                )
+                            }
+                            drawCircle(Color(0xFFB9FFE4), radius = rMax * 0.99f, style = Stroke(width = 3f))
                         }
                         if (bitmapImage != null) {
                             Image(
@@ -951,6 +998,186 @@ private fun RackDiscLayer(
                     alpha = (1f - (abs(relPos) - 4.2f) / 2f).coerceIn(0f, 1f)
                 }
                 .width(105.dp)
+        )
+    }
+}
+
+private fun vividColorOf(c: Color): Color {
+    val hsv = FloatArray(3)
+    android.graphics.Color.RGBToHSV(
+        (c.red * 255).toInt().coerceIn(0, 255),
+        (c.green * 255).toInt().coerceIn(0, 255),
+        (c.blue * 255).toInt().coerceIn(0, 255),
+        hsv
+    )
+    hsv[1] = 1f
+    hsv[2] = 1f
+    return Color(android.graphics.Color.HSVToColor(hsv))
+}
+
+private fun extractLineArtBitmap(src: Bitmap?): Bitmap? {
+    if (src == null) return null
+    return try {
+        val w = 112
+        val h = (w * src.height / src.width.coerceAtLeast(1)).coerceIn(16, 160)
+        val small = Bitmap.createScaledBitmap(src, w, h, true)
+        val gray = IntArray(w * h)
+        for (y in 0 until h) {
+            for (x in 0 until w) {
+                val px = small.getPixel(x, y)
+                gray[y * w + x] = (0.299f * android.graphics.Color.red(px) + 0.587f * android.graphics.Color.green(px) + 0.114f * android.graphics.Color.blue(px)).toInt()
+            }
+        }
+        val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        for (y in 0 until h) {
+            for (x in 0 until w) {
+                val gx = if (x + 1 < w) kotlin.math.abs(gray[y * w + x + 1] - gray[y * w + x]) else 0
+                val gy = if (y + 1 < h) kotlin.math.abs(gray[(y + 1) * w + x] - gray[y * w + x]) else 0
+                val a = ((gx + gy - 26) * 3).coerceIn(0, 255)
+                out.setPixel(x, y, android.graphics.Color.argb(a, 18, 18, 22))
+            }
+        }
+        out
+    } catch (_: Exception) {
+        null
+    }
+}
+
+@Composable
+private fun MdCase(boxSizeDp: Float, accentColor: Color, rotation: Float, bitmapImage: ImageBitmap?, lineArtImage: ImageBitmap?) {
+    val caseW = boxSizeDp
+    val caseH = boxSizeDp * 0.94f
+    Box(
+        modifier = Modifier
+            .size(caseW.dp, caseH.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(
+                Brush.linearGradient(
+                    listOf(accentColor.copy(alpha = 0.90f), accentColor.copy(alpha = 0.55f), accentColor.copy(alpha = 0.80f))
+                )
+            )
+            .border(1.dp, Color.White.copy(alpha = 0.35f), RoundedCornerShape(10.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 9.dp)
+                .size((caseW * 0.46f).dp, 6.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(Color.Black.copy(alpha = 0.28f))
+        )
+        Box(
+            modifier = Modifier
+                .size((caseW * 0.54f).dp)
+                .offset(x = (-caseW * 0.15f).dp)
+                .graphicsLayer { rotationZ = rotation }
+                .clip(CircleShape)
+                .background(Color(0xFF14161A)),
+            contentAlignment = Alignment.Center
+        ) {
+            if (bitmapImage != null) {
+                Image(
+                    bitmap = bitmapImage,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(0.58f).clip(CircleShape)
+                )
+            }
+        }
+        if (lineArtImage != null) {
+            Image(
+                bitmap = lineArtImage,
+                contentDescription = null,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(10.dp)
+                    .size((caseW * 0.30f).dp)
+            )
+        }
+        Text(
+            text = "MD",
+            color = Color.White.copy(alpha = 0.85f),
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.align(Alignment.BottomStart).padding(10.dp)
+        )
+    }
+}
+
+@Composable
+private fun CassetteReel(reelSizeDp: Float, rotation: Float) {
+    Box(
+        modifier = Modifier
+            .size(reelSizeDp.dp)
+            .graphicsLayer { rotationZ = rotation }
+    ) {
+        Canvas(Modifier.fillMaxSize()) {
+            val r = size.minDimension / 2f
+            drawCircle(Color(0xFFE9E9E9), radius = r)
+            drawCircle(Color(0xFF2A2A2A), radius = r * 0.30f)
+            for (i in 0 until 6) {
+                val a = (i * 60f) * (Math.PI / 180f).toFloat()
+                drawLine(
+                    Color(0xFF2A2A2A),
+                    Offset(center.x + cos(a) * r * 0.34f, center.y + sin(a) * r * 0.34f),
+                    Offset(center.x + cos(a) * r * 0.94f, center.y + sin(a) * r * 0.94f),
+                    strokeWidth = r * 0.18f
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CassetteCase(boxSizeDp: Float, accentColor: Color, rotation: Float, title: String, artist: String) {
+    val caseW = boxSizeDp
+    val caseH = boxSizeDp * 0.64f
+    Box(
+        modifier = Modifier
+            .size(caseW.dp, caseH.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Brush.verticalGradient(listOf(Color(0xFF2B2D33), Color(0xFF16171B))))
+            .border(1.dp, accentColor.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+    ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 9.dp)
+                .size((caseW * 0.88f).dp, (caseH * 0.58f).dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(Color(0xFFF2EDE3))
+        ) {
+            Box(modifier = Modifier.fillMaxWidth().height(5.dp).background(accentColor))
+            Column(modifier = Modifier.padding(start = 10.dp, top = 11.dp, end = 10.dp)) {
+                Text(
+                    text = title.ifBlank { "NO TITLE" },
+                    color = Color(0xFF222222),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
+                Text(text = artist, color = Color(0xFF777777), fontSize = 10.sp, maxLines = 1)
+            }
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 6.dp)
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CassetteReel(reelSizeDp = caseH * 0.27f, rotation = rotation)
+                Box(modifier = Modifier.size((caseW * 0.16f).dp, 3.dp).background(Color(0xFF3A2A1A)))
+                CassetteReel(reelSizeDp = caseH * 0.27f, rotation = rotation)
+            }
+        }
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 8.dp)
+                .size((caseW * 0.52f).dp, (caseH * 0.15f).dp)
+                .clip(RoundedCornerShape(4.dp))
+                .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(4.dp))
         )
     }
 }
