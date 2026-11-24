@@ -617,6 +617,8 @@ fun SettingsScreen(
     var discDropOnPv by remember { mutableStateOf(repo.prefManager.isDiscDropOnPvEnabled()) }
     var widgetLongPressAction by remember { mutableStateOf(repo.prefManager.getWidgetLongPressAction()) }
     var widgetTapAction by remember { mutableStateOf(repo.prefManager.getWidgetTapAction()) }
+    var widgetDoubleTapAction by remember { mutableStateOf(repo.prefManager.getWidgetDoubleTapAction()) }
+    var widgetTripleTapAction by remember { mutableStateOf(repo.prefManager.getWidgetTripleTapAction()) }
     var discStyle by remember { mutableStateOf(repo.prefManager.getDiscStyle()) }
     var deckStyle by remember { mutableStateOf(repo.prefManager.getDeckStyle()) }
     var notificationBadges by remember { mutableStateOf(repo.prefManager.isNotificationBadgesEnabled()) }
@@ -666,7 +668,7 @@ fun SettingsScreen(
 
     // システム環境設定風 2段階ナビゲーション ("behavior", "appearance", "security", "tutorial")
     // 円盤ナビの状態（1: カテゴリ/項目, 2: 選択肢/スライダー）
-    var navPath by remember { mutableStateOf<List<String>>(emptyList()) }
+    var navPath by remember { mutableStateOf(repo.prefManager.consumeSettingsPath()) }
     var focusId by remember { mutableStateOf<String?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var leftDiscState by remember { mutableStateOf<DiscCarouselState?>(null) }
@@ -979,32 +981,10 @@ fun SettingsScreen(
         "indexMode" to Pair({ indexMode }, { v: String -> indexMode = v; repo.prefManager.setIndexMode(v); onChanged() }),
         "widgetLongPressAction" to Pair({ widgetLongPressAction }, { v: String -> widgetLongPressAction = v; repo.prefManager.setWidgetLongPressAction(v); onChanged() }),
         "widgetTapAction" to Pair({ widgetTapAction }, { v: String -> widgetTapAction = v; repo.prefManager.setWidgetTapAction(v); onChanged() }),
+        "widgetDoubleTapAction" to Pair({ widgetDoubleTapAction }, { v: String -> widgetDoubleTapAction = v; repo.prefManager.setWidgetDoubleTapAction(v); onChanged() }),
+        "widgetTripleTapAction" to Pair({ widgetTripleTapAction }, { v: String -> widgetTripleTapAction = v; repo.prefManager.setWidgetTripleTapAction(v); onChanged() }),
         "discStyle" to Pair({ discStyle }, { v: String -> discStyle = v; repo.prefManager.setDiscStyle(v); onChanged() }),
-        "deckStyle" to Pair({ deckStyle }, { v: String -> deckStyle = v; repo.prefManager.setDeckStyle(v); onChanged() }),
-        "themePreset" to Pair(
-            {
-                when {
-                    discStyle == "vinyl" && tonearmEnabled -> "analog"
-                    discStyle == "cd" && !tonearmEnabled -> "cd"
-                    discStyle == "digital" && !tonearmEnabled -> "modern"
-                    discStyle == "clear" && tonearmEnabled -> "clear"
-                    else -> "custom"
-                }
-            },
-            { v: String ->
-                when (v) {
-                    "analog" -> { discStyle = "vinyl"; tonearmEnabled = true }
-                    "cd" -> { discStyle = "cd"; tonearmEnabled = false }
-                    "modern" -> { discStyle = "digital"; tonearmEnabled = false }
-                    "clear" -> { discStyle = "clear"; tonearmEnabled = true }
-                }
-                if (v != "custom") {
-                    repo.prefManager.setDiscStyle(discStyle)
-                    repo.prefManager.setTonearmEnabled(tonearmEnabled)
-                }
-                onChanged()
-            }
-        )
+        "deckStyle" to Pair({ deckStyle }, { v: String -> deckStyle = v; repo.prefManager.setDeckStyle(v); onChanged() })
     )
 
     val floatBinds: Map<String, Pair<() -> Float, (Float) -> Unit>> = mapOf(
