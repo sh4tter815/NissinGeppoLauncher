@@ -573,8 +573,9 @@ fun MusicVinylWidget(
                 )
             }
 
-            // 薄い立体感: アートワークの下に暗い円を少しずらして敷き、盤の厚みとして見せる
-            if (artworkTilt3d && artworkEnabled && albumArtBitmap != null) {
+            val discStyleNow = prefManager.getDiscStyle()
+            // 薄い立体感: アートワークの下に暗い円を少しずらして敷き、盤の厚みとして見せる（ケース表示時は背景にしない）
+            if (artworkTilt3d && artworkEnabled && albumArtBitmap != null && discStyleNow != "md" && discStyleNow != "cassette") {
                 Box(
                     modifier = Modifier
                         .size((discRadiusDp * 2f * 0.92f).dp)
@@ -584,13 +585,14 @@ fun MusicVinylWidget(
             }
 
             // 大サイズ（円サイズの92%）の回転するアートワーク / レーベル部分
-            val discStyleNow = prefManager.getDiscStyle()
             if (discStyleNow == "md" || discStyleNow == "cassette") {
                 val caseBitmap = if (artworkEnabled) albumArtBitmap else null
                 val caseBitmapImage = remember(caseBitmap) { caseBitmap?.asImageBitmap() }
                 val lineArtImage = remember(caseBitmap) { extractLineArtBitmap(caseBitmap)?.asImageBitmap() }
                 Box(
-                    modifier = Modifier.size((discRadiusDp * 2f * 0.92f).dp),
+                    modifier = Modifier
+                        .size((discRadiusDp * 2f * 0.92f).dp)
+                        .then(if (discStyleNow == "cassette") Modifier.offset(x = (discRadiusDp * 2f * 0.92f * 0.33f).dp) else Modifier),
                     contentAlignment = Alignment.Center
                 ) {
                     if (discStyleNow == "md") {
@@ -1085,12 +1087,8 @@ private fun MdCase(boxSizeDp: Float, accentColor: Color, rotation: Float, bitmap
                 }
                 drawCircle(Color(0xFFD8D8D8).copy(alpha = 0.9f), radius = rMax * 0.16f, style = Stroke(width = 3f))
             }
-            if (bitmapImage != null) {
-                Image(
-                    bitmap = bitmapImage,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(0.42f).clip(CircleShape)
-                )
+            Canvas(Modifier.fillMaxSize()) {
+                drawCircle(Color(0xFF8E939B), radius = size.minDimension / 2f * 0.07f)
             }
         }
         // 半透明の色つきケース（アクセント色）
@@ -1107,9 +1105,9 @@ private fun MdCase(boxSizeDp: Float, accentColor: Color, rotation: Float, bitmap
         // シャッター（不透明プレート、右上）
         Box(
             modifier = Modifier
-                .align(Alignment.TopEnd)
-                .size((caseW * 0.54f).dp, (caseH * 0.44f).dp)
-                .clip(RoundedCornerShape(bottomStart = 14.dp))
+                .align(Alignment.CenterEnd)
+                .size((caseW * 0.46f).dp, (caseH * 0.54f).dp)
+                .clip(RoundedCornerShape(topStart = 14.dp, bottomStart = 14.dp))
                 .background(Brush.linearGradient(listOf(accentColor.copy(alpha = 0.95f), accentColor.copy(alpha = 0.78f))))
         ) {
             if (lineArtImage != null) {
