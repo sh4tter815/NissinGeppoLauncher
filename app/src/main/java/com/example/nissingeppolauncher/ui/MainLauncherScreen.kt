@@ -192,6 +192,7 @@ fun MainLauncherScreen() {
     var lyricsDisplayMode by remember { mutableStateOf(repo.prefManager.getLyricsDisplayMode()) }
     // 2026-11-23 追加設定の状態（設定画面の onChanged で読み直す）
     var lyricsEnabled by remember { mutableStateOf(repo.prefManager.isLyricsEnabled()) }
+    var discDropOnPv by remember { mutableStateOf(repo.prefManager.isDiscDropOnPvEnabled()) }
     var clockShowSeconds by remember { mutableStateOf(repo.prefManager.isClockShowSeconds()) }
     var clockHorizontal by remember { mutableStateOf(repo.prefManager.isClockHorizontal()) }
     var clock12h by remember { mutableStateOf(repo.prefManager.isClock12h()) }
@@ -1019,7 +1020,7 @@ fun MainLauncherScreen() {
 
     // 歌詞のPV／複数行モードでは、音楽アプリと同じように円を下へ逃がす
     val lyricsDiscDrop by animateFloatAsState(
-        targetValue = if (currentLauncherPage == 1 && syncedLyricLines.isNotEmpty()) {
+        targetValue = if (discDropOnPv && currentLauncherPage == 1 && syncedLyricLines.isNotEmpty()) {
             when (lyricsDisplayMode) {
                 "video" -> 80f
                 "multi" -> 120f
@@ -1520,6 +1521,7 @@ fun MainLauncherScreen() {
                                 batteryOffsetY = repo.prefManager.getBatteryOffsetY().let { if (it.isNaN()) batteryOffsetY else it }
                                 secondsOffsetX = repo.prefManager.getSecondsOffsetX().let { if (it.isNaN()) secondsOffsetX else it }
                                 secondsOffsetY = repo.prefManager.getSecondsOffsetY().let { if (it.isNaN()) secondsOffsetY else it }
+                                discDropOnPv = repo.prefManager.isDiscDropOnPvEnabled()
                                 pvTextColor = repo.prefManager.getPvTextColor()
                                 pvRuby = repo.prefManager.isPvRubyEnabled()
                                 pvInterludeArt = repo.prefManager.isPvInterludeArtEnabled()
