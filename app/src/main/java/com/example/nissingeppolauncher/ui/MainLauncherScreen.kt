@@ -195,6 +195,7 @@ fun MainLauncherScreen() {
     var pvFontScale by remember { mutableFloatStateOf(repo.prefManager.getPvFontScale()) }
     var notificationBadges by remember { mutableStateOf(repo.prefManager.isNotificationBadgesEnabled()) }
     var appSortMode by remember { mutableStateOf(repo.prefManager.getAppSortMode()) }
+    var appSortDescending by remember { mutableStateOf(repo.prefManager.isAppSortDescending()) }
     var indexShowEnglish by remember { mutableStateOf(repo.prefManager.isIndexShowEnglish()) }
     var indexMode by remember { mutableStateOf(repo.prefManager.getIndexMode()) }
     var usageStatsMap by remember { mutableStateOf<Map<String, Long>>(emptyMap()) }
@@ -812,16 +813,76 @@ fun MainLauncherScreen() {
     val badgeCounts by com.example.nissingeppolauncher.service.LauncherMediaListenerService.badgeCounts.collectAsState()
     val effBadges = if (notificationBadges) badgeCounts else emptyMap()
     val homeDiscItems = remember(favoriteApps, effBadges) { buildDiscItems(favoriteApps, false, effBadges) }
+    // よく使う順のときの★5段階（使用実績のあるアプリを使用量の五分位で分ける。実績なしは★）
+    val usageTierOf: Map<String, Int> = remember(usageStatsMap, allApps) {
+        val used = allApps.filter { (usageStatsMap[it.packageName] ?: 0L) > 0L }
+            .sortedByDescending { usageStatsMap[it.packageName] ?: 0L }
+        val n = used.size
+        val map = HashMap<String, Int>()
+        if (n > 0) {
+            used.forEachIndexed { rank, app ->
+                map[app.packageName] = 5 - minOf(4, (rank * 5) / n)
+            }
+        }
+        map
+    }
+    val usageIndexActive = appSortMode == "usage" && searchQuery.isBlank() && !isHideMode
+    // 最近使った順のときのインデックス（今日・昨日・○日前…。使用状況は直近30日分まで）
+    val recentLabelOf: Map<String, String> = remember(usageStatsMap, allApps) {
+        fun dayStart(t: Long): Long {
+            val c = java.util.Calendar.getInstance()
+            c.timeInMillis = t
+            c.set(java.util.Calendar.HOUR_OF_DAY, 0)
+            c.set(java.util.Calendar.MINUTE, 0)
+            c.set(java.util.Calendar.SECOND, 0)
+            c.set(java.util.Calendar.MILLISECOND, 0)
+            return c.timeInMillis
+        }
+        val todayStart = dayStart(System.currentTimeMillis())
+        val map = HashMap<String, String>()
+        for (app in allApps) {
+            val ts = usageStatsMap[app.packageName] ?: 0L
+            map[app.packageName] = if (ts <= 0L) {
+                "未使用"
+            } else {
+                val days = Math.round((todayStart - dayStart(ts)).toDouble() / 86400000.0).toInt().coerceAtLeast(0)
+                when {
+                    days <= 0 -> "今日"
+                    days == 1 -> "昨日"
+                    days in 2..6 -> "${days}日前"
+                    days in 7..29 -> "1週間以上前"
+                    else -> "1か月以上前"
+                }
+            }
+        }
+        map
+    }
+    val recentIndexActive = appSortMode == "recent" && searchQuery.isBlank() && !isHideMode
+    val recentIndexOrder = listOf("今日", "昨日", "2日前", "3日前", "4日前", "5日前", "6日前", "1週間以上前", "1か月以上前", "未使用")
     val indexBaseItems = if (indexMode == "kana") INDEX_ITEMS_KANA else INDEX_ITEMS
-    val indexItems = if (indexShowEnglish) indexBaseItems else indexBaseItems.filter { it[0].code > 128 }
+    val indexItems = when {
+        usageIndexActive -> if (appSortDescending) listOf("★★★★★", "★★★★", "★★★", "★★", "★") else listOf("★", "★★", "★★★", "★★★★", "★★★★★")
+        recentIndexActive -> {
+            val present = recentIndexOrder.filter { label -> allApps.any { !it.isHidden && (recentLabelOf[it.packageName] ?: "未使用") == label } }
+            if (appSortDescending) present else present.reversed()
+        }
+        indexShowEnglish -> indexBaseItems
+        else -> indexBaseItems.filter { it[0].code > 128 }
+    }
     // 索引グループの実効値: 英語オフなら英語グループ（A〜Z）は＃へ寄せ、あいうえおモードなら文字単位のグループを使う。
     // 右円（アプリ円盤）の見出しとジャンプ先はこの実効値で揃える
     val indexGroupOf: (AppInfo) -> String = { app ->
-        val g = app.discGroup
-        when {
-            g.length == 1 && g[0] in 'A'..'Z' -> if (indexShowEnglish) g else "＃"
-            indexMode == "kana" -> app.discKana
-            else -> g
+        if (usageIndexActive) {
+            "★".repeat(usageTierOf[app.packageName] ?: 1)
+        } else if (recentIndexActive) {
+            recentLabelOf[app.packageName] ?: "未使用"
+        } else {
+            val g = app.discGroup
+            when {
+                g.length == 1 && g[0] in 'A'..'Z' -> if (indexShowEnglish) g else "＃"
+                indexMode == "kana" -> app.discKana
+                else -> g
+            }
         }
     }
     val indexDiscState = key(indexItems.size) { rememberDiscCarouselState(initialIndex = 0, stepAngle = 360f / indexItems.size) }
@@ -1368,6 +1429,7 @@ fun MainLauncherScreen() {
                                 keepScreenOn = repo.prefManager.isKeepScreenOn()
                                 notificationBadges = repo.prefManager.isNotificationBadgesEnabled()
                                 appSortMode = repo.prefManager.getAppSortMode()
+                                appSortDescending = repo.prefManager.isAppSortDescending()
                                 indexShowEnglish = repo.prefManager.isIndexShowEnglish()
                                 indexMode = repo.prefManager.getIndexMode()
                                 clockOffsetX = repo.prefManager.getClockOffsetXDp()
@@ -1610,7 +1672,7 @@ fun MainLauncherScreen() {
                         onFocusChange = { indexSelected = it }
                     )
 
-                    val displayedApps = remember(searchQuery, allApps, isHideMode, appSortMode, usageStatsMap) {
+                    val displayedApps = remember(searchQuery, allApps, isHideMode, appSortMode, usageStatsMap, appSortDescending) {
                         if (isHideMode) {
                             allApps.filter { it.isHidden }
                         } else if (searchQuery.isNotBlank()) {
@@ -1623,14 +1685,20 @@ fun MainLauncherScreen() {
                         } else {
                             val base = allApps.filter { !it.isHidden }
                             if (appSortMode == "usage" || appSortMode == "recent") {
-                                base.sortedWith(compareByDescending<AppInfo> { usageStatsMap[it.packageName] ?: 0L }.thenBy { it.label.lowercase() })
+                                if (appSortDescending) {
+                                    base.sortedWith(compareByDescending<AppInfo> { usageStatsMap[it.packageName] ?: 0L }.thenBy { it.label.lowercase() })
+                                } else {
+                                    base.sortedWith(compareBy<AppInfo> { usageStatsMap[it.packageName] ?: 0L }.thenBy { it.label.lowercase() })
+                                }
+                            } else if (appSortDescending) {
+                                base.reversed()
                             } else {
                                 base
                             }
                         }
                     }
 
-                    val appDiscItems = remember(displayedApps, effBadges, appSortMode, searchQuery, isHideMode, indexMode, indexShowEnglish) { buildDiscItems(displayedApps, appSortMode == "name" || searchQuery.isNotBlank() || isHideMode, effBadges, indexGroupOf) }
+                    val appDiscItems = remember(displayedApps, effBadges, appSortMode, searchQuery, isHideMode, indexMode, indexShowEnglish, appSortDescending, usageTierOf, recentLabelOf) { buildDiscItems(displayedApps, appSortMode == "name" || appSortMode == "usage" || appSortMode == "recent" || searchQuery.isNotBlank() || isHideMode, effBadges, indexGroupOf) }
                     LaunchedEffect(selectedIndexChar) {
                         if (!selectedIndexChar.isNullOrEmpty() && appDiscItems.isNotEmpty()) {
                             val targetIndex = appDiscItems.indexOfFirst { item ->
@@ -2165,6 +2233,14 @@ fun MainLauncherScreen() {
         }
 
 
+    // 昇順/降順の切替
+    val toggleAppSortDirection: () -> Unit = {
+        val next = !appSortDescending
+        appSortDescending = next
+        repo.prefManager.setAppSortDescending(next)
+        android.widget.Toast.makeText(context, if (next) "降順にしました" else "昇順にしました", android.widget.Toast.LENGTH_SHORT).show()
+    }
+
     // アプリの並び順を巡回切替する（名前順 → よく使う順 → 最近使った順）
     val cycleAppSort: () -> Unit = {
         val modes = listOf("name", "usage", "recent")
@@ -2311,16 +2387,16 @@ fun MainLauncherScreen() {
                             .background(Color.White.copy(alpha = 0.2f))
                     )
 
-                    // 右半分: ソート
+                    // 右半分: 昇順/降順の切替
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
-                            .clickable { cycleAppSort() },
+                            .clickable { toggleAppSortDirection() },
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "ソート",
+                            text = if (appSortDescending) "降順" else "昇順",
                             color = accentColor,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold
