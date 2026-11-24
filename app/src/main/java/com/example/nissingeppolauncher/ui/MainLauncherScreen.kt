@@ -196,6 +196,7 @@ fun MainLauncherScreen() {
     var notificationBadges by remember { mutableStateOf(repo.prefManager.isNotificationBadgesEnabled()) }
     var appSortMode by remember { mutableStateOf(repo.prefManager.getAppSortMode()) }
     var indexShowEnglish by remember { mutableStateOf(repo.prefManager.isIndexShowEnglish()) }
+    var indexMode by remember { mutableStateOf(repo.prefManager.getIndexMode()) }
     var usageStatsMap by remember { mutableStateOf<Map<String, Long>>(emptyMap()) }
     LaunchedEffect(appSortMode) {
         if (appSortMode == "usage" || appSortMode == "recent") {
@@ -750,7 +751,18 @@ fun MainLauncherScreen() {
     val badgeCounts by com.example.nissingeppolauncher.service.LauncherMediaListenerService.badgeCounts.collectAsState()
     val effBadges = if (notificationBadges) badgeCounts else emptyMap()
     val homeDiscItems = remember(favoriteApps, effBadges) { buildDiscItems(favoriteApps, false, effBadges) }
-    val indexItems = if (indexShowEnglish) INDEX_ITEMS else INDEX_ITEMS.filter { it[0].code > 128 }
+    val indexBaseItems = if (indexMode == "kana") INDEX_ITEMS_KANA else INDEX_ITEMS
+    val indexItems = if (indexShowEnglish) indexBaseItems else indexBaseItems.filter { it[0].code > 128 }
+    // 索引グループの実効値: 英語オフなら英語グループ（A〜Z）は＃へ寄せ、あいうえおモードなら文字単位のグループを使う。
+    // 右円（アプリ円盤）の見出しとジャンプ先はこの実効値で揃える
+    val indexGroupOf: (AppInfo) -> String = { app ->
+        val g = app.discGroup
+        when {
+            g.length == 1 && g[0] in 'A'..'Z' -> if (indexShowEnglish) g else "＃"
+            indexMode == "kana" -> app.discKana
+            else -> g
+        }
+    }
     val indexDiscState = key(indexItems.size) { rememberDiscCarouselState(initialIndex = 0, stepAngle = 360f / indexItems.size) }
     val indexEntries = remember(indexItems) { indexItems.map { DiscEntry(id = it, label = it, icon = {}) } }
     var indexSelected by remember { mutableIntStateOf(0) }
@@ -1145,6 +1157,7 @@ fun MainLauncherScreen() {
                                 notificationBadges = repo.prefManager.isNotificationBadgesEnabled()
                                 appSortMode = repo.prefManager.getAppSortMode()
                                 indexShowEnglish = repo.prefManager.isIndexShowEnglish()
+                                indexMode = repo.prefManager.getIndexMode()
                                 clockOffsetX = repo.prefManager.getClockOffsetXDp()
                                 clockOffsetY = repo.prefManager.getClockOffsetYDp()
                                 pvOffsetX = repo.prefManager.getPvOffsetXDp()
@@ -1361,13 +1374,13 @@ fun MainLauncherScreen() {
                         }
                     }
 
-                    val appDiscItems = remember(displayedApps, effBadges, appSortMode, searchQuery, isHideMode) { buildDiscItems(displayedApps, appSortMode == "name" || searchQuery.isNotBlank() || isHideMode, effBadges) }
+                    val appDiscItems = remember(displayedApps, effBadges, appSortMode, searchQuery, isHideMode, indexMode, indexShowEnglish) { buildDiscItems(displayedApps, appSortMode == "name" || searchQuery.isNotBlank() || isHideMode, effBadges, indexGroupOf) }
                     LaunchedEffect(selectedIndexChar) {
                         if (!selectedIndexChar.isNullOrEmpty() && appDiscItems.isNotEmpty()) {
                             val targetIndex = appDiscItems.indexOfFirst { item ->
                                 when (item) {
                                     is DiscItem.IndexEntry -> item.char.equals(selectedIndexChar, ignoreCase = true)
-                                    is DiscItem.AppEntry -> (item.app.initialJapanese == selectedIndexChar) || (item.app.initialEnglish.equals(selectedIndexChar, ignoreCase = true))
+                                    is DiscItem.AppEntry -> indexGroupOf(item.app).equals(selectedIndexChar, ignoreCase = true)
                                 }
                             }
                             if (targetIndex != -1) {

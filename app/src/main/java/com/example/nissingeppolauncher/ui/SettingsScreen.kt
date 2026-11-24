@@ -609,6 +609,7 @@ fun SettingsScreen(
     var appSortMode by remember { mutableStateOf(repo.prefManager.getAppSortMode()) }
     var englishAppSort by remember { mutableStateOf(repo.prefManager.getEnglishAppSort()) }
     var indexShowEnglish by remember { mutableStateOf(repo.prefManager.isIndexShowEnglish()) }
+    var indexMode by remember { mutableStateOf(repo.prefManager.getIndexMode()) }
     var rackReverse by remember { mutableStateOf(repo.prefManager.isRackReverseScroll()) }
     var backgroundPath by remember { mutableStateOf(repo.prefManager.getCustomBackgroundPath()) }
     var wallpaperAlpha by remember { mutableFloatStateOf(repo.prefManager.getHomeWallpaperAlpha()) }
@@ -940,6 +941,7 @@ fun SettingsScreen(
         "artworkEnabled" to Pair({ artworkVisible }, { v: Boolean -> artworkVisible = v; repo.prefManager.setArtworkEnabled(v); onChanged() }),
         "notificationBadges" to Pair({ notificationBadges }, { v: Boolean -> notificationBadges = v; repo.prefManager.setNotificationBadgesEnabled(v); onChanged() }),
         "indexShowEnglish" to Pair({ indexShowEnglish }, { v: Boolean -> indexShowEnglish = v; repo.prefManager.setIndexShowEnglish(v); onChanged() }),
+        "indexMode" to Pair({ indexMode }, { v: String -> indexMode = v; repo.prefManager.setIndexMode(v); onChanged() }),
         "rackReverse" to Pair({ rackReverse }, { v: Boolean -> rackReverse = v; repo.prefManager.setRackReverseScroll(v); onChanged() })
     )
 
