@@ -605,6 +605,7 @@ fun MainLauncherScreen() {
         var lastArtKey = ""
         var artMissKey = ""
         var artMissCount = 0
+        var artPollTick = 0
         while (true) {
             try {
                 val controllers = mediaSessionManager?.getActiveSessions(listenerComponent)
@@ -630,7 +631,7 @@ fun MainLauncherScreen() {
                     }
                     artMissKey = ""
                     artMissCount = 0
-                } else if (artKey != lastArtKey) {
+                } else if (artKey != lastArtKey && (artMissKey != artKey || artMissCount < 10 || artPollTick % 10 == 0)) {
                     val loaded = withContext(Dispatchers.IO) {
                         try {
                             metadata?.getBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART)
@@ -643,6 +644,11 @@ fun MainLauncherScreen() {
                                     val uri = uriStr?.let { Uri.parse(it) }
                                     when {
                                         uri == null -> null
+                                        uriStr != null && uriStr.startsWith("spotify:image:") -> try {
+                                            java.net.URL("https://i.scdn.co/image/" + uriStr.removePrefix("spotify:image:")).openStream().use { BitmapFactory.decodeStream(it) }
+                                        } catch (e: Exception) {
+                                            null
+                                        }
                                         uri.scheme == "http" || uri.scheme == "https" -> try {
                                             java.net.URL(uriStr).openStream().use { BitmapFactory.decodeStream(it) }
                                         } catch (e: Exception) {
@@ -672,17 +678,13 @@ fun MainLauncherScreen() {
                             sessionAlbumArt = null
                         }
                         artMissCount++
-                        if (artMissCount >= 10) {
-                            // 約15秒取りに行っても無ければ、本当にアートワークが無い曲として打ち切る
-                            lastArtKey = artKey
-                            artMissKey = ""
-                            artMissCount = 0
-                        }
+                        // 打ち切らずに、間隔を空けて取り続ける（プレイヤーが遅れて画像を渡すことがある）
                     }
                 }
             } catch (e: Exception) {
                 // セッションが読めないときは今の表示を維持する
             }
+            artPollTick++
             delay(1500)
         }
     }
@@ -1142,13 +1144,20 @@ fun MainLauncherScreen() {
             modifier = Modifier.fillMaxSize()
         ) {
         // 歌詞ブラウズ中はホームの要素をそのまま残し、背面全体をぼかす（ブラウズ表示だけは外に出して鮮明に保つ）
+        // ぼかしはポップアップのようにフェードで効かせる
+        val browseBlurRadius by animateFloatAsState(
+            targetValue = if (isLyricsBrowsing) 22f else 0f,
+            animationSpec = tween(durationMillis = 320),
+            label = "browseBlur"
+        )
         Box(
-            modifier = if (isLyricsBrowsing && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                Modifier.fillMaxSize().graphicsLayer {
-                    renderEffect = androidx.compose.ui.graphics.BlurEffect(22f, 22f, androidx.compose.ui.graphics.TileMode.Clamp)
+            modifier = Modifier.fillMaxSize().graphicsLayer {
+                val r = browseBlurRadius
+                renderEffect = if (r > 0.5f && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                    androidx.compose.ui.graphics.BlurEffect(r, r, androidx.compose.ui.graphics.TileMode.Clamp)
+                } else {
+                    null
                 }
-            } else {
-                Modifier.fillMaxSize()
             }
         ) {
                 WallpaperBackground(
@@ -3135,6 +3144,7 @@ fun MainLauncherScreen() {
                 },
                 fontFamily = lyricsFontFamily,
                 enFontFamily = lyricsEnFontArg,
+                uiFontFamily = currentFontFamily,
                 lyricWeight = lyricWeight,
                 accentColor = accentColor,
                 accentGlow = true,
@@ -3231,7 +3241,7 @@ fun MainLauncherScreen() {
             if (currentLauncherPage != 2 && currentLauncherPage != 3) return@LaunchedEffect
             // 指を離したらすぐ波紋を出す（スクロール終了を最大250msだけ待つ）
             var waited = 0
-            while (indexDiscState.isScrolling && waited < 250) { delay(30); waited += 30 }
+            while (indexDiscState.isScrolling && waited < 120) { delay(20); waited += 20 }
             hideRippleTick++
         }
         LaunchedEffect(folderSelectedIndex) {
@@ -3240,14 +3250,14 @@ fun MainLauncherScreen() {
             if (prevFolder == null || prevFolder == folderSelectedIndex) return@LaunchedEffect
             if (currentLauncherPage != 3) return@LaunchedEffect
             var waited = 0
-            while (folderDiscState.isScrolling && waited < 250) { delay(30); waited += 30 }
+            while (folderDiscState.isScrolling && waited < 120) { delay(20); waited += 20 }
             hideRippleTick++
         }
         if ((currentLauncherPage == 2 || currentLauncherPage == 3) && hideRippleTick > 0) {
             val rippleAnim = remember(hideRippleTick) { Animatable(0f) }
             LaunchedEffect(hideRippleTick) {
                 rippleAnim.snapTo(0f)
-                rippleAnim.animateTo(1f, animationSpec = tween(durationMillis = 900, easing = FastOutSlowInEasing))
+                rippleAnim.animateTo(1f, animationSpec = tween(durationMillis = 550, easing = FastOutSlowInEasing))
             }
             if (rippleAnim.value < 1f) {
                 Canvas(
