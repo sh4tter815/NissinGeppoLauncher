@@ -469,8 +469,10 @@ class AppPreferenceManager(private val context: Context) {
     fun setDiscDropOnPvEnabled(v: Boolean) = prefs.edit().putBoolean("disc_drop_on_pv", v).apply()
     fun getWidgetLongPressAction(): String = prefs.getString("widget_long_press_action", "rack") ?: "rack"
     fun setWidgetLongPressAction(v: String) = prefs.edit().putString("widget_long_press_action", v).apply()
-    fun getWidgetTapAction(): String = prefs.getString("widget_tap_action", "app") ?: "app"
+    fun getWidgetTapAction(): String = prefs.getString("widget_tap_action", "toggle") ?: "toggle"
     fun setWidgetTapAction(v: String) = prefs.edit().putString("widget_tap_action", v).apply()
+    fun getWidgetDoubleTapAction(): String = prefs.getString("widget_double_tap_action", "app") ?: "app"
+    fun setWidgetDoubleTapAction(v: String) = prefs.edit().putString("widget_double_tap_action", v).apply()
     // ラック専用のスクロール反転（円盤の反転とは別）
     fun isRackReverseScroll(): Boolean = prefs.getBoolean("rack_reverse", false)
     fun setRackReverseScroll(v: Boolean) = prefs.edit().putBoolean("rack_reverse", v).apply()
