@@ -216,6 +216,10 @@ fun MainLauncherScreen() {
     var headerOffsetY by remember { mutableFloatStateOf(repo.prefManager.getHeaderOffsetY()) }
     var dateOffsetX by remember { mutableFloatStateOf(repo.prefManager.getDateOffsetX().let { if (it.isNaN()) 0f else it }) }
     var dateOffsetY by remember { mutableFloatStateOf(repo.prefManager.getDateOffsetY().let { if (it.isNaN()) 112f else it }) }
+    var batteryOffsetX by remember { mutableFloatStateOf(repo.prefManager.getBatteryOffsetX().let { if (it.isNaN()) 0f else it }) }
+    var batteryOffsetY by remember { mutableFloatStateOf(repo.prefManager.getBatteryOffsetY().let { if (it.isNaN()) 148f else it }) }
+    var secondsOffsetX by remember { mutableFloatStateOf(repo.prefManager.getSecondsOffsetX().let { if (it.isNaN()) 76f else it }) }
+    var secondsOffsetY by remember { mutableFloatStateOf(repo.prefManager.getSecondsOffsetY().let { if (it.isNaN()) 84f else it }) }
     val headerTopDp = topPaddingDp + headerOffsetY.dp
     var clockOffsetY by remember { mutableFloatStateOf(repo.prefManager.getClockOffsetYDp()) }
     var pvOffsetX by remember { mutableFloatStateOf(repo.prefManager.getPvOffsetXDp()) }
@@ -1222,9 +1226,9 @@ fun MainLauncherScreen() {
                 }
             }
 
-            // レイアウト編集モード: 円盤の位置ハンドル（設定・アプリ一覧・フォルダ。左右の円に枠を付ける）
-            if (layoutEditMode && currentLauncherPage != 1) {
-                for ((discCx, discCy) in listOf(disc1CenterX to disc1CenterY, disc2CenterX to disc2CenterY)) {
+            // レイアウト編集モード: 円盤の位置ハンドル（ホームは左円=アートワークのみ、他ページは左右）
+            if (layoutEditMode) {
+                for ((discCx, discCy) in if (currentLauncherPage == 1) listOf(disc1CenterX to disc1CenterY) else listOf(disc1CenterX to disc1CenterY, disc2CenterX to disc2CenterY)) {
                     Box(
                         modifier = Modifier
                             .offset(x = (discCx - 165f).dp, y = (discCy - 165f).dp)
@@ -1246,7 +1250,7 @@ fun MainLauncherScreen() {
                 }
                 Box(
                     modifier = Modifier
-                        .offset(x = (disc2CenterX - 30f).dp, y = (disc2CenterY - 185f).dp)
+                        .offset(x = ((if (currentLauncherPage == 1) disc1CenterX else disc2CenterX) - 30f).dp, y = ((if (currentLauncherPage == 1) disc1CenterY else disc2CenterY) - 185f).dp)
                         .zIndex(191f)
                         .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(6.dp))
                         .padding(horizontal = 8.dp, vertical = 3.dp)
@@ -1377,7 +1381,7 @@ fun MainLauncherScreen() {
                     contentAlignment = Alignment.BottomCenter
                 ) {
                     Text(
-                        text = if (currentLauncherPage == 1) "時計・日付・PVの枠をドラッグで移動できます（＋でウィジェット追加）" else "円盤とヘッダーの枠をドラッグで移動できます",
+                        text = if (currentLauncherPage == 1) "時計・日付・秒・バッテリー・PV・円盤の枠をドラッグで移動できます（＋でウィジェット追加）" else "円盤とヘッダーの枠をドラッグで移動できます",
                         color = Color.White.copy(alpha = 0.85f),
                         fontSize = 12.sp
                     )
@@ -1454,6 +1458,10 @@ fun MainLauncherScreen() {
                                 headerOffsetY = repo.prefManager.getHeaderOffsetY()
                                 dateOffsetX = repo.prefManager.getDateOffsetX().let { if (it.isNaN()) dateOffsetX else it }
                                 dateOffsetY = repo.prefManager.getDateOffsetY().let { if (it.isNaN()) dateOffsetY else it }
+                                batteryOffsetX = repo.prefManager.getBatteryOffsetX().let { if (it.isNaN()) batteryOffsetX else it }
+                                batteryOffsetY = repo.prefManager.getBatteryOffsetY().let { if (it.isNaN()) batteryOffsetY else it }
+                                secondsOffsetX = repo.prefManager.getSecondsOffsetX().let { if (it.isNaN()) secondsOffsetX else it }
+                                secondsOffsetY = repo.prefManager.getSecondsOffsetY().let { if (it.isNaN()) secondsOffsetY else it }
                                 pvTextColor = repo.prefManager.getPvTextColor()
                                 pvRuby = repo.prefManager.isPvRubyEnabled()
                                 pvInterludeArt = repo.prefManager.isPvInterludeArtEnabled()
@@ -1485,10 +1493,10 @@ fun MainLauncherScreen() {
                     // --- 1: ホーム画面 ---
                     ClockWidget(
                         showDate = false,
-                        showSeconds = clockShowSeconds,
+                        showSeconds = false,
                         horizontal = clockHorizontal,
                         hour12 = clock12h,
-                        showBattery = clockBattery,
+                        showBattery = false,
                         wareki = dateWareki,
                         modifier = Modifier
                             .padding(start = 28.dp, top = topPaddingDp + 48.dp)
@@ -1567,6 +1575,89 @@ fun MainLauncherScreen() {
                         glowColor = accentColor,
                         rainbowGlow = dopagakiMode
                     )
+                    // バッテリー（時計から分離。レイアウト編集で個別に移動できる）
+                    if (clockBattery) {
+                    ClockWidget(
+                        showTime = false,
+                        showDate = false,
+                        showBattery = true,
+                        secondsOnly = false,
+                        wareki = dateWareki,
+                        modifier = Modifier
+                            .padding(start = 28.dp, top = topPaddingDp + 48.dp)
+                            .offset(x = batteryOffsetX.dp, y = batteryOffsetY.dp)
+                            .then(if (layoutEditMode) Modifier.border(1.dp, accentColor.copy(alpha = 0.8f), RoundedCornerShape(10.dp)) else Modifier)
+                            .pointerInput(layoutEditMode) {
+                                if (layoutEditMode) {
+                                    detectDragGestures(
+                                        onDragEnd = { repo.prefManager.setBatteryOffset(batteryOffsetX, batteryOffsetY) },
+                                        onDrag = { change, drag ->
+                                            change.consume()
+                                            batteryOffsetX += drag.x / density
+                                            batteryOffsetY += drag.y / density
+                                        }
+                                    )
+                                } else {
+                                    detectTapGestures(onLongPress = { layoutEditMode = true })
+                                }
+                            }
+                            .zIndex(10f)
+                            .graphicsLayer {
+                                alpha = if (isLyricsBrowsing) 0f else 1f
+                                if (disc3d) {
+                                    transformOrigin = TransformOrigin(0.5f, 0.5f)
+                                    rotationX = 27f + discTiltX.value
+                                    rotationY = discTiltY.value
+                                    cameraDistance = 6.5f * density
+                                }
+                            },
+                        dateMode = if (lyricsDisplayMode == "video" && syncedLyricLines.isNotEmpty()) "sideways" else dateDisplayMode,
+                        glowColor = accentColor,
+                        rainbowGlow = dopagakiMode
+                    )
+                    }
+
+                    // 秒（時計から分離。レイアウト編集で個別に移動できる）
+                    if (clockShowSeconds) {
+                    ClockWidget(
+                        showTime = false,
+                        showDate = false,
+                        showBattery = false,
+                        secondsOnly = true,
+                        wareki = dateWareki,
+                        modifier = Modifier
+                            .padding(start = 28.dp, top = topPaddingDp + 48.dp)
+                            .offset(x = secondsOffsetX.dp, y = secondsOffsetY.dp)
+                            .then(if (layoutEditMode) Modifier.border(1.dp, accentColor.copy(alpha = 0.8f), RoundedCornerShape(10.dp)) else Modifier)
+                            .pointerInput(layoutEditMode) {
+                                if (layoutEditMode) {
+                                    detectDragGestures(
+                                        onDragEnd = { repo.prefManager.setSecondsOffset(secondsOffsetX, secondsOffsetY) },
+                                        onDrag = { change, drag ->
+                                            change.consume()
+                                            secondsOffsetX += drag.x / density
+                                            secondsOffsetY += drag.y / density
+                                        }
+                                    )
+                                } else {
+                                    detectTapGestures(onLongPress = { layoutEditMode = true })
+                                }
+                            }
+                            .zIndex(10f)
+                            .graphicsLayer {
+                                alpha = if (isLyricsBrowsing) 0f else 1f
+                                if (disc3d) {
+                                    transformOrigin = TransformOrigin(0.5f, 0.5f)
+                                    rotationX = 27f + discTiltX.value
+                                    rotationY = discTiltY.value
+                                    cameraDistance = 6.5f * density
+                                }
+                            },
+                        dateMode = if (lyricsDisplayMode == "video" && syncedLyricLines.isNotEmpty()) "sideways" else dateDisplayMode,
+                        glowColor = accentColor,
+                        rainbowGlow = dopagakiMode
+                    )
+                    }
 
                     if (!vinylRackOpen) {
                     DiscCarousel(

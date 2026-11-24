@@ -580,6 +580,8 @@ fun SettingsScreen(
     var textSize by remember { mutableFloatStateOf(repo.prefManager.getAppDiscTextSizeSp()) }
     var letterSpacing by remember { mutableFloatStateOf(repo.prefManager.getAppDiscLetterSpacingSp()) }
     var stepAngle by remember { mutableFloatStateOf(repo.prefManager.getAppDiscStepAngle()) }
+    val discOffX = repo.prefManager.getDiscOffsetX()
+    val discOffY = repo.prefManager.getDiscOffsetY()
     // 2026-11-23 一括追加分の状態
     var lyricsEnabled by remember { mutableStateOf(repo.prefManager.isLyricsEnabled()) }
     var lyricTranslation by remember { mutableStateOf(repo.prefManager.isLyricTranslationEnabled()) }
@@ -1420,6 +1422,7 @@ fun SettingsScreen(
                         ),
                         side = DiscSide.LEFT,
                         accentColor = currentAccentColor,
+                        centerOffsetXDp = discOffX, centerOffsetYDp = discOffY,
                         modifier = Modifier.fillMaxSize(),
                         state = lState, gesturesEnabled = false, stepAngle = stepAngle, iconSizeDp = iconSize, textSizeSp = textSize, letterSpacingSp = letterSpacing,
                         focusedLabelOnly = true, fadeLabelsOnScroll = false, showValues = false, verticalRestLabel = true,
@@ -1444,6 +1447,7 @@ fun SettingsScreen(
                             entries = fNode.children.map { nodeEntry(it) },
                             side = DiscSide.RIGHT,
                             accentColor = currentAccentColor,
+                            centerOffsetXDp = discOffX, centerOffsetYDp = discOffY,
                             modifier = Modifier.fillMaxSize(),
                             state = rState, gesturesEnabled = true, stepAngle = stepAngle, iconSizeDp = iconSize, textSizeSp = textSize, letterSpacingSp = letterSpacing,
                             accentSelectedLabel = true, fadeLabelsOnScroll = false, dimmed = leftDiscState?.isScrolling == true,
@@ -1481,6 +1485,7 @@ fun SettingsScreen(
                             steps = currentItem.slider.steps,
                             format = currentItem.slider.format,
                             accentColor = currentAccentColor,
+                            centerOffsetXDp = discOffX, centerOffsetYDp = discOffY,
                             modifier = Modifier.fillMaxSize(),
                             onSave = { v -> currentItem.slider.onSave(v) }
                         )
@@ -1513,6 +1518,7 @@ key("disc-choices-${currentItem.id}") {
                         },
                         side = DiscSide.RIGHT,
                         accentColor = currentAccentColor,
+                        centerOffsetXDp = discOffX, centerOffsetYDp = discOffY,
                         modifier = Modifier.fillMaxSize(),
                         state = choiceState, gesturesEnabled = true, stepAngle = stepAngle, iconSizeDp = iconSize, textSizeSp = textSize, letterSpacingSp = letterSpacing, accentSelectedLabel = true, fadeLabelsOnScroll = false, tapToApply = true, dimmed = leftDiscState?.isScrolling == true, contentKey = "c-${currentItem.id}", forceSlideOut = discExiting,
                         initialFocus = currentItem.choices.indexOfFirst { it.checked }.coerceAtLeast(0),
@@ -1525,9 +1531,9 @@ key("disc-choices-${currentItem.id}") {
 
         // --- タッチ操作パネル（左円駆動＋タップ判定＋ホールド信号。円盤レイヤーの上） ---
         val panelRadiusPx = with(LocalDensity.current) { 165.dp.toPx() }
-        val discCenterXPx = with(LocalDensity.current) { (-80).dp.toPx() }
+        val discCenterXPx = with(LocalDensity.current) { (-80f + discOffX).dp.toPx() }
         val screenHDp = LocalConfiguration.current.screenHeightDp.toFloat()
-        val discCenterYPx = with(LocalDensity.current) { (screenHDp / 2f - statusTopDp.value - 104f).dp.toPx() }
+        val discCenterYPx = with(LocalDensity.current) { (screenHDp / 2f - statusTopDp.value - 104f + discOffY).dp.toPx() }
         Row(
             modifier = Modifier
                 .fillMaxSize()
