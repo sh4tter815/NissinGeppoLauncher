@@ -1405,6 +1405,19 @@ fun MainLauncherScreen() {
                 }
             }
 
+            // ホーム右半分の長押しでレイアウト編集を開く
+            if (currentLauncherPage == 1 && !layoutEditMode && !pvFullscreen && !isLyricsBrowsing) {
+                Box(
+                    modifier = Modifier
+                        .padding(start = (screenWidthDp / 2f).dp)
+                        .fillMaxSize()
+                        .zIndex(35f)
+                        .pointerInput(Unit) {
+                            detectTapGestures(onLongPress = { layoutEditMode = true })
+                        }
+                )
+            }
+
             // レイアウト編集モード: 完了ボタンとヒント（全ページ共通）
             if (layoutEditMode) {
                 Box(
