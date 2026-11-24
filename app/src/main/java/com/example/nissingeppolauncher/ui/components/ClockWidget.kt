@@ -6,6 +6,8 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,13 +15,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
@@ -232,13 +239,19 @@ fun ClockWidget(
             }
 
             if (showTime && showBattery && batteryPct >= 0) {
-                Text(
-                    text = "バッテリー $batteryPct%",
-                    color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
                     modifier = Modifier.padding(top = 8.dp)
-                )
+                ) {
+                    BatteryLevelIcon(pct = batteryPct, color = Color.White.copy(alpha = 0.85f))
+                    Text(
+                        text = "$batteryPct%",
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
 
             // 同期歌詞の現在行 (時計の下に表示)。行の切り替わりは音楽アプリと同じ
@@ -362,11 +375,14 @@ fun ClockWidget(
                         ) { openCalendar() }
                 )
                 if (showBattery && batteryPct >= 0) {
+                    Spacer(modifier = Modifier.width(10.dp))
+                    BatteryLevelIcon(pct = batteryPct, color = Color.White.copy(alpha = 0.85f))
                     Text(
-                        text = " ・ $batteryPct%",
+                        text = "$batteryPct%",
                         color = Color.White.copy(alpha = 0.7f),
                         fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(start = 4.dp)
                     )
                 }
             }
@@ -419,6 +435,38 @@ fun ClockWidget(
                     )
                 }
             }
+        }
+    }
+}
+
+/** Lucide「battery」の輪郭に、残量ぶんだけ中身を塗った電池アイコン */
+@Composable
+private fun BatteryLevelIcon(pct: Int, color: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.size(width = 27.dp, height = 15.dp)) {
+        val sx = size.width / 24f
+        val sy = size.height / 24f
+        val stroke = 1.6f * sx
+        drawRoundRect(
+            color = color,
+            topLeft = Offset(2f * sx, 7f * sy),
+            size = Size(16f * sx, 10f * sy),
+            cornerRadius = CornerRadius(2f * sx, 2f * sy),
+            style = Stroke(width = stroke)
+        )
+        drawLine(
+            color = color,
+            start = Offset(22f * sx, 11f * sy),
+            end = Offset(22f * sx, 13f * sy),
+            strokeWidth = stroke
+        )
+        val frac = pct.coerceIn(0, 100) / 100f
+        if (frac > 0f) {
+            drawRoundRect(
+                color = color,
+                topLeft = Offset(3.6f * sx, 8.6f * sy),
+                size = Size(12.8f * sx * frac, 6.8f * sy),
+                cornerRadius = CornerRadius(1.2f * sx, 1.2f * sy)
+            )
         }
     }
 }
