@@ -1636,32 +1636,18 @@ fun MainLauncherScreen() {
                     }
                 1 -> {
                     // --- 1: ホーム画面 ---
-                                        Box(
-                        modifier = Modifier
-                            .padding(start = 28.dp, top = topPaddingDp + 48.dp)
-                            .offset(x = clockOffsetX.dp, y = clockOffsetY.dp)
-                            .zIndex(10f)
-                    ) {
-                        var partSize by remember { mutableStateOf(IntSize.Zero) }
-                        val partDensity = LocalDensity.current.density
-                        Box(
-                            modifier = Modifier
-                                .graphicsLayer { scaleX = clockPartScale; scaleY = clockPartScale; transformOrigin = TransformOrigin(0f, 0f) }
-                                .onSizeChanged { partSize = it }
-                                .pointerInput(layoutEditMode) {
-                                    if (layoutEditMode) {
-                                        detectDragGestures(
-                                            onDragEnd = { repo.prefManager.setClockOffset(clockOffsetX, clockOffsetY) },
-                                            onDrag = { change, drag ->
-                                                change.consume()
-                                                clockOffsetX += drag.x / density * clockPartScale
-                                                clockOffsetY += drag.y / density * clockPartScale
-                                            }
-                                        )
-                                    } else {
-                                        detectTapGestures(onLongPress = { layoutEditMode = true })
-                                    }
-                                }
+                        LayoutClockPart(
+                            offsetX = clockOffsetX,
+                            offsetY = clockOffsetY,
+                            onOffsetChange = { dx, dy -> clockOffsetX += dx; clockOffsetY += dy },
+                            onOffsetSave = { repo.prefManager.setClockOffset(clockOffsetX, clockOffsetY) },
+                            scale = clockPartScale,
+                            onScaleChange = { d -> clockPartScale = (clockPartScale + d).coerceIn(0.5f, 2.5f) },
+                            onScaleSave = { repo.prefManager.setLayoutScale("clock", clockPartScale) },
+                            layoutEditMode = layoutEditMode,
+                            onEnterLayoutEdit = { layoutEditMode = true },
+                            accentColor = accentColor,
+                            topPaddingDp = topPaddingDp
                         ) {
                             ClockWidget(
                                 showDate = false,
@@ -1691,73 +1677,20 @@ fun MainLauncherScreen() {
                                 rainbowGlow = dopagakiMode
                             )
                         }
-                        if (layoutEditMode && partSize != IntSize.Zero) {
-                            Box(
-                                modifier = Modifier
-                                    .size(width = (partSize.width * clockPartScale / partDensity).dp, height = (partSize.height * clockPartScale / partDensity).dp)
-                                    .border(1.dp, accentColor.copy(alpha = 0.8f), RoundedCornerShape(10.dp))
-                            )
-                            MoveHandle(
-                                color = accentColor,
-                                modifier = Modifier
-                                    .offset(x = -12.dp, y = -12.dp)
-                                    .zIndex(20f)
-                                    .pointerInput(Unit) {
-                                        detectDragGestures(
-                                            onDragEnd = { repo.prefManager.setClockOffset(clockOffsetX, clockOffsetY) },
-                                            onDrag = { change, drag ->
-                                                change.consume()
-                                                clockOffsetX += drag.x / density
-                                                clockOffsetY += drag.y / density
-                                            }
-                                        )
-                                    }
-                            )
-                            ResizeHandle(
-                                color = accentColor,
-                                modifier = Modifier
-                                    .offset(x = (partSize.width * clockPartScale / partDensity).dp - 12.dp, y = (partSize.height * clockPartScale / partDensity).dp - 12.dp)
-                                    .zIndex(20f)
-                                    .pointerInput(Unit) {
-                                        detectDragGestures(
-                                            onDragEnd = { repo.prefManager.setLayoutScale("clock", clockPartScale) },
-                                            onDrag = { change, drag ->
-                                                change.consume()
-                                                clockPartScale = (clockPartScale + (drag.x + drag.y) / 2f / density / 150f).coerceIn(0.5f, 2.5f)
-                                            }
-                                        )
-                                    }
-                            )
-                        }
-                    }
 
                     // 日付（時計から分離。レイアウト編集で個別に移動できる）
-                                        Box(
-                        modifier = Modifier
-                            .padding(start = 28.dp, top = topPaddingDp + 48.dp)
-                            .offset(x = dateOffsetX.dp, y = dateOffsetY.dp)
-                            .zIndex(10f)
-                    ) {
-                        var partSize by remember { mutableStateOf(IntSize.Zero) }
-                        val partDensity = LocalDensity.current.density
-                        Box(
-                            modifier = Modifier
-                                .graphicsLayer { scaleX = datePartScale; scaleY = datePartScale; transformOrigin = TransformOrigin(0f, 0f) }
-                                .onSizeChanged { partSize = it }
-                                .pointerInput(layoutEditMode) {
-                                    if (layoutEditMode) {
-                                        detectDragGestures(
-                                            onDragEnd = { repo.prefManager.setDateOffset(dateOffsetX, dateOffsetY) },
-                                            onDrag = { change, drag ->
-                                                change.consume()
-                                                dateOffsetX += drag.x / density * datePartScale
-                                                dateOffsetY += drag.y / density * datePartScale
-                                            }
-                                        )
-                                    } else {
-                                        detectTapGestures(onLongPress = { layoutEditMode = true })
-                                    }
-                                }
+                        LayoutClockPart(
+                            offsetX = dateOffsetX,
+                            offsetY = dateOffsetY,
+                            onOffsetChange = { dx, dy -> dateOffsetX += dx; dateOffsetY += dy },
+                            onOffsetSave = { repo.prefManager.setDateOffset(dateOffsetX, dateOffsetY) },
+                            scale = datePartScale,
+                            onScaleChange = { d -> datePartScale = (datePartScale + d).coerceIn(0.5f, 2.5f) },
+                            onScaleSave = { repo.prefManager.setLayoutScale("date", datePartScale) },
+                            layoutEditMode = layoutEditMode,
+                            onEnterLayoutEdit = { layoutEditMode = true },
+                            accentColor = accentColor,
+                            topPaddingDp = topPaddingDp
                         ) {
                             ClockWidget(
                                 showTime = false,
@@ -1777,74 +1710,21 @@ fun MainLauncherScreen() {
                                 rainbowGlow = dopagakiMode
                             )
                         }
-                        if (layoutEditMode && partSize != IntSize.Zero) {
-                            Box(
-                                modifier = Modifier
-                                    .size(width = (partSize.width * datePartScale / partDensity).dp, height = (partSize.height * datePartScale / partDensity).dp)
-                                    .border(1.dp, accentColor.copy(alpha = 0.8f), RoundedCornerShape(10.dp))
-                            )
-                            MoveHandle(
-                                color = accentColor,
-                                modifier = Modifier
-                                    .offset(x = -12.dp, y = -12.dp)
-                                    .zIndex(20f)
-                                    .pointerInput(Unit) {
-                                        detectDragGestures(
-                                            onDragEnd = { repo.prefManager.setDateOffset(dateOffsetX, dateOffsetY) },
-                                            onDrag = { change, drag ->
-                                                change.consume()
-                                                dateOffsetX += drag.x / density
-                                                dateOffsetY += drag.y / density
-                                            }
-                                        )
-                                    }
-                            )
-                            ResizeHandle(
-                                color = accentColor,
-                                modifier = Modifier
-                                    .offset(x = (partSize.width * datePartScale / partDensity).dp - 12.dp, y = (partSize.height * datePartScale / partDensity).dp - 12.dp)
-                                    .zIndex(20f)
-                                    .pointerInput(Unit) {
-                                        detectDragGestures(
-                                            onDragEnd = { repo.prefManager.setLayoutScale("date", datePartScale) },
-                                            onDrag = { change, drag ->
-                                                change.consume()
-                                                datePartScale = (datePartScale + (drag.x + drag.y) / 2f / density / 150f).coerceIn(0.5f, 2.5f)
-                                            }
-                                        )
-                                    }
-                            )
-                        }
-                    }
                     // バッテリー（時計から分離。レイアウト編集で個別に移動できる）
-                    if (clockBattery) {
-                                        Box(
-                        modifier = Modifier
-                            .padding(start = 28.dp, top = topPaddingDp + 48.dp)
-                            .offset(x = batteryOffsetX.dp, y = batteryOffsetY.dp)
-                            .zIndex(10f)
-                    ) {
-                        var partSize by remember { mutableStateOf(IntSize.Zero) }
-                        val partDensity = LocalDensity.current.density
-                        Box(
-                            modifier = Modifier
-                                .graphicsLayer { scaleX = batteryPartScale; scaleY = batteryPartScale; transformOrigin = TransformOrigin(0f, 0f) }
-                                .onSizeChanged { partSize = it }
-                                .pointerInput(layoutEditMode) {
-                                    if (layoutEditMode) {
-                                        detectDragGestures(
-                                            onDragEnd = { repo.prefManager.setBatteryOffset(batteryOffsetX, batteryOffsetY) },
-                                            onDrag = { change, drag ->
-                                                change.consume()
-                                                batteryOffsetX += drag.x / density * batteryPartScale
-                                                batteryOffsetY += drag.y / density * batteryPartScale
-                                            }
-                                        )
-                                    } else {
-                                        detectTapGestures(onLongPress = { layoutEditMode = true })
-                                    }
-                                }
-                        ) {
+                        if (clockBattery) {
+                            LayoutClockPart(
+                                offsetX = batteryOffsetX,
+                                offsetY = batteryOffsetY,
+                                onOffsetChange = { dx, dy -> batteryOffsetX += dx; batteryOffsetY += dy },
+                                onOffsetSave = { repo.prefManager.setBatteryOffset(batteryOffsetX, batteryOffsetY) },
+                                scale = batteryPartScale,
+                                onScaleChange = { d -> batteryPartScale = (batteryPartScale + d).coerceIn(0.5f, 2.5f) },
+                                onScaleSave = { repo.prefManager.setLayoutScale("battery", batteryPartScale) },
+                                layoutEditMode = layoutEditMode,
+                                onEnterLayoutEdit = { layoutEditMode = true },
+                                accentColor = accentColor,
+                                topPaddingDp = topPaddingDp
+                            ) {
                             ClockWidget(
                                 showTime = false,
                                 showDate = false,
@@ -1864,77 +1744,24 @@ fun MainLauncherScreen() {
                                 glowColor = accentColor,
                                 rainbowGlow = dopagakiMode
                             )
+                            }
                         }
-                        if (layoutEditMode && partSize != IntSize.Zero) {
-                            Box(
-                                modifier = Modifier
-                                    .size(width = (partSize.width * batteryPartScale / partDensity).dp, height = (partSize.height * batteryPartScale / partDensity).dp)
-                                    .border(1.dp, accentColor.copy(alpha = 0.8f), RoundedCornerShape(10.dp))
-                            )
-                            MoveHandle(
-                                color = accentColor,
-                                modifier = Modifier
-                                    .offset(x = -12.dp, y = -12.dp)
-                                    .zIndex(20f)
-                                    .pointerInput(Unit) {
-                                        detectDragGestures(
-                                            onDragEnd = { repo.prefManager.setBatteryOffset(batteryOffsetX, batteryOffsetY) },
-                                            onDrag = { change, drag ->
-                                                change.consume()
-                                                batteryOffsetX += drag.x / density
-                                                batteryOffsetY += drag.y / density
-                                            }
-                                        )
-                                    }
-                            )
-                            ResizeHandle(
-                                color = accentColor,
-                                modifier = Modifier
-                                    .offset(x = (partSize.width * batteryPartScale / partDensity).dp - 12.dp, y = (partSize.height * batteryPartScale / partDensity).dp - 12.dp)
-                                    .zIndex(20f)
-                                    .pointerInput(Unit) {
-                                        detectDragGestures(
-                                            onDragEnd = { repo.prefManager.setLayoutScale("battery", batteryPartScale) },
-                                            onDrag = { change, drag ->
-                                                change.consume()
-                                                batteryPartScale = (batteryPartScale + (drag.x + drag.y) / 2f / density / 150f).coerceIn(0.5f, 2.5f)
-                                            }
-                                        )
-                                    }
-                            )
-                        }
-                    }
-                    }
 
                     // 秒（時計から分離。レイアウト編集で個別に移動できる）
-                    if (clockShowSeconds) {
-                                        Box(
-                        modifier = Modifier
-                            .padding(start = 28.dp, top = topPaddingDp + 48.dp)
-                            .offset(x = secondsOffsetX.dp, y = secondsOffsetY.dp)
-                            .zIndex(10f)
-                    ) {
-                        var partSize by remember { mutableStateOf(IntSize.Zero) }
-                        val partDensity = LocalDensity.current.density
-                        Box(
-                            modifier = Modifier
-                                .graphicsLayer { scaleX = secondsPartScale; scaleY = secondsPartScale; transformOrigin = TransformOrigin(0f, 0f) }
-                                .onSizeChanged { partSize = it }
-                                .pointerInput(layoutEditMode) {
-                                    if (layoutEditMode) {
-                                        detectDragGestures(
-                                            onDragEnd = { repo.prefManager.setSecondsOffset(secondsOffsetX, secondsOffsetY) },
-                                            onDrag = { change, drag ->
-                                                change.consume()
-                                                secondsOffsetX += drag.x / density * secondsPartScale
-                                                secondsOffsetY += drag.y / density * secondsPartScale
-                                            }
-                                        )
-                                    } else {
-                                        detectTapGestures(onLongPress = { layoutEditMode = true })
-                                    }
-                                }
-                        ) {
+                        if (clockShowSeconds) {
+                            LayoutClockPart(
+                                offsetX = secondsOffsetX,
+                                offsetY = secondsOffsetY,
+                                onOffsetChange = { dx, dy -> secondsOffsetX += dx; secondsOffsetY += dy },
+                                onOffsetSave = { repo.prefManager.setSecondsOffset(secondsOffsetX, secondsOffsetY) },
+                                scale = secondsPartScale,
+                                onScaleChange = { d -> secondsPartScale = (secondsPartScale + d).coerceIn(0.5f, 2.5f) },
+                                onScaleSave = { repo.prefManager.setLayoutScale("seconds", secondsPartScale) },
+                                layoutEditMode = layoutEditMode,
+                                onEnterLayoutEdit = { layoutEditMode = true },
+                                accentColor = accentColor,
+                                topPaddingDp = topPaddingDp
+                            ) {
                             ClockWidget(
                                 showTime = false,
                                 showDate = false,
@@ -1954,47 +1781,8 @@ fun MainLauncherScreen() {
                                 glowColor = accentColor,
                                 rainbowGlow = dopagakiMode
                             )
+                            }
                         }
-                        if (layoutEditMode && partSize != IntSize.Zero) {
-                            Box(
-                                modifier = Modifier
-                                    .size(width = (partSize.width * secondsPartScale / partDensity).dp, height = (partSize.height * secondsPartScale / partDensity).dp)
-                                    .border(1.dp, accentColor.copy(alpha = 0.8f), RoundedCornerShape(10.dp))
-                            )
-                            MoveHandle(
-                                color = accentColor,
-                                modifier = Modifier
-                                    .offset(x = -12.dp, y = -12.dp)
-                                    .zIndex(20f)
-                                    .pointerInput(Unit) {
-                                        detectDragGestures(
-                                            onDragEnd = { repo.prefManager.setSecondsOffset(secondsOffsetX, secondsOffsetY) },
-                                            onDrag = { change, drag ->
-                                                change.consume()
-                                                secondsOffsetX += drag.x / density
-                                                secondsOffsetY += drag.y / density
-                                            }
-                                        )
-                                    }
-                            )
-                            ResizeHandle(
-                                color = accentColor,
-                                modifier = Modifier
-                                    .offset(x = (partSize.width * secondsPartScale / partDensity).dp - 12.dp, y = (partSize.height * secondsPartScale / partDensity).dp - 12.dp)
-                                    .zIndex(20f)
-                                    .pointerInput(Unit) {
-                                        detectDragGestures(
-                                            onDragEnd = { repo.prefManager.setLayoutScale("seconds", secondsPartScale) },
-                                            onDrag = { change, drag ->
-                                                change.consume()
-                                                secondsPartScale = (secondsPartScale + (drag.x + drag.y) / 2f / density / 150f).coerceIn(0.5f, 2.5f)
-                                            }
-                                        )
-                                    }
-                            )
-                        }
-                    }
-                    }
 
                     if (!vinylRackOpen) {
                     DiscCarousel(
@@ -3867,6 +3655,91 @@ private fun loadUsageStats(context: android.content.Context, mode: String): Map<
         }
     } catch (_: Exception) {
         emptyMap()
+    }
+}
+
+/** レイアウト編集対応の時計パーツ土台（位置決め＋拡縮＋枠＋移動/拡縮ハンドル）。中身は呼び出し側が渡す */
+@Composable
+private fun LayoutClockPart(
+    offsetX: Float,
+    offsetY: Float,
+    onOffsetChange: (Float, Float) -> Unit,
+    onOffsetSave: () -> Unit,
+    scale: Float,
+    onScaleChange: (Float) -> Unit,
+    onScaleSave: () -> Unit,
+    layoutEditMode: Boolean,
+    onEnterLayoutEdit: () -> Unit,
+    accentColor: Color,
+    topPaddingDp: Dp,
+    content: @Composable () -> Unit
+) {
+    val latestScale by rememberUpdatedState(scale)
+    Box(
+        modifier = Modifier
+            .padding(start = 28.dp, top = topPaddingDp + 48.dp)
+            .offset(x = offsetX.dp, y = offsetY.dp)
+            .zIndex(10f)
+    ) {
+        var partSize by remember { mutableStateOf(IntSize.Zero) }
+        val partDensity = LocalDensity.current.density
+        Box(
+            modifier = Modifier
+                .graphicsLayer { scaleX = scale; scaleY = scale; transformOrigin = TransformOrigin(0f, 0f) }
+                .onSizeChanged { partSize = it }
+                .pointerInput(layoutEditMode) {
+                    if (layoutEditMode) {
+                        detectDragGestures(
+                            onDragEnd = { onOffsetSave() },
+                            onDrag = { change, drag ->
+                                change.consume()
+                                onOffsetChange(drag.x / density * latestScale, drag.y / density * latestScale)
+                            }
+                        )
+                    } else {
+                        detectTapGestures(onLongPress = { onEnterLayoutEdit() })
+                    }
+                }
+        ) {
+            content()
+        }
+        if (layoutEditMode && partSize != IntSize.Zero) {
+            Box(
+                modifier = Modifier
+                    .size(width = (partSize.width * scale / partDensity).dp, height = (partSize.height * scale / partDensity).dp)
+                    .border(1.dp, accentColor.copy(alpha = 0.8f), RoundedCornerShape(10.dp))
+            )
+            MoveHandle(
+                color = accentColor,
+                modifier = Modifier
+                    .offset(x = -12.dp, y = -12.dp)
+                    .zIndex(20f)
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragEnd = { onOffsetSave() },
+                            onDrag = { change, drag ->
+                                change.consume()
+                                onOffsetChange(drag.x / density, drag.y / density)
+                            }
+                        )
+                    }
+            )
+            ResizeHandle(
+                color = accentColor,
+                modifier = Modifier
+                    .offset(x = (partSize.width * scale / partDensity).dp - 12.dp, y = (partSize.height * scale / partDensity).dp - 12.dp)
+                    .zIndex(20f)
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragEnd = { onScaleSave() },
+                            onDrag = { change, drag ->
+                                change.consume()
+                                onScaleChange((drag.x + drag.y) / 2f / density / 150f)
+                            }
+                        )
+                    }
+            )
+        }
     }
 }
 
