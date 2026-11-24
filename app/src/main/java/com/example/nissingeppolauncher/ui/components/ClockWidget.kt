@@ -60,7 +60,10 @@ fun ClockWidget(
     showSeconds: Boolean = false,
     hour12: Boolean = false,
     showBattery: Boolean = false,
-    wareki: Boolean = false
+    wareki: Boolean = false,
+    // 時計と日付の分離表示用（レイアウト編集で別々に動かすため、片方だけ出す使い方ができる）
+    showTime: Boolean = true,
+    showDate: Boolean = true
 ) {
     val context = LocalContext.current
     val effGlow = if (rainbowGlow) dopaRainbowColor(seed = 5) else glowColor
@@ -146,7 +149,7 @@ fun ClockWidget(
         if (sideways) {
             Row {
                 // 時刻ブロック (タップで時計アプリ起動)
-                Column(
+                if (showTime) Column(
                     modifier = Modifier
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
@@ -200,7 +203,7 @@ fun ClockWidget(
                 }
 
                 // 日付ブロック (時刻の右に横倒しで表示。タップでカレンダーアプリ起動)
-                Box(
+                if (showDate) Box(
                     modifier = Modifier
                         .padding(start = 12.dp, top = 2.dp)
                         .width(20.dp)
@@ -228,7 +231,7 @@ fun ClockWidget(
                 }
             }
 
-            if (showBattery && batteryPct >= 0) {
+            if (showTime && showBattery && batteryPct >= 0) {
                 Text(
                     text = "バッテリー $batteryPct%",
                     color = Color.White.copy(alpha = 0.7f),
@@ -240,7 +243,7 @@ fun ClockWidget(
 
             // 同期歌詞の現在行 (時計の下に表示)。行の切り替わりは音楽アプリと同じ
             // 350msのクロスフェードでつなぐ
-            if (showLyrics) {
+            if (showTime && showLyrics) {
                 Crossfade(
                     targetState = lyricsLine,
                     animationSpec = tween(durationMillis = 350),
@@ -289,7 +292,7 @@ fun ClockWidget(
             }
         } else {
             // 時刻ブロック (タップで時計アプリ起動)
-            Column(
+            if (showTime) Column(
                 modifier = Modifier
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
@@ -343,11 +346,11 @@ fun ClockWidget(
             }
 
             // 日付ブロック (時計の下・横書き。タップでカレンダーアプリ起動)
-            Row(
+            if (showDate || showBattery) Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(top = 16.dp)
             ) {
-                Text(
+                if (showDate) Text(
                     text = dateText,
                     color = Color.White.copy(alpha = 0.75f),
                     fontSize = 17.sp,
@@ -369,7 +372,7 @@ fun ClockWidget(
             }
 
             // 同期歌詞の現在行 (日付の下に表示)。行の切り替わりは350msのクロスフェード
-            if (showLyrics) {
+            if (showTime && showLyrics) {
                 Crossfade(
                     targetState = lyricsLine,
                     animationSpec = tween(durationMillis = 350),
