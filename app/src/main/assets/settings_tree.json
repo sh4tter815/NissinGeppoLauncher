@@ -1,5 +1,5 @@
 {
- "version": 16,
+ "version": 17,
  "items": {
   "reverse": {
    "label": "スクロール方向の反転",
@@ -848,7 +848,7 @@
   },
   "layoutEdit": {
    "label": "レイアウトを編集",
-   "desc": "時計・日付・PV・円盤・ヘッダーの位置をドラッグで動かします（時計の長押しでも開けます）",
+   "desc": "時計・日付・PV・円盤・ヘッダーの位置をドラッグで動かします。ホームでは＋ボタンから他社製ウィジェットも置けます（時計の長押しでも開けます）",
    "glyph": "move-diagonal",
    "type": "action",
    "action": "layoutEdit"
