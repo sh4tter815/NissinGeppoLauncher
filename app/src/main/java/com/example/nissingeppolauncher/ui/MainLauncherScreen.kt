@@ -57,7 +57,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.SpanStyle
@@ -1372,19 +1371,7 @@ fun MainLauncherScreen() {
                                             .border(2.dp, Color.White, CircleShape)
                                             .pointerInput(placement.id) {
                                                 detectDragGestures(
-                                                    onDragEnd = {
-                                                        repo.prefManager.setWidgetPlacements(widgetPlacements)
-                                                        val p = widgetPlacements.firstOrNull { it.id == placement.id }
-                                                        if (p != null) {
-                                                            val opts = android.os.Bundle().apply {
-                                                                putInt(android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, p.w.toInt())
-                                                                putInt(android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, p.w.toInt())
-                                                                putInt(android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, p.h.toInt())
-                                                                putInt(android.appwidget.AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, p.h.toInt())
-                                                            }
-                                                            appWidgetManager.updateAppWidgetSize(placement.id, opts)
-                                                        }
-                                                    },
+                                                    onDragEnd = { repo.prefManager.setWidgetPlacements(widgetPlacements) },
                                                     onDrag = { change, drag ->
                                                         change.consume()
                                                         widgetPlacements = widgetPlacements.map {
@@ -1569,6 +1556,7 @@ fun MainLauncherScreen() {
                             .zIndex(10f)
                     ) {
                         var partSize by remember { mutableStateOf(IntSize.Zero) }
+                        val partDensity = LocalDensity.current.density
                         Box(
                             modifier = Modifier
                                 .graphicsLayer { scaleX = clockPartScale; scaleY = clockPartScale; transformOrigin = TransformOrigin(0f, 0f) }
@@ -1619,12 +1607,12 @@ fun MainLauncherScreen() {
                         if (layoutEditMode && partSize != IntSize.Zero) {
                             Box(
                                 modifier = Modifier
-                                    .size(width = (partSize.width * clockPartScale / density).dp, height = (partSize.height * clockPartScale / density).dp)
+                                    .size(width = (partSize.width * clockPartScale / partDensity).dp, height = (partSize.height * clockPartScale / partDensity).dp)
                                     .border(1.dp, accentColor.copy(alpha = 0.8f), RoundedCornerShape(10.dp))
                             )
                             Box(
                                 modifier = Modifier
-                                    .offset(x = (partSize.width * clockPartScale / density).dp - 12.dp, y = (partSize.height * clockPartScale / density).dp - 12.dp)
+                                    .offset(x = (partSize.width * clockPartScale / partDensity).dp - 12.dp, y = (partSize.height * clockPartScale / partDensity).dp - 12.dp)
                                     .size(24.dp)
                                     .background(accentColor, CircleShape)
                                     .border(2.dp, Color.White, CircleShape)
@@ -1650,6 +1638,7 @@ fun MainLauncherScreen() {
                             .zIndex(10f)
                     ) {
                         var partSize by remember { mutableStateOf(IntSize.Zero) }
+                        val partDensity = LocalDensity.current.density
                         Box(
                             modifier = Modifier
                                 .graphicsLayer { scaleX = datePartScale; scaleY = datePartScale; transformOrigin = TransformOrigin(0f, 0f) }
@@ -1690,12 +1679,12 @@ fun MainLauncherScreen() {
                         if (layoutEditMode && partSize != IntSize.Zero) {
                             Box(
                                 modifier = Modifier
-                                    .size(width = (partSize.width * datePartScale / density).dp, height = (partSize.height * datePartScale / density).dp)
+                                    .size(width = (partSize.width * datePartScale / partDensity).dp, height = (partSize.height * datePartScale / partDensity).dp)
                                     .border(1.dp, accentColor.copy(alpha = 0.8f), RoundedCornerShape(10.dp))
                             )
                             Box(
                                 modifier = Modifier
-                                    .offset(x = (partSize.width * datePartScale / density).dp - 12.dp, y = (partSize.height * datePartScale / density).dp - 12.dp)
+                                    .offset(x = (partSize.width * datePartScale / partDensity).dp - 12.dp, y = (partSize.height * datePartScale / partDensity).dp - 12.dp)
                                     .size(24.dp)
                                     .background(accentColor, CircleShape)
                                     .border(2.dp, Color.White, CircleShape)
@@ -1721,6 +1710,7 @@ fun MainLauncherScreen() {
                             .zIndex(10f)
                     ) {
                         var partSize by remember { mutableStateOf(IntSize.Zero) }
+                        val partDensity = LocalDensity.current.density
                         Box(
                             modifier = Modifier
                                 .graphicsLayer { scaleX = batteryPartScale; scaleY = batteryPartScale; transformOrigin = TransformOrigin(0f, 0f) }
@@ -1763,12 +1753,12 @@ fun MainLauncherScreen() {
                         if (layoutEditMode && partSize != IntSize.Zero) {
                             Box(
                                 modifier = Modifier
-                                    .size(width = (partSize.width * batteryPartScale / density).dp, height = (partSize.height * batteryPartScale / density).dp)
+                                    .size(width = (partSize.width * batteryPartScale / partDensity).dp, height = (partSize.height * batteryPartScale / partDensity).dp)
                                     .border(1.dp, accentColor.copy(alpha = 0.8f), RoundedCornerShape(10.dp))
                             )
                             Box(
                                 modifier = Modifier
-                                    .offset(x = (partSize.width * batteryPartScale / density).dp - 12.dp, y = (partSize.height * batteryPartScale / density).dp - 12.dp)
+                                    .offset(x = (partSize.width * batteryPartScale / partDensity).dp - 12.dp, y = (partSize.height * batteryPartScale / partDensity).dp - 12.dp)
                                     .size(24.dp)
                                     .background(accentColor, CircleShape)
                                     .border(2.dp, Color.White, CircleShape)
@@ -1796,6 +1786,7 @@ fun MainLauncherScreen() {
                             .zIndex(10f)
                     ) {
                         var partSize by remember { mutableStateOf(IntSize.Zero) }
+                        val partDensity = LocalDensity.current.density
                         Box(
                             modifier = Modifier
                                 .graphicsLayer { scaleX = secondsPartScale; scaleY = secondsPartScale; transformOrigin = TransformOrigin(0f, 0f) }
@@ -1838,12 +1829,12 @@ fun MainLauncherScreen() {
                         if (layoutEditMode && partSize != IntSize.Zero) {
                             Box(
                                 modifier = Modifier
-                                    .size(width = (partSize.width * secondsPartScale / density).dp, height = (partSize.height * secondsPartScale / density).dp)
+                                    .size(width = (partSize.width * secondsPartScale / partDensity).dp, height = (partSize.height * secondsPartScale / partDensity).dp)
                                     .border(1.dp, accentColor.copy(alpha = 0.8f), RoundedCornerShape(10.dp))
                             )
                             Box(
                                 modifier = Modifier
-                                    .offset(x = (partSize.width * secondsPartScale / density).dp - 12.dp, y = (partSize.height * secondsPartScale / density).dp - 12.dp)
+                                    .offset(x = (partSize.width * secondsPartScale / partDensity).dp - 12.dp, y = (partSize.height * secondsPartScale / partDensity).dp - 12.dp)
                                     .size(24.dp)
                                     .background(accentColor, CircleShape)
                                     .border(2.dp, Color.White, CircleShape)
