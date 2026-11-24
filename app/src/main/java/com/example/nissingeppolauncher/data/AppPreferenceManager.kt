@@ -459,6 +459,8 @@ class AppPreferenceManager(private val context: Context) {
     fun getSecondsOffsetX(): Float = prefs.getFloat("seconds_offset_x", Float.NaN)
     fun getSecondsOffsetY(): Float = prefs.getFloat("seconds_offset_y", Float.NaN)
     fun setSecondsOffset(x: Float, y: Float) = prefs.edit().putFloat("seconds_offset_x", x).putFloat("seconds_offset_y", y).apply()
+    fun getLayoutScale(key: String): Float = prefs.getFloat("layout_scale_$key", 1f)
+    fun setLayoutScale(key: String, v: Float) = prefs.edit().putFloat("layout_scale_$key", v).apply()
     fun getPvOffsetXDp(): Float = prefs.getFloat("pv_offset_x", 0f)
     fun setPvOffsetX(v: Float) = prefs.edit().putFloat("pv_offset_x", v).apply()
     // 設定画面からレイアウト編集モードを開くための一時フラグ

@@ -88,7 +88,9 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
@@ -220,6 +222,10 @@ fun MainLauncherScreen() {
     var batteryOffsetY by remember { mutableFloatStateOf(repo.prefManager.getBatteryOffsetY().let { if (it.isNaN()) 148f else it }) }
     var secondsOffsetX by remember { mutableFloatStateOf(repo.prefManager.getSecondsOffsetX().let { if (it.isNaN()) 76f else it }) }
     var secondsOffsetY by remember { mutableFloatStateOf(repo.prefManager.getSecondsOffsetY().let { if (it.isNaN()) 84f else it }) }
+    var clockPartScale by remember { mutableFloatStateOf(repo.prefManager.getLayoutScale("clock")) }
+    var datePartScale by remember { mutableFloatStateOf(repo.prefManager.getLayoutScale("date")) }
+    var batteryPartScale by remember { mutableFloatStateOf(repo.prefManager.getLayoutScale("battery")) }
+    var secondsPartScale by remember { mutableFloatStateOf(repo.prefManager.getLayoutScale("seconds")) }
     val headerTopDp = topPaddingDp + headerOffsetY.dp
     var clockOffsetY by remember { mutableFloatStateOf(repo.prefManager.getClockOffsetYDp()) }
     var pvOffsetX by remember { mutableFloatStateOf(repo.prefManager.getPvOffsetXDp()) }
@@ -1381,7 +1387,7 @@ fun MainLauncherScreen() {
                     contentAlignment = Alignment.BottomCenter
                 ) {
                     Text(
-                        text = if (currentLauncherPage == 1) "時計・日付・秒・バッテリー・PV・円盤の枠をドラッグで移動できます（＋でウィジェット追加）" else "円盤とヘッダーの枠をドラッグで移動できます",
+                        text = if (currentLauncherPage == 1) "時計・日付・秒・バッテリー・PV・円盤の枠をドラッグで移動、右下の丸で大きさ変更（＋でウィジェット追加）" else "円盤とヘッダーの枠をドラッグで移動できます",
                         color = Color.White.copy(alpha = 0.85f),
                         fontSize = 12.sp
                     )
@@ -1491,172 +1497,304 @@ fun MainLauncherScreen() {
                     }
                 1 -> {
                     // --- 1: ホーム画面 ---
-                    ClockWidget(
-                        showDate = false,
-                        showSeconds = false,
-                        horizontal = clockHorizontal,
-                        hour12 = clock12h,
-                        showBattery = false,
-                        wareki = dateWareki,
+                                        Box(
                         modifier = Modifier
                             .padding(start = 28.dp, top = topPaddingDp + 48.dp)
                             .offset(x = clockOffsetX.dp, y = clockOffsetY.dp)
-                            .then(if (layoutEditMode) Modifier.border(1.dp, accentColor.copy(alpha = 0.8f), RoundedCornerShape(10.dp)) else Modifier)
-                            .pointerInput(layoutEditMode) {
-                                if (layoutEditMode) {
-                                    detectDragGestures(
-                                        onDragEnd = { repo.prefManager.setClockOffset(clockOffsetX, clockOffsetY) },
-                                        onDrag = { change, drag ->
-                                            change.consume()
-                                            clockOffsetX += drag.x / density
-                                            clockOffsetY += drag.y / density
-                                        }
-                                    )
-                                } else {
-                                    detectTapGestures(onLongPress = { layoutEditMode = true })
-                                }
-                            }
                             .zIndex(10f)
-                            .graphicsLayer {
-                                alpha = if (isLyricsBrowsing) 0f else 1f
-                                if (disc3d) {
-                                    transformOrigin = TransformOrigin(0.5f, 0.5f)
-                                    rotationX = 27f + discTiltX.value
-                                    rotationY = discTiltY.value
-                                    cameraDistance = 6.5f * density
+                    ) {
+                        var partSize by remember { mutableStateOf(IntSize.Zero) }
+                        Box(
+                            modifier = Modifier
+                                .graphicsLayer { scaleX = clockPartScale; scaleY = clockPartScale; transformOrigin = TransformOrigin(0f, 0f) }
+                                .onSizeChanged { partSize = it }
+                                .pointerInput(layoutEditMode) {
+                                    if (layoutEditMode) {
+                                        detectDragGestures(
+                                            onDragEnd = { repo.prefManager.setClockOffset(clockOffsetX, clockOffsetY) },
+                                            onDrag = { change, drag ->
+                                                change.consume()
+                                                clockOffsetX += drag.x / density * clockPartScale
+                                                clockOffsetY += drag.y / density * clockPartScale
+                                            }
+                                        )
+                                    } else {
+                                        detectTapGestures(onLongPress = { layoutEditMode = true })
+                                    }
                                 }
-                            },
-                        lyricsLine = if (lyricsEnabled && lyricsDisplayMode == "line") currentLyricLine else "",
-                        translationText = if (lyricsDisplayMode == "line" && translationEnabled) lyricTranslations?.getOrNull(syncedLyricLines.indexOfLast { it.timeMs <= sessionPositionMs + lyricOffsetMs }) ?: "" else "",
-                        karaokeLine = if (lyricsEnabled && lyricsDisplayMode == "line") syncedLyricLines.lastOrNull { it.timeMs <= sessionPositionMs + lyricOffsetMs } else null,
-                        karaokePositionMs = sessionPositionMs + lyricOffsetMs,
-                        karaokeSungColor = accentColor,
-                        lyricFontFamily = lyricsFontFamily,
-                        lyricEnFontFamily = lyricsEnFontArg,
-                        dateMode = if (lyricsDisplayMode == "video" && syncedLyricLines.isNotEmpty()) "sideways" else dateDisplayMode,
-                        glowColor = accentColor,
-                        rainbowGlow = dopagakiMode
-                    )
+                        ) {
+                            ClockWidget(
+                                showDate = false,
+                                showSeconds = false,
+                                horizontal = clockHorizontal,
+                                hour12 = clock12h,
+                                showBattery = false,
+                                wareki = dateWareki,
+                                modifier = Modifier.graphicsLayer {
+                                    alpha = if (isLyricsBrowsing) 0f else 1f
+                                    if (disc3d) {
+                                        transformOrigin = TransformOrigin(0.5f, 0.5f)
+                                        rotationX = 27f + discTiltX.value
+                                        rotationY = discTiltY.value
+                                        cameraDistance = 6.5f * density
+                                    }
+                                },
+                                lyricsLine = if (lyricsEnabled && lyricsDisplayMode == "line") currentLyricLine else "",
+                                translationText = if (lyricsDisplayMode == "line" && translationEnabled) lyricTranslations?.getOrNull(syncedLyricLines.indexOfLast { it.timeMs <= sessionPositionMs + lyricOffsetMs }) ?: "" else "",
+                                karaokeLine = if (lyricsEnabled && lyricsDisplayMode == "line") syncedLyricLines.lastOrNull { it.timeMs <= sessionPositionMs + lyricOffsetMs } else null,
+                                karaokePositionMs = sessionPositionMs + lyricOffsetMs,
+                                karaokeSungColor = accentColor,
+                                lyricFontFamily = lyricsFontFamily,
+                                lyricEnFontFamily = lyricsEnFontArg,
+                                dateMode = if (lyricsDisplayMode == "video" && syncedLyricLines.isNotEmpty()) "sideways" else dateDisplayMode,
+                                glowColor = accentColor,
+                                rainbowGlow = dopagakiMode
+                            )
+                        }
+                        if (layoutEditMode && partSize != IntSize.Zero) {
+                            Box(
+                                modifier = Modifier
+                                    .size(width = (partSize.width * clockPartScale / density).dp, height = (partSize.height * clockPartScale / density).dp)
+                                    .border(1.dp, accentColor.copy(alpha = 0.8f), RoundedCornerShape(10.dp))
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .offset(x = (partSize.width * clockPartScale / density).dp - 12.dp, y = (partSize.height * clockPartScale / density).dp - 12.dp)
+                                    .size(24.dp)
+                                    .background(accentColor, CircleShape)
+                                    .border(2.dp, Color.White, CircleShape)
+                                    .zIndex(20f)
+                                    .pointerInput(Unit) {
+                                        detectDragGestures(
+                                            onDragEnd = { repo.prefManager.setLayoutScale("clock", clockPartScale) },
+                                            onDrag = { change, drag ->
+                                                change.consume()
+                                                clockPartScale = (clockPartScale + (drag.x + drag.y) / 2f / density / 150f).coerceIn(0.5f, 2.5f)
+                                            }
+                                        )
+                                    }
+                            )
+                        }
+                    }
 
                     // 日付（時計から分離。レイアウト編集で個別に移動できる）
-                    ClockWidget(
-                        showTime = false,
-                        showBattery = false,
-                        wareki = dateWareki,
+                                        Box(
                         modifier = Modifier
                             .padding(start = 28.dp, top = topPaddingDp + 48.dp)
                             .offset(x = dateOffsetX.dp, y = dateOffsetY.dp)
-                            .then(if (layoutEditMode) Modifier.border(1.dp, accentColor.copy(alpha = 0.8f), RoundedCornerShape(10.dp)) else Modifier)
-                            .pointerInput(layoutEditMode) {
-                                if (layoutEditMode) {
-                                    detectDragGestures(
-                                        onDragEnd = { repo.prefManager.setDateOffset(dateOffsetX, dateOffsetY) },
-                                        onDrag = { change, drag ->
-                                            change.consume()
-                                            dateOffsetX += drag.x / density
-                                            dateOffsetY += drag.y / density
-                                        }
-                                    )
-                                } else {
-                                    detectTapGestures(onLongPress = { layoutEditMode = true })
-                                }
-                            }
                             .zIndex(10f)
-                            .graphicsLayer {
-                                alpha = if (isLyricsBrowsing) 0f else 1f
-                                if (disc3d) {
-                                    transformOrigin = TransformOrigin(0.5f, 0.5f)
-                                    rotationX = 27f + discTiltX.value
-                                    rotationY = discTiltY.value
-                                    cameraDistance = 6.5f * density
+                    ) {
+                        var partSize by remember { mutableStateOf(IntSize.Zero) }
+                        Box(
+                            modifier = Modifier
+                                .graphicsLayer { scaleX = datePartScale; scaleY = datePartScale; transformOrigin = TransformOrigin(0f, 0f) }
+                                .onSizeChanged { partSize = it }
+                                .pointerInput(layoutEditMode) {
+                                    if (layoutEditMode) {
+                                        detectDragGestures(
+                                            onDragEnd = { repo.prefManager.setDateOffset(dateOffsetX, dateOffsetY) },
+                                            onDrag = { change, drag ->
+                                                change.consume()
+                                                dateOffsetX += drag.x / density * datePartScale
+                                                dateOffsetY += drag.y / density * datePartScale
+                                            }
+                                        )
+                                    } else {
+                                        detectTapGestures(onLongPress = { layoutEditMode = true })
+                                    }
                                 }
-                            },
-                        dateMode = if (lyricsDisplayMode == "video" && syncedLyricLines.isNotEmpty()) "sideways" else dateDisplayMode,
-                        glowColor = accentColor,
-                        rainbowGlow = dopagakiMode
-                    )
+                        ) {
+                            ClockWidget(
+                                showTime = false,
+                                showBattery = false,
+                                wareki = dateWareki,
+                                modifier = Modifier.graphicsLayer {
+                                    alpha = if (isLyricsBrowsing) 0f else 1f
+                                    if (disc3d) {
+                                        transformOrigin = TransformOrigin(0.5f, 0.5f)
+                                        rotationX = 27f + discTiltX.value
+                                        rotationY = discTiltY.value
+                                        cameraDistance = 6.5f * density
+                                    }
+                                },
+                                dateMode = if (lyricsDisplayMode == "video" && syncedLyricLines.isNotEmpty()) "sideways" else dateDisplayMode,
+                                glowColor = accentColor,
+                                rainbowGlow = dopagakiMode
+                            )
+                        }
+                        if (layoutEditMode && partSize != IntSize.Zero) {
+                            Box(
+                                modifier = Modifier
+                                    .size(width = (partSize.width * datePartScale / density).dp, height = (partSize.height * datePartScale / density).dp)
+                                    .border(1.dp, accentColor.copy(alpha = 0.8f), RoundedCornerShape(10.dp))
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .offset(x = (partSize.width * datePartScale / density).dp - 12.dp, y = (partSize.height * datePartScale / density).dp - 12.dp)
+                                    .size(24.dp)
+                                    .background(accentColor, CircleShape)
+                                    .border(2.dp, Color.White, CircleShape)
+                                    .zIndex(20f)
+                                    .pointerInput(Unit) {
+                                        detectDragGestures(
+                                            onDragEnd = { repo.prefManager.setLayoutScale("date", datePartScale) },
+                                            onDrag = { change, drag ->
+                                                change.consume()
+                                                datePartScale = (datePartScale + (drag.x + drag.y) / 2f / density / 150f).coerceIn(0.5f, 2.5f)
+                                            }
+                                        )
+                                    }
+                            )
+                        }
+                    }
                     // バッテリー（時計から分離。レイアウト編集で個別に移動できる）
                     if (clockBattery) {
-                    ClockWidget(
-                        showTime = false,
-                        showDate = false,
-                        showBattery = true,
-                        secondsOnly = false,
-                        wareki = dateWareki,
+                                        Box(
                         modifier = Modifier
                             .padding(start = 28.dp, top = topPaddingDp + 48.dp)
                             .offset(x = batteryOffsetX.dp, y = batteryOffsetY.dp)
-                            .then(if (layoutEditMode) Modifier.border(1.dp, accentColor.copy(alpha = 0.8f), RoundedCornerShape(10.dp)) else Modifier)
-                            .pointerInput(layoutEditMode) {
-                                if (layoutEditMode) {
-                                    detectDragGestures(
-                                        onDragEnd = { repo.prefManager.setBatteryOffset(batteryOffsetX, batteryOffsetY) },
-                                        onDrag = { change, drag ->
-                                            change.consume()
-                                            batteryOffsetX += drag.x / density
-                                            batteryOffsetY += drag.y / density
-                                        }
-                                    )
-                                } else {
-                                    detectTapGestures(onLongPress = { layoutEditMode = true })
-                                }
-                            }
                             .zIndex(10f)
-                            .graphicsLayer {
-                                alpha = if (isLyricsBrowsing) 0f else 1f
-                                if (disc3d) {
-                                    transformOrigin = TransformOrigin(0.5f, 0.5f)
-                                    rotationX = 27f + discTiltX.value
-                                    rotationY = discTiltY.value
-                                    cameraDistance = 6.5f * density
+                    ) {
+                        var partSize by remember { mutableStateOf(IntSize.Zero) }
+                        Box(
+                            modifier = Modifier
+                                .graphicsLayer { scaleX = batteryPartScale; scaleY = batteryPartScale; transformOrigin = TransformOrigin(0f, 0f) }
+                                .onSizeChanged { partSize = it }
+                                .pointerInput(layoutEditMode) {
+                                    if (layoutEditMode) {
+                                        detectDragGestures(
+                                            onDragEnd = { repo.prefManager.setBatteryOffset(batteryOffsetX, batteryOffsetY) },
+                                            onDrag = { change, drag ->
+                                                change.consume()
+                                                batteryOffsetX += drag.x / density * batteryPartScale
+                                                batteryOffsetY += drag.y / density * batteryPartScale
+                                            }
+                                        )
+                                    } else {
+                                        detectTapGestures(onLongPress = { layoutEditMode = true })
+                                    }
                                 }
-                            },
-                        dateMode = if (lyricsDisplayMode == "video" && syncedLyricLines.isNotEmpty()) "sideways" else dateDisplayMode,
-                        glowColor = accentColor,
-                        rainbowGlow = dopagakiMode
-                    )
+                        ) {
+                            ClockWidget(
+                                showTime = false,
+                                showDate = false,
+                                showBattery = true,
+                                secondsOnly = false,
+                                wareki = dateWareki,
+                                modifier = Modifier.graphicsLayer {
+                                    alpha = if (isLyricsBrowsing) 0f else 1f
+                                    if (disc3d) {
+                                        transformOrigin = TransformOrigin(0.5f, 0.5f)
+                                        rotationX = 27f + discTiltX.value
+                                        rotationY = discTiltY.value
+                                        cameraDistance = 6.5f * density
+                                    }
+                                },
+                                dateMode = if (lyricsDisplayMode == "video" && syncedLyricLines.isNotEmpty()) "sideways" else dateDisplayMode,
+                                glowColor = accentColor,
+                                rainbowGlow = dopagakiMode
+                            )
+                        }
+                        if (layoutEditMode && partSize != IntSize.Zero) {
+                            Box(
+                                modifier = Modifier
+                                    .size(width = (partSize.width * batteryPartScale / density).dp, height = (partSize.height * batteryPartScale / density).dp)
+                                    .border(1.dp, accentColor.copy(alpha = 0.8f), RoundedCornerShape(10.dp))
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .offset(x = (partSize.width * batteryPartScale / density).dp - 12.dp, y = (partSize.height * batteryPartScale / density).dp - 12.dp)
+                                    .size(24.dp)
+                                    .background(accentColor, CircleShape)
+                                    .border(2.dp, Color.White, CircleShape)
+                                    .zIndex(20f)
+                                    .pointerInput(Unit) {
+                                        detectDragGestures(
+                                            onDragEnd = { repo.prefManager.setLayoutScale("battery", batteryPartScale) },
+                                            onDrag = { change, drag ->
+                                                change.consume()
+                                                batteryPartScale = (batteryPartScale + (drag.x + drag.y) / 2f / density / 150f).coerceIn(0.5f, 2.5f)
+                                            }
+                                        )
+                                    }
+                            )
+                        }
+                    }
                     }
 
                     // 秒（時計から分離。レイアウト編集で個別に移動できる）
                     if (clockShowSeconds) {
-                    ClockWidget(
-                        showTime = false,
-                        showDate = false,
-                        showBattery = false,
-                        secondsOnly = true,
-                        wareki = dateWareki,
+                                        Box(
                         modifier = Modifier
                             .padding(start = 28.dp, top = topPaddingDp + 48.dp)
                             .offset(x = secondsOffsetX.dp, y = secondsOffsetY.dp)
-                            .then(if (layoutEditMode) Modifier.border(1.dp, accentColor.copy(alpha = 0.8f), RoundedCornerShape(10.dp)) else Modifier)
-                            .pointerInput(layoutEditMode) {
-                                if (layoutEditMode) {
-                                    detectDragGestures(
-                                        onDragEnd = { repo.prefManager.setSecondsOffset(secondsOffsetX, secondsOffsetY) },
-                                        onDrag = { change, drag ->
-                                            change.consume()
-                                            secondsOffsetX += drag.x / density
-                                            secondsOffsetY += drag.y / density
-                                        }
-                                    )
-                                } else {
-                                    detectTapGestures(onLongPress = { layoutEditMode = true })
-                                }
-                            }
                             .zIndex(10f)
-                            .graphicsLayer {
-                                alpha = if (isLyricsBrowsing) 0f else 1f
-                                if (disc3d) {
-                                    transformOrigin = TransformOrigin(0.5f, 0.5f)
-                                    rotationX = 27f + discTiltX.value
-                                    rotationY = discTiltY.value
-                                    cameraDistance = 6.5f * density
+                    ) {
+                        var partSize by remember { mutableStateOf(IntSize.Zero) }
+                        Box(
+                            modifier = Modifier
+                                .graphicsLayer { scaleX = secondsPartScale; scaleY = secondsPartScale; transformOrigin = TransformOrigin(0f, 0f) }
+                                .onSizeChanged { partSize = it }
+                                .pointerInput(layoutEditMode) {
+                                    if (layoutEditMode) {
+                                        detectDragGestures(
+                                            onDragEnd = { repo.prefManager.setSecondsOffset(secondsOffsetX, secondsOffsetY) },
+                                            onDrag = { change, drag ->
+                                                change.consume()
+                                                secondsOffsetX += drag.x / density * secondsPartScale
+                                                secondsOffsetY += drag.y / density * secondsPartScale
+                                            }
+                                        )
+                                    } else {
+                                        detectTapGestures(onLongPress = { layoutEditMode = true })
+                                    }
                                 }
-                            },
-                        dateMode = if (lyricsDisplayMode == "video" && syncedLyricLines.isNotEmpty()) "sideways" else dateDisplayMode,
-                        glowColor = accentColor,
-                        rainbowGlow = dopagakiMode
-                    )
+                        ) {
+                            ClockWidget(
+                                showTime = false,
+                                showDate = false,
+                                showBattery = false,
+                                secondsOnly = true,
+                                wareki = dateWareki,
+                                modifier = Modifier.graphicsLayer {
+                                    alpha = if (isLyricsBrowsing) 0f else 1f
+                                    if (disc3d) {
+                                        transformOrigin = TransformOrigin(0.5f, 0.5f)
+                                        rotationX = 27f + discTiltX.value
+                                        rotationY = discTiltY.value
+                                        cameraDistance = 6.5f * density
+                                    }
+                                },
+                                dateMode = if (lyricsDisplayMode == "video" && syncedLyricLines.isNotEmpty()) "sideways" else dateDisplayMode,
+                                glowColor = accentColor,
+                                rainbowGlow = dopagakiMode
+                            )
+                        }
+                        if (layoutEditMode && partSize != IntSize.Zero) {
+                            Box(
+                                modifier = Modifier
+                                    .size(width = (partSize.width * secondsPartScale / density).dp, height = (partSize.height * secondsPartScale / density).dp)
+                                    .border(1.dp, accentColor.copy(alpha = 0.8f), RoundedCornerShape(10.dp))
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .offset(x = (partSize.width * secondsPartScale / density).dp - 12.dp, y = (partSize.height * secondsPartScale / density).dp - 12.dp)
+                                    .size(24.dp)
+                                    .background(accentColor, CircleShape)
+                                    .border(2.dp, Color.White, CircleShape)
+                                    .zIndex(20f)
+                                    .pointerInput(Unit) {
+                                        detectDragGestures(
+                                            onDragEnd = { repo.prefManager.setLayoutScale("seconds", secondsPartScale) },
+                                            onDrag = { change, drag ->
+                                                change.consume()
+                                                secondsPartScale = (secondsPartScale + (drag.x + drag.y) / 2f / density / 150f).coerceIn(0.5f, 2.5f)
+                                            }
+                                        )
+                                    }
+                            )
+                        }
+                    }
                     }
 
                     if (!vinylRackOpen) {
