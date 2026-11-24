@@ -124,9 +124,6 @@ fun MainLauncherScreen() {
 
     val screenWidthDp = configuration.screenWidthDp.toFloat()
     val screenHeightDp = configuration.screenHeightDp.toFloat()
-    val pvEffWidth = if (pvWidthDp.isNaN()) screenWidthDp - 56f else pvWidthDp
-    val pvEffHeight = if (pvHeightDp.isNaN()) 200f else pvHeightDp
-
     val coroutineScope = rememberCoroutineScope()
     val repo = remember { AppRepository(context) }
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -243,6 +240,8 @@ fun MainLauncherScreen() {
     var pvOffsetX by remember { mutableFloatStateOf(repo.prefManager.getPvOffsetXDp()) }
     var pvWidthDp by remember { mutableFloatStateOf(repo.prefManager.getPvWidth()) }
     var pvHeightDp by remember { mutableFloatStateOf(repo.prefManager.getPvHeight()) }
+    val pvEffWidth = if (pvWidthDp.isNaN()) screenWidthDp - 56f else pvWidthDp
+    val pvEffHeight = if (pvHeightDp.isNaN()) 200f else pvHeightDp
     var tonearmScale by remember { mutableFloatStateOf(repo.prefManager.getTonearmScale()) }
     var pvTextColor by remember { mutableStateOf(repo.prefManager.getPvTextColor()) }
     var pvRuby by remember { mutableStateOf(repo.prefManager.isPvRubyEnabled()) }
@@ -1331,13 +1330,13 @@ fun MainLauncherScreen() {
 
             // レイアウト編集モード: レコード針の大きさハンドル（ホームのみ、針の軸の位置）
             if (layoutEditMode && currentLauncherPage == 1 && repo.prefManager.isTonearmEnabled()) {
-                val pivotX = animatedDisc1CenterX + (disc1RadiusDp * 1.02f).dp
-                val pivotY = disc1CenterY + lyricsDiscDrop - (disc1RadiusDp * 1.02f).dp
+                val pivotX = animatedDisc1CenterX + disc1RadiusDp * 1.02f
+                val pivotY = disc1CenterY + lyricsDiscDrop - disc1RadiusDp * 1.02f
                 Box(modifier = Modifier.fillMaxSize().zIndex(195f)) {
                     ResizeHandle(
                         color = accentColor,
                         modifier = Modifier
-                            .padding(start = (pivotX - 12.dp).coerceAtLeast(0.dp), top = (pivotY - 12.dp).coerceAtLeast(0.dp))
+                            .padding(start = (pivotX - 12f).dp.coerceAtLeast(0.dp), top = (pivotY - 12f).dp.coerceAtLeast(0.dp))
                             .pointerInput(Unit) {
                                 detectDragGestures(
                                     onDragEnd = { repo.prefManager.setTonearmScale(tonearmScale) },
