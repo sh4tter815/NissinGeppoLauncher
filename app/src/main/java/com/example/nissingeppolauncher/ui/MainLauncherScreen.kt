@@ -102,6 +102,7 @@ import com.example.nissingeppolauncher.data.AppRepository
 import com.example.nissingeppolauncher.data.LyricLine
 import com.example.nissingeppolauncher.data.UpdateChecker
 import com.example.nissingeppolauncher.data.LyricsManager
+import com.example.nissingeppolauncher.data.WidgetPlacement
 import com.example.nissingeppolauncher.ui.components.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -3780,7 +3781,7 @@ private fun LayoutEditHandles(
                             onDragEnd = { repo.prefManager.setDiscOffset(0f, discOffsetY.value) },
                             onDrag = { change, drag ->
                                 change.consume()
-                                onDiscOffsetYChange(discOffsetY.value.value + drag.y / density)
+                                onDiscOffsetYChange(discOffsetY.value + drag.y / density)
                             }
                         )
                     }
@@ -3889,9 +3890,9 @@ private fun HomeWidgetsLayer(
                                             onDragEnd = { repo.prefManager.setWidgetPlacements(placements.value) },
                                             onDrag = { change, drag ->
                                                 change.consume()
-                                                onPlacementsChange(placements.value.map {)
+                                                onPlacementsChange(placements.value.map {
                                                     if (it.id == placement.id) it.copy(x = it.x + drag.x / density, y = it.y + drag.y / density) else it
-                                                }
+                                                })
                                             }
                                         )
                                     }
@@ -3930,9 +3931,9 @@ private fun HomeWidgetsLayer(
                                             onDragEnd = { repo.prefManager.setWidgetPlacements(placements.value) },
                                             onDrag = { change, drag ->
                                                 change.consume()
-                                                onPlacementsChange(placements.value.map {)
+                                                onPlacementsChange(placements.value.map {
                                                     if (it.id == placement.id) it.copy(x = it.x + drag.x / density, y = it.y + drag.y / density) else it
-                                                }
+                                                })
                                             }
                                         )
                                     }
@@ -3947,12 +3948,12 @@ private fun HomeWidgetsLayer(
                                             onDragEnd = { repo.prefManager.setWidgetPlacements(placements.value) },
                                             onDrag = { change, drag ->
                                                 change.consume()
-                                                onPlacementsChange(placements.value.map {)
+                                                onPlacementsChange(placements.value.map {
                                                     if (it.id == placement.id) it.copy(
                                                         w = (it.w + drag.x / density).coerceIn(80f, 360f),
                                                         h = (it.h + drag.y / density).coerceIn(60f, 400f)
                                                     ) else it
-                                                }
+                                                })
                                             }
                                         )
                                     }
