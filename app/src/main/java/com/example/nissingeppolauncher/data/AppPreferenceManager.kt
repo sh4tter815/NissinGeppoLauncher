@@ -453,6 +453,12 @@ class AppPreferenceManager(private val context: Context) {
     fun getDateOffsetX(): Float = prefs.getFloat("date_offset_x", Float.NaN)
     fun getDateOffsetY(): Float = prefs.getFloat("date_offset_y", Float.NaN)
     fun setDateOffset(x: Float, y: Float) = prefs.edit().putFloat("date_offset_x", x).putFloat("date_offset_y", y).apply()
+    fun getBatteryOffsetX(): Float = prefs.getFloat("battery_offset_x", Float.NaN)
+    fun getBatteryOffsetY(): Float = prefs.getFloat("battery_offset_y", Float.NaN)
+    fun setBatteryOffset(x: Float, y: Float) = prefs.edit().putFloat("battery_offset_x", x).putFloat("battery_offset_y", y).apply()
+    fun getSecondsOffsetX(): Float = prefs.getFloat("seconds_offset_x", Float.NaN)
+    fun getSecondsOffsetY(): Float = prefs.getFloat("seconds_offset_y", Float.NaN)
+    fun setSecondsOffset(x: Float, y: Float) = prefs.edit().putFloat("seconds_offset_x", x).putFloat("seconds_offset_y", y).apply()
     fun getPvOffsetXDp(): Float = prefs.getFloat("pv_offset_x", 0f)
     fun setPvOffsetX(v: Float) = prefs.edit().putFloat("pv_offset_x", v).apply()
     // 設定画面からレイアウト編集モードを開くための一時フラグ
