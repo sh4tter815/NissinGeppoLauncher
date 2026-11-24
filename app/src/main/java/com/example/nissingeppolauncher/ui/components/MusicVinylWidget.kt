@@ -85,6 +85,7 @@ fun MusicVinylWidget(
     textStartAngle: Float = -90f,
     artworkTilt3d: Boolean = false,
     onRackVisibilityChanged: (Boolean) -> Unit = {},
+    onThemeSettingsRequest: () -> Unit = {},
     dopagaki: Boolean = false,
     rainbowGlow: Boolean = false,
     tonearmScaleOverride: Float? = null
@@ -131,6 +132,7 @@ fun MusicVinylWidget(
     // ダブルタップ判定: シングルタップは少し保留し、その間に2回目のタップが来たらダブルタップとして扱う
     var pendingTapJob by remember { mutableStateOf<Job?>(null) }
     var lastTapReleaseMs by remember { mutableLongStateOf(0L) }
+    var tapCount by remember { mutableIntStateOf(0) }
     fun runRackSteps() {
         if (rackStepAnimRunning) return
         rackStepAnimRunning = true
@@ -432,6 +434,7 @@ fun MusicVinylWidget(
                 "next" -> tc?.skipToNext()
                 "prev" -> tc?.skipToPrevious()
                 "app" -> openPlayerApp()
+                "theme" -> onThemeSettingsRequest()
             }
         } catch (e: Exception) {
             // 操作できないセッションでは何もしない
@@ -486,6 +489,7 @@ fun MusicVinylWidget(
                                                 pendingTapJob?.cancel()
                                                 pendingTapJob = null
                                                 lastTapReleaseMs = 0L
+                                                tapCount = 0
                                             }
                                             runRackSteps()
                                         }
@@ -535,22 +539,27 @@ fun MusicVinylWidget(
                                 rackOpen = false
                                 if (!longPressFired && maxDist < 14.dp.toPx() && heldMs < 300L) {
                                     val doubleAction = prefManager.getWidgetDoubleTapAction()
-                                    val nowMs = System.currentTimeMillis()
-                                    if (doubleAction != "none" && lastTapReleaseMs > 0L && nowMs - lastTapReleaseMs < 300L) {
-                                        // ダブルタップ成立: 保留中のシングルタップを取り消してダブル側を実行
-                                        pendingTapJob?.cancel()
-                                        pendingTapJob = null
-                                        lastTapReleaseMs = 0L
-                                        runWidgetAction(doubleAction)
-                                    } else if (doubleAction == "none") {
+                                    val tripleAction = prefManager.getWidgetTripleTapAction()
+                                    if (doubleAction == "none" && tripleAction == "none") {
                                         runWidgetAction(prefManager.getWidgetTapAction())
                                     } else {
-                                        // シングルタップ候補: ダブルタップ判定のため少しだけ保留する
-                                        lastTapReleaseMs = nowMs
+                                        tapCount++
+                                        val myCount = tapCount
+                                        lastTapReleaseMs = System.currentTimeMillis()
+                                        pendingTapJob?.cancel()
                                         pendingTapJob = widgetScope.launch {
                                             delay(300)
                                             pendingTapJob = null
-                                            runWidgetAction(prefManager.getWidgetTapAction())
+                                            if (tapCount == myCount) {
+                                                val c = tapCount
+                                                tapCount = 0
+                                                lastTapReleaseMs = 0L
+                                                when {
+                                                    c >= 3 -> runWidgetAction(if (tripleAction != "none") tripleAction else if (doubleAction != "none") doubleAction else prefManager.getWidgetTapAction())
+                                                    c == 2 -> runWidgetAction(if (doubleAction != "none") doubleAction else prefManager.getWidgetTapAction())
+                                                    else -> runWidgetAction(prefManager.getWidgetTapAction())
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -576,7 +585,7 @@ fun MusicVinylWidget(
 
             val discStyleNow = prefManager.getDiscStyle()
             // 薄い立体感: アートワークの下に暗い円を少しずらして敷き、盤の厚みとして見せる（ケース表示時は背景にしない）
-            if (artworkTilt3d && artworkEnabled && albumArtBitmap != null && discStyleNow != "md" && discStyleNow != "cassette") {
+            if (artworkTilt3d && artworkEnabled && albumArtBitmap != null && discStyleNow != "md" && discStyleNow != "cassette" && discStyleNow != "clear") {
                 Box(
                     modifier = Modifier
                         .size((discRadiusDp * 2f * 0.92f).dp)
@@ -755,6 +764,7 @@ fun MusicVinylWidget(
             discCenterYDp = discCenterYDp,
             discRadiusDp = discRadiusDp,
             effAccent = effAccent,
+            discStyle = prefManager.getDiscStyle(),
             rackTiltXState = rackTiltXState,
             haptic = haptic,
             artAt = { rackArtAt(it) },
@@ -906,6 +916,7 @@ private fun RackDiscLayer(
     discCenterYDp: Float,
     discRadiusDp: Float,
     effAccent: Color,
+    discStyle: String,
     rackTiltXState: State<Float>,
     haptic: HapticFeedback,
     artAt: (Int) -> Bitmap?,
@@ -944,35 +955,127 @@ private fun RackDiscLayer(
                     cameraDistance = 12f * density
                     alpha = (1f - (abs(relPos) - 4.2f) / 2f).coerceIn(0f, 1f)
                 }
-                .clip(CircleShape),
+                .then(if (discStyle == "md" || discStyle == "cassette") Modifier else Modifier.clip(CircleShape)),
             contentAlignment = Alignment.Center
         ) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val center = Offset(size.width / 2f, size.height / 2f)
-                drawCircle(
-                    color = if (isFocused) effAccent else Color.White.copy(alpha = 0.5f),
-                    radius = size.width / 2f,
-                    center = center,
-                    style = Stroke(width = if (isFocused) 3f else 1.5f)
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .size((discRadiusDp * 2f * 0.92f).dp)
-                    .clip(CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                val art = artAt(targetIdx)
-                val artImage = remember(art) { art?.asImageBitmap() }
-                if (artImage != null) {
-                    Image(
-                        bitmap = artImage,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize()
+                val outlineColor = if (isFocused) effAccent else Color.White.copy(alpha = 0.5f)
+                val outlineWidth = if (isFocused) 3f else 1.5f
+                if (discStyle == "md" || discStyle == "cassette") {
+                    val caseW = size.width * 0.92f
+                    val caseH = caseW * (if (discStyle == "md") 0.94f else 0.64f)
+                    drawRoundRect(
+                        color = outlineColor,
+                        topLeft = Offset(center.x - caseW / 2f, center.y - caseH / 2f),
+                        size = androidx.compose.ui.geometry.Size(caseW, caseH),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(10f, 10f),
+                        style = Stroke(width = outlineWidth)
                     )
                 } else {
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        drawCircle(color = effAccent.copy(alpha = 0.5f))
+                    drawCircle(
+                        color = outlineColor,
+                        radius = size.width / 2f,
+                        center = center,
+                        style = Stroke(width = outlineWidth)
+                    )
+                }
+            }
+            val art = artAt(targetIdx)
+            val artImage = remember(art) { art?.asImageBitmap() }
+            when (discStyle) {
+                "md" -> MdCase(
+                    boxSizeDp = discRadiusDp * 2f * 0.92f,
+                    accentColor = effAccent,
+                    rotation = 0f,
+                    bitmapImage = null,
+                    lineArtImage = null,
+                    title = ""
+                )
+                "cassette" -> CassetteCase(
+                    boxSizeDp = discRadiusDp * 2f * 0.92f,
+                    accentColor = effAccent,
+                    rotation = 0f,
+                    title = titleAt(targetIdx),
+                    artist = ""
+                )
+                else -> Box(
+                    modifier = Modifier
+                        .size((discRadiusDp * 2f * 0.92f).dp)
+                        .clip(CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    when (discStyle) {
+                        "vinyl" -> {
+                            Canvas(Modifier.fillMaxSize()) {
+                                val rMax = size.minDimension / 2f
+                                drawCircle(Color(0xFF0A0A0C))
+                                for (i in 1..9) {
+                                    drawCircle(
+                                        Color.White.copy(alpha = if (i % 3 == 0) 0.10f else 0.05f),
+                                        radius = rMax * (0.50f + i * 0.052f),
+                                        style = Stroke(width = 1.2f)
+                                    )
+                                }
+                            }
+                            if (artImage != null) {
+                                Image(bitmap = artImage, contentDescription = null, modifier = Modifier.fillMaxSize(0.44f).clip(CircleShape))
+                            }
+                        }
+                        "clear" -> {
+                            Canvas(Modifier.fillMaxSize()) {
+                                drawCircle(vividColorOf(effAccent).copy(alpha = 0.36f))
+                                drawCircle(Color.Black.copy(alpha = 0.10f))
+                            }
+                            if (artImage != null) {
+                                Image(bitmap = artImage, contentDescription = null, modifier = Modifier.fillMaxSize(0.44f).clip(CircleShape))
+                            }
+                        }
+                        "glow" -> {
+                            Canvas(Modifier.fillMaxSize()) {
+                                drawCircle(Color(0xFF8FFFD6))
+                            }
+                            if (artImage != null) {
+                                Image(bitmap = artImage, contentDescription = null, modifier = Modifier.fillMaxSize(0.44f).clip(CircleShape))
+                            }
+                        }
+                        "cd" -> {
+                            if (artImage != null) {
+                                Image(bitmap = artImage, contentDescription = null, modifier = Modifier.fillMaxSize())
+                            } else {
+                                Canvas(Modifier.fillMaxSize()) { drawCircle(Color(0xFFB9BEC6)) }
+                            }
+                            Canvas(Modifier.fillMaxSize()) {
+                                val rMax = size.minDimension / 2f
+                                drawCircle(
+                                    Brush.sweepGradient(
+                                        listOf(
+                                            Color(0xFFFF9D9D).copy(alpha = 0.20f),
+                                            Color(0xFFFFFF9D).copy(alpha = 0.20f),
+                                            Color(0xFF9DFF9D).copy(alpha = 0.20f),
+                                            Color(0xFF9DFFFF).copy(alpha = 0.20f),
+                                            Color(0xFF9D9DFF).copy(alpha = 0.20f),
+                                            Color(0xFFFF9DFF).copy(alpha = 0.20f),
+                                            Color(0xFFFF9D9D).copy(alpha = 0.20f)
+                                        )
+                                    )
+                                )
+                                drawCircle(Color(0xFF3A3F45), radius = rMax * 0.075f)
+                            }
+                        }
+                        else -> {
+                            if (artImage != null) {
+                                Image(
+                                    bitmap = artImage,
+                                    contentDescription = null,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Canvas(modifier = Modifier.fillMaxSize()) {
+                                    drawCircle(color = effAccent.copy(alpha = 0.5f))
+                                }
+                            }
+                        }
                     }
                 }
             }

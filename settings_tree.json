@@ -1,5 +1,5 @@
 {
-  "version": 31,
+  "version": 33,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -934,35 +934,6 @@
         }
       ]
     },
-    "themePreset": {
-      "label": "プリセット",
-      "desc": "ディスクとレコード針の組み合わせをまとめて切り替えます。個別に変えると「カスタム」になります",
-      "glyph": "sparkles",
-      "type": "choices",
-      "bind": "themePreset",
-      "choices": [
-        {
-          "v": "custom",
-          "label": "カスタム"
-        },
-        {
-          "v": "analog",
-          "label": "アナログ"
-        },
-        {
-          "v": "cd",
-          "label": "CD全盛期"
-        },
-        {
-          "v": "modern",
-          "label": "モダン"
-        },
-        {
-          "v": "clear",
-          "label": "透明"
-        }
-      ]
-    },
     "widgetLongPress": {
       "label": "左円盤の長押し",
       "desc": "ホーム左のレコード盤を長押ししたときの動作です",
@@ -1036,6 +1007,39 @@
       "glyph": "arrow-up-down",
       "type": "toggle",
       "bind": "discDropOnPv"
+    },
+    "widgetTripleTap": {
+      "label": "左円盤のトリプルタップ",
+      "desc": "ホーム左のレコード盤を3回タップしたときの動作です",
+      "glyph": "cursor",
+      "type": "choices",
+      "bind": "widgetTripleTapAction",
+      "choices": [
+        {
+          "v": "theme",
+          "label": "テーマ設定を開く"
+        },
+        {
+          "v": "app",
+          "label": "再生中のアプリを開く"
+        },
+        {
+          "v": "toggle",
+          "label": "再生／停止"
+        },
+        {
+          "v": "next",
+          "label": "次の曲"
+        },
+        {
+          "v": "prev",
+          "label": "前の曲"
+        },
+        {
+          "v": "none",
+          "label": "なし"
+        }
+      ]
     }
   },
   "tree": [
@@ -1238,9 +1242,6 @@
               "glyph": "sparkles",
               "children": [
                 {
-                  "item": "themePreset"
-                },
-                {
                   "item": "discStyle"
                 },
                 {
@@ -1258,6 +1259,9 @@
                 },
                 {
                   "item": "widgetDoubleTap"
+                },
+                {
+                  "item": "widgetTripleTap"
                 },
                 {
                   "item": "widgetLongPress"
