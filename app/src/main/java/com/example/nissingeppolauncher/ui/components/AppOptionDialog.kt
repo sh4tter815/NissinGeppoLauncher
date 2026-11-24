@@ -21,13 +21,17 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import com.example.nissingeppolauncher.data.AppInfo
+import com.example.nissingeppolauncher.data.AppPreferenceManager
 
 @Composable
 fun AppOptionDialog(
@@ -300,16 +304,38 @@ fun AppOptionDialog(
         var focusIdx by remember { mutableIntStateOf(0) }
         val categoryDiscState = rememberDiscCarouselState(initialIndex = 0, stepAngle = 30f)
         val actionDiscState = rememberDiscCarouselState(initialIndex = 0, stepAngle = 30f)
+        var leftHeld by remember { mutableStateOf(false) }
+        val density = LocalDensity.current.density
         Dialog(
             onDismissRequest = onDismiss,
-            properties = DialogProperties(usePlatformDefaultWidth = false)
+            properties = DialogProperties(usePlatformDefaultWidth = false, dimAmount = 0.3f)
         ) {
+            val dialogView = LocalView.current
+            DisposableEffect(dialogView) {
+                val window = (dialogView.parent as? DialogWindowProvider)?.window
+                var blurApplied = false
+                if (window != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                    blurApplied = runCatching {
+                        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+                        window.attributes = window.attributes.apply { blurBehindRadius = 48 }
+                        true
+                    }.getOrDefault(false)
+                }
+                onDispose {
+                    if (blurApplied && window != null) {
+                        runCatching {
+                            window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+                            window.attributes = window.attributes.apply { blurBehindRadius = 0 }
+                        }
+                    }
+                }
+            }
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.94f)
                     .height(480.dp)
                     .clip(RoundedCornerShape(24.dp))
-                    .background(Color(0xFF141C2E))
+                    .background(Color(0xFF141C2E).copy(alpha = 0.88f))
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -339,8 +365,14 @@ fun AppOptionDialog(
                         accentColor = Color(0xFF88C0FF),
                         modifier = Modifier.fillMaxSize(),
                         state = categoryDiscState,
+                        gesturesEnabled = false,
                         stepAngle = 30f,
                         discCenterXDp = -80f,
+                        focusedLabelOnly = true,
+                        verticalRestLabel = true,
+                        fadeLabelsOnScroll = false,
+                        holdExpand = true,
+                        holdActive = leftHeld,
                         onFocusChange = { focusIdx = it }
                     )
                     val focusedActions = categories.getOrNull(focusIdx)?.actions ?: emptyList()
@@ -360,8 +392,26 @@ fun AppOptionDialog(
                         stepAngle = 30f,
                         contentKey = focusIdx,
                         tapToApply = true,
+                        accentSelectedLabel = true,
+                        fadeLabelsOnScroll = false,
                         onEntryClick = { idx -> focusedActions.getOrNull(idx)?.run?.invoke() }
                     )
+                    Row(modifier = Modifier.fillMaxSize()) {
+                        Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                            DiscTouchHalf(
+                                state = categoryDiscState,
+                                isRight = false,
+                                radiusPx = 165f * density,
+                                isReverseScroll = { AppPreferenceManager(context).isReverseScroll() },
+                                modifier = Modifier.fillMaxSize(),
+                                onHoldingChanged = { leftHeld = it },
+                                discCenterXPx = -80f * density,
+                                discCenterYPx = 202f * density,
+                                onItemTap = { idx -> categoryDiscState.animateToIndex(idx); focusIdx = idx }
+                            )
+                        }
+                        Box(modifier = Modifier.weight(1f).fillMaxHeight())
+                    }
                 }
             }
         }
