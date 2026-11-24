@@ -308,7 +308,7 @@ fun AppOptionDialog(
         val density = LocalDensity.current.density
         Dialog(
             onDismissRequest = onDismiss,
-            properties = DialogProperties(usePlatformDefaultWidth = false, dimAmount = 0.3f)
+            properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
             val dialogView = LocalView.current
             DisposableEffect(dialogView) {
