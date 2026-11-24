@@ -3743,7 +3743,10 @@ fun LyricsBrowseOverlay(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .align(Alignment.TopStart)
-                    .padding(start = 20.dp, top = topPaddingDp + 14.dp)
+                    .padding(start = 16.dp, top = topPaddingDp + 34.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color.Black.copy(alpha = 0.38f))
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
                 val artImg = remember(artwork) { artwork?.asImageBitmap() }
                 if (artImg != null) {
