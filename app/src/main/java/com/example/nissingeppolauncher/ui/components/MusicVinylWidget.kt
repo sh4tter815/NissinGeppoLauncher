@@ -1109,8 +1109,19 @@ private fun MdCase(boxSizeDp: Float, accentColor: Color, rotation: Float, bitmap
                 .align(Alignment.CenterEnd)
                 .size((caseW * 0.46f).dp, (caseH * 0.54f).dp)
                 .clip(RoundedCornerShape(topStart = 14.dp, bottomStart = 14.dp))
-                .background(Brush.linearGradient(listOf(accentColor.copy(alpha = 0.95f), accentColor.copy(alpha = 0.78f))))
+                .background(
+                    Brush.linearGradient(
+                        listOf(Color(0xFFC9CED4), Color(0xFFF4F6F8), Color(0xFFAEB4BC), Color(0xFFD9DDE2))
+                    )
+                )
         ) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .fillMaxHeight()
+                    .width(2.dp)
+                    .background(Color(0xFF7A7F86))
+            )
             if (lineArtImage != null) {
                 Image(
                     bitmap = lineArtImage,
@@ -1123,7 +1134,7 @@ private fun MdCase(boxSizeDp: Float, accentColor: Color, rotation: Float, bitmap
             }
             Text(
                 text = "MD",
-                color = Color.White.copy(alpha = 0.9f),
+                color = Color(0xFF3A3F45),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)
