@@ -218,6 +218,13 @@ fun MainLauncherScreen() {
     var clockOffsetX by remember { mutableFloatStateOf(repo.prefManager.getClockOffsetXDp()) }
     var discOffsetX by remember { mutableFloatStateOf(repo.prefManager.getDiscOffsetX()) }
     var discOffsetY by remember { mutableFloatStateOf(repo.prefManager.getDiscOffsetY()) }
+    // 円盤の左右は中央で固定: 保存済みのXずれは起動時に0へ戻す
+    LaunchedEffect(Unit) {
+        if (discOffsetX != 0f) {
+            discOffsetX = 0f
+            repo.prefManager.setDiscOffset(0f, discOffsetY)
+        }
+    }
     var headerOffsetY by remember { mutableFloatStateOf(repo.prefManager.getHeaderOffsetY()) }
     var dateOffsetX by remember { mutableFloatStateOf(repo.prefManager.getDateOffsetX().let { if (it.isNaN()) 0f else it }) }
     var dateOffsetY by remember { mutableFloatStateOf(repo.prefManager.getDateOffsetY().let { if (it.isNaN()) 112f else it }) }
@@ -1207,7 +1214,7 @@ fun MainLauncherScreen() {
             if (layoutEditMode && currentLauncherPage == 1) {
                 Box(
                     modifier = Modifier
-                        .padding(start = (28f + pvOffsetX).dp, top = topPaddingDp + 150.dp + pvTopOffset.dp, end = 28.dp)
+                        .padding(start = (28f + pvOffsetX).coerceAtLeast(0f).dp, top = (topPaddingDp.value + 150f + pvTopOffset).coerceAtLeast(0f).dp, end = 28.dp)
                         .fillMaxWidth()
                         .height(200.dp)
                         .zIndex(190f)
@@ -1227,8 +1234,8 @@ fun MainLauncherScreen() {
                                 },
                                 onDrag = { change, drag ->
                                     change.consume()
-                                    pvOffsetX += drag.x / density
-                                    pvTopOffset += drag.y / density
+                                    pvOffsetX = (pvOffsetX + drag.x / density).coerceAtLeast(-28f)
+                                    pvTopOffset = (pvTopOffset + drag.y / density).coerceAtLeast(-(topPaddingDp.value + 150f))
                                 }
                             )
                         }
@@ -1255,10 +1262,9 @@ fun MainLauncherScreen() {
                             .background(Color.Black.copy(alpha = 0.15f), CircleShape)
                             .pointerInput(Unit) {
                                 detectDragGestures(
-                                    onDragEnd = { repo.prefManager.setDiscOffset(discOffsetX, discOffsetY) },
+                                    onDragEnd = { repo.prefManager.setDiscOffset(0f, discOffsetY) },
                                     onDrag = { change, drag ->
                                         change.consume()
-                                        discOffsetX += drag.x / density
                                         discOffsetY += drag.y / density
                                     }
                                 )
@@ -1323,10 +1329,13 @@ fun MainLauncherScreen() {
                                 modifier = Modifier
                                     .offset(x = placement.x.dp, y = placement.y.dp)
                                     .size(placement.w.dp, placement.h.dp)
-                                    .zIndex(30f)
+                                    .zIndex(if (layoutEditMode) 200f else 30f)
                             ) {
                                 androidx.compose.ui.viewinterop.AndroidView(
-                                    factory = { ctx -> appWidgetHost.createView(ctx, placement.id, info) },
+                                    factory = { ctx ->
+                                        try { appWidgetHost.createView(ctx, placement.id, info) }
+                                        catch (_: Exception) { android.view.View(ctx) }
+                                    },
                                     modifier = Modifier.fillMaxSize()
                                 )
                                 if (layoutEditMode) {
@@ -1354,10 +1363,14 @@ fun MainLauncherScreen() {
                                             .clip(CircleShape)
                                             .background(Color(0xFFE5484D))
                                             .clickable {
-                                                appWidgetHost.deleteAppWidgetId(placement.id)
-                                                val next = widgetPlacements.filter { it.id != placement.id }
+                                                val removedId = placement.id
+                                                val next = widgetPlacements.filter { it.id != removedId }
                                                 widgetPlacements = next
                                                 repo.prefManager.setWidgetPlacements(next)
+                                                coroutineScope.launch {
+                                                    kotlinx.coroutines.delay(80)
+                                                    try { appWidgetHost.deleteAppWidgetId(removedId) } catch (_: Exception) { }
+                                                }
                                             }
                                             .zIndex(5f),
                                         contentAlignment = Alignment.Center
@@ -1403,7 +1416,32 @@ fun MainLauncherScreen() {
                         .fillMaxSize()
                         .zIndex(35f)
                         .pointerInput(Unit) {
-                            detectTapGestures(onLongPress = { layoutEditMode = true })
+                            // イベントを消費しない監視だけにして、下の円盤のスクロールを妨げない。
+                            // 500ms ほぼ動かさず押し続けたらレイアウト編集を開く
+                            awaitPointerEventScope {
+                                while (true) {
+                                    val down = awaitFirstDown(requireUnconsumed = false)
+                                    val downPos = down.position
+                                    var maxDist = 0f
+                                    val timer = launch {
+                                        kotlinx.coroutines.delay(500)
+                                        if (maxDist < 14f) {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            layoutEditMode = true
+                                        }
+                                    }
+                                    try {
+                                        while (true) {
+                                            val event = awaitPointerEvent()
+                                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                            maxDist = maxOf(maxDist, (change.position - downPos).getDistance())
+                                            if (!change.pressed) break
+                                        }
+                                    } finally {
+                                        timer.cancel()
+                                    }
+                                }
+                            }
                         }
                 )
             }
