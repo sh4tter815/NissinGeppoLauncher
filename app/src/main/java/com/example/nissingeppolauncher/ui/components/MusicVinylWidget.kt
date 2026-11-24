@@ -37,6 +37,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.nativeCanvas
@@ -594,7 +595,7 @@ fun MusicVinylWidget(
                     contentAlignment = Alignment.Center
                 ) {
                     if (discStyleNow == "md") {
-                        MdCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotation = currentRotation, bitmapImage = caseBitmapImage, lineArtImage = lineArtImage)
+                        MdCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotation = currentRotation, bitmapImage = caseBitmapImage, lineArtImage = lineArtImage, title = trackTitle)
                     } else {
                         CassetteCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotation = currentRotation, title = trackTitle, artist = trackArtist)
                     }
@@ -1046,7 +1047,7 @@ private fun extractLineArtBitmap(src: Bitmap?): Bitmap? {
 }
 
 @Composable
-private fun MdCase(boxSizeDp: Float, accentColor: Color, rotation: Float, bitmapImage: ImageBitmap?, lineArtImage: ImageBitmap?) {
+private fun MdCase(boxSizeDp: Float, accentColor: Color, rotation: Float, bitmapImage: ImageBitmap?, lineArtImage: ImageBitmap?, title: String) {
     val caseW = boxSizeDp
     val caseH = boxSizeDp * 0.94f
     Box(
@@ -1087,10 +1088,25 @@ private fun MdCase(boxSizeDp: Float, accentColor: Color, rotation: Float, bitmap
                     drawCircle(Color.White.copy(alpha = 0.10f), radius = rMax * (0.46f + i * 0.085f), style = Stroke(width = 1f))
                 }
                 drawCircle(Color(0xFFD8D8D8).copy(alpha = 0.9f), radius = rMax * 0.16f, style = Stroke(width = 3f))
+                drawCircle(Color(0xFF9FA5AD), radius = rMax * 0.21f)
+                drawCircle(Color(0xFFC9CDD4), radius = rMax * 0.17f)
+                drawCircle(Color(0xFF878D94).copy(alpha = 0.8f), radius = rMax * 0.13f, style = Stroke(width = 2f))
+                drawCircle(Color(0xFFD8D8D8).copy(alpha = 0.9f), radius = rMax * 0.095f, style = Stroke(width = 2f))
             }
             Canvas(Modifier.fillMaxSize()) {
                 drawCircle(Color.Black, radius = size.minDimension / 2f * 0.075f, blendMode = androidx.compose.ui.graphics.BlendMode.Clear)
             }
+            Text(
+                text = title,
+                color = Color(0xFF3A3F45).copy(alpha = 0.75f),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .offset(y = (-boxSizeDp * 0.27f).dp)
+                    .width((boxSizeDp * 0.50f).dp)
+            )
         }
         // 半透明の色つきケース（アクセント色）
         Box(
@@ -1098,16 +1114,32 @@ private fun MdCase(boxSizeDp: Float, accentColor: Color, rotation: Float, bitmap
                 .fillMaxSize()
                 .background(
                     Brush.linearGradient(
-                        listOf(accentColor.copy(alpha = 0.34f), accentColor.copy(alpha = 0.16f), accentColor.copy(alpha = 0.28f))
+                        listOf(accentColor.copy(alpha = 0.60f), accentColor.copy(alpha = 0.42f), accentColor.copy(alpha = 0.55f))
                     )
                 )
-                .border(1.dp, accentColor.copy(alpha = 0.65f), RoundedCornerShape(10.dp))
+                .border(1.dp, accentColor.copy(alpha = 0.85f), RoundedCornerShape(10.dp))
         )
-        // シャッター（不透明プレート、右上）
+        Canvas(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 5.dp)
+                .size(14.dp)
+        ) {
+            val tri = androidx.compose.ui.graphics.Path().apply {
+                moveTo(size.width / 2f, 0f)
+                lineTo(size.width, size.height)
+                lineTo(0f, size.height)
+                close()
+            }
+            drawPath(tri, Color.White.copy(alpha = 0.55f), style = Stroke(width = 1.5f))
+        }
+        Box(modifier = Modifier.align(Alignment.TopStart).padding(7.dp).size(9.dp).clip(CircleShape).border(1.dp, Color.White.copy(alpha = 0.30f), CircleShape))
+        Box(modifier = Modifier.align(Alignment.TopEnd).padding(7.dp).size(9.dp).clip(CircleShape).border(1.dp, Color.White.copy(alpha = 0.30f), CircleShape))
+        // シャッター（金属プレート、右中央）
         Box(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
-                .size((caseW * 0.46f).dp, (caseH * 0.54f).dp)
+                .size((caseW * 0.46f).dp, (caseH * 0.36f).dp)
                 .clip(RoundedCornerShape(topStart = 14.dp, bottomStart = 14.dp))
                 .background(
                     Brush.linearGradient(
@@ -1122,36 +1154,30 @@ private fun MdCase(boxSizeDp: Float, accentColor: Color, rotation: Float, bitmap
                     .width(2.dp)
                     .background(Color(0xFF7A7F86))
             )
-            if (lineArtImage != null) {
-                Image(
-                    bitmap = lineArtImage,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(6.dp)
-                        .size((caseW * 0.24f).dp)
-                )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(start = 6.dp, end = 6.dp, bottom = 6.dp)
+                    .fillMaxWidth()
+                    .height((caseH * 0.13f).dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(Color.White.copy(alpha = 0.92f))
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "74", color = Color(0xFF222222), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    if (lineArtImage != null) {
+                        Image(
+                            bitmap = lineArtImage,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize().padding(start = 6.dp),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                }
             }
-            Text(
-                text = "MD",
-                color = Color(0xFF3A3F45),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)
-            )
-        }
-        // ラベルシール（斜め）
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = 10.dp, bottom = 12.dp)
-                .graphicsLayer { rotationZ = -10f }
-                .size((caseW * 0.30f).dp, (caseH * 0.15f).dp)
-                .clip(RoundedCornerShape(3.dp))
-                .background(Color.White.copy(alpha = 0.92f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(text = "74  MD", color = Color(0xFF222222), fontSize = 11.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
