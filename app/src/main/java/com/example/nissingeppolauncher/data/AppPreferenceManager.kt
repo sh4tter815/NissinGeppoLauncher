@@ -439,8 +439,10 @@ class AppPreferenceManager(private val context: Context) {
     fun setArtworkEnabled(v: Boolean) = prefs.edit().putBoolean("artwork_enabled", v).apply()
     fun isTonearmEnabled(): Boolean = prefs.getBoolean("tonearm_enabled", false)
     fun setTonearmEnabled(v: Boolean) = prefs.edit().putBoolean("tonearm_enabled", v).apply()
-    fun getWidgetLongPressAction(): String = prefs.getString("widget_long_press_action", "app") ?: "app"
+    fun getWidgetLongPressAction(): String = prefs.getString("widget_long_press_action", "rack") ?: "rack"
     fun setWidgetLongPressAction(v: String) = prefs.edit().putString("widget_long_press_action", v).apply()
+    fun getWidgetTapAction(): String = prefs.getString("widget_tap_action", "app") ?: "app"
+    fun setWidgetTapAction(v: String) = prefs.edit().putString("widget_tap_action", v).apply()
     // ラック専用のスクロール反転（円盤の反転とは別）
     fun isRackReverseScroll(): Boolean = prefs.getBoolean("rack_reverse", false)
     fun setRackReverseScroll(v: Boolean) = prefs.edit().putBoolean("rack_reverse", v).apply()

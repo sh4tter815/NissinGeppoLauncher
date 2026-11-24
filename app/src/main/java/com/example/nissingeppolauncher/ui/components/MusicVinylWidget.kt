@@ -439,9 +439,28 @@ fun MusicVinylWidget(
                             var stepBaseY = down.position.y
                             val dirSign = if (prefManager.isRackReverseScroll()) -1 else 1
                             val downWall = System.currentTimeMillis()
+                            var longPressFired = false
+                            val longPressJob = if (prefManager.getWidgetLongPressAction() != "rack") widgetScope.launch {
+                                delay(500)
+                                if (!moved && maxDist < 14.dp.toPx()) {
+                                    longPressFired = true
+                                    rackOpen = false
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    if (prefManager.getWidgetLongPressAction() == "toggle") {
+                                        try {
+                                            val tc = sessionController?.transportControls
+                                            if (isPlaying) tc?.pause() else tc?.play()
+                                        } catch (e: Exception) {
+                                            // 操作できないセッションでは何もしない
+                                        }
+                                    } else {
+                                        openPlayerApp()
+                                    }
+                                }
+                            } else null
                             drag(down.id) { change ->
                                 maxDist = maxOf(maxDist, (change.position - down.position).getDistance())
-                                if (hasSession) {
+                                if (hasSession && !longPressFired) {
                                     var dy = change.position.y - stepBaseY
                                     while (dy <= -40f || dy >= 40f) {
                                         val dir = (if (dy <= -40f) 1 else -1) * dirSign
@@ -462,6 +481,7 @@ fun MusicVinylWidget(
                                 }
                                 change.consume()
                             }
+                            longPressJob?.cancel()
                             val heldMs = System.currentTimeMillis() - downWall
                             val finalIndex = (startIdx + rackTargetOffset).coerceIn(0, (latestRackSize - 1).coerceAtLeast(0))
                             val shouldJump = hasSession && moved && finalIndex != startIdx
@@ -494,7 +514,18 @@ fun MusicVinylWidget(
                             } else {
                                 // 短いタップ（またはセッション無し）: ラックを閉じてプレイヤーを開く。ドラッグだった場合は何もしない
                                 rackOpen = false
-                                if (maxDist < 14.dp.toPx() && heldMs < 300L) openPlayerApp()
+                                if (!longPressFired && maxDist < 14.dp.toPx() && heldMs < 300L) {
+                                    if (prefManager.getWidgetTapAction() == "toggle") {
+                                        try {
+                                            val tc = sessionController?.transportControls
+                                            if (isPlaying) tc?.pause() else tc?.play()
+                                        } catch (e: Exception) {
+                                            // 操作できないセッションでは何もしない
+                                        }
+                                    } else {
+                                        openPlayerApp()
+                                    }
+                                }
                             }
                         }
                     }

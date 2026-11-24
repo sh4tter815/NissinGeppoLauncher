@@ -609,6 +609,8 @@ fun SettingsScreen(
     var pendingWallpaperPage by remember { mutableIntStateOf(-1) }
     var artworkVisible by remember { mutableStateOf(repo.prefManager.isArtworkEnabled()) }
     var tonearmEnabled by remember { mutableStateOf(repo.prefManager.isTonearmEnabled()) }
+    var widgetLongPressAction by remember { mutableStateOf(repo.prefManager.getWidgetLongPressAction()) }
+    var widgetTapAction by remember { mutableStateOf(repo.prefManager.getWidgetTapAction()) }
     var notificationBadges by remember { mutableStateOf(repo.prefManager.isNotificationBadgesEnabled()) }
     var appSortMode by remember { mutableStateOf(repo.prefManager.getAppSortMode()) }
     var englishAppSort by remember { mutableStateOf(repo.prefManager.getEnglishAppSort()) }
@@ -965,7 +967,9 @@ fun SettingsScreen(
         "dialVisibility" to Pair({ dialVisibility }, { v: String -> dialVisibility = v; repo.prefManager.setDialVisibility(v); onChanged() }),
         "appSort" to Pair({ appSortMode }, { v: String -> appSortMode = v; repo.prefManager.setAppSortMode(v); onChanged() }),
         "englishAppSort" to Pair({ englishAppSort }, { v: String -> englishAppSort = v; repo.prefManager.setEnglishAppSort(v); onChanged(); onAppsUpdated() }),
-        "indexMode" to Pair({ indexMode }, { v: String -> indexMode = v; repo.prefManager.setIndexMode(v); onChanged() })
+        "indexMode" to Pair({ indexMode }, { v: String -> indexMode = v; repo.prefManager.setIndexMode(v); onChanged() }),
+        "widgetLongPressAction" to Pair({ widgetLongPressAction }, { v: String -> widgetLongPressAction = v; repo.prefManager.setWidgetLongPressAction(v); onChanged() }),
+        "widgetTapAction" to Pair({ widgetTapAction }, { v: String -> widgetTapAction = v; repo.prefManager.setWidgetTapAction(v); onChanged() })
     )
 
     val floatBinds: Map<String, Pair<() -> Float, (Float) -> Unit>> = mapOf(

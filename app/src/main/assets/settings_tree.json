@@ -1,5 +1,5 @@
 {
-  "version": 22,
+  "version": 23,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -885,6 +885,44 @@
       "glyph": "disc",
       "type": "toggle",
       "bind": "tonearmEnabled"
+    },
+    "widgetLongPress": {
+      "label": "左円盤の長押し",
+      "desc": "ホーム左のレコード盤を長押ししたときの動作です",
+      "glyph": "cursor",
+      "type": "choices",
+      "bind": "widgetLongPressAction",
+      "choices": [
+        {
+          "v": "rack",
+          "label": "ラックを開く"
+        },
+        {
+          "v": "app",
+          "label": "再生中のアプリを開く"
+        },
+        {
+          "v": "toggle",
+          "label": "再生／停止"
+        }
+      ]
+    },
+    "widgetTap": {
+      "label": "左円盤のタップ",
+      "desc": "ホーム左のレコード盤をタップしたときの動作です",
+      "glyph": "cursor",
+      "type": "choices",
+      "bind": "widgetTapAction",
+      "choices": [
+        {
+          "v": "app",
+          "label": "再生中のアプリを開く"
+        },
+        {
+          "v": "toggle",
+          "label": "再生／停止"
+        }
+      ]
     }
   },
   "tree": [
@@ -1080,6 +1118,12 @@
             },
             {
               "item": "tonearm"
+            },
+            {
+              "item": "widgetTap"
+            },
+            {
+              "item": "widgetLongPress"
             }
           ]
         },
