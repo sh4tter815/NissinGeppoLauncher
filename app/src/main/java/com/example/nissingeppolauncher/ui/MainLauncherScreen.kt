@@ -1895,6 +1895,30 @@ fun MainLauncherScreen() {
             }
         }
 
+
+    // アプリの並び順を巡回切替する（名前順 → よく使う順 → 最近使った順）
+    val cycleAppSort: () -> Unit = {
+        val modes = listOf("name", "usage", "recent")
+        val next = modes[(modes.indexOf(appSortMode) + 1) % modes.size]
+        appSortMode = next
+        repo.prefManager.setAppSortMode(next)
+        val label = when (next) { "usage" -> "よく使う順"; "recent" -> "最近使った順"; else -> "名前順" }
+        android.widget.Toast.makeText(context, "並び順: $label", android.widget.Toast.LENGTH_SHORT).show()
+        if (next != "name") {
+            val granted = try {
+                val appOps = context.getSystemService(android.content.Context.APP_OPS_SERVICE) as android.app.AppOpsManager
+                appOps.checkOpNoThrow(android.app.AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), context.packageName) == android.app.AppOpsManager.MODE_ALLOWED
+            } catch (_: Exception) { false }
+            if (!granted) {
+                android.widget.Toast.makeText(context, "使用状況へのアクセスを許可してください", android.widget.Toast.LENGTH_LONG).show()
+                try {
+                    context.startActivity(android.content.Intent(android.provider.Settings.ACTION_USAGE_ACCESS_SETTINGS).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                } catch (_: Exception) {
+                }
+            }
+        }
+    }
+
         // --- 画面上部 検索ボックス / 非表示リストを閉じるボタン ---
         if (currentLauncherPage == 2) {
             Box(
@@ -1974,6 +1998,65 @@ fun MainLauncherScreen() {
                         }
                     }
                 }
+                }
+            }
+        }
+
+
+        // --- 画面上部 ソートバー (アプリ一覧(2)用、フォルダ画面の編集バーと同じ形式) ---
+        if (currentLauncherPage == 2 && !isHideMode) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .zIndex(150f),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                Row(
+                    modifier = Modifier
+                        .padding(top = topPaddingDp + 66.dp)
+                        .width(320.dp)
+                        .height(48.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // 左半分: 現在の並び順（タップでも切り替わる）
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .clickable { cycleAppSort() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = when (appSortMode) { "usage" -> "よく使う順"; "recent" -> "最近使った順"; else -> "名前順" },
+                            color = Color.White.copy(alpha = 0.85f),
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    // 中央区切り線
+                    Box(
+                        modifier = Modifier
+                            .width(1.dp)
+                            .height(20.dp)
+                            .background(Color.White.copy(alpha = 0.2f))
+                    )
+
+                    // 右半分: ソート
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .clickable { cycleAppSort() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "ソート",
+                            color = accentColor,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
