@@ -3,6 +3,7 @@ package com.example.nissingeppolauncher.ui.components
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -18,7 +19,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -189,85 +193,59 @@ fun AppOptionDialog(
             titleContentColor = Color.White
         )
     } else {
-        AlertDialog(
-            onDismissRequest = onDismiss,
-            confirmButton = {
-                TextButton(onClick = onDismiss) {
-                    Text("閉じる", color = Color.Gray, fontFamily = fontFamily, fontWeight = fontWeight)
+        val categories = listOf(
+            OptionEntry(
+                kind = "favorite",
+                label = "お気に入り",
+                valueText = if (app.isFavorite) "登録中" else null,
+                actions = listOf(
+                    if (app.isFavorite) {
+                        OptionAction("favorite", "解除する") { onToggleFavorite(app); onDismiss() }
+                    } else {
+                        OptionAction("favorite", "登録する") { onToggleFavorite(app); onDismiss() }
+                    }
+                )
+            ),
+            OptionEntry(
+                kind = "yomi",
+                label = "よみがな",
+                valueText = app.customYomi.ifBlank { "未登録" },
+                actions = buildList {
+                    add(OptionAction("yomi", if (app.customYomi.isNotBlank()) "変更する" else "登録する") { showYomiInputDialog = true })
+                    if (app.customYomi.isNotBlank()) {
+                        add(OptionAction("trash", "削除する", danger = true) { onSetYomi(app, ""); onDismiss() })
+                    }
                 }
-            },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    val bmp = app.iconBitmap
-                    if (bmp != null) {
-                        Image(
-                            bitmap = bmp,
-                            contentDescription = null,
-                            modifier = Modifier.size(40.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                    }
-                    Column {
-                        Text(text = app.label, fontSize = 19.sp, fontFamily = fontFamily, fontWeight = fontWeight)
-                        Text(text = app.packageName, fontSize = 11.sp, color = Color.Gray, fontFamily = fontFamily, fontWeight = fontWeight)
+            ),
+            OptionEntry(
+                kind = "alias",
+                label = "別名",
+                valueText = if (app.searchAliases.isEmpty()) "未登録" else "${app.searchAliases.size}件",
+                actions = buildList {
+                    add(OptionAction("plus", "追加する") { showAliasDialog = true })
+                    app.searchAliases.forEach { alias ->
+                        add(OptionAction("trash", alias, valueText = "削除", danger = true) { onRemoveAlias(app, alias) })
                     }
                 }
-            },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    DialogOptionItem(
-                        kind = "favorite",
-                        text = if (app.isFavorite) "お気に入りを解除" else "お気に入りに登録する",
-                        subtitle = if (app.isFavorite) "ホームの右の円から外します" else "ホームの右の円に並びます",
-                        fontFamily = fontFamily,
-                        fontWeight = fontWeight
-                    ) {
-                        onToggleFavorite(app)
-                        onDismiss()
+            ),
+            OptionEntry(
+                kind = "hide",
+                label = "非表示",
+                valueText = if (app.isHidden) "非表示中" else null,
+                actions = listOf(
+                    if (app.isHidden) {
+                        OptionAction("hide", "解除する") { onToggleHide(app); onDismiss() }
+                    } else {
+                        OptionAction("hide", "非表示にする", danger = true) { onToggleHide(app); onDismiss() }
                     }
-
-                    DialogOptionItem(
-                        kind = "yomi",
-                        text = if (app.customYomi.isNotBlank()) "よみがな変更" else "よみがな登録",
-                        subtitle = if (app.customYomi.isNotBlank()) "現在: ${app.customYomi}" else "読み方を登録して並び順や検索に使います",
-                        fontFamily = fontFamily,
-                        fontWeight = fontWeight
-                    ) {
-                        showYomiInputDialog = true
-                    }
-
-                    DialogOptionItem(
-                        kind = "alias",
-                        text = "検索可能な別名",
-                        subtitle = if (app.searchAliases.isNotEmpty()) "登録済み ${app.searchAliases.size}件" else "別の呼び方でも検索にヒットさせます",
-                        fontFamily = fontFamily,
-                        fontWeight = fontWeight
-                    ) {
-                        showAliasDialog = true
-                    }
-
-                    DialogOptionItem(
-                        kind = "hide",
-                        text = if (app.isHidden) "非表示を解除" else "非表示にする",
-                        subtitle = if (app.isHidden) "アプリ一覧に再び表示します" else "アプリ一覧から隠します",
-                        danger = true,
-                        fontFamily = fontFamily,
-                        fontWeight = fontWeight
-                    ) {
-                        onToggleHide(app)
-                        onDismiss()
-                    }
-
-                    DialogOptionItem(
-                        kind = "info",
-                        text = "アプリ情報",
-                        subtitle = "容量や権限などの詳細を開きます",
-                        fontFamily = fontFamily,
-                        fontWeight = fontWeight
-                    ) {
+                )
+            ),
+            OptionEntry(
+                kind = "info",
+                label = "アプリ情報",
+                valueText = null,
+                actions = listOf(
+                    OptionAction("open", "開く") {
                         val intent = Intent(
                             Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                             "package:${app.packageName}".toUri()
@@ -275,12 +253,87 @@ fun AppOptionDialog(
                         context.startActivity(intent)
                         onDismiss()
                     }
-                }
-            },
-            containerColor = Color(0xFF141C2E),
-            titleContentColor = Color.White
+                )
+            ),
+            OptionEntry(
+                kind = "close",
+                label = "閉じる",
+                valueText = null,
+                actions = listOf(
+                    OptionAction("close", "閉じる") { onDismiss() }
+                )
+            )
         )
+        var focusIdx by remember { mutableIntStateOf(0) }
+        val categoryDiscState = rememberDiscCarouselState(initialIndex = 0, stepAngle = 30f)
+        val actionDiscState = rememberDiscCarouselState(initialIndex = 0, stepAngle = 30f)
+        Dialog(
+            onDismissRequest = onDismiss,
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.94f)
+                    .height(480.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color(0xFF141C2E))
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(start = 20.dp, top = 18.dp, end = 20.dp)
+                ) {
+                    val bmp = app.iconBitmap
+                    if (bmp != null) {
+                        Image(bitmap = bmp, contentDescription = null, modifier = Modifier.size(40.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
+                    }
+                    Column {
+                        Text(text = app.label, color = Color.White, fontSize = 19.sp, fontFamily = fontFamily, fontWeight = fontWeight)
+                        Text(text = app.packageName, fontSize = 11.sp, color = Color.Gray, fontFamily = fontFamily, fontWeight = fontWeight)
+                    }
+                }
+                Box(modifier = Modifier.fillMaxSize().padding(top = 76.dp)) {
+                    DiscWheel(
+                        entries = categories.map { cat ->
+                            DiscEntry(
+                                id = cat.kind,
+                                label = cat.label,
+                                valueText = cat.valueText,
+                                icon = { OptionKindIcon(kind = cat.kind, danger = false) }
+                            )
+                        },
+                        side = DiscSide.LEFT,
+                        accentColor = Color(0xFF88C0FF),
+                        modifier = Modifier.fillMaxSize(),
+                        state = categoryDiscState,
+                        stepAngle = 30f,
+                        discCenterXDp = -80f,
+                        onFocusChange = { focusIdx = it }
+                    )
+                    val focusedActions = categories.getOrNull(focusIdx)?.actions ?: emptyList()
+                    DiscWheel(
+                        entries = focusedActions.map { act ->
+                            DiscEntry(
+                                id = act.kind + ":" + act.label,
+                                label = act.label,
+                                valueText = act.valueText,
+                                icon = { OptionKindIcon(kind = act.kind, danger = act.danger) }
+                            )
+                        },
+                        side = DiscSide.RIGHT,
+                        accentColor = Color(0xFF88C0FF),
+                        modifier = Modifier.fillMaxSize(),
+                        state = actionDiscState,
+                        stepAngle = 30f,
+                        contentKey = focusIdx,
+                        tapToApply = true,
+                        onEntryClick = { idx -> focusedActions.getOrNull(idx)?.run?.invoke() }
+                    )
+                }
+            }
+        }
     }
+
 }
 
 @Composable
@@ -371,6 +424,29 @@ private fun OptionKindIcon(kind: String, danger: Boolean) {
                 drawCircle(color = accent, radius = w * 0.09f, center = Offset(w * 0.5f, h * 0.52f), style = Stroke(width = sw))
                 drawLine(accent, Offset(w * 0.18f, h * 0.86f), Offset(w * 0.82f, h * 0.18f), strokeWidth = sw * 1.3f, cap = StrokeCap.Round)
             }
+            "close" -> {
+                drawLine(accent, Offset(w * 0.26f, h * 0.26f), Offset(w * 0.74f, h * 0.74f), strokeWidth = sw * 1.4f, cap = StrokeCap.Round)
+                drawLine(accent, Offset(w * 0.74f, h * 0.26f), Offset(w * 0.26f, h * 0.74f), strokeWidth = sw * 1.4f, cap = StrokeCap.Round)
+            }
+            "plus" -> {
+                drawLine(accent, Offset(w * 0.5f, h * 0.24f), Offset(w * 0.5f, h * 0.76f), strokeWidth = sw * 1.4f, cap = StrokeCap.Round)
+                drawLine(accent, Offset(w * 0.24f, h * 0.5f), Offset(w * 0.76f, h * 0.5f), strokeWidth = sw * 1.4f, cap = StrokeCap.Round)
+            }
+            "trash" -> {
+                drawLine(accent, Offset(w * 0.20f, h * 0.30f), Offset(w * 0.80f, h * 0.30f), strokeWidth = sw * 1.3f, cap = StrokeCap.Round)
+                drawLine(accent, Offset(w * 0.38f, h * 0.30f), Offset(w * 0.42f, h * 0.78f), strokeWidth = sw * 1.2f, cap = StrokeCap.Round)
+                drawLine(accent, Offset(w * 0.62f, h * 0.30f), Offset(w * 0.58f, h * 0.78f), strokeWidth = sw * 1.2f, cap = StrokeCap.Round)
+                drawLine(accent, Offset(w * 0.42f, h * 0.78f), Offset(w * 0.58f, h * 0.78f), strokeWidth = sw * 1.2f, cap = StrokeCap.Round)
+                drawLine(accent, Offset(w * 0.40f, h * 0.22f), Offset(w * 0.60f, h * 0.22f), strokeWidth = sw * 1.2f, cap = StrokeCap.Round)
+            }
+            "open" -> {
+                drawLine(accent, Offset(w * 0.30f, h * 0.30f), Offset(w * 0.30f, h * 0.74f), strokeWidth = sw * 1.3f, cap = StrokeCap.Round)
+                drawLine(accent, Offset(w * 0.30f, h * 0.74f), Offset(w * 0.74f, h * 0.74f), strokeWidth = sw * 1.3f, cap = StrokeCap.Round)
+                drawLine(accent, Offset(w * 0.74f, h * 0.74f), Offset(w * 0.74f, h * 0.52f), strokeWidth = sw * 1.3f, cap = StrokeCap.Round)
+                drawLine(accent, Offset(w * 0.46f, h * 0.54f), Offset(w * 0.76f, h * 0.24f), strokeWidth = sw * 1.3f, cap = StrokeCap.Round)
+                drawLine(accent, Offset(w * 0.58f, h * 0.24f), Offset(w * 0.76f, h * 0.24f), strokeWidth = sw * 1.3f, cap = StrokeCap.Round)
+                drawLine(accent, Offset(w * 0.76f, h * 0.24f), Offset(w * 0.76f, h * 0.42f), strokeWidth = sw * 1.3f, cap = StrokeCap.Round)
+            }
             else -> {
                 // info: 円と「i」
                 drawCircle(color = accent, radius = w * 0.38f, center = Offset(w * 0.5f, h * 0.5f), style = Stroke(width = sw))
@@ -380,3 +456,18 @@ private fun OptionKindIcon(kind: String, danger: Boolean) {
         }
     }
 }
+
+private class OptionAction(
+    val kind: String,
+    val label: String,
+    val valueText: String? = null,
+    val danger: Boolean = false,
+    val run: () -> Unit
+)
+
+private class OptionEntry(
+    val kind: String,
+    val label: String,
+    val valueText: String?,
+    val actions: List<OptionAction>
+)
