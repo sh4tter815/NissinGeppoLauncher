@@ -3866,6 +3866,7 @@ fun LyricsBrowseOverlay(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .align(Alignment.TopStart)
+                .zIndex(96f)
                 .padding(start = 20.dp, top = topPaddingDp + 42.dp)
         ) {
             val artImg = remember(artwork) { artwork?.asImageBitmap() }
@@ -3875,6 +3876,14 @@ fun LyricsBrowseOverlay(
                     contentDescription = null,
                     modifier = Modifier.size(56.dp).clip(RoundedCornerShape(10.dp))
                 )
+                Spacer(Modifier.width(12.dp))
+            } else {
+                Box(
+                    modifier = Modifier.size(56.dp).clip(RoundedCornerShape(10.dp)).background(Color.White.copy(alpha = 0.10f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    DiscGlyph("music", Color.White.copy(alpha = 0.5f))
+                }
                 Spacer(Modifier.width(12.dp))
             }
             Column {

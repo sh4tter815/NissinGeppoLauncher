@@ -3225,10 +3225,10 @@ fun MainLauncherScreen() {
             indexSelectedSeen = indexSelected
             if (prevIndex == null || prevIndex == indexSelected) return@LaunchedEffect
             if (currentLauncherPage != 2 && currentLauncherPage != 3) return@LaunchedEffect
-            // 指を離してスクロールが収まってから波紋を出す
+            // 指を離したらすぐ波紋を出す（スクロール終了を最大250msだけ待つ）
             var waited = 0
-            while (indexDiscState.isScrolling && waited < 800) { delay(50); waited += 50 }
-            if (!indexDiscState.isScrolling) hideRippleTick++
+            while (indexDiscState.isScrolling && waited < 250) { delay(30); waited += 30 }
+            hideRippleTick++
         }
         LaunchedEffect(folderSelectedIndex) {
             val prevFolder = folderSelectedSeen
@@ -3236,8 +3236,8 @@ fun MainLauncherScreen() {
             if (prevFolder == null || prevFolder == folderSelectedIndex) return@LaunchedEffect
             if (currentLauncherPage != 3) return@LaunchedEffect
             var waited = 0
-            while (folderDiscState.isScrolling && waited < 800) { delay(50); waited += 50 }
-            if (!folderDiscState.isScrolling) hideRippleTick++
+            while (folderDiscState.isScrolling && waited < 250) { delay(30); waited += 30 }
+            hideRippleTick++
         }
         // 非表示モード中は画面全体を段階的に暗くする
         if (currentLauncherPage == 2 && hideDimStep > 0) {
