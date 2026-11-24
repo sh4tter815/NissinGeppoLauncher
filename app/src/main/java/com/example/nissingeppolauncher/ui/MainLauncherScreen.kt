@@ -599,10 +599,7 @@ fun MainLauncherScreen() {
 
     // 再生中セッションのアートワークを定期取得する（ホームの音楽ウィジェットと同じ方式）
     LaunchedEffect(matchArtwork, useArtworkBg) {
-        if (!matchArtwork && !useArtworkBg) {
-            sessionAlbumArt = null
-            return@LaunchedEffect
-        }
+        // 歌詞ヘッダー等の表示にも使うため、背景/アクセント連動がオフでも取得は続ける
         val mediaSessionManager = context.getSystemService(android.content.Context.MEDIA_SESSION_SERVICE) as? android.media.session.MediaSessionManager
         val listenerComponent = android.content.ComponentName(context, com.example.nissingeppolauncher.service.LauncherMediaListenerService::class.java)
         var lastArtKey = ""
@@ -1167,6 +1164,15 @@ fun MainLauncherScreen() {
                     liquidEnabled = liquidBackground,
                     liquidAccent = if (dopagakiMode) Color.hsv(Math.floorMod(pvLineIndex * 47, 360).toFloat(), 0.72f, 1f) else effectiveAccent
                 )
+
+            // 非表示モード中は背景だけを段階的に暗くする（円盤や文字などのUIは暗くしない）
+            if (currentLauncherPage == 2 && hideDimStep > 0) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.15f * hideDimStep))
+                )
+            }
 
             if (dopagakiMode && currentLauncherPage == 1) {
                 // ドパガキ中は画面の縁に虹色の回る枠を出す
@@ -2483,7 +2489,6 @@ fun MainLauncherScreen() {
         val next = !appSortDescending
         appSortDescending = next
         repo.prefManager.setAppSortDescending(next)
-        android.widget.Toast.makeText(context, if (next) "降順にしました" else "昇順にしました", android.widget.Toast.LENGTH_SHORT).show()
     }
 
     // アプリの並び順を巡回切替する（名前順 → よく使う順 → 最近使った順）
@@ -2492,8 +2497,7 @@ fun MainLauncherScreen() {
         val next = modes[(modes.indexOf(appSortMode) + 1) % modes.size]
         appSortMode = next
         repo.prefManager.setAppSortMode(next)
-        val label = when (next) { "usage" -> "よく使う順"; "recent" -> "最近使った順"; else -> "名前順" }
-        android.widget.Toast.makeText(context, "並び順: $label", android.widget.Toast.LENGTH_SHORT).show()
+        // 並び順を変えたときのトースト通知は出さない（ユーザーの希望）
         if (next != "name") {
             val granted = try {
                 val appOps = context.getSystemService(android.content.Context.APP_OPS_SERVICE) as android.app.AppOpsManager
@@ -3238,15 +3242,6 @@ fun MainLauncherScreen() {
             var waited = 0
             while (folderDiscState.isScrolling && waited < 250) { delay(30); waited += 30 }
             hideRippleTick++
-        }
-        // 非表示モード中は画面全体を段階的に暗くする
-        if (currentLauncherPage == 2 && hideDimStep > 0) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .zIndex(40f)
-                    .background(Color.Black.copy(alpha = 0.15f * hideDimStep))
-            )
         }
         if ((currentLauncherPage == 2 || currentLauncherPage == 3) && hideRippleTick > 0) {
             val rippleAnim = remember(hideRippleTick) { Animatable(0f) }
