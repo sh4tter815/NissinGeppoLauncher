@@ -56,6 +56,9 @@ import android.hardware.SensorManager
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -1206,8 +1209,14 @@ fun MainLauncherScreen() {
                         .fillMaxWidth()
                         .height(200.dp)
                         .zIndex(190f)
-                        .border(2.dp, accentColor.copy(alpha = 0.9f), RoundedCornerShape(10.dp))
-                        .background(Color.Black.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
+                        .drawBehind {
+                            drawRoundRect(color = Color.Black.copy(alpha = 0.06f), cornerRadius = CornerRadius(10.dp.toPx(), 10.dp.toPx()))
+                            drawRoundRect(
+                                color = accentColor.copy(alpha = 0.6f),
+                                cornerRadius = CornerRadius(10.dp.toPx(), 10.dp.toPx()),
+                                style = Stroke(width = 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 9f), 0f))
+                            )
+                        }
                         .pointerInput(Unit) {
                             detectDragGestures(
                                 onDragEnd = {
@@ -1224,8 +1233,8 @@ fun MainLauncherScreen() {
                 ) {
                     Text(
                         text = "PV",
-                        color = Color.White,
-                        fontSize = 13.sp,
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(10.dp)
                     )
