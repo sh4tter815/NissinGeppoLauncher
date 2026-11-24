@@ -3820,6 +3820,7 @@ fun LyricsBrowseOverlay(
                         .size(42.dp)
                         .clip(CircleShape)
                         .background(accentColor)
+                        .pressScale()
                         .clickable {
                             onSeek((lines[idx].timeMs - lyricOffsetMs).coerceAtLeast(0L))
                             onClose()
@@ -3908,6 +3909,7 @@ fun LyricsBrowseOverlay(
             .padding(top = topPaddingDp + 48.dp, end = 22.dp)
             .size(44.dp)
             .zIndex(95f)
+            .pressScale()
             .clickable { onClose() },
         contentAlignment = Alignment.Center
     ) {
@@ -3925,6 +3927,7 @@ fun LyricsBrowseOverlay(
                 modifier = Modifier
                     .clip(RoundedCornerShape(12.dp))
                     .background(Color(0xFF263238))
+                    .pressScale()
                     .clickable { follow = true }
                     .padding(horizontal = 18.dp, vertical = 10.dp)
             ) {
@@ -3955,6 +3958,7 @@ fun LyricsBrowseOverlay(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(10.dp))
                                 .background(Color(0xFF263238))
+                                .pressScale()
                                 .clickable {
                                     val newOffset = (lyricOffsetMs + delta).coerceIn(-30000L, 30000L)
                                     onOffsetChange(newOffset)
@@ -3970,6 +3974,7 @@ fun LyricsBrowseOverlay(
                     modifier = Modifier
                         .clip(RoundedCornerShape(10.dp))
                         .background(Color(0xFF263238))
+                        .pressScale()
                         .clickable { onOffsetChange(0L) }
                         .padding(horizontal = 10.dp, vertical = 8.dp)
                 ) {
@@ -3985,6 +3990,7 @@ fun LyricsBrowseOverlay(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(10.dp))
                                 .background(Color(0xFF263238))
+                                .pressScale()
                                 .clickable {
                                     val newOffset = (lyricOffsetMs + delta).coerceIn(-30000L, 30000L)
                                     onOffsetChange(newOffset)
@@ -4008,6 +4014,7 @@ fun LyricsBrowseOverlay(
                     .size(48.dp)
                     .clip(CircleShape)
                     .background(Color(0xFF263238))
+                    .pressScale()
                     .clickable { onRefresh() },
                 contentAlignment = Alignment.Center
             ) {
@@ -4019,6 +4026,7 @@ fun LyricsBrowseOverlay(
                     .size(48.dp)
                     .clip(CircleShape)
                     .background(Color(0xFF263238))
+                    .pressScale()
                     .clickable { onOpenSearch() },
                 contentAlignment = Alignment.Center
             ) {
@@ -4031,6 +4039,7 @@ fun LyricsBrowseOverlay(
                         .size(48.dp)
                         .clip(CircleShape)
                         .background(Color(0xFF263238))
+                        .pressScale()
                         .clickable {
                             editText = buildLrcText(lines)
                             editError = false
@@ -4049,6 +4058,7 @@ fun LyricsBrowseOverlay(
                     .size(48.dp)
                     .clip(CircleShape)
                     .background(if (showOffsetPanel || lyricOffsetMs != 0L) accentColor else Color(0xFF263238))
+                    .pressScale()
                     .clickable { showOffsetPanel = !showOffsetPanel },
                 contentAlignment = Alignment.Center
             ) {
@@ -4060,6 +4070,7 @@ fun LyricsBrowseOverlay(
                     .size(48.dp)
                     .clip(CircleShape)
                     .background(if (translationEnabled) accentColor else Color(0xFF263238))
+                    .pressScale()
                     .clickable { onToggleTranslation() },
                 contentAlignment = Alignment.Center
             ) {
@@ -4071,6 +4082,7 @@ fun LyricsBrowseOverlay(
                     .size(48.dp)
                     .clip(CircleShape)
                     .background(if (dopagaki) Color(0xFFFFB300) else Color(0xFF263238))
+                    .pressScale()
                     .clickable {
                         if (!dopagaki) Toast.makeText(toastCtx, "ドパガキモード始動", Toast.LENGTH_SHORT).show()
                         onToggleDopagaki()

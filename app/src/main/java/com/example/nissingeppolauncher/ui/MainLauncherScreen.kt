@@ -1444,6 +1444,7 @@ fun MainLauncherScreen() {
                                             .size(26.dp)
                                             .clip(CircleShape)
                                             .background(Color(0xFFE5484D))
+                                            .pressScale()
                                             .clickable {
                                                 val removedId = placement.id
                                                 val next = widgetPlacements.filter { it.id != removedId }
@@ -1516,6 +1517,7 @@ fun MainLauncherScreen() {
                             modifier = Modifier
                                 .clip(RoundedCornerShape(999.dp))
                                 .background(accentColor)
+                                .pressScale()
                                 .clickable { layoutEditMode = false }
                                 .padding(horizontal = 22.dp, vertical = 9.dp)
                         ) {
@@ -1526,6 +1528,7 @@ fun MainLauncherScreen() {
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(999.dp))
                                     .background(Color.White.copy(alpha = 0.92f))
+                                    .pressScale()
                                     .clickable { showWidgetPicker = true }
                                     .padding(horizontal = 18.dp, vertical = 9.dp)
                             ) {
@@ -2523,6 +2526,7 @@ fun MainLauncherScreen() {
                         modifier = Modifier
                             .width(320.dp)
                             .height(48.dp)
+                            .pressScale()
                             .clickable { isHideMode = false }
                             .padding(horizontal = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -2579,6 +2583,7 @@ fun MainLauncherScreen() {
                                 color = Color.White.copy(alpha = 0.9f),
                                 fontSize = 15.sp,
                                 modifier = Modifier
+                                    .pressScale()
                                     .clickable { searchQuery = "" }
                                     .padding(4.dp)
                             )
@@ -2610,6 +2615,7 @@ fun MainLauncherScreen() {
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
+                            .pressScale(0.96f)
                             .clickable { cycleAppSort() },
                         contentAlignment = Alignment.Center
                     ) {
@@ -2634,6 +2640,7 @@ fun MainLauncherScreen() {
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
+                            .pressScale(0.96f)
                             .clickable { toggleAppSortDirection() },
                         contentAlignment = Alignment.Center
                     ) {
@@ -2673,6 +2680,7 @@ fun MainLauncherScreen() {
                                 modifier = Modifier
                                     .weight(1f)
                                     .fillMaxHeight()
+                                    .pressScale(0.96f)
                                     .clickable {
                                         val name = editingFolderNameInput.ifBlank { selectedFolderName }
                                         repo.prefManager.saveFolder(selectedFolderId, name, editingSelectedPackages.toList())
@@ -2708,6 +2716,7 @@ fun MainLauncherScreen() {
                                 modifier = Modifier
                                     .weight(1f)
                                     .fillMaxHeight()
+                                    .pressScale(0.96f)
                                     .clickable {
                                         isEditingFolder = false
                                     },
@@ -2733,6 +2742,7 @@ fun MainLauncherScreen() {
                                 modifier = Modifier
                                     .weight(1f)
                                     .fillMaxHeight()
+                                    .pressScale(0.96f)
                                     .clickable {
                                         editingFolderNameInput = selectedFolderName
                                         editingSelectedPackages = (foldersMap[selectedFolderId]?.second ?: emptyList()).toSet()
@@ -2767,6 +2777,7 @@ fun MainLauncherScreen() {
                                 modifier = Modifier
                                     .weight(1f)
                                     .fillMaxHeight()
+                                    .pressScale(0.96f)
                                     .clickable {
                                         showDeleteFolderDialog = true
                                     },
@@ -2917,6 +2928,7 @@ fun MainLauncherScreen() {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(12.dp))
+                                    .pressScale(0.97f)
                                     .clickable {
                                         showWidgetPicker = false
                                         val wid = appWidgetHost.allocateAppWidgetId()
@@ -2948,7 +2960,7 @@ fun MainLauncherScreen() {
                     }
                     Spacer(modifier = Modifier.height(10.dp))
                     Box(
-                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = 0.08f)).clickable { showWidgetPicker = false }.padding(vertical = 11.dp),
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color.White.copy(alpha = 0.08f)).pressScale(0.97f).clickable { showWidgetPicker = false }.padding(vertical = 11.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(text = "キャンセル", color = Color.White, fontSize = 14.sp)
@@ -3046,6 +3058,7 @@ fun MainLauncherScreen() {
                     .padding(top = topPaddingDp + 100.dp, end = 22.dp)
                     .size(44.dp)
                     .zIndex(95f)
+                    .pressScale()
                     .clickable { pvFullscreen = true },
                 contentAlignment = Alignment.Center
             ) {
@@ -3089,6 +3102,7 @@ fun MainLauncherScreen() {
                         style = LocalTextStyle.current.copy(fontFamily = pvFontFamily),
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
+                            .pressScale()
                             .clickable {
                                 android.widget.Toast.makeText(context, if (skipLabel.contains("次の曲")) "次の曲へ" else if (skipLabel.contains("前奏")) "前奏をスキップ" else "間奏をスキップ", android.widget.Toast.LENGTH_SHORT).show()
                                 if (skipTarget != null) seekSessionTo(skipTarget) else skipToNextTrack()
