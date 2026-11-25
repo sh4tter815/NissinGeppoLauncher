@@ -106,6 +106,7 @@ import com.example.nissingeppolauncher.data.WidgetPlacement
 import com.example.nissingeppolauncher.ui.components.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -192,6 +193,7 @@ fun MainLauncherScreen() {
     var lyricsDisplayMode by remember { mutableStateOf(repo.prefManager.getLyricsDisplayMode()) }
     // 2026-11-23 追加設定の状態（設定画面の onChanged で読み直す）
     var lyricsEnabled by remember { mutableStateOf(repo.prefManager.isLyricsEnabled()) }
+    var sleepRemainingMs by remember { mutableLongStateOf(0L) }
     var discDropOnPv by remember { mutableStateOf(repo.prefManager.isDiscDropOnPvEnabled()) }
     var clockShowSeconds by remember { mutableStateOf(repo.prefManager.isClockShowSeconds()) }
     var clockHorizontal by remember { mutableStateOf(repo.prefManager.isClockHorizontal()) }
@@ -213,7 +215,7 @@ fun MainLauncherScreen() {
         context.registerReceiver(receiver, android.content.IntentFilter(android.os.PowerManager.ACTION_POWER_SAVE_MODE_CHANGED))
         onDispose { try { context.unregisterReceiver(receiver) } catch (e: Exception) {} }
     }
-    val powerSaveActive = powerSaveMode == "on" || (powerSaveMode == "auto" && systemPowerSave)
+    val powerSaveActive = repo.prefManager.isPowerSaveActive(context)
     var keepScreenOn by remember { mutableStateOf(repo.prefManager.isKeepScreenOn()) }
     var pvFontScale by remember { mutableFloatStateOf(repo.prefManager.getPvFontScale()) }
     var notificationBadges by remember { mutableStateOf(repo.prefManager.isNotificationBadgesEnabled()) }
@@ -470,6 +472,7 @@ fun MainLauncherScreen() {
         while (true) {
             try {
                 val endMs = repo.prefManager.getSleepTimerEndMs()
+                sleepRemainingMs = if (endMs > 0L) (endMs - System.currentTimeMillis()).coerceAtLeast(0L) else 0L
                 if (endMs > 0L && System.currentTimeMillis() >= endMs) {
                     repo.prefManager.setSleepTimerEndMs(0L)
                     val msmT = context.getSystemService(android.content.Context.MEDIA_SESSION_SERVICE) as? android.media.session.MediaSessionManager
@@ -838,7 +841,24 @@ fun MainLauncherScreen() {
 
     // --- フォルダ多重階層の状態 ---
     var folderParents by remember { mutableStateOf(repo.prefManager.getFolderParents()) }
-    var folderPath by remember { mutableStateOf<List<String>>(emptyList()) }
+    var folderPath by remember {
+        mutableStateOf(run {
+            val saved = repo.prefManager.getFolderPath()
+            val parents = repo.prefManager.getFolderParents()
+            val valid = mutableListOf<String>()
+            var expectedParent: String? = null
+            for (id in saved) {
+                if (id !in foldersMap) break
+                if (parents[id] != expectedParent) break
+                valid.add(id)
+                expectedParent = id
+            }
+            valid.toList()
+        })
+    }
+    LaunchedEffect(folderPath) {
+        repo.prefManager.saveFolderPath(folderPath)
+    }
     var pendingFocusFolderId by remember { mutableStateOf<String?>(null) }
     // フォルダ切り替え時、右円を引っ込ませてから中身を差し替える（設定画面の navigateAnimated と同じ作法）
     var folderDiscExiting by remember { mutableStateOf(false) }
@@ -1420,6 +1440,7 @@ fun MainLauncherScreen() {
                             accentColor = accentColor,
                             topPaddingDp = topPaddingDp
                         ) {
+                            Column {
                             ClockWidget(
                                 showDate = false,
                                 showSeconds = false,
@@ -1446,6 +1467,16 @@ fun MainLauncherScreen() {
                                 glowColor = accentColor,
                                 rainbowGlow = dopagakiMode
                             )
+                            if (sleepRemainingMs > 0L) {
+                                val totalSec = sleepRemainingMs / 1000L
+                                val sleepText = if (totalSec >= 3600L) {
+                                    "スリープまで %d:%02d:%02d".format(totalSec / 3600L, (totalSec % 3600L) / 60L, totalSec % 60L)
+                                } else {
+                                    "スリープまで %d:%02d".format(totalSec / 60L, totalSec % 60L)
+                                }
+                                Text(text = sleepText, color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp)
+                            }
+                            }
                         }
 
                     // 日付（時計から分離。レイアウト編集で個別に移動できる）
@@ -1668,7 +1699,7 @@ fun MainLauncherScreen() {
                         textSizeSp = appDiscTextSize,
                         letterSpacingSp = appDiscLetterSpacing,
                         dotMarkers = true,
-                        restLabelText = selectedIndexChar?.let { "『$it』を表示中" },
+                        restLabelText = selectedIndexChar,
                         onFocusChange = { indexSelected = it }
                     )
 
@@ -1709,6 +1740,35 @@ fun MainLauncherScreen() {
                                 }
                             }
                             if (targetIndex != -1) {
+                                val rawTarget = -targetIndex * appDiscStepAngle
+                                val loopable = !isHideMode && searchQuery.isBlank()
+                                val targetAngle = if (loopable) rawTarget else rawTarget.coerceIn(-((appDiscItems.size - 1) * appDiscStepAngle).coerceAtLeast(0f), 0f)
+                                snapDiscTo(appListDiscState, targetAngle)
+                            }
+                        }
+                    }
+                    LaunchedEffect(appDiscItems, isHideMode, searchQuery) {
+                        snapshotFlow {
+                            if (appDiscItems.isEmpty()) null else {
+                                val raw = Math.round(-appListDiscState.rawRotation / appDiscStepAngle)
+                                val idx = if (!isHideMode && searchQuery.isBlank()) {
+                                    ((raw % appDiscItems.size) + appDiscItems.size) % appDiscItems.size
+                                } else {
+                                    raw.coerceIn(0, appDiscItems.size - 1)
+                                }
+                                (appDiscItems.getOrNull(idx) as? DiscItem.AppEntry)?.app?.packageName
+                            }
+                        }.distinctUntilChanged().collect { pkg ->
+                            if (pkg != null) repo.prefManager.saveAppListFocusPackage(pkg)
+                        }
+                    }
+                    var appFocusRestored by remember { mutableStateOf(false) }
+                    LaunchedEffect(appDiscItems, currentPage) {
+                        if (currentPage == 2 && !appFocusRestored && appDiscItems.isNotEmpty()) {
+                            appFocusRestored = true
+                            val pkg = repo.prefManager.getAppListFocusPackage()
+                            val targetIndex = appDiscItems.indexOfFirst { (it as? DiscItem.AppEntry)?.app?.packageName == pkg }
+                            if (targetIndex >= 0) {
                                 val rawTarget = -targetIndex * appDiscStepAngle
                                 val loopable = !isHideMode && searchQuery.isBlank()
                                 val targetAngle = if (loopable) rawTarget else rawTarget.coerceIn(-((appDiscItems.size - 1) * appDiscStepAngle).coerceAtLeast(0f), 0f)
@@ -1794,7 +1854,7 @@ fun MainLauncherScreen() {
                             textSizeSp = appDiscTextSize,
                             letterSpacingSp = appDiscLetterSpacing,
                             dotMarkers = true,
-                            restLabelText = selectedIndexChar?.let { "『$it』を表示中" },
+                            restLabelText = selectedIndexChar,
                             onFocusChange = { indexSelected = it }
                         )
                     } else {
