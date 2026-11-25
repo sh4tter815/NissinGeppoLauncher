@@ -491,6 +491,10 @@ class AppPreferenceManager(private val context: Context) {
     fun getWidgetDoubleTapHoldAction(): String = prefs.getString("widget_double_tap_hold_action", "rack") ?: "rack"
     fun setWidgetDoubleTapHoldAction(v: String) = prefs.edit().putString("widget_double_tap_hold_action", v).apply()
     fun requestSettingsPath(csv: String) = prefs.edit().putString("settings_deep_link", csv).apply()
+    fun getSettingsNavPath(): List<String> = prefs.getString("settings_nav_path", null)?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+    fun saveSettingsNavPath(path: List<String>) = prefs.edit().putString("settings_nav_path", path.joinToString(",")).apply()
+    fun getAppListIndexChar(): String? = prefs.getString("app_list_index_char", null)
+    fun saveAppListIndexChar(v: String) = prefs.edit().putString("app_list_index_char", v).apply()
     fun consumeSettingsPath(): List<String> {
         val csv = prefs.getString("settings_deep_link", null)
         if (csv != null) prefs.edit().remove("settings_deep_link").apply()

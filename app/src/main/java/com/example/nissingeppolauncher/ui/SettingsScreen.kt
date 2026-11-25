@@ -674,7 +674,10 @@ fun SettingsScreen(
 
     // システム環境設定風 2段階ナビゲーション ("behavior", "appearance", "security", "tutorial")
     // 円盤ナビの状態（1: カテゴリ/項目, 2: 選択肢/スライダー）
-    var navPath by remember { mutableStateOf(repo.prefManager.consumeSettingsPath()) }
+    var navPath by remember { mutableStateOf(repo.prefManager.consumeSettingsPath().ifEmpty { repo.prefManager.getSettingsNavPath() }) }
+    LaunchedEffect(navPath) {
+        repo.prefManager.saveSettingsNavPath(navPath)
+    }
     var focusId by remember { mutableStateOf<String?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var leftDiscState by remember { mutableStateOf<DiscCarouselState?>(null) }
@@ -1377,6 +1380,16 @@ fun SettingsScreen(
         return SettingNode(def.id, def.label, glyph = def.glyph, catIcon = def.cat, children = kids)
     }
     val settingsTree: List<SettingNode> = treeData.tree.mapNotNull { buildNode(it) }
+    LaunchedEffect(treeData.version) {
+        var list = settingsTree
+        val valid = mutableListOf<String>()
+        for (id in navPath) {
+            val node = list.firstOrNull { it.id == id } ?: break
+            valid.add(id)
+            list = node.children ?: emptyList()
+        }
+        if (valid.size != navPath.size) navPath = valid
+    }
 
     val searchResults: List<SettingNode> = if (searchQuery.isBlank()) emptyList() else {
         val all = mutableListOf<SettingNode>()
