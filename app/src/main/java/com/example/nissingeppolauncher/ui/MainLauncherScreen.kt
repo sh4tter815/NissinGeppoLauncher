@@ -511,6 +511,10 @@ fun MainLauncherScreen() {
         val mediaSessionManager = context.getSystemService(android.content.Context.MEDIA_SESSION_SERVICE) as? android.media.session.MediaSessionManager
         val listenerComponent = android.content.ComponentName(context, com.example.nissingeppolauncher.service.LauncherMediaListenerService::class.java)
         while (true) {
+            if (!(context.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager).isInteractive) {
+                delay(2000)
+                continue
+            }
             try {
                 val controllers = mediaSessionManager?.getActiveSessions(listenerComponent)
                 val activeController = controllers?.firstOrNull {
@@ -566,6 +570,10 @@ fun MainLauncherScreen() {
         var anchorPosMs = -1L
         var anchorTimeMs = 0L
         while (true) {
+            if (!(context.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager).isInteractive) {
+                delay(2000)
+                continue
+            }
             try {
                 val controllers = mediaSessionManager?.getActiveSessions(listenerComponent)
                 val activeController = controllers?.firstOrNull {

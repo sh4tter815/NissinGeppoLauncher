@@ -796,6 +796,10 @@ class LyricsOverlayService : Service() {
         // 曲情報のポーリング（変わったら歌詞を取り直す）
         serviceScope.launch {
             while (true) {
+                if (!(getSystemService(Context.POWER_SERVICE) as PowerManager).isInteractive) {
+                    delay(5000)
+                    continue
+                }
                 try {
                     val metadata = activeController()?.metadata
                     val title = metadata?.getString(MediaMetadata.METADATA_KEY_TITLE) ?: ""
@@ -837,6 +841,10 @@ class LyricsOverlayService : Service() {
         // 再生位置のポーリング（現在の行を割り出す）
         serviceScope.launch {
             while (true) {
+                if (!(getSystemService(Context.POWER_SERVICE) as PowerManager).isInteractive) {
+                    delay(3000)
+                    continue
+                }
                 try {
                     lastHeartbeatMs = SystemClock.elapsedRealtime()
                     // ステータスバーの表示状態をポーリングでも確認する（インセット通知の保険）

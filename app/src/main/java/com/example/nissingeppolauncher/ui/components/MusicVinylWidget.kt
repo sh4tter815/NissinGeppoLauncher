@@ -58,6 +58,7 @@ import kotlinx.coroutines.withContext
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -137,6 +138,8 @@ fun MusicVinylWidget(
     var tapCount by remember { mutableIntStateOf(0) }
     var grabRotX by remember { mutableStateOf(0f) }
     var grabRotY by remember { mutableStateOf(0f) }
+    var userSpin by remember { mutableStateOf(0f) }
+    var userSpinJob by remember { mutableStateOf<Job?>(null) }
     fun runRackSteps() {
         if (rackStepAnimRunning) return
         rackStepAnimRunning = true
@@ -167,6 +170,10 @@ fun MusicVinylWidget(
     // 定期的に音楽再生状態とメタデータ（アルバムアート・曲情報）を取得
     LaunchedEffect(Unit) {
         while (true) {
+            if (!(context.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager).isInteractive) {
+                delay(3000)
+                continue
+            }
             val enabled = isNotificationServiceEnabled(context)
             if (enabled) {
                 try {
@@ -234,6 +241,7 @@ fun MusicVinylWidget(
     )
 
     val currentRotation = if (isPlaying) rotation else 0f
+    val spinRotation = currentRotation + userSpin
 
     // 曲が変わった瞬間、アートワークが縦軸でくるっと1回転する
     val flipAnim = remember { Animatable(1f) }
@@ -298,6 +306,24 @@ fun MusicVinylWidget(
     val latestRackCurrentIndex by rememberUpdatedState(rackCurrentIndex)
     val latestRackSize by rememberUpdatedState(rackSize)
     val latestQueueMode by rememberUpdatedState(queueMode)
+    // ラックの先読み: キューのアートワークが揃ったら、色と線画を裏で先に計算しておく
+    LaunchedEffect(sessionQueue, queueArtCache, albumArtBitmap) {
+        withContext(Dispatchers.Default) {
+            val arts = LinkedHashSet<Bitmap>()
+            for (i in sessionQueue.indices) {
+                rackArtAt(i)?.let { arts.add(it) }
+            }
+            albumArtBitmap?.let { arts.add(it) }
+            for (art in arts) {
+                synchronized(rackAccentCache) {
+                    if (art !in rackAccentCache) rackAccentCache[art] = rackAccentOf(art)
+                }
+                synchronized(rackLineArtCache) {
+                    if (art !in rackLineArtCache) rackLineArtCache[art] = extractLineArtBitmap(art)?.asImageBitmap()
+                }
+            }
+        }
+    }
     val latestSessionQueue by rememberUpdatedState(sessionQueue)
     val rackTiltXState = animateFloatAsState(
         targetValue = if (rackShow) 55f else 0f,
@@ -472,6 +498,8 @@ fun MusicVinylWidget(
                                 pendingTapJob?.cancel()
                                 pendingTapJob = null
                             }
+                            val velocityTracker = VelocityTracker()
+                            velocityTracker.addPosition(down.uptimeMillis, down.position)
                             val hasSession = sessionController != null
                             val startIdx = latestRackCurrentIndex
                             rackTargetOffset = 0
@@ -496,6 +524,7 @@ fun MusicVinylWidget(
                                         tapCount = 0
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         if (holdAction == "grab") {
+                                            userSpinJob?.cancel()
                                             grabActive = true
                                         } else {
                                             runWidgetAction(holdAction)
@@ -504,6 +533,7 @@ fun MusicVinylWidget(
                                 }
                             }
                             drag(down.id) { change ->
+                                velocityTracker.addPosition(change.uptimeMillis, change.position)
                                 maxDist = maxOf(maxDist, (change.position - down.position).getDistance())
                                 if (grabActive) {
                                     val dx = change.position.x - change.previousPosition.x
@@ -538,6 +568,26 @@ fun MusicVinylWidget(
                                 change.consume()
                             }
                             longPressJob?.cancel()
+                            if (!longPressFired && !moved && !grabActive) {
+                                val velX = velocityTracker.calculateVelocity().x
+                                val velY = velocityTracker.calculateVelocity().y
+                                if (kotlin.math.abs(velX) > 1000f && kotlin.math.abs(velX) > kotlin.math.abs(velY) * 1.2f) {
+                                    userSpinJob?.cancel()
+                                    val radiusPx = discRadiusDp.dp.toPx()
+                                    userSpinJob = widgetScope.launch {
+                                        var vel = (velX / radiusPx) * 57.3f * 1.1f
+                                        var lastMs = System.currentTimeMillis()
+                                        while (kotlin.math.abs(vel) > 5f) {
+                                            delay(16)
+                                            val nowMs = System.currentTimeMillis()
+                                            val dt = ((nowMs - lastMs) / 1000f).coerceIn(0.001f, 0.05f)
+                                            lastMs = nowMs
+                                            userSpin = (userSpin + vel * dt) % 360f
+                                            vel *= Math.pow(0.30, dt.toDouble()).toFloat()
+                                        }
+                                    }
+                                }
+                            }
                             if (grabActive) {
                                 grabActive = false
                                 val startRotX = grabRotX
@@ -582,6 +632,7 @@ fun MusicVinylWidget(
                                 // 短いタップ（またはセッション無し）: ラックを閉じる。ドラッグだった場合は何もしない
                                 rackOpen = false
                                 if (!longPressFired && maxDist < 14.dp.toPx() && heldMs < 300L) {
+                                    userSpinJob?.cancel()
                                     val doubleAction = prefManager.getWidgetDoubleTapAction()
                                     val tripleAction = prefManager.getWidgetTripleTapAction()
                                     if (doubleAction == "none" && tripleAction == "none") {
@@ -655,9 +706,9 @@ fun MusicVinylWidget(
                     contentAlignment = Alignment.Center
                 ) {
                     if (discStyleNow == "md") {
-                        MdCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotation = currentRotation, bitmapImage = caseBitmapImage, lineArtImage = lineArtImage, title = trackTitle)
+                        MdCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotation = spinRotation, bitmapImage = caseBitmapImage, lineArtImage = lineArtImage, title = trackTitle)
                     } else {
-                        CassetteCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotation = currentRotation, title = trackTitle, artist = trackArtist, shellStyle = cassetteShellOf(discStyleNow), lineArtImage = lineArtImage)
+                        CassetteCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotation = spinRotation, title = trackTitle, artist = trackArtist, shellStyle = cassetteShellOf(discStyleNow), lineArtImage = lineArtImage)
                     }
                 }
             } else {
@@ -665,7 +716,7 @@ fun MusicVinylWidget(
                 modifier = Modifier
                     .size((discRadiusDp * 2f * 0.92f).dp)
                     .graphicsLayer {
-                        rotationZ = currentRotation
+                        rotationZ = spinRotation
                         rotationY = (1f - flipAnim.value) * 360f
                         cameraDistance = 9f * density
                     }
@@ -1059,8 +1110,8 @@ private fun RackDiscLayer(
         ) {
             val art = artAt(targetIdx)
             val artImage = remember(art) { art?.asImageBitmap() }
-            val itemAccent = art?.let { rackAccentCache.getOrPut(it) { rackAccentOf(it) } } ?: effAccent
-            val itemLineArt = art?.let { rackLineArtCache.getOrPut(it) { extractLineArtBitmap(it)?.asImageBitmap() } }
+            val itemAccent = art?.let { synchronized(rackAccentCache) { rackAccentCache.getOrPut(it) { rackAccentOf(it) } } } ?: effAccent
+            val itemLineArt = art?.let { synchronized(rackLineArtCache) { rackLineArtCache.getOrPut(it) { extractLineArtBitmap(it)?.asImageBitmap() } } }
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val center = Offset(size.width / 2f, size.height / 2f)
                 val outlineColor = if (isFocused) itemAccent else Color.White.copy(alpha = 0.5f)
