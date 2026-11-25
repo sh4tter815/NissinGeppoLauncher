@@ -228,6 +228,17 @@ fun MusicVinylWidget(
                                 }
                             }
                         }
+                        if (bitmap == null) {
+                            // 最後の手段として、メディア通知に載っているジャケットを使う
+                            val nArt = LauncherMediaListenerService.mediaArtBitmap
+                            val nTitle = LauncherMediaListenerService.mediaArtTitle
+                            val curTitle = metadata?.getString(MediaMetadata.METADATA_KEY_TITLE) ?: ""
+                            if (nArt != null && LauncherMediaListenerService.mediaArtPackage == controllerPkg &&
+                                (nTitle.isNullOrBlank() || curTitle.isBlank() || nTitle == curTitle)
+                            ) {
+                                bitmap = nArt
+                            }
+                        }
                         albumArtBitmap = bitmap
                         trackTitle = metadata?.getString(MediaMetadata.METADATA_KEY_TITLE) ?: ""
                         trackArtist = metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST) ?: ""
