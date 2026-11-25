@@ -1,5 +1,5 @@
 {
-  "version": 48,
+  "version": 49,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -1347,43 +1347,85 @@
           "glyph": "disc",
           "children": [
             {
-              "item": "reverse"
+              "id": "ui_disc_look",
+              "label": "外観",
+              "glyph": "eye",
+              "children": [
+                {
+                  "id": "ui_disc_look_all",
+                  "label": "全体",
+                  "glyph": "scaling",
+                  "children": [
+                    {
+                      "item": "disc3d"
+                    },
+                    {
+                      "item": "disc3dTilt"
+                    }
+                  ]
+                },
+                {
+                  "id": "ui_disc_look_side",
+                  "label": "左右",
+                  "glyph": "arrow-left-right",
+                  "children": [
+                    {
+                      "item": "discOutline"
+                    },
+                    {
+                      "item": "discLayout"
+                    },
+                    {
+                      "item": "discDropOnPv"
+                    }
+                  ]
+                },
+                {
+                  "id": "ui_disc_look_bottom",
+                  "label": "下部",
+                  "glyph": "panel-top",
+                  "children": [
+                    {
+                      "item": "dialVisibility"
+                    },
+                    {
+                      "item": "dialOutline"
+                    }
+                  ]
+                }
+              ]
             },
             {
-              "item": "discLayout"
+              "id": "ui_disc_ops",
+              "label": "操作とフィードバック",
+              "glyph": "cursor",
+              "children": [
+                {
+                  "item": "reverse"
+                },
+                {
+                  "item": "stepAngle"
+                },
+                {
+                  "item": "inertia"
+                },
+                {
+                  "item": "haptics"
+                }
+              ]
             },
             {
-              "item": "stepAngle"
-            },
-            {
-              "item": "disc3d"
-            },
-            {
-              "item": "disc3dTilt"
-            },
-            {
-              "item": "discDropOnPv"
-            },
-            {
-              "item": "pageSwitch"
-            },
-            {
-              "item": "inertia"
-            },
-            {
-              "item": "haptics"
-            },
-            {
-              "item": "pageTransitionSpeed"
-            },
-            {
-              "item": "dialVisibility"
-            },
-            {
-              "item": "discOutline"
-            },
-            {
-              "item": "dialOutline"
+              "id": "ui_disc_page",
+              "label": "ページ切替",
+              "glyph": "swap",
+              "children": [
+                {
+                  "item": "pageSwitch"
+                },
+                {
+                  "item": "pageTransitionSpeed"
+                }
+              ]
             }
           ]
         },
@@ -1641,22 +1683,29 @@
           "item": "startupPage"
         },
         {
-          "item": "powerSaveMode"
-        },
-        {
-          "item": "powerSaveCharging"
-        },
-        {
-          "item": "powerSaveBattery"
-        },
-        {
-          "item": "powerSaveNight"
-        },
-        {
-          "item": "powerSaveNightStart"
-        },
-        {
-          "item": "powerSaveNightEnd"
+          "id": "tools_power",
+          "label": "省電力",
+          "glyph": "timer",
+          "children": [
+            {
+              "item": "powerSaveMode"
+            },
+            {
+              "item": "powerSaveCharging"
+            },
+            {
+              "item": "powerSaveBattery"
+            },
+            {
+              "item": "powerSaveNight"
+            },
+            {
+              "item": "powerSaveNightStart"
+            },
+            {
+              "item": "powerSaveNightEnd"
+            }
+          ]
         }
       ]
     },
