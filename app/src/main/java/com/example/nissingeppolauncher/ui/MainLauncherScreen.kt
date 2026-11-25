@@ -1763,8 +1763,8 @@ fun MainLauncherScreen() {
                         }
                     }
                     var appFocusRestored by remember { mutableStateOf(false) }
-                    LaunchedEffect(appDiscItems, currentPage) {
-                        if (currentPage == 2 && !appFocusRestored && appDiscItems.isNotEmpty()) {
+                    LaunchedEffect(appDiscItems, currentLauncherPage) {
+                        if (currentLauncherPage == 2 && !appFocusRestored && appDiscItems.isNotEmpty()) {
                             appFocusRestored = true
                             val pkg = repo.prefManager.getAppListFocusPackage()
                             val targetIndex = appDiscItems.indexOfFirst { (it as? DiscItem.AppEntry)?.app?.packageName == pkg }
