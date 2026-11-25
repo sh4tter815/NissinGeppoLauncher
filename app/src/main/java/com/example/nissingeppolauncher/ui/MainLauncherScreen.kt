@@ -842,8 +842,8 @@ fun MainLauncherScreen() {
     var foldersMap by remember { mutableStateOf(repo.prefManager.getFoldersMap()) }
     var favoriteFolderIds by remember { mutableStateOf(repo.prefManager.getFavoriteFolderIds()) }
     var showFavReorderDialog by remember { mutableStateOf(false) }
-    var favAppSortList by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
-    var favFolderSortList by remember { mutableStateOf<List<FolderDiscEntry.Folder>>(emptyList()) }
+    var favSortList by remember { mutableStateOf<List<HomeEntry>>(emptyList()) }
+    var favoriteOrder by remember { mutableStateOf(repo.prefManager.getFavoriteOrder()) }
     var favDragKey by remember { mutableStateOf<String?>(null) }
     var favDragOffset by remember { mutableFloatStateOf(0f) }
     var showFolderAppSelectDialog by remember { mutableStateOf(false) }
@@ -920,9 +920,27 @@ fun MainLauncherScreen() {
     val homeFavoriteFolders = remember(favoriteFolderIds, folderList) {
         favoriteFolderIds.mapNotNull { fid -> folderList.firstOrNull { it.first == fid }?.let { FolderDiscEntry.Folder(it.first, it.second) } }
     }
+    // アプリとフォルダを共通の順序（favoriteOrder）で混ぜて並べる。順序に無いものは末尾へ
+    val homeEntries = remember(homeDiscItems, homeFavoriteFolders, favoriteOrder) {
+        val byKey = LinkedHashMap<String, HomeEntry>()
+        homeDiscItems.forEach { di ->
+            (di as? DiscItem.AppEntry)?.let { byKey["a:" + it.app.packageName] = HomeEntry.App(it.app, di) }
+        }
+        homeFavoriteFolders.forEach { fe -> byKey["f:" + fe.folderId] = HomeEntry.Folder(fe) }
+        val ordered = mutableListOf<HomeEntry>()
+        val used = HashSet<String>()
+        for (key in favoriteOrder) {
+            val e = byKey[key]
+            if (e != null && used.add(key)) ordered.add(e)
+        }
+        for ((key, e) in byKey) {
+            if (used.add(key)) ordered.add(e)
+        }
+        ordered
+    }
     // お気に入りが2件以上あるときは、ホーム右円の末尾に「並び替え」要素を1つ足す
-    val favEditItemCount = if (homeDiscItems.size + homeFavoriteFolders.size >= 2) 1 else 0
-    val homeDiscCount = homeDiscItems.size + homeFavoriteFolders.size + favEditItemCount
+    val favEditItemCount = if (homeEntries.size >= 2) 1 else 0
+    val homeDiscCount = homeEntries.size + favEditItemCount
     // よく使う順のときの★5段階（使用実績のあるアプリを使用量の五分位で分ける。実績なしは★）
     val usageTierOf: Map<String, Int> = remember(usageStatsMap, allApps) {
         val used = allApps.filter { (usageStatsMap[it.packageName] ?: 0L) > 0L }
@@ -1654,10 +1672,10 @@ fun MainLauncherScreen() {
                             }
                         } else null
                     ) { index, rad, labelAlpha, isSelected ->
-                        val folderEntry = if (index >= homeDiscItems.size) homeFavoriteFolders.getOrNull(index - homeDiscItems.size) else null
-                        if (folderEntry != null) {
+                        val homeEntry = homeEntries.getOrNull(index)
+                        if (homeEntry is HomeEntry.Folder) {
                             DiscFolderItem(
-                                entry = folderEntry,
+                                entry = homeEntry.folder,
                                 discCenterXDp = animatedDisc2CenterX,
                                 discCenterYDp = disc2CenterY + lyricsDiscDrop,
                                 discRadiusDp = disc2RadiusDp,
@@ -1702,7 +1720,7 @@ fun MainLauncherScreen() {
                                 isFavorite = true
                             )
                         }
-                        if (favEditItemCount == 1 && index == homeDiscItems.size + homeFavoriteFolders.size) {
+                        if (favEditItemCount == 1 && index == homeEntries.size) {
                             val editOuterR = disc2RadiusDp + 8f
                             val editInnerR = disc2RadiusDp - 18f
                             val editLabelX = animatedDisc2CenterX + editOuterR * cos(rad)
@@ -1711,8 +1729,7 @@ fun MainLauncherScreen() {
                             val editIconY = disc2CenterY + lyricsDiscDrop + editInnerR * sin(rad)
                             val openFavReorder = {
                                 if (isSelected) {
-                                    favAppSortList = favoriteApps
-                                    favFolderSortList = homeFavoriteFolders
+                                    favSortList = homeEntries
                                     showFavReorderDialog = true
                                 } else {
                                     homeDiscState.animateToIndex(index)
@@ -1758,10 +1775,9 @@ fun MainLauncherScreen() {
                                 }
                             }
                         }
-                        val di = if (folderEntry == null) homeDiscItems.getOrNull(index) else null
-                        if (di != null) {
+                        if (homeEntry is HomeEntry.App) {
                             DiscAppItem(
-                                item = di,
+                                item = homeEntry.item,
                                 discCenterXDp = animatedDisc2CenterX,
                                 discCenterYDp = disc2CenterY + lyricsDiscDrop,
                                 discRadiusDp = disc2RadiusDp,
@@ -3006,18 +3022,16 @@ fun MainLauncherScreen() {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth(0.94f)
-                        .background(Color(0xD91A1D23), RoundedCornerShape(24.dp))
                         .padding(horizontal = 20.dp, vertical = 18.dp)
                 ) {
                     Text("お気に入りの並び替え", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(12.dp))
                     Column {
-                        Text("アプリ", color = accentColor, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                        if (favAppSortList.isEmpty()) {
-                            Text("お気に入りのアプリがありません。", color = Color.LightGray, fontSize = 13.sp)
+                        if (favSortList.isEmpty()) {
+                            Text("お気に入りがありません。", color = Color.LightGray, fontSize = 13.sp)
                         }
-                        favAppSortList.forEach { app ->
-                            val rowKey = "a:" + app.packageName
+                        favSortList.forEach { entry ->
+                            val rowKey = homeEntryKey(entry)
                             key(rowKey) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -3028,13 +3042,25 @@ fun MainLauncherScreen() {
                                         .graphicsLayer { translationY = if (favDragKey == rowKey) favDragOffset else 0f }
                                         .background(if (favDragKey == rowKey) Color(0xFF37474F) else Color.Transparent)
                                 ) {
-                                    if (app.iconBitmap != null) {
-                                        Image(bitmap = app.iconBitmap, contentDescription = null, modifier = Modifier.size(32.dp).clip(RoundedCornerShape(8.dp)))
-                                    } else {
-                                        Box(modifier = Modifier.size(32.dp))
+                                    when (entry) {
+                                        is HomeEntry.App -> {
+                                            val app = entry.app
+                                            if (app.iconBitmap != null) {
+                                                Image(bitmap = app.iconBitmap, contentDescription = null, modifier = Modifier.size(32.dp).clip(RoundedCornerShape(8.dp)))
+                                            } else {
+                                                Box(modifier = Modifier.size(32.dp))
+                                            }
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Text(app.label, color = Color.White, fontSize = 15.sp, maxLines = 1, modifier = Modifier.weight(1f))
+                                        }
+                                        is HomeEntry.Folder -> {
+                                            Box(modifier = Modifier.size(32.dp), contentAlignment = Alignment.Center) {
+                                                Text("★", color = accentColor, fontSize = 16.sp)
+                                            }
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Text(entry.folder.name, color = Color.White, fontSize = 15.sp, maxLines = 1, modifier = Modifier.weight(1f))
+                                        }
                                     }
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text(app.label, color = Color.White, fontSize = 15.sp, maxLines = 1, modifier = Modifier.weight(1f))
                                     Box(
                                         modifier = Modifier.size(44.dp).pointerInput(rowKey) {
                                             detectDragGestures(
@@ -3046,82 +3072,21 @@ fun MainLauncherScreen() {
                                                     favDragOffset += amount.y
                                                     val rowPx = 52.dp.toPx()
                                                     while (true) {
-                                                        val idx = favAppSortList.indexOfFirst { it.packageName == app.packageName }
+                                                        val idx = favSortList.indexOfFirst { homeEntryKey(it) == rowKey }
                                                         if (idx < 0) break
-                                                        if (favDragOffset > rowPx / 2f && idx < favAppSortList.lastIndex) {
-                                                            val next = favAppSortList.toMutableList()
+                                                        if (favDragOffset > rowPx / 2f && idx < favSortList.lastIndex) {
+                                                            val next = favSortList.toMutableList()
                                                             val tmp = next[idx]; next[idx] = next[idx + 1]; next[idx + 1] = tmp
-                                                            favAppSortList = next
-                                                            favoriteApps = next
-                                                            repo.prefManager.setFavoriteAppOrder(next.map { it.packageName })
+                                                            favSortList = next
+                                                            favoriteOrder = next.map { homeEntryKey(it) }
+                                                            repo.prefManager.setFavoriteOrder(favoriteOrder)
                                                             favDragOffset -= rowPx
                                                         } else if (favDragOffset < -rowPx / 2f && idx > 0) {
-                                                            val next = favAppSortList.toMutableList()
+                                                            val next = favSortList.toMutableList()
                                                             val tmp = next[idx]; next[idx] = next[idx - 1]; next[idx - 1] = tmp
-                                                            favAppSortList = next
-                                                            favoriteApps = next
-                                                            repo.prefManager.setFavoriteAppOrder(next.map { it.packageName })
-                                                            favDragOffset += rowPx
-                                                        } else break
-                                                    }
-                                                }
-                                            )
-                                        },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text("≡", color = Color.LightGray, fontSize = 20.sp)
-                                    }
-                                }
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Text("フォルダ", color = accentColor, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                        if (favFolderSortList.isEmpty()) {
-                            Text("お気に入りのフォルダがありません。", color = Color.LightGray, fontSize = 13.sp)
-                        }
-                        favFolderSortList.forEach { folder ->
-                            val rowKey = "f:" + folder.folderId
-                            key(rowKey) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(52.dp)
-                                        .zIndex(if (favDragKey == rowKey) 1f else 0f)
-                                        .graphicsLayer { translationY = if (favDragKey == rowKey) favDragOffset else 0f }
-                                        .background(if (favDragKey == rowKey) Color(0xFF37474F) else Color.Transparent)
-                                ) {
-                                    Box(modifier = Modifier.size(32.dp), contentAlignment = Alignment.Center) {
-                                        Text("★", color = accentColor, fontSize = 16.sp)
-                                    }
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text(folder.name, color = Color.White, fontSize = 15.sp, maxLines = 1, modifier = Modifier.weight(1f))
-                                    Box(
-                                        modifier = Modifier.size(44.dp).pointerInput(rowKey) {
-                                            detectDragGestures(
-                                                onDragStart = { favDragKey = rowKey; favDragOffset = 0f },
-                                                onDragEnd = { favDragKey = null; favDragOffset = 0f },
-                                                onDragCancel = { favDragKey = null; favDragOffset = 0f },
-                                                onDrag = { change, amount ->
-                                                    change.consume()
-                                                    favDragOffset += amount.y
-                                                    val rowPx = 52.dp.toPx()
-                                                    while (true) {
-                                                        val idx = favFolderSortList.indexOfFirst { it.folderId == folder.folderId }
-                                                        if (idx < 0) break
-                                                        if (favDragOffset > rowPx / 2f && idx < favFolderSortList.lastIndex) {
-                                                            val next = favFolderSortList.toMutableList()
-                                                            val tmp = next[idx]; next[idx] = next[idx + 1]; next[idx + 1] = tmp
-                                                            favFolderSortList = next
-                                                            favoriteFolderIds = next.map { it.folderId }
-                                                            repo.prefManager.setFavoriteFolderIds(next.map { it.folderId })
-                                                            favDragOffset -= rowPx
-                                                        } else if (favDragOffset < -rowPx / 2f && idx > 0) {
-                                                            val next = favFolderSortList.toMutableList()
-                                                            val tmp = next[idx]; next[idx] = next[idx - 1]; next[idx - 1] = tmp
-                                                            favFolderSortList = next
-                                                            favoriteFolderIds = next.map { it.folderId }
-                                                            repo.prefManager.setFavoriteFolderIds(next.map { it.folderId })
+                                                            favSortList = next
+                                                            favoriteOrder = next.map { homeEntryKey(it) }
+                                                            repo.prefManager.setFavoriteOrder(favoriteOrder)
                                                             favDragOffset += rowPx
                                                         } else break
                                                     }
@@ -4442,4 +4407,15 @@ private fun LayoutEditFinishBar(accentColor: Color, topPaddingDp: Dp, currentPag
             )
         }
     }
+}
+
+/** ホーム右円の混合項目（アプリとフォルダを1つの並びで扱う） */
+private sealed class HomeEntry {
+    data class App(val app: AppInfo, val item: DiscItem) : HomeEntry()
+    data class Folder(val folder: FolderDiscEntry.Folder) : HomeEntry()
+}
+
+private fun homeEntryKey(entry: HomeEntry): String = when (entry) {
+    is HomeEntry.App -> "a:" + entry.app.packageName
+    is HomeEntry.Folder -> "f:" + entry.folder.folderId
 }
