@@ -191,7 +191,24 @@ class AppRepository(private val context: Context) {
         }
     }
 
+    /** アイコンパック変更時などに、全アプリのアイコンを取り直して保存し直す */
+    suspend fun refreshAllIcons() = withContext(Dispatchers.IO) {
+        val records = cachedRecords ?: loadRecordsFromDisk() ?: fullScan()
+        for (rec in records) {
+            val bitmap = loadIconBitmapFromPackage(rec.packageName)
+            if (bitmap != null) {
+                saveIconToDisk(rec.packageName, bitmap)
+                iconCache.put(rec.packageName, bitmap)
+            }
+        }
+        cachedApps = null
+    }
+
     private fun loadIconBitmapFromPackage(packageName: String): Bitmap? {
+        val packPkg = prefManager.getIconPackPackage()
+        if (packPkg != null) {
+            IconPackManager.iconForPackage(context, packPkg, packageName)?.let { return it }
+        }
         return try {
             val drawable = context.packageManager.getApplicationIcon(packageName)
             val bitmap = drawable.toBitmap()

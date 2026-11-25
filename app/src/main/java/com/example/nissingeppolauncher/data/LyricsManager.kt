@@ -285,6 +285,17 @@ object LyricsManager {
         return a.isNotBlank() && (a.contains(c) || c.contains(a))
     }
 
+    fun lyricsCacheSizeBytes(context: Context): Long {
+        val dir = File(context.filesDir, "lyrics")
+        if (!dir.exists()) return 0L
+        return dir.walkTopDown().filter { it.isFile }.sumOf { it.length() }
+    }
+
+    fun clearLyricsCache(context: Context) {
+        val dir = File(context.filesDir, "lyrics")
+        if (dir.exists()) dir.deleteRecursively()
+    }
+
     private fun cacheFile(context: Context, title: String, artist: String, album: String): File {
         val dir = File(context.filesDir, "lyrics")
         if (!dir.exists()) dir.mkdirs()

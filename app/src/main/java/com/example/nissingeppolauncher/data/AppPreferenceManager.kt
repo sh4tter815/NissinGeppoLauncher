@@ -494,6 +494,12 @@ class AppPreferenceManager(private val context: Context) {
     fun getSettingsNavPath(): List<String> = prefs.getString("settings_nav_path", null)?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
     fun saveSettingsNavPath(path: List<String>) = prefs.edit().putString("settings_nav_path", path.joinToString(",")).apply()
     fun getAppListIndexChar(): String? = prefs.getString("app_list_index_char", null)
+    fun getIconPackPackage(): String? = prefs.getString("icon_pack_package", null)
+    fun setIconPackPackage(v: String?) = prefs.edit().putString("icon_pack_package", v).apply()
+    fun getAppListFocusPackage(): String? = prefs.getString("app_list_focus_package", null)
+    fun saveAppListFocusPackage(v: String) = prefs.edit().putString("app_list_focus_package", v).apply()
+    fun getFolderPath(): List<String> = prefs.getString("folder_path", null)?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+    fun saveFolderPath(path: List<String>) = prefs.edit().putString("folder_path", path.joinToString(",")).apply()
     fun saveAppListIndexChar(v: String) = prefs.edit().putString("app_list_index_char", v).apply()
     fun consumeSettingsPath(): List<String> {
         val csv = prefs.getString("settings_deep_link", null)
@@ -546,7 +552,42 @@ class AppPreferenceManager(private val context: Context) {
     fun setCassetteStyle(v: String) = prefs.edit().putString("cassette_style", v).apply()
     fun getPowerSaveMode(): String = prefs.getString("power_save_mode", "auto") ?: "auto"
     fun setPowerSaveMode(v: String) = prefs.edit().putString("power_save_mode", v).apply()
+    fun isPowerSaveChargingExempt(): Boolean = prefs.getBoolean("power_save_charging_exempt", true)
+    fun setPowerSaveChargingExempt(v: Boolean) = prefs.edit().putBoolean("power_save_charging_exempt", v).apply()
+    fun isCharging(context: Context): Boolean {
+        val intent = context.registerReceiver(null, android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED))
+        val status = intent?.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1) ?: -1
+        return status == android.os.BatteryManager.BATTERY_STATUS_CHARGING || status == android.os.BatteryManager.BATTERY_STATUS_FULL
+    }
+    fun getPowerSaveBatteryThreshold(): Int = (prefs.getFloat("power_save_battery_threshold", 0f) * 100).toInt()
+    fun setPowerSaveBatteryThreshold(v: Float) = prefs.edit().putFloat("power_save_battery_threshold", v).apply()
+    fun batteryLevel(context: Context): Int {
+        val intent = context.registerReceiver(null, android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED)) ?: return 100
+        val level = intent.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1)
+        val scale = intent.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, -1)
+        return if (level >= 0 && scale > 0) level * 100 / scale else 100
+    }
+    fun isDiscOutlineEnabled(): Boolean = prefs.getBoolean("disc_outline", true)
+    fun setDiscOutlineEnabled(v: Boolean) = prefs.edit().putBoolean("disc_outline", v).apply()
+    fun isDialOutlineEnabled(): Boolean = prefs.getBoolean("dial_outline", true)
+    fun setDialOutlineEnabled(v: Boolean) = prefs.edit().putBoolean("dial_outline", v).apply()
+    fun isPowerSaveNightEnabled(): Boolean = prefs.getBoolean("power_save_night", false)
+    fun setPowerSaveNightEnabled(v: Boolean) = prefs.edit().putBoolean("power_save_night", v).apply()
+    fun getPowerSaveNightStart(): Float = prefs.getFloat("power_save_night_start", 23f)
+    fun setPowerSaveNightStart(v: Float) = prefs.edit().putFloat("power_save_night_start", v).apply()
+    fun getPowerSaveNightEnd(): Float = prefs.getFloat("power_save_night_end", 7f)
+    fun setPowerSaveNightEnd(v: Float) = prefs.edit().putFloat("power_save_night_end", v).apply()
+    fun isNightTimeNow(): Boolean {
+        val start = getPowerSaveNightStart().toInt()
+        val end = getPowerSaveNightEnd().toInt()
+        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        return if (start <= end) hour in start until end else hour >= start || hour < end
+    }
     fun isPowerSaveActive(context: Context): Boolean {
+        if (isPowerSaveChargingExempt() && isCharging(context)) return false
+        if (isPowerSaveNightEnabled() && isNightTimeNow()) return true
+        val threshold = getPowerSaveBatteryThreshold()
+        if (threshold > 0 && batteryLevel(context) <= threshold) return true
         return when (getPowerSaveMode()) {
             "on" -> true
             "auto" -> {
