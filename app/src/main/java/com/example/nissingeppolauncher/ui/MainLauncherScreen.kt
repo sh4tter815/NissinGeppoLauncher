@@ -270,6 +270,7 @@ fun MainLauncherScreen() {
     var lyricsBold by remember { mutableStateOf(repo.prefManager.isLyricsBold()) }
     var pvPartsEntry by remember { mutableStateOf(repo.prefManager.isPvPartsEntryEnabled()) }
     var dopagakiMode by remember { mutableStateOf(repo.prefManager.isDopagakiEnabled()) }
+    var pvEnabled by remember { mutableStateOf(repo.prefManager.isPvEnabled()) }
     var dopaBlackFont by remember { mutableStateOf(repo.prefManager.isDopaBlackFontEnabled()) }
     // 色塗り行でのアクセントフラッシュ（液体背景とPVのグローが一瞬その色になる）。一定時間で自動で戻る
     var pvFlashColor by remember { mutableStateOf<Color?>(null) }
@@ -1223,7 +1224,7 @@ fun MainLauncherScreen() {
             }
 
             // リリックビデオ（文字PV）: 再生中セッション（Spotify等も含む）の歌詞を大きく散らして表示する
-            if (lyricsEnabled && lyricsDisplayMode == "video" && currentLauncherPage == 1 && !isLyricsBrowsing && syncedLyricLines.isNotEmpty()) {
+            if (lyricsEnabled && pvEnabled && lyricsDisplayMode == "video" && currentLauncherPage == 1 && !isLyricsBrowsing && syncedLyricLines.isNotEmpty()) {
               Box(Modifier.fillMaxSize().offset(x = pvOffsetX.dp).zIndex(if (dopagakiMode) 60f else 0f)) {
                 LyricsPvLayer(
                     pvTilt3d = disc3d,
@@ -1278,7 +1279,7 @@ fun MainLauncherScreen() {
                     placements = rememberUpdatedState(widgetPlacements), onPlacementsChange = { widgetPlacements = it },
                     appWidgetManager = appWidgetManager, appWidgetHost = appWidgetHost,
                     layoutEditMode = layoutEditMode, accentColor = accentColor, repo = repo,
-                    pvActive = lyricsEnabled && lyricsDisplayMode == "video" && !isLyricsBrowsing && syncedLyricLines.isNotEmpty(),
+                    pvActive = lyricsEnabled && pvEnabled && lyricsDisplayMode == "video" && !isLyricsBrowsing && syncedLyricLines.isNotEmpty(),
                     pvLeft = 28f + pvOffsetX, pvTop = topPaddingDp.value + 150f + pvTopOffset,
                     pvEffWidth = pvEffWidth, pvEffHeight = pvEffHeight
                 )
@@ -2914,6 +2915,19 @@ fun MainLauncherScreen() {
                 onToggleDopagaki = {
                     dopagakiMode = !dopagakiMode
                     repo.prefManager.setDopagakiEnabled(dopagakiMode)
+                },
+                pvEnabled = pvEnabled,
+                onTogglePv = {
+                    pvEnabled = !pvEnabled
+                    repo.prefManager.setPvEnabled(pvEnabled)
+                },
+                homeLyricsEnabled = lyricsEnabled,
+                onToggleHomeLyrics = {
+                    lyricsEnabled = !lyricsEnabled
+                    repo.prefManager.setLyricsEnabled(lyricsEnabled)
+                    if (!lyricsEnabled) {
+                        com.example.nissingeppolauncher.service.LyricsOverlayService.stop(context)
+                    }
                 },
                 onClose = { isLyricsBrowsing = false }
             )
