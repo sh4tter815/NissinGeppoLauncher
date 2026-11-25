@@ -1,5 +1,5 @@
 {
-  "version": 40,
+  "version": 46,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -899,39 +899,48 @@
       "choices": [
         {
           "v": "digital",
-          "label": "デジタル"
+          "label": "デジタル",
+          "illo": "disc_digital"
         },
         {
           "v": "vinyl",
-          "label": "レコード"
+          "label": "レコード",
+          "illo": "disc_vinyl"
         },
         {
           "v": "clear",
-          "label": "クリアレコード"
+          "label": "クリアレコード",
+          "illo": "disc_clear"
         },
         {
           "v": "cd",
-          "label": "CD"
+          "label": "CD",
+          "illo": "disc_cd"
         },
         {
           "v": "glow",
-          "label": "蓄光レコード"
+          "label": "蓄光レコード",
+          "illo": "disc_glow"
         },
         {
           "v": "md",
-          "label": "MD"
+          "label": "MD",
+          "illo": "disc_md"
         },
         {
           "v": "cassette_color",
-          "label": "カセット（色付き）"
+          "label": "カセット（色付き）",
+          "illo": "cassette_color"
         },
         {
           "v": "cassette_clear",
-          "label": "カセット（クリア）"
+          "label": "カセット（クリア）",
+          "illo": "cassette_clear"
         },
         {
           "v": "cassette_black",
-          "label": "カセット（ブラック）"
+          "label": "カセット（ブラック）",
+          "illo": "cassette_black"
         }
       ]
     },
@@ -1166,6 +1175,81 @@
           "label": "なし"
         }
       ]
+    },
+    "powerSaveCharging": {
+      "label": "充電中は省電力を解除",
+      "desc": "充電している間は省電力モードを一時的に解除します",
+      "glyph": "timer",
+      "type": "toggle",
+      "bind": "powerSaveChargingExempt"
+    },
+    "discOutline": {
+      "label": "左右の円の輪郭",
+      "desc": "設定やアプリ一覧などの左右の円の輪郭線です",
+      "glyph": "disc",
+      "type": "toggle",
+      "bind": "discOutline"
+    },
+    "dialOutline": {
+      "label": "ページダイヤルの輪郭",
+      "desc": "下部のページダイヤルの輪郭線です",
+      "glyph": "disc",
+      "type": "toggle",
+      "bind": "dialOutline"
+    },
+    "powerSaveBattery": {
+      "label": "電池残量で省電力",
+      "desc": "電池残量がこの割合以下になったら自動で省電力にします。0%でオフです",
+      "glyph": "timer",
+      "type": "slider",
+      "bind": "powerSaveBatteryThreshold",
+      "min": 0,
+      "max": 0.5,
+      "steps": 50,
+      "format": "pct"
+    },
+    "cacheInfo": {
+      "label": "キャッシュ容量",
+      "desc": "歌詞キャッシュと一時キャッシュの使用量です。タップで詳細と消去ができます",
+      "glyph": "database",
+      "type": "action",
+      "action": "cacheInfo"
+    },
+    "powerSaveNight": {
+      "label": "夜間は省電力",
+      "desc": "指定した時間帯は自動で省電力にします",
+      "glyph": "timer",
+      "type": "toggle",
+      "bind": "powerSaveNight"
+    },
+    "powerSaveNightStart": {
+      "label": "省電力の開始時刻",
+      "desc": "夜間省電力を始める時刻です",
+      "glyph": "timer",
+      "type": "slider",
+      "bind": "powerSaveNightStart",
+      "min": 0,
+      "max": 23,
+      "steps": 23,
+      "format": "hour"
+    },
+    "powerSaveNightEnd": {
+      "label": "省電力の終了時刻",
+      "desc": "夜間省電力を終える時刻です",
+      "glyph": "timer",
+      "type": "slider",
+      "bind": "powerSaveNightEnd",
+      "min": 0,
+      "max": 23,
+      "steps": 23,
+      "format": "hour"
+    },
+    "iconPack": {
+      "label": "アイコンパック",
+      "desc": "インストール済みアイコンパックのアイコンでアプリを表示します",
+      "glyph": "palette",
+      "type": "action",
+      "action": "iconPack"
     }
   },
   "tree": [
@@ -1300,6 +1384,12 @@
             },
             {
               "item": "notificationBadges"
+            },
+            {
+              "item": "discOutline"
+            },
+            {
+              "item": "dialOutline"
             }
           ]
         },
@@ -1507,6 +1597,9 @@
         },
         {
           "item": "usageAccess"
+        },
+        {
+          "item": "iconPack"
         }
       ]
     },
@@ -1536,6 +1629,21 @@
         },
         {
           "item": "powerSaveMode"
+        },
+        {
+          "item": "powerSaveCharging"
+        },
+        {
+          "item": "powerSaveBattery"
+        },
+        {
+          "item": "powerSaveNight"
+        },
+        {
+          "item": "powerSaveNightStart"
+        },
+        {
+          "item": "powerSaveNightEnd"
         }
       ]
     },
@@ -1561,6 +1669,9 @@
         },
         {
           "item": "settingsImport"
+        },
+        {
+          "item": "cacheInfo"
         }
       ]
     }

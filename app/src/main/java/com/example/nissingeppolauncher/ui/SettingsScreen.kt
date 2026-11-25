@@ -64,6 +64,8 @@ import com.example.nissingeppolauncher.data.AppRepository
 import com.example.nissingeppolauncher.service.LyricsOverlayService
 import com.example.nissingeppolauncher.ui.components.DiscEntry
 import com.example.nissingeppolauncher.ui.components.pressScale
+import com.example.nissingeppolauncher.data.IconPackManager
+import com.example.nissingeppolauncher.data.LyricsManager
 import com.example.nissingeppolauncher.data.SettingsTreeData
 import com.example.nissingeppolauncher.data.SettingItemDef
 import com.example.nissingeppolauncher.data.SettingNodeDef
@@ -364,6 +366,73 @@ fun ChoiceIllustration(kind: String, accentColor: Color, selected: Boolean) {
                 drawCircle(color = ink.copy(alpha = 0.35f), radius = w * 0.20f, center = Offset(w * 0.62f, h * 0.42f))
                 drawCircle(color = Color(0xFF9AA0A6).copy(alpha = 0.40f), radius = w * 0.20f, center = Offset(w * 0.50f, h * 0.63f))
             }
+            "disc_digital" -> {
+                drawCircle(color = accentColor, radius = w * 0.34f, center = Offset(w * 0.5f, h * 0.5f))
+                drawCircle(color = ink, radius = w * 0.05f, center = Offset(w * 0.5f, h * 0.5f))
+            }
+            "disc_vinyl" -> {
+                drawCircle(color = Color(0xFF0A0A0C), radius = w * 0.34f, center = Offset(w * 0.5f, h * 0.5f))
+                drawCircle(color = ink.copy(alpha = 0.28f), radius = w * 0.27f, center = Offset(w * 0.5f, h * 0.5f), style = Stroke(width = w * 0.03f))
+                drawCircle(color = ink.copy(alpha = 0.28f), radius = w * 0.21f, center = Offset(w * 0.5f, h * 0.5f), style = Stroke(width = w * 0.03f))
+                drawCircle(color = accentColor, radius = w * 0.13f, center = Offset(w * 0.5f, h * 0.5f))
+            }
+            "disc_clear" -> {
+                drawCircle(color = accentColor.copy(alpha = 0.45f), radius = w * 0.34f, center = Offset(w * 0.5f, h * 0.5f))
+                drawCircle(color = ink.copy(alpha = 0.35f), radius = w * 0.27f, center = Offset(w * 0.5f, h * 0.5f), style = Stroke(width = w * 0.03f))
+                drawCircle(color = ink.copy(alpha = 0.35f), radius = w * 0.21f, center = Offset(w * 0.5f, h * 0.5f), style = Stroke(width = w * 0.03f))
+                drawCircle(color = accentColor, radius = w * 0.13f, center = Offset(w * 0.5f, h * 0.5f))
+            }
+            "disc_cd" -> {
+                drawCircle(color = Color(0xFFD7DCE2), radius = w * 0.34f, center = Offset(w * 0.5f, h * 0.5f))
+                drawArc(color = Color(0xFFFF8A80).copy(alpha = 0.55f), startAngle = -30f, sweepAngle = 90f, useCenter = false, topLeft = Offset(w * 0.20f, h * 0.20f), size = Size(w * 0.60f, h * 0.60f), style = Stroke(width = w * 0.07f))
+                drawArc(color = Color(0xFF82B1FF).copy(alpha = 0.55f), startAngle = 80f, sweepAngle = 90f, useCenter = false, topLeft = Offset(w * 0.20f, h * 0.20f), size = Size(w * 0.60f, h * 0.60f), style = Stroke(width = w * 0.07f))
+                drawArc(color = Color(0xFFB9F6CA).copy(alpha = 0.55f), startAngle = 190f, sweepAngle = 90f, useCenter = false, topLeft = Offset(w * 0.20f, h * 0.20f), size = Size(w * 0.60f, h * 0.60f), style = Stroke(width = w * 0.07f))
+                drawCircle(color = Color(0xFF37474F), radius = w * 0.06f, center = Offset(w * 0.5f, h * 0.5f))
+            }
+            "disc_glow" -> {
+                drawCircle(color = Color(0xFF8FFFD6), radius = w * 0.34f, center = Offset(w * 0.5f, h * 0.5f))
+                drawCircle(color = Color(0xFF1B7A5A).copy(alpha = 0.35f), radius = w * 0.27f, center = Offset(w * 0.5f, h * 0.5f), style = Stroke(width = w * 0.03f))
+                drawCircle(color = Color(0xFF1B7A5A).copy(alpha = 0.35f), radius = w * 0.21f, center = Offset(w * 0.5f, h * 0.5f), style = Stroke(width = w * 0.03f))
+                drawCircle(color = ink, radius = w * 0.13f, center = Offset(w * 0.5f, h * 0.5f))
+            }
+            "disc_md" -> {
+                drawRoundRect(color = accentColor.copy(alpha = 0.55f), topLeft = Offset(w * 0.16f, h * 0.16f), size = Size(w * 0.68f, h * 0.68f), cornerRadius = CornerRadius(w * 0.07f, w * 0.07f))
+                drawCircle(color = Color(0xFFD7DCE2), radius = w * 0.16f, center = Offset(w * 0.41f, h * 0.44f))
+                drawCircle(color = Color(0xFF37474F), radius = w * 0.045f, center = Offset(w * 0.41f, h * 0.44f))
+                drawRoundRect(color = Color(0xFFC9CED4), topLeft = Offset(w * 0.56f, h * 0.34f), size = Size(w * 0.26f, h * 0.32f), cornerRadius = CornerRadius(w * 0.03f, w * 0.03f))
+                val triM = Path()
+                triM.moveTo(w * 0.44f, h * 0.20f)
+                triM.lineTo(w * 0.56f, h * 0.20f)
+                triM.lineTo(w * 0.50f, h * 0.28f)
+                triM.close()
+                drawPath(path = triM, color = ink.copy(alpha = 0.8f))
+            }
+            "cassette_color", "cassette_clear", "cassette_black" -> {
+                val shell = when (kind) {
+                    "cassette_color" -> accentColor.copy(alpha = 0.50f)
+                    "cassette_black" -> Color(0xFF26262D)
+                    else -> ink.copy(alpha = 0.30f)
+                }
+                drawRoundRect(color = shell, topLeft = Offset(w * 0.08f, h * 0.22f), size = Size(w * 0.84f, h * 0.56f), cornerRadius = CornerRadius(w * 0.05f, w * 0.05f))
+                drawRoundRect(color = Color(0xFFF2EDE3), topLeft = Offset(w * 0.13f, h * 0.27f), size = Size(w * 0.74f, h * 0.15f), cornerRadius = CornerRadius(w * 0.02f, w * 0.02f))
+                drawRoundRect(color = Color(0xFF101014).copy(alpha = 0.55f), topLeft = Offset(w * 0.20f, h * 0.46f), size = Size(w * 0.60f, h * 0.20f), cornerRadius = CornerRadius(w * 0.03f, w * 0.03f))
+                for (cx in listOf(0.36f, 0.64f)) {
+                    val c = Offset(w * cx, h * 0.56f)
+                    drawCircle(color = ink, radius = w * 0.075f, center = c)
+                    for (a in listOf(0.0, 60.0, 120.0)) {
+                        val rad = Math.toRadians(a)
+                        drawLine(color = Color(0xFF37474F), start = Offset(c.x - (Math.cos(rad) * w * 0.065f).toFloat(), c.y - (Math.sin(rad) * w * 0.065f).toFloat()), end = Offset(c.x + (Math.cos(rad) * w * 0.065f).toFloat(), c.y + (Math.sin(rad) * w * 0.065f).toFloat()), strokeWidth = w * 0.028f)
+                    }
+                    drawCircle(color = Color(0xFF37474F), radius = w * 0.022f, center = c)
+                }
+                val trap = Path()
+                trap.moveTo(w * 0.30f, h * 0.70f)
+                trap.lineTo(w * 0.70f, h * 0.70f)
+                trap.lineTo(w * 0.64f, h * 0.78f)
+                trap.lineTo(w * 0.36f, h * 0.78f)
+                trap.close()
+                drawPath(path = trap, color = ink.copy(alpha = 0.35f))
+            }
         }
     }
 }
@@ -619,6 +688,18 @@ fun SettingsScreen(
     var tonearmStyle by remember { mutableStateOf(repo.prefManager.getTonearmStyle()) }
     var cassetteStyle by remember { mutableStateOf(repo.prefManager.getCassetteStyle()) }
     var powerSaveMode by remember { mutableStateOf(repo.prefManager.getPowerSaveMode()) }
+    var cacheSizes by remember { mutableStateOf<Pair<Long, Long>?>(null) }
+    var iconPackPkg by remember { mutableStateOf(repo.prefManager.getIconPackPackage()) }
+    var showIconPackDialog by remember { mutableStateOf(false) }
+    var iconPackList by remember { mutableStateOf<List<IconPackManager.PackInfo>>(emptyList()) }
+    var showCacheDialog by remember { mutableStateOf(false) }
+    var powerSaveChargingExempt by remember { mutableStateOf(repo.prefManager.isPowerSaveChargingExempt()) }
+    var powerSaveBatteryThreshold by remember { mutableStateOf(repo.prefManager.getPowerSaveBatteryThreshold() / 100f) }
+    var powerSaveNight by remember { mutableStateOf(repo.prefManager.isPowerSaveNightEnabled()) }
+    var powerSaveNightStart by remember { mutableStateOf(repo.prefManager.getPowerSaveNightStart()) }
+    var powerSaveNightEnd by remember { mutableStateOf(repo.prefManager.getPowerSaveNightEnd()) }
+    var discOutline by remember { mutableStateOf(repo.prefManager.isDiscOutlineEnabled()) }
+    var dialOutline by remember { mutableStateOf(repo.prefManager.isDialOutlineEnabled()) }
     var discDropOnPv by remember { mutableStateOf(repo.prefManager.isDiscDropOnPvEnabled()) }
     var widgetLongPressAction by remember { mutableStateOf(repo.prefManager.getWidgetLongPressAction()) }
     var widgetTapAction by remember { mutableStateOf(repo.prefManager.getWidgetTapAction()) }
@@ -664,6 +745,18 @@ fun SettingsScreen(
         var pageSwitchStyle by remember { mutableStateOf(repo.prefManager.getPageSwitchStyle()) }
     var isUpdatingApps by remember { mutableStateOf(false) }
     val settingsScope = rememberCoroutineScope()
+    fun refreshCacheSizes() {
+        settingsScope.launch {
+            val sizes = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                val lyrics = LyricsManager.lyricsCacheSizeBytes(context)
+                val tmp = if (context.cacheDir.exists()) context.cacheDir.walkTopDown().filter { it.isFile }.sumOf { it.length() } else 0L
+                Pair(lyrics, tmp)
+            }
+            cacheSizes = sizes
+        }
+    }
+    LaunchedEffect(Unit) { refreshCacheSizes() }
+
 
     val switchColors = SwitchDefaults.colors(
         checkedThumbColor = currentAccentColor,
@@ -966,6 +1059,10 @@ fun SettingsScreen(
         "keepScreenOn" to Pair({ keepScreenOn }, { v: Boolean -> keepScreenOn = v; repo.prefManager.setKeepScreenOn(v); onChanged() }),
         "artworkEnabled" to Pair({ artworkVisible }, { v: Boolean -> artworkVisible = v; repo.prefManager.setArtworkEnabled(v); onChanged() }),
         "artworkOutline" to Pair({ artworkOutline }, { v: Boolean -> artworkOutline = v; repo.prefManager.setArtworkOutlineEnabled(v); onChanged() }),
+        "powerSaveChargingExempt" to Pair({ powerSaveChargingExempt }, { v: Boolean -> powerSaveChargingExempt = v; repo.prefManager.setPowerSaveChargingExempt(v); onChanged() }),
+        "powerSaveNight" to Pair({ powerSaveNight }, { v: Boolean -> powerSaveNight = v; repo.prefManager.setPowerSaveNightEnabled(v); onChanged() }),
+        "discOutline" to Pair({ discOutline }, { v: Boolean -> discOutline = v; repo.prefManager.setDiscOutlineEnabled(v); onChanged() }),
+        "dialOutline" to Pair({ dialOutline }, { v: Boolean -> dialOutline = v; repo.prefManager.setDialOutlineEnabled(v); onChanged() }),
         "curvedTitle" to Pair({ curvedTitle }, { v: Boolean -> curvedTitle = v; repo.prefManager.setCurvedTitleEnabled(v); onChanged() }),
         "tonearmEnabled" to Pair({ tonearmEnabled }, { v: Boolean -> tonearmEnabled = v; repo.prefManager.setTonearmEnabled(v); onChanged() }),
         "discDropOnPv" to Pair({ discDropOnPv }, { v: Boolean -> discDropOnPv = v; repo.prefManager.setDiscDropOnPvEnabled(v); onChanged() }),
@@ -1011,6 +1108,9 @@ fun SettingsScreen(
         "discInertia" to Pair({ discInertia }, { v: Float -> discInertia = v; repo.prefManager.setDiscInertia(v); onChanged() }),
         "pvFontScale" to Pair({ pvFontScale }, { v: Float -> pvFontScale = v; repo.prefManager.setPvFontScale(v); onChanged() }),
         "iconCorner" to Pair({ iconCornerRatio }, { v: Float -> iconCornerRatio = v; repo.prefManager.setIconCornerRatio(v); onChanged() }),
+        "powerSaveBatteryThreshold" to Pair({ powerSaveBatteryThreshold }, { v: Float -> powerSaveBatteryThreshold = v; repo.prefManager.setPowerSaveBatteryThreshold(v); onChanged() }),
+        "powerSaveNightStart" to Pair({ powerSaveNightStart }, { v: Float -> powerSaveNightStart = v; repo.prefManager.setPowerSaveNightStart(v); onChanged() }),
+        "powerSaveNightEnd" to Pair({ powerSaveNightEnd }, { v: Float -> powerSaveNightEnd = v; repo.prefManager.setPowerSaveNightEnd(v); onChanged() }),
         "pvTopOffset" to Pair({ pvTopOffset }, { v: Float -> pvTopOffset = v; repo.prefManager.setPvTopOffsetDp(v); onChanged() }),
         "liquidSpeed" to Pair({ liquidSpeed }, { v: Float -> liquidSpeed = v; repo.prefManager.setLiquidSpeed(v); onChanged() }),
         "liquidAlpha" to Pair({ liquidAlpha }, { v: Float -> liquidAlpha = v; repo.prefManager.setLiquidAlpha(v); onChanged() }),
@@ -1026,7 +1126,8 @@ fun SettingsScreen(
         "sp1" to { v: Float -> String.format(java.util.Locale.ROOT, "%.1f sp", v) },
         "deg" to { v: Float -> String.format(java.util.Locale.ROOT, "%.1f°", v) },
         "x" to { v: Float -> String.format(java.util.Locale.ROOT, "×%.1f", v) },
-        "pct" to { v: Float -> "${(v * 100).toInt()}%" }
+        "pct" to { v: Float -> "${(v * 100).toInt()}%" },
+        "hour" to { v: Float -> "${v.toInt()}時" }
     )
 
     val fontResolvers: Map<String, Pair<() -> FontFamily?, (String) -> FontFamily?>> = mapOf(
@@ -1121,6 +1222,25 @@ fun SettingsScreen(
                         }
                     }
                 }
+            )
+        },
+        "iconPack" to { def: SettingItemDef ->
+            SettingItem(
+                def.id, def.label, def.desc, def.glyph,
+                valueText = iconPackPkg?.let { pkg -> iconPackList.firstOrNull { it.packageName == pkg }?.label ?: pkg } ?: "なし",
+                onAction = {
+                    settingsScope.launch {
+                        iconPackList = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { IconPackManager.listPacks(context) }
+                        showIconPackDialog = true
+                    }
+                }
+            )
+        },
+        "cacheInfo" to { def: SettingItemDef ->
+            SettingItem(
+                def.id, def.label, def.desc, def.glyph,
+                valueText = cacheSizes?.let { formatBytes(it.first + it.second) } ?: "…",
+                onAction = { refreshCacheSizes(); showCacheDialog = true }
             )
         },
         "layoutEdit" to { def: SettingItemDef ->
@@ -1724,6 +1844,80 @@ key("disc-choices-${currentItem.id}") {
             }
         }
 
+        if (showIconPackDialog) {
+            AlertDialog(
+                onDismissRequest = { showIconPackDialog = false },
+                confirmButton = {
+                    TextButton(onClick = { showIconPackDialog = false }) {
+                        Text("閉じる", color = currentAccentColor, fontWeight = FontWeight.Bold)
+                    }
+                },
+                title = { Text("アイコンパック") },
+                text = {
+                    Column {
+                        Text("「なし」は通常のアイコンです。パックに無いアプリは通常のアイコンのままになります。", color = Color.LightGray, fontSize = 13.sp)
+                        Spacer(modifier = Modifier.height(10.dp))
+                        val options = listOf<Pair<String?, String>>(null to "なし") + iconPackList.map { it.packageName as String? to it.label }
+                        if (iconPackList.isEmpty()) {
+                            Text("対応するアイコンパックが見つかりませんでした", color = Color(0xFFEF5350), fontSize = 13.sp)
+                            Spacer(modifier = Modifier.height(6.dp))
+                        }
+                        options.forEach { (pkg, label) ->
+                            val selected = iconPackPkg == pkg
+                            Text(
+                                text = (if (selected) "● " else "○ ") + label,
+                                color = if (selected) currentAccentColor else Color.White,
+                                fontSize = 15.sp,
+                                modifier = Modifier.fillMaxWidth().clickable {
+                                    iconPackPkg = pkg
+                                    repo.prefManager.setIconPackPackage(pkg)
+                                    showIconPackDialog = false
+                                    settingsScope.launch {
+                                        repo.refreshAllIcons()
+                                        onAppsUpdated()
+                                        android.widget.Toast.makeText(context, "アイコンを更新しました", android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                }.padding(vertical = 8.dp)
+                            )
+                        }
+                    }
+                }
+            )
+        }
+
+        if (showCacheDialog) {
+            AlertDialog(
+                onDismissRequest = { showCacheDialog = false },
+                confirmButton = {
+                    TextButton(onClick = { showCacheDialog = false }) {
+                        Text("閉じる", color = currentAccentColor, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        settingsScope.launch {
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { LyricsManager.clearLyricsCache(context) }
+                            refreshCacheSizes()
+                            android.widget.Toast.makeText(context, "歌詞キャッシュを消去しました", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }) {
+                        Text("歌詞キャッシュを消去", color = Color(0xFFEF5350))
+                    }
+                },
+                title = { Text("キャッシュ容量") },
+                text = {
+                    Column {
+                        val cs = cacheSizes
+                        Text("歌詞キャッシュ: ${cs?.let { formatBytes(it.first) } ?: "…"}", color = Color.LightGray, fontSize = 14.sp)
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text("一時キャッシュ: ${cs?.let { formatBytes(it.second) } ?: "…"}", color = Color.LightGray, fontSize = 14.sp)
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text("合計: ${cs?.let { formatBytes(it.first + it.second) } ?: "…"}", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            )
+        }
+
         if (showPasscodeChangeDialog) {
             AlertDialog(
                 onDismissRequest = { showPasscodeChangeDialog = false },
@@ -1769,3 +1963,13 @@ key("disc-choices-${currentItem.id}") {
     }
 }
 
+
+fun formatBytes(bytes: Long): String {
+    if (bytes < 1024L) return "$bytes B"
+    val kb = bytes / 1024.0
+    if (kb < 1024.0) return String.format(java.util.Locale.ROOT, "%.1f KB", kb)
+    val mb = kb / 1024.0
+    if (mb < 1024.0) return String.format(java.util.Locale.ROOT, "%.1f MB", mb)
+    val gb = mb / 1024.0
+    return String.format(java.util.Locale.ROOT, "%.2f GB", gb)
+}

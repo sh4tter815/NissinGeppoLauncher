@@ -25,6 +25,7 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
+          cache: gradle
 
       # 2. Android SDKのセットアップ
       - name: Set up Android SDK
@@ -68,7 +69,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleDebug --build-cache
 
       # 5. GitHubの「Releases」に自動でデバッグAPKをアップロードする
       - name: Release Debug APK to GitHub

@@ -135,6 +135,7 @@ fun DiscCarousel(
     val context = LocalContext.current
     val prefManager = remember { AppPreferenceManager(context) }
     val isReverseScroll = prefManager.isReverseScroll()
+    val outlineEnabled = prefManager.isDiscOutlineEnabled()
     val discInertia = prefManager.getDiscInertia()
     val hapticsEnabled = prefManager.isHapticsEnabled()
 
@@ -375,7 +376,7 @@ fun DiscCarousel(
                     }
                 }
         ) {
-            if (showOutline) {
+            if (showOutline && outlineEnabled) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 drawCircle(
                     color = Color.White.copy(alpha = 0.85f),
