@@ -2074,7 +2074,7 @@ fun MainLauncherScreen() {
         )
 
                 // --- 画面下部 ページ切り替え (ボタン式 / ダイヤル式を設定で切替) ---
-        if (!isLyricsBrowsing && !pvFullscreen && dialVisibility != "hidden" && (dialVisibility == "always" || !vinylRackOpen) && (dialOut || dialAnim > 0.01f) && repo.prefManager.getPageSwitchStyle() == "dial") {
+        if (!isLyricsBrowsing && !pvFullscreen && dialVisibility != "hidden" && (dialVisibility == "always" || !vinylRackOpen) && (dialVisibility == "auto" || dialOut || dialAnim > 0.01f) && repo.prefManager.getPageSwitchStyle() == "dial") {
             PeekPageDial(
                 currentPage = currentLauncherPage,
                 onPageSelected = { targetPage ->
@@ -2086,9 +2086,19 @@ fun MainLauncherScreen() {
                     .align(Alignment.BottomCenter)
                     .padding(bottom = bottomPaddingDp + 4.dp)
                     .zIndex(250f)
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                val event = awaitPointerEvent(PointerEventPass.Initial)
+                                if (event.changes.any { it.pressed && !it.previousPressed }) {
+                                    dialRetracted = false
+                                    dialLastTouchMs = System.currentTimeMillis()
+                                }
+                            }
+                        }
+                    }
                     .graphicsLayer {
                         alpha = dialAnim
-                        translationY = (1f - dialAnim) * 30.dp.toPx()
                         if (disc3d) {
                             transformOrigin = TransformOrigin(0.5f, 0.5f)
                             rotationX = 27f + discTiltX.value
@@ -2097,7 +2107,7 @@ fun MainLauncherScreen() {
                         }
                     }
             )
-        } else if (!isLyricsBrowsing && !pvFullscreen && dialVisibility != "hidden" && (dialVisibility == "always" || !vinylRackOpen) && (dialOut || dialAnim > 0.01f)) {
+        } else if (!isLyricsBrowsing && !pvFullscreen && dialVisibility != "hidden" && (dialVisibility == "always" || !vinylRackOpen) && (dialVisibility == "auto" || dialOut || dialAnim > 0.01f)) {
             BottomPageDial(
                 currentPage = currentLauncherPage,
                 onPageSelected = { targetPage ->
@@ -2109,32 +2119,25 @@ fun MainLauncherScreen() {
                     .align(Alignment.BottomCenter)
                     .padding(bottom = bottomPaddingDp + 4.dp)
                     .zIndex(250f)
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                val event = awaitPointerEvent(PointerEventPass.Initial)
+                                if (event.changes.any { it.pressed && !it.previousPressed }) {
+                                    dialRetracted = false
+                                    dialLastTouchMs = System.currentTimeMillis()
+                                }
+                            }
+                        }
+                    }
                     .graphicsLayer {
                         alpha = dialAnim
-                        translationY = (1f - dialAnim) * 30.dp.toPx()
                         if (disc3d) {
                             transformOrigin = TransformOrigin(0.5f, 0.5f)
                             rotationX = 27f + discTiltX.value
                             rotationY = discTiltY.value
                             cameraDistance = 6.5f * density
                         }
-                    }
-            )
-        }
-
-        // 引っ込んでいる間の呼び出しゾーン: ダイヤルがあるはずの場所を長押しで出す
-        if (!isLyricsBrowsing && !pvFullscreen && dialVisibility == "auto" && dialRetracted && !vinylRackOpen) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = bottomPaddingDp + 4.dp)
-                    .size(220.dp, 64.dp)
-                    .zIndex(249f)
-                    .pointerInput(Unit) {
-                        detectTapGestures(onLongPress = {
-                            dialRetracted = false
-                            dialLastTouchMs = System.currentTimeMillis()
-                        })
                     }
             )
         }
