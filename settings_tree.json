@@ -1,5 +1,5 @@
 {
-  "version": 37,
+  "version": 38,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -1114,6 +1114,20 @@
           "label": "オフ"
         }
       ]
+    },
+    "artworkOutline": {
+      "label": "円の輪郭",
+      "desc": "左円の外周の白い輪郭線です",
+      "glyph": "disc",
+      "type": "toggle",
+      "bind": "artworkOutline"
+    },
+    "curvedTitle": {
+      "label": "カーブ曲名",
+      "desc": "円の周りにカーブして表示される曲名です",
+      "glyph": "text",
+      "type": "toggle",
+      "bind": "curvedTitle"
     }
   },
   "tree": [
@@ -1309,6 +1323,12 @@
           "children": [
             {
               "item": "artworkVisible"
+            },
+            {
+              "item": "artworkOutline"
+            },
+            {
+              "item": "curvedTitle"
             },
             {
               "id": "music_theme",

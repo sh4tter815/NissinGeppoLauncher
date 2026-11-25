@@ -613,6 +613,8 @@ fun SettingsScreen(
     var pageWallpapers by remember { mutableStateOf((0..3).map { repo.prefManager.getPageWallpaperPath(it) }) }
     var pendingWallpaperPage by remember { mutableIntStateOf(-1) }
     var artworkVisible by remember { mutableStateOf(repo.prefManager.isArtworkEnabled()) }
+    var artworkOutline by remember { mutableStateOf(repo.prefManager.isArtworkOutlineEnabled()) }
+    var curvedTitle by remember { mutableStateOf(repo.prefManager.isCurvedTitleEnabled()) }
     var tonearmEnabled by remember { mutableStateOf(repo.prefManager.isTonearmEnabled()) }
     var tonearmStyle by remember { mutableStateOf(repo.prefManager.getTonearmStyle()) }
     var cassetteStyle by remember { mutableStateOf(repo.prefManager.getCassetteStyle()) }
@@ -959,6 +961,8 @@ fun SettingsScreen(
         "dateWareki" to Pair({ dateWareki }, { v: Boolean -> dateWareki = v; repo.prefManager.setDateWareki(v); onChanged() }),
         "keepScreenOn" to Pair({ keepScreenOn }, { v: Boolean -> keepScreenOn = v; repo.prefManager.setKeepScreenOn(v); onChanged() }),
         "artworkEnabled" to Pair({ artworkVisible }, { v: Boolean -> artworkVisible = v; repo.prefManager.setArtworkEnabled(v); onChanged() }),
+        "artworkOutline" to Pair({ artworkOutline }, { v: Boolean -> artworkOutline = v; repo.prefManager.setArtworkOutlineEnabled(v); onChanged() }),
+        "curvedTitle" to Pair({ curvedTitle }, { v: Boolean -> curvedTitle = v; repo.prefManager.setCurvedTitleEnabled(v); onChanged() }),
         "tonearmEnabled" to Pair({ tonearmEnabled }, { v: Boolean -> tonearmEnabled = v; repo.prefManager.setTonearmEnabled(v); onChanged() }),
         "discDropOnPv" to Pair({ discDropOnPv }, { v: Boolean -> discDropOnPv = v; repo.prefManager.setDiscDropOnPvEnabled(v); onChanged() }),
         "notificationBadges" to Pair({ notificationBadges }, { v: Boolean -> notificationBadges = v; repo.prefManager.setNotificationBadgesEnabled(v); onChanged() }),

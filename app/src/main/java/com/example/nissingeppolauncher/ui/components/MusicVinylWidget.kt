@@ -270,6 +270,8 @@ fun MusicVinylWidget(
         else -> "次の曲"
     }
     val artworkEnabled = prefManager.isArtworkEnabled()
+    val artworkOutline = prefManager.isArtworkOutlineEnabled()
+    val curvedTitle = prefManager.isCurvedTitleEnabled()
     val tonearmEnabled = prefManager.isTonearmEnabled()
     val tonearmScale = tonearmScaleOverride ?: prefManager.getTonearmScale()
     val tonearmStylePref = prefManager.getTonearmStyle()
@@ -580,6 +582,7 @@ fun MusicVinylWidget(
                 .graphicsLayer { alpha = if (rackShow) 0f else 1f },
             contentAlignment = Alignment.Center
         ) {
+            if (artworkOutline) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val center = Offset(size.width / 2f, size.height / 2f)
                 val outerRadius = size.width / 2f
@@ -591,6 +594,7 @@ fun MusicVinylWidget(
                     center = center,
                     style = Stroke(width = 1.5f)
                 )
+            }
             }
 
             val discStyleNow = effectiveDiscStyle(prefManager)
@@ -616,7 +620,7 @@ fun MusicVinylWidget(
                     if (discStyleNow == "md") {
                         MdCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotation = currentRotation, bitmapImage = caseBitmapImage, lineArtImage = lineArtImage, title = trackTitle)
                     } else {
-                        CassetteCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotation = currentRotation, title = trackTitle, artist = trackArtist, shellStyle = cassetteShellOf(discStyleNow))
+                        CassetteCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotation = currentRotation, title = trackTitle, artist = trackArtist, shellStyle = cassetteShellOf(discStyleNow), lineArtImage = lineArtImage)
                     }
                 }
             } else {
@@ -823,6 +827,7 @@ fun MusicVinylWidget(
     Box(
         modifier = modifier.fillMaxSize().graphicsLayer { alpha = if (rackShow) 0f else 1f }
     ) {
+        if (curvedTitle) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val centerX = discCenterXDp.dp.toPx()
             val centerY = discCenterYDp.dp.toPx()
@@ -874,6 +879,7 @@ fun MusicVinylWidget(
             val centerPos = (35f - textStartAngle) / 180f * arcLen
             val hOff = (centerPos - textW / 2f).coerceIn(0f, maxOf(0f, arcLen - textW))
             drawContext.canvas.nativeCanvas.drawTextOnPath(displayInfo, textPath, hOff, 0f, paint)
+        }
         }
         // トーンアーム（レコード針）: 再生中は針が盤の右端に乗り、停止中は右へ離れる
         if (tonearmEnabled) {
@@ -1016,8 +1022,8 @@ private fun RackDiscLayer(
         ) {
             val art = artAt(targetIdx)
             val artImage = remember(art) { art?.asImageBitmap() }
-            val itemAccent = remember(art) { art?.let { rackAccentOf(it) } ?: effAccent }
-            val itemLineArt = remember(art) { art?.let { extractLineArtBitmap(it)?.asImageBitmap() } }
+            val itemAccent = art?.let { rackAccentCache.getOrPut(it) { rackAccentOf(it) } } ?: effAccent
+            val itemLineArt = art?.let { rackLineArtCache.getOrPut(it) { extractLineArtBitmap(it)?.asImageBitmap() } }
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val center = Offset(size.width / 2f, size.height / 2f)
                 val outlineColor = if (isFocused) itemAccent else Color.White.copy(alpha = 0.5f)
@@ -1056,7 +1062,8 @@ private fun RackDiscLayer(
                     rotation = 0f,
                     title = titleAt(targetIdx),
                     artist = "",
-                    shellStyle = cassetteShellOf(discStyle)
+                    shellStyle = cassetteShellOf(discStyle),
+                    lineArtImage = itemLineArt
                 )
                 else -> Box(
                     modifier = Modifier
@@ -1196,6 +1203,14 @@ private fun cassetteShellOf(style: String): String = when (style) {
     "cassette_color" -> "color"
     "cassette_black" -> "black"
     else -> "clear"
+}
+
+private val rackAccentCache = object : LinkedHashMap<Bitmap, Color>(32, 0.75f, true) {
+    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Bitmap, Color>): Boolean = size > 64
+}
+
+private val rackLineArtCache = object : LinkedHashMap<Bitmap, ImageBitmap?>(32, 0.75f, true) {
+    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Bitmap, ImageBitmap?>): Boolean = size > 64
 }
 
 private fun rackAccentOf(bitmap: Bitmap): Color {
@@ -1451,7 +1466,7 @@ private fun CassetteReel(reelSizeDp: Float, rotation: Float) {
 }
 
 @Composable
-private fun CassetteCase(boxSizeDp: Float, accentColor: Color, rotation: Float, title: String, artist: String, shellStyle: String = "clear") {
+private fun CassetteCase(boxSizeDp: Float, accentColor: Color, rotation: Float, title: String, artist: String, shellStyle: String = "clear", lineArtImage: ImageBitmap? = null) {
     val caseW = boxSizeDp
     val caseH = boxSizeDp * 0.64f
     val packR = caseH * 0.30f
@@ -1529,7 +1544,7 @@ private fun CassetteCase(boxSizeDp: Float, accentColor: Color, rotation: Float, 
         ) {
             Box(modifier = Modifier.fillMaxWidth().height(4.dp).background(accentColor))
             Column(
-                modifier = Modifier.align(Alignment.Center).padding(start = 10.dp, end = 10.dp),
+                modifier = Modifier.align(Alignment.Center).padding(start = 10.dp, end = if (lineArtImage != null) (caseH * 0.30f).dp else 10.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
@@ -1540,6 +1555,18 @@ private fun CassetteCase(boxSizeDp: Float, accentColor: Color, rotation: Float, 
                     maxLines = 1
                 )
                 Text(text = artist, color = Color(0xFF777777), fontSize = 10.sp, maxLines = 1)
+            }
+            if (lineArtImage != null) {
+                Image(
+                    bitmap = lineArtImage,
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(end = 26.dp, top = 4.dp)
+                        .fillMaxHeight(0.78f)
+                        .aspectRatio(1f)
+                )
             }
             Box(
                 modifier = Modifier
