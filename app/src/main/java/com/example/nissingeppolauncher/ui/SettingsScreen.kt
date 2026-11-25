@@ -616,6 +616,7 @@ fun SettingsScreen(
     var tonearmEnabled by remember { mutableStateOf(repo.prefManager.isTonearmEnabled()) }
     var tonearmStyle by remember { mutableStateOf(repo.prefManager.getTonearmStyle()) }
     var cassetteStyle by remember { mutableStateOf(repo.prefManager.getCassetteStyle()) }
+    var powerSaveMode by remember { mutableStateOf(repo.prefManager.getPowerSaveMode()) }
     var discDropOnPv by remember { mutableStateOf(repo.prefManager.isDiscDropOnPvEnabled()) }
     var widgetLongPressAction by remember { mutableStateOf(repo.prefManager.getWidgetLongPressAction()) }
     var widgetTapAction by remember { mutableStateOf(repo.prefManager.getWidgetTapAction()) }
@@ -988,6 +989,7 @@ fun SettingsScreen(
         "discStyle" to Pair({ discStyle }, { v: String -> discStyle = v; repo.prefManager.setDiscStyle(v); onChanged() }),
         "tonearmStyle" to Pair({ tonearmStyle }, { v: String -> tonearmStyle = v; repo.prefManager.setTonearmStyle(v); onChanged() }),
         "cassetteStyle" to Pair({ cassetteStyle }, { v: String -> cassetteStyle = v; repo.prefManager.setCassetteStyle(v); onChanged() }),
+        "powerSaveMode" to Pair({ powerSaveMode }, { v: String -> powerSaveMode = v; repo.prefManager.setPowerSaveMode(v); onChanged() }),
         "deckStyle" to Pair({ deckStyle }, { v: String -> deckStyle = v; repo.prefManager.setDeckStyle(v); onChanged() })
     )
 
