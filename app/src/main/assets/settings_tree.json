@@ -1,5 +1,5 @@
 {
-  "version": 36,
+  "version": 37,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -929,8 +929,16 @@
           "label": "MD"
         },
         {
-          "v": "cassette",
-          "label": "カセットテープ"
+          "v": "cassette_color",
+          "label": "カセット（色付き）"
+        },
+        {
+          "v": "cassette_clear",
+          "label": "カセット（クリア）"
+        },
+        {
+          "v": "cassette_black",
+          "label": "カセット（ブラック）"
         }
       ]
     },
@@ -1083,27 +1091,6 @@
         {
           "v": "head",
           "label": "再生ヘッド"
-        }
-      ]
-    },
-    "cassetteStyle": {
-      "label": "カセットの外観",
-      "desc": "カセットテープのケースの見た目です",
-      "glyph": "palette",
-      "type": "choices",
-      "bind": "cassetteStyle",
-      "choices": [
-        {
-          "v": "color",
-          "label": "色付き（アクセントカラー）"
-        },
-        {
-          "v": "clear",
-          "label": "クリア（無色）"
-        },
-        {
-          "v": "black",
-          "label": "ブラック"
         }
       ]
     },
@@ -1336,9 +1323,6 @@
                 },
                 {
                   "item": "tonearmStyle"
-                },
-                {
-                  "item": "cassetteStyle"
                 }
               ]
             },

@@ -273,11 +273,11 @@ fun MusicVinylWidget(
     val tonearmEnabled = prefManager.isTonearmEnabled()
     val tonearmScale = tonearmScaleOverride ?: prefManager.getTonearmScale()
     val tonearmStylePref = prefManager.getTonearmStyle()
-    val tonearmStyle = if (tonearmStylePref != "auto") tonearmStylePref else when (prefManager.getDiscStyle()) {
+    val tonearmStyle = if (tonearmStylePref != "auto") tonearmStylePref else when (effectiveDiscStyle(prefManager)) {
         "clear" -> "acrylic"
         "glow" -> "glow"
         "cd", "md" -> "laser"
-        "cassette" -> "head"
+        "cassette_color", "cassette_clear", "cassette_black" -> "head"
         else -> "classic"
     }
     val tonearmAngle by animateFloatAsState(
@@ -593,9 +593,9 @@ fun MusicVinylWidget(
                 )
             }
 
-            val discStyleNow = prefManager.getDiscStyle()
+            val discStyleNow = effectiveDiscStyle(prefManager)
             // 薄い立体感: アートワークの下に暗い円を少しずらして敷き、盤の厚みとして見せる（ケース表示時は背景にしない）
-            if (artworkTilt3d && artworkEnabled && albumArtBitmap != null && discStyleNow != "md" && discStyleNow != "cassette" && discStyleNow != "clear") {
+            if (artworkTilt3d && artworkEnabled && albumArtBitmap != null && discStyleNow != "md" && !isCassetteStyle(discStyleNow) && discStyleNow != "clear") {
                 Box(
                     modifier = Modifier
                         .size((discRadiusDp * 2f * 0.92f).dp)
@@ -605,7 +605,7 @@ fun MusicVinylWidget(
             }
 
             // 大サイズ（円サイズの92%）の回転するアートワーク / レーベル部分
-            if (discStyleNow == "md" || discStyleNow == "cassette") {
+            if (discStyleNow == "md" || isCassetteStyle(discStyleNow)) {
                 val caseBitmap = if (artworkEnabled) albumArtBitmap else null
                 val caseBitmapImage = remember(caseBitmap) { caseBitmap?.asImageBitmap() }
                 val lineArtImage = remember(caseBitmap) { extractLineArtBitmap(caseBitmap)?.asImageBitmap() }
@@ -616,7 +616,7 @@ fun MusicVinylWidget(
                     if (discStyleNow == "md") {
                         MdCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotation = currentRotation, bitmapImage = caseBitmapImage, lineArtImage = lineArtImage, title = trackTitle)
                     } else {
-                        CassetteCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotation = currentRotation, title = trackTitle, artist = trackArtist, shellStyle = prefManager.getCassetteStyle())
+                        CassetteCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotation = currentRotation, title = trackTitle, artist = trackArtist, shellStyle = cassetteShellOf(discStyleNow))
                     }
                 }
             } else {
@@ -633,7 +633,7 @@ fun MusicVinylWidget(
             ) {
                 val bitmap = if (artworkEnabled) albumArtBitmap else null
                 val bitmapImage = remember(bitmap) { bitmap?.asImageBitmap() }
-                when (prefManager.getDiscStyle()) {
+                when (discStyleNow) {
                     "vinyl" -> {
                         // レコード盤: 黒い盤面に溝、中央のレーベルがアートワーク
                         Canvas(Modifier.fillMaxSize()) {
@@ -774,8 +774,7 @@ fun MusicVinylWidget(
             discCenterYDp = discCenterYDp,
             discRadiusDp = discRadiusDp,
             effAccent = effAccent,
-            discStyle = prefManager.getDiscStyle(),
-            cassetteStyle = prefManager.getCassetteStyle(),
+            discStyle = effectiveDiscStyle(prefManager),
             rackTiltXState = rackTiltXState,
             haptic = haptic,
             artAt = { rackArtAt(it) },
@@ -974,7 +973,6 @@ private fun RackDiscLayer(
     discRadiusDp: Float,
     effAccent: Color,
     discStyle: String,
-    cassetteStyle: String,
     rackTiltXState: State<Float>,
     haptic: HapticFeedback,
     artAt: (Int) -> Bitmap?,
@@ -1013,7 +1011,7 @@ private fun RackDiscLayer(
                     cameraDistance = 12f * density
                     alpha = (1f - (abs(relPos) - 4.2f) / 2f).coerceIn(0f, 1f)
                 }
-                .then(if (discStyle == "md" || discStyle == "cassette") Modifier else Modifier.clip(CircleShape)),
+                .then(if (discStyle == "md" || isCassetteStyle(discStyle)) Modifier else Modifier.clip(CircleShape)),
             contentAlignment = Alignment.Center
         ) {
             val art = artAt(targetIdx)
@@ -1024,7 +1022,7 @@ private fun RackDiscLayer(
                 val center = Offset(size.width / 2f, size.height / 2f)
                 val outlineColor = if (isFocused) itemAccent else Color.White.copy(alpha = 0.5f)
                 val outlineWidth = if (isFocused) 3f else 1.5f
-                if (discStyle == "md" || discStyle == "cassette") {
+                if (discStyle == "md" || isCassetteStyle(discStyle)) {
                     val caseW = size.width * 0.92f
                     val caseH = caseW * (if (discStyle == "md") 0.94f else 0.64f)
                     drawRoundRect(
@@ -1052,13 +1050,13 @@ private fun RackDiscLayer(
                     lineArtImage = itemLineArt,
                     title = ""
                 )
-                "cassette" -> CassetteCase(
+                "cassette_color", "cassette_clear", "cassette_black" -> CassetteCase(
                     boxSizeDp = discRadiusDp * 2f * 0.92f,
                     accentColor = itemAccent,
                     rotation = 0f,
                     title = titleAt(targetIdx),
                     artist = "",
-                    shellStyle = cassetteStyle
+                    shellStyle = cassetteShellOf(discStyle)
                 )
                 else -> Box(
                     modifier = Modifier
@@ -1180,6 +1178,24 @@ private fun vividColorOf(c: Color): Color {
     hsv[1] = 1f
     hsv[2] = 1f
     return Color(android.graphics.Color.HSVToColor(hsv))
+}
+
+private fun effectiveDiscStyle(prefManager: AppPreferenceManager): String {
+    val raw = prefManager.getDiscStyle()
+    if (raw != "cassette") return raw
+    return when (prefManager.getCassetteStyle()) {
+        "color" -> "cassette_color"
+        "black" -> "cassette_black"
+        else -> "cassette_clear"
+    }
+}
+
+private fun isCassetteStyle(style: String): Boolean = style == "cassette" || style.startsWith("cassette_")
+
+private fun cassetteShellOf(style: String): String = when (style) {
+    "cassette_color" -> "color"
+    "cassette_black" -> "black"
+    else -> "clear"
 }
 
 private fun rackAccentOf(bitmap: Bitmap): Color {
