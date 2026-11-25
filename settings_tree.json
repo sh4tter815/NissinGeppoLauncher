@@ -1,5 +1,5 @@
 {
-  "version": 53,
+  "version": 54,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -1280,6 +1280,38 @@
       "glyph": "chevrons-up-down",
       "type": "action",
       "action": "favoriteFolderSort"
+    },
+    "nightWallpaper": {
+      "label": "夜用壁紙に切り替え",
+      "desc": "省電力の夜間スケジュールの時間帯は夜用壁紙になります",
+      "glyph": "clock",
+      "type": "toggle",
+      "bind": "nightWallpaperEnabled"
+    },
+    "wallpaperNightPick": {
+      "label": "夜用壁紙を選択",
+      "desc": "夜間に表示する壁紙画像を選びます",
+      "glyph": "image",
+      "type": "action",
+      "action": "wallpaperNightPick"
+    },
+    "wallpaperNightClear": {
+      "label": "夜用壁紙を消去",
+      "desc": "夜用壁紙の設定を消します",
+      "glyph": "trash",
+      "type": "action",
+      "action": "wallpaperNightClear"
+    },
+    "cacheLimit": {
+      "label": "歌詞キャッシュの上限",
+      "desc": "超えた分は古い順に自動で消えます。0は無制限です",
+      "glyph": "database",
+      "type": "slider",
+      "bind": "lyricsCacheLimit",
+      "min": 0,
+      "max": 2000,
+      "steps": 39,
+      "format": "mb"
     }
   },
   "tree": [
@@ -1326,6 +1358,15 @@
                   "item": "wallpaperClearPages"
                 }
               ]
+            },
+            {
+              "item": "nightWallpaper"
+            },
+            {
+              "item": "wallpaperNightPick"
+            },
+            {
+              "item": "wallpaperNightClear"
             }
           ]
         },
@@ -1813,6 +1854,9 @@
         },
         {
           "item": "cacheInfo"
+        },
+        {
+          "item": "cacheLimit"
         }
       ]
     }

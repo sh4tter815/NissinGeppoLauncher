@@ -718,6 +718,9 @@ fun SettingsScreen(
     var pageTransitionSpeed by remember { mutableFloatStateOf(repo.prefManager.getPageTransitionSpeed()) }
     var wallpaperBlur by remember { mutableFloatStateOf(repo.prefManager.getWallpaperBlurDp()) }
     var pageWallpapers by remember { mutableStateOf((0..3).map { repo.prefManager.getPageWallpaperPath(it) }) }
+    var nightWallpaperPath by remember { mutableStateOf(repo.prefManager.getNightWallpaperPath()) }
+    var nightWallpaperEnabled by remember { mutableStateOf(repo.prefManager.isNightWallpaperEnabled()) }
+    var lyricsCacheLimitMb by remember { mutableStateOf(repo.prefManager.getLyricsCacheLimitMb()) }
     var pendingWallpaperPage by remember { mutableIntStateOf(-1) }
     var artworkVisible by remember { mutableStateOf(repo.prefManager.isArtworkEnabled()) }
     var artworkOutline by remember { mutableStateOf(repo.prefManager.isArtworkOutlineEnabled()) }
@@ -968,6 +971,46 @@ fun SettingsScreen(
         pendingWallpaperPage = -1
     }
 
+    // 夜用壁紙ピッカー（共通ピッカーと同じ手順で、保存先だけ夜用に分ける）
+    val nightImagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    BitmapFactory.decodeStream(inputStream, null, options)
+                    var sampleSize = 1
+                    val maxDimension = 1920
+                    while (options.outWidth / sampleSize > maxDimension || options.outHeight / sampleSize > maxDimension) {
+                        sampleSize *= 2
+                    }
+                    val decodeOptions = BitmapFactory.Options().apply {
+                        inSampleSize = sampleSize
+                        inPreferredConfig = Bitmap.Config.ARGB_8888
+                    }
+                    context.contentResolver.openInputStream(uri)?.use { stream2 ->
+                        val bitmap = BitmapFactory.decodeStream(stream2, null, decodeOptions)
+                        if (bitmap != null) {
+                            val destFile = File(context.filesDir, "custom_bg_night.png")
+                            FileOutputStream(destFile).use { out ->
+                                bitmap.compress(Bitmap.CompressFormat.PNG, 90, out)
+                            }
+                            bitmap.recycle()
+                            val path = destFile.absolutePath
+                            repo.prefManager.setNightWallpaperPath(path)
+                            nightWallpaperPath = path
+                            onChanged()
+                            Toast.makeText(context, "夜用壁紙を変更しました", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            } catch (_: Exception) {
+                Toast.makeText(context, "壁紙の読み込みに失敗しました", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     // 設定バックアップ: 書き出し（作成先を選ぶ）と読み込み（ファイルを選ぶ）
     val settingsExportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
@@ -1102,6 +1145,7 @@ fun SettingsScreen(
         "artworkOutline" to Pair({ artworkOutline }, { v: Boolean -> artworkOutline = v; repo.prefManager.setArtworkOutlineEnabled(v); onChanged() }),
         "powerSaveChargingExempt" to Pair({ powerSaveChargingExempt }, { v: Boolean -> powerSaveChargingExempt = v; repo.prefManager.setPowerSaveChargingExempt(v); onChanged() }),
         "powerSaveNight" to Pair({ powerSaveNight }, { v: Boolean -> powerSaveNight = v; repo.prefManager.setPowerSaveNightEnabled(v); onChanged() }),
+        "nightWallpaperEnabled" to Pair({ nightWallpaperEnabled }, { v: Boolean -> nightWallpaperEnabled = v; repo.prefManager.setNightWallpaperEnabled(v); onChanged() }),
         "discOutline" to Pair({ discOutline }, { v: Boolean -> discOutline = v; repo.prefManager.setDiscOutlineEnabled(v); onChanged() }),
         "appIconHidden" to Pair({ appIconHidden }, { v: Boolean -> appIconHidden = v; repo.prefManager.setAppIconHidden(v); onChanged() }),
         "dialOutline" to Pair({ dialOutline }, { v: Boolean -> dialOutline = v; repo.prefManager.setDialOutlineEnabled(v); onChanged() }),
@@ -1158,7 +1202,8 @@ fun SettingsScreen(
         "liquidAlpha" to Pair({ liquidAlpha }, { v: Float -> liquidAlpha = v; repo.prefManager.setLiquidAlpha(v); onChanged() }),
         "statusBarWidth" to Pair({ statusBarWidth }, { v: Float -> statusBarWidth = v; repo.prefManager.setStatusBarWidthFactor(v); if (statusBarMode != "off" && Settings.canDrawOverlays(context)) { LyricsOverlayService.stop(context); LyricsOverlayService.start(context) }; onChanged() }),
         "pageTransitionSpeed" to Pair({ pageTransitionSpeed }, { v: Float -> pageTransitionSpeed = v; repo.prefManager.setPageTransitionSpeed(v); onChanged() }),
-        "wallpaperBlur" to Pair({ wallpaperBlur }, { v: Float -> wallpaperBlur = v; repo.prefManager.setWallpaperBlurDp(v); onChanged() })
+        "wallpaperBlur" to Pair({ wallpaperBlur }, { v: Float -> wallpaperBlur = v; repo.prefManager.setWallpaperBlurDp(v); onChanged() }),
+        "lyricsCacheLimit" to Pair({ lyricsCacheLimitMb }, { v: Float -> lyricsCacheLimitMb = v; repo.prefManager.setLyricsCacheLimitMb(v); onChanged() })
     )
 
     val sliderFormats: Map<String, (Float) -> String> = mapOf(
@@ -1169,7 +1214,8 @@ fun SettingsScreen(
         "deg" to { v: Float -> String.format(java.util.Locale.ROOT, "%.1f°", v) },
         "x" to { v: Float -> String.format(java.util.Locale.ROOT, "×%.1f", v) },
         "pct" to { v: Float -> "${(v * 100).toInt()}%" },
-        "hour" to { v: Float -> "${v.toInt()}時" }
+        "hour" to { v: Float -> "${v.toInt()}時" },
+        "mb" to { v: Float -> if (v <= 0f) "無制限" else "${v.toInt()} MB" }
     )
 
     val fontResolvers: Map<String, Pair<() -> FontFamily?, (String) -> FontFamily?>> = mapOf(
@@ -1235,6 +1281,23 @@ fun SettingsScreen(
                 onAction = {
                     (0..3).forEach { repo.prefManager.setPageWallpaperPath(it, null) }
                     pageWallpapers = (0..3).map { null }
+                    onChanged()
+                }
+            )
+        },
+        "wallpaperNightPick" to { def: SettingItemDef ->
+            SettingItem(
+                def.id, def.label, def.desc, def.glyph,
+                valueText = if (nightWallpaperPath != null) "設定済み" else "未設定",
+                onAction = { nightImagePickerLauncher.launch("image/*") }
+            )
+        },
+        "wallpaperNightClear" to { def: SettingItemDef ->
+            SettingItem(
+                def.id, def.label, def.desc, def.glyph, valueText = "",
+                onAction = {
+                    repo.prefManager.setNightWallpaperPath(null)
+                    nightWallpaperPath = null
                     onChanged()
                 }
             )

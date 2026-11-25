@@ -296,6 +296,23 @@ object LyricsManager {
         if (dir.exists()) dir.deleteRecursively()
     }
 
+    /** 上限（MB、0=無制限）を超えていたら古い順に歌詞キャッシュを消す */
+    fun enforceLyricsCacheLimit(context: Context) {
+        val limitMb = AppPreferenceManager(context).getLyricsCacheLimitMb()
+        if (limitMb <= 0f) return
+        val dir = File(context.filesDir, "lyrics")
+        if (!dir.exists()) return
+        val limitBytes = (limitMb * 1024 * 1024).toLong()
+        val files = dir.walkTopDown().filter { it.isFile }.toList()
+        var total = files.sumOf { it.length() }
+        if (total <= limitBytes) return
+        for (f in files.sortedBy { it.lastModified() }) {
+            if (total <= limitBytes) break
+            val len = f.length()
+            if (f.delete()) total -= len
+        }
+    }
+
     private fun cacheFile(context: Context, title: String, artist: String, album: String): File {
         val dir = File(context.filesDir, "lyrics")
         if (!dir.exists()) dir.mkdirs()

@@ -441,6 +441,12 @@ class AppPreferenceManager(private val context: Context) {
     fun setWallpaperBlurDp(v: Float) = prefs.edit().putFloat("wallpaper_blur", v).apply()
     // ページごとの壁紙（未設定のページは共通の壁紙にフォールバック）
     fun getPageWallpaperPath(page: Int): String? = prefs.getString("wallpaper_path_page_$page", null)
+    fun getNightWallpaperPath(): String? = prefs.getString("wallpaper_path_night", null)
+    fun setNightWallpaperPath(path: String?) = prefs.edit().putString("wallpaper_path_night", path).apply()
+    fun isNightWallpaperEnabled(): Boolean = prefs.getBoolean("wallpaper_night_enabled", false)
+    fun setNightWallpaperEnabled(v: Boolean) = prefs.edit().putBoolean("wallpaper_night_enabled", v).apply()
+    fun getLyricsCacheLimitMb(): Float = prefs.getFloat("lyrics_cache_limit_mb", 0f)
+    fun setLyricsCacheLimitMb(v: Float) = prefs.edit().putFloat("lyrics_cache_limit_mb", v).apply()
     fun setPageWallpaperPath(page: Int, path: String?) = prefs.edit().putString("wallpaper_path_page_$page", path).apply()
 
     // インデックスに英語（A〜Z）を含めるか

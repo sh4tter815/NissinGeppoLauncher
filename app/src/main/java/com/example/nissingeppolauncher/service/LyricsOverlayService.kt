@@ -281,6 +281,7 @@ class LyricsOverlayService : Service() {
         clockView = clock
         lyricView = lyric
         overlayRoot = root
+        root.setOnClickListener { openPlayingApp() }
 
         root.setOnApplyWindowInsetsListener { _, insets ->
             statusBarVisible = insets.isVisible(WindowInsets.Type.statusBars())
@@ -293,7 +294,6 @@ class LyricsOverlayService : Service() {
             statusBarHeight,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT
@@ -339,6 +339,7 @@ class LyricsOverlayService : Service() {
             setContent { StatusBarPvContent() }
         }
         overlayRoot = composeView
+        composeView.setOnClickListener { openPlayingApp() }
         clockView = null
         lyricView = null
         composeView.setOnApplyWindowInsetsListener { _, insets ->
@@ -351,7 +352,6 @@ class LyricsOverlayService : Service() {
             statusBarHeight,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT
@@ -792,14 +792,22 @@ class LyricsOverlayService : Service() {
         }
     }
 
+    /** ステータスバー歌詞のタップで、再生中アプリを開く */
+    private fun openPlayingApp() {
+        try {
+            val pkg = activeController()?.packageName ?: return
+            if (pkg == packageName) return
+            val intent = packageManager.getLaunchIntentForPackage(pkg) ?: return
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+        } catch (e: Exception) {
+        }
+    }
+
     private fun startSessionLoops() {
         // 曲情報のポーリング（変わったら歌詞を取り直す）
         serviceScope.launch {
             while (true) {
-                if (!(getSystemService(Context.POWER_SERVICE) as PowerManager).isInteractive) {
-                    delay(5000)
-                    continue
-                }
                 try {
                     val metadata = activeController()?.metadata
                     val title = metadata?.getString(MediaMetadata.METADATA_KEY_TITLE) ?: ""
@@ -841,10 +849,6 @@ class LyricsOverlayService : Service() {
         // 再生位置のポーリング（現在の行を割り出す）
         serviceScope.launch {
             while (true) {
-                if (!(getSystemService(Context.POWER_SERVICE) as PowerManager).isInteractive) {
-                    delay(3000)
-                    continue
-                }
                 try {
                     lastHeartbeatMs = SystemClock.elapsedRealtime()
                     // ステータスバーの表示状態をポーリングでも確認する（インセット通知の保険）
