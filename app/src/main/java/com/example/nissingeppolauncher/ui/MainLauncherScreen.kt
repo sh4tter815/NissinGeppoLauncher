@@ -948,7 +948,7 @@ fun MainLauncherScreen() {
     }
     val indexDiscState = key(indexItems.size) { rememberDiscCarouselState(initialIndex = 0, stepAngle = 360f / indexItems.size) }
     val indexEntries = remember(indexItems) { indexItems.map { DiscEntry(id = it, label = it, icon = {}) } }
-    var indexSelected by remember { mutableIntStateOf(0) }
+    var indexSelected by remember { mutableIntStateOf(repo.prefManager.getAppListIndexChar()?.let { c -> indexItems.indexOf(c) }?.takeIf { it >= 0 } ?: 0) }
     fun snapDiscTo(state: DiscCarouselState, angle: Float) {
         state.rawRotation = angle
         coroutineScope.launch { state.rotationAnim.snapTo(angle) }
@@ -1100,6 +1100,9 @@ fun MainLauncherScreen() {
     )
 
     val selectedIndexChar = if (indexSelected in indexItems.indices) indexItems[indexSelected] else null
+    LaunchedEffect(selectedIndexChar) {
+        selectedIndexChar?.let { repo.prefManager.saveAppListIndexChar(it) }
+    }
 
     val onAppClick: (String) -> Unit = { packageName ->
         coroutineScope.launch {
