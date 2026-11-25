@@ -616,7 +616,7 @@ fun MusicVinylWidget(
                     if (discStyleNow == "md") {
                         MdCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotation = currentRotation, bitmapImage = caseBitmapImage, lineArtImage = lineArtImage, title = trackTitle)
                     } else {
-                        CassetteCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotation = currentRotation, title = trackTitle, artist = trackArtist)
+                        CassetteCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotation = currentRotation, title = trackTitle, artist = trackArtist, shellStyle = prefManager.getCassetteStyle())
                     }
                 }
             } else {
@@ -775,6 +775,7 @@ fun MusicVinylWidget(
             discRadiusDp = discRadiusDp,
             effAccent = effAccent,
             discStyle = prefManager.getDiscStyle(),
+            cassetteStyle = prefManager.getCassetteStyle(),
             rackTiltXState = rackTiltXState,
             haptic = haptic,
             artAt = { rackArtAt(it) },
@@ -973,6 +974,7 @@ private fun RackDiscLayer(
     discRadiusDp: Float,
     effAccent: Color,
     discStyle: String,
+    cassetteStyle: String,
     rackTiltXState: State<Float>,
     haptic: HapticFeedback,
     artAt: (Int) -> Bitmap?,
@@ -1053,7 +1055,8 @@ private fun RackDiscLayer(
                     accentColor = effAccent,
                     rotation = 0f,
                     title = titleAt(targetIdx),
-                    artist = ""
+                    artist = "",
+                    shellStyle = cassetteStyle
                 )
                 else -> Box(
                     modifier = Modifier
@@ -1357,17 +1360,40 @@ private fun CassetteReel(reelSizeDp: Float, rotation: Float) {
 }
 
 @Composable
-private fun CassetteCase(boxSizeDp: Float, accentColor: Color, rotation: Float, title: String, artist: String) {
+private fun CassetteCase(boxSizeDp: Float, accentColor: Color, rotation: Float, title: String, artist: String, shellStyle: String = "clear") {
     val caseW = boxSizeDp
     val caseH = boxSizeDp * 0.64f
     val packR = caseH * 0.30f
+    val shellBrush = when (shellStyle) {
+        "color" -> Brush.verticalGradient(listOf(accentColor.copy(alpha = 0.45f), accentColor.copy(alpha = 0.28f)))
+        "black" -> Brush.verticalGradient(listOf(Color(0xFF26262D).copy(alpha = 0.96f), Color(0xFF101014).copy(alpha = 0.96f)))
+        else -> Brush.verticalGradient(listOf(Color(0xFFD8DCE2).copy(alpha = 0.30f), Color(0xFF9AA0A8).copy(alpha = 0.20f)))
+    }
+    val shellBorder = when (shellStyle) {
+        "color" -> accentColor.copy(alpha = 0.65f)
+        "black" -> Color(0xFF45454F)
+        else -> Color.White.copy(alpha = 0.40f)
+    }
+    val tapeColor = if (shellStyle == "black") Color(0xFF4A3421) else Color(0xFF241A12)
+    val tapeRing = if (shellStyle == "black") Color(0xFF6B4E2E) else Color(0xFF3A2A1A)
     Box(
         modifier = Modifier
             .size(caseW.dp, caseH.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(Brush.verticalGradient(listOf(Color(0xFFD8DCE2).copy(alpha = 0.30f), Color(0xFF9AA0A8).copy(alpha = 0.20f))))
-            .border(1.dp, Color.White.copy(alpha = 0.40f), RoundedCornerShape(12.dp))
+            .background(shellBrush)
+            .border(1.dp, shellBorder, RoundedCornerShape(12.dp))
     ) {
+        if (shellStyle == "black") {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .offset(y = (caseH * 0.02f).dp)
+                    .size((caseW * 0.66f).dp, (caseH * 0.56f).dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color.White.copy(alpha = 0.07f))
+                    .border(1.dp, Color.White.copy(alpha = 0.20f), RoundedCornerShape(8.dp))
+            )
+        }
         // テープの帯と巻き（左右で量が違う）
         Canvas(
             modifier = Modifier
@@ -1378,11 +1404,11 @@ private fun CassetteCase(boxSizeDp: Float, accentColor: Color, rotation: Float, 
             val lx = size.width * 0.26f
             val rx = size.width * 0.74f
             val pr = packR.dp.toPx()
-            drawRect(Color(0xFF241A12), Offset(lx, cy - pr * 0.30f), androidx.compose.ui.geometry.Size(rx - lx, pr * 0.60f))
-            drawCircle(Color(0xFF241A12), radius = pr * 0.62f, center = Offset(lx, cy))
-            drawCircle(Color(0xFF241A12), radius = pr, center = Offset(rx, cy))
-            drawCircle(Color(0xFF3A2A1A), radius = pr * 0.56f, center = Offset(lx, cy), style = Stroke(width = 2f))
-            drawCircle(Color(0xFF3A2A1A), radius = pr * 0.94f, center = Offset(rx, cy), style = Stroke(width = 2f))
+            drawRect(tapeColor, Offset(lx, cy - pr * 0.30f), androidx.compose.ui.geometry.Size(rx - lx, pr * 0.60f))
+            drawCircle(tapeColor, radius = pr * 0.62f, center = Offset(lx, cy))
+            drawCircle(tapeColor, radius = pr, center = Offset(rx, cy))
+            drawCircle(tapeRing, radius = pr * 0.56f, center = Offset(lx, cy), style = Stroke(width = 2f))
+            drawCircle(tapeRing, radius = pr * 0.94f, center = Offset(rx, cy), style = Stroke(width = 2f))
         }
         // リール
         Box(

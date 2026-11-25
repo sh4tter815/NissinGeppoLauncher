@@ -615,6 +615,7 @@ fun SettingsScreen(
     var artworkVisible by remember { mutableStateOf(repo.prefManager.isArtworkEnabled()) }
     var tonearmEnabled by remember { mutableStateOf(repo.prefManager.isTonearmEnabled()) }
     var tonearmStyle by remember { mutableStateOf(repo.prefManager.getTonearmStyle()) }
+    var cassetteStyle by remember { mutableStateOf(repo.prefManager.getCassetteStyle()) }
     var discDropOnPv by remember { mutableStateOf(repo.prefManager.isDiscDropOnPvEnabled()) }
     var widgetLongPressAction by remember { mutableStateOf(repo.prefManager.getWidgetLongPressAction()) }
     var widgetTapAction by remember { mutableStateOf(repo.prefManager.getWidgetTapAction()) }
@@ -986,6 +987,7 @@ fun SettingsScreen(
         "widgetTripleTapAction" to Pair({ widgetTripleTapAction }, { v: String -> widgetTripleTapAction = v; repo.prefManager.setWidgetTripleTapAction(v); onChanged() }),
         "discStyle" to Pair({ discStyle }, { v: String -> discStyle = v; repo.prefManager.setDiscStyle(v); onChanged() }),
         "tonearmStyle" to Pair({ tonearmStyle }, { v: String -> tonearmStyle = v; repo.prefManager.setTonearmStyle(v); onChanged() }),
+        "cassetteStyle" to Pair({ cassetteStyle }, { v: String -> cassetteStyle = v; repo.prefManager.setCassetteStyle(v); onChanged() }),
         "deckStyle" to Pair({ deckStyle }, { v: String -> deckStyle = v; repo.prefManager.setDeckStyle(v); onChanged() })
     )
 
