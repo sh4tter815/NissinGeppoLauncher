@@ -514,6 +514,10 @@ class AppPreferenceManager(private val context: Context) {
     fun setFavoriteFolderIds(ids: List<String>) = prefs.edit().putString("favorite_folder_ids", ids.joinToString(",")).apply()
     fun getFavoriteAppOrder(): List<String> = prefs.getString("favorite_app_order", null)?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
     fun setFavoriteAppOrder(pkgs: List<String>) = prefs.edit().putString("favorite_app_order", pkgs.joinToString(",")).apply()
+
+    // ホーム円盤でのアプリとフォルダを混ぜた並び順（"a:<パッケージ名>" / "f:<フォルダID>" の列）
+    fun getFavoriteOrder(): List<String> = prefs.getString("favorite_order", null)?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+    fun setFavoriteOrder(order: List<String>) = prefs.edit().putString("favorite_order", order.joinToString(",")).apply()
     fun toggleFavoriteFolder(id: String): List<String> {
         val cur = getFavoriteFolderIds()
         val next = if (id in cur) cur - id else cur + id
