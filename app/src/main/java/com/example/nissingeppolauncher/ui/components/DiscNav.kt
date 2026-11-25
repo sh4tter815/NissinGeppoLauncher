@@ -1324,6 +1324,7 @@ sealed class FolderDiscEntry {
     data class Folder(val folderId: String, val name: String) : FolderDiscEntry()
     data class App(val app: AppInfo) : FolderDiscEntry()
     object NewFolder : FolderDiscEntry()
+    object Back : FolderDiscEntry()
 }
 
 /** フォルダページ右円の1項目。DiscAppItem と同じ配置・見た目で、フォルダと新規作成も描ける */
@@ -1348,7 +1349,8 @@ fun DiscFolderItem(
     onAppLongClick: (AppInfo) -> Unit,
     onNewFolderClick: () -> Unit,
     isFavorite: Boolean = false,
-    onFolderLongClick: (String) -> Unit = {}
+    onFolderLongClick: (String) -> Unit = {},
+    onBackClick: () -> Unit = {}
 ) {
     val outerAppRadiusDp = discRadiusDp + 8f
     val innerIconRadiusDp = discRadiusDp - 18f
@@ -1360,11 +1362,13 @@ fun DiscFolderItem(
         is FolderDiscEntry.Folder -> entry.name
         is FolderDiscEntry.App -> entry.app.label
         FolderDiscEntry.NewFolder -> "新規作成"
+        FolderDiscEntry.Back -> "戻る"
     }
     val click: () -> Unit = when (entry) {
         is FolderDiscEntry.Folder -> ({ onFolderClick(entry.folderId) })
         is FolderDiscEntry.App -> ({ onAppClick(entry.app) })
         FolderDiscEntry.NewFolder -> ({ onNewFolderClick() })
+        FolderDiscEntry.Back -> ({ onBackClick() })
     }
     val glyphSize = (iconSizeDp * 1.0f).dp
     Box(
@@ -1380,6 +1384,7 @@ fun DiscFolderItem(
                         is FolderDiscEntry.App -> onAppLongClick(entry.app)
                         is FolderDiscEntry.Folder -> onFolderLongClick(entry.folderId)
                         FolderDiscEntry.NewFolder -> {}
+                        FolderDiscEntry.Back -> {}
                     }
                 }
             ),
@@ -1388,6 +1393,7 @@ fun DiscFolderItem(
         when (entry) {
             is FolderDiscEntry.Folder -> WhiteFolderIcon(size = glyphSize, color = Color.White)
             FolderDiscEntry.NewFolder -> WhitePlusIcon(size = glyphSize, color = Color.White)
+            FolderDiscEntry.Back -> DiscGlyph("back", accentColor)
             is FolderDiscEntry.App -> {
                 val iconBitmap = entry.app.iconBitmap
                 val hideIconsF = AppPreferenceManager(LocalContext.current).isAppIconHidden()
@@ -1433,6 +1439,7 @@ fun DiscFolderItem(
                         is FolderDiscEntry.App -> onAppLongClick(entry.app)
                         is FolderDiscEntry.Folder -> onFolderLongClick(entry.folderId)
                         FolderDiscEntry.NewFolder -> {}
+                        FolderDiscEntry.Back -> {}
                     }
                 }
                 )
