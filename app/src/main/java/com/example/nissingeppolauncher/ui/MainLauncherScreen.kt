@@ -1668,6 +1668,13 @@ fun MainLauncherScreen() {
                                         }
                                         pendingFocusFolderId = fid
                                         folderPath = chain
+                                        // folderPath が前回と同じ値だと復元側の LaunchedEffect が動かず
+                                        // 前回のフォルダが表示されてしまうため、ここでも直接フォーカスを合わせる
+                                        val targetIdx = folderItemsWithNew.indexOfFirst { it.first == fid }
+                                        if (targetIdx >= 0) {
+                                            folderSelectedIndex = targetIdx
+                                            folderDiscState.animateToIndex(targetIdx)
+                                        }
                                         changePageWithTransition(3)
                                     } else {
                                         homeDiscState.animateToIndex(index)
