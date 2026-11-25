@@ -1617,7 +1617,11 @@ fun MainLauncherScreen() {
                             textStartAngle = lyricsTextAngle,
                             artworkTilt3d = disc3d,
                             tonearmScaleOverride = tonearmScale,
-                            onRackVisibilityChanged = { vinylRackOpen = it }
+                            onRackVisibilityChanged = { vinylRackOpen = it },
+                            onThemeSettingsRequest = {
+                                repo.prefManager.requestSettingsPath("lyrics,music_art,music_theme")
+                                changePageWithTransition(0)
+                            }
                         )
                     }
                 }
