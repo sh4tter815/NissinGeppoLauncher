@@ -98,12 +98,7 @@ fun PasscodeDialog(
 
     var isError by remember { mutableStateOf(false) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {},
-        dismissButton = {},
-        modifier = Modifier.border(1.5.dp, Color.White.copy(alpha = 0.25f), RoundedCornerShape(24.dp)),
-        title = {
+    BlurDialog(onDismissRequest = onDismiss) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -119,9 +114,7 @@ fun PasscodeDialog(
                     fontFamily = fontFamily
                 )
             }
-        },
-        text = {
-            Column(
+        Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -200,8 +193,5 @@ fun PasscodeDialog(
                     Text("キャンセル", color = Color.White.copy(alpha = 0.55f), fontSize = 14.sp, fontFamily = fontFamily)
                 }
             }
-        },
-        containerColor = Color(0xFF0D1526),
-        shape = RoundedCornerShape(24.dp)
-    )
+    }
 }

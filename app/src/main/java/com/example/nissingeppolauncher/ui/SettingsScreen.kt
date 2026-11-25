@@ -70,6 +70,7 @@ import com.example.nissingeppolauncher.data.SettingsTreeData
 import com.example.nissingeppolauncher.data.SettingItemDef
 import com.example.nissingeppolauncher.data.SettingNodeDef
 import com.example.nissingeppolauncher.ui.components.DiscInfoChip
+import com.example.nissingeppolauncher.ui.components.BlurDialog
 import com.example.nissingeppolauncher.ui.components.DiscValueWheel
 import com.example.nissingeppolauncher.ui.components.DiscGlyph
 import com.example.nissingeppolauncher.ui.components.WhiteSearchIcon
@@ -1962,16 +1963,10 @@ key("disc-choices-${currentItem.id}") {
         }
 
         if (showIconPackDialog) {
-            AlertDialog(
-                onDismissRequest = { showIconPackDialog = false },
-                confirmButton = {
-                    TextButton(onClick = { showIconPackDialog = false }) {
-                        Text("閉じる", color = currentAccentColor, fontWeight = FontWeight.Bold)
-                    }
-                },
-                title = { Text("アイコンパック") },
-                text = {
-                    Column {
+                        BlurDialog(onDismissRequest = { showIconPackDialog = false }) {
+                Text("アイコンパック", color = Color.White)
+                Spacer(modifier = Modifier.height(10.dp))
+                Column {
                         Text("「なし」は通常のアイコンです。パックに無いアプリは通常のアイコンのままになります。", color = Color.LightGray, fontSize = 13.sp)
                         Spacer(modifier = Modifier.height(10.dp))
                         val options = listOf<Pair<String?, String>>(null to "なし") + iconPackList.map { it.packageName as String? to it.label }
@@ -1998,22 +1993,20 @@ key("disc-choices-${currentItem.id}") {
                             )
                         }
                     }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = { showIconPackDialog = false }) {
+                        Text("閉じる", color = currentAccentColor, fontWeight = FontWeight.Bold)
+                    }
                 }
-            )
+            }
         }
 
         if (showFavSortDialog) {
             val foldersById = repo.prefManager.getFoldersMap()
-            AlertDialog(
-                onDismissRequest = { showFavSortDialog = false },
-                confirmButton = {
-                    TextButton(onClick = { showFavSortDialog = false }) {
-                        Text("閉じる", color = currentAccentColor, fontWeight = FontWeight.Bold)
-                    }
-                },
-                title = { Text("お気に入りフォルダの並び替え") },
-                text = {
-                    Column {
+                        BlurDialog(onDismissRequest = { showFavSortDialog = false }) {
+                Text("お気に入りフォルダの並び替え", color = Color.White)
+                Spacer(modifier = Modifier.height(10.dp))
+                Column {
                         if (favSortList.isEmpty()) {
                             Text("お気に入りのフォルダがありません。フォルダページでフォルダを長押しすると追加できます。", color = Color.LightGray, fontSize = 13.sp)
                         }
@@ -2053,19 +2046,27 @@ key("disc-choices-${currentItem.id}") {
                             }
                         }
                     }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = { showFavSortDialog = false }) {
+                        Text("閉じる", color = currentAccentColor, fontWeight = FontWeight.Bold)
+                    }
                 }
-            )
+            }
         }
 
         if (showCacheDialog) {
-            AlertDialog(
-                onDismissRequest = { showCacheDialog = false },
-                confirmButton = {
-                    TextButton(onClick = { showCacheDialog = false }) {
-                        Text("閉じる", color = currentAccentColor, fontWeight = FontWeight.Bold)
+                        BlurDialog(onDismissRequest = { showCacheDialog = false }) {
+                Text("キャッシュ容量", color = Color.White)
+                Spacer(modifier = Modifier.height(10.dp))
+                Column {
+                        val cs = cacheSizes
+                        Text("歌詞キャッシュ: ${cs?.let { formatBytes(it.first) } ?: "…"}", color = Color.LightGray, fontSize = 14.sp)
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text("一時キャッシュ: ${cs?.let { formatBytes(it.second) } ?: "…"}", color = Color.LightGray, fontSize = 14.sp)
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text("合計: ${cs?.let { formatBytes(it.first + it.second) } ?: "…"}", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
-                },
-                dismissButton = {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = {
                         settingsScope.launch {
                             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { LyricsManager.clearLyricsCache(context) }
@@ -2075,44 +2076,18 @@ key("disc-choices-${currentItem.id}") {
                     }) {
                         Text("歌詞キャッシュを消去", color = Color(0xFFEF5350))
                     }
-                },
-                title = { Text("キャッシュ容量") },
-                text = {
-                    Column {
-                        val cs = cacheSizes
-                        Text("歌詞キャッシュ: ${cs?.let { formatBytes(it.first) } ?: "…"}", color = Color.LightGray, fontSize = 14.sp)
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text("一時キャッシュ: ${cs?.let { formatBytes(it.second) } ?: "…"}", color = Color.LightGray, fontSize = 14.sp)
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text("合計: ${cs?.let { formatBytes(it.first + it.second) } ?: "…"}", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    TextButton(onClick = { showCacheDialog = false }) {
+                        Text("閉じる", color = currentAccentColor, fontWeight = FontWeight.Bold)
                     }
                 }
-            )
+            }
         }
 
         if (showPasscodeChangeDialog) {
-            AlertDialog(
-                onDismissRequest = { showPasscodeChangeDialog = false },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            if (newPasscodeField.isNotBlank()) {
-                                repo.prefManager.setPasscode(newPasscodeField)
-                                showPasscodeChangeDialog = false
-                            }
-                        }
-                    ) {
-                        Text("保存", color = currentAccentColor, fontWeight = FontWeight.Bold)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showPasscodeChangeDialog = false }) {
-                        Text("キャンセル", color = Color.Gray)
-                    }
-                },
-                title = { Text("パスコードの変更 (PIN)") },
-                text = {
-                    Column {
+                        BlurDialog(onDismissRequest = { showPasscodeChangeDialog = false }) {
+                Text("パスコードの変更 (PIN)", color = Color.White)
+                Spacer(modifier = Modifier.height(10.dp))
+                Column {
                         Text("非表示リスト解除用の新しいパスコードを入力してください。", color = Color.LightGray, fontSize = 13.sp)
                         Spacer(modifier = Modifier.height(12.dp))
                         OutlinedTextField(
@@ -2127,10 +2102,22 @@ key("disc-choices-${currentItem.id}") {
                             )
                         )
                     }
-                },
-                containerColor = Color(0xFF141C2E),
-                titleContentColor = Color.White
-            )
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = { showPasscodeChangeDialog = false }) {
+                        Text("キャンセル", color = Color.Gray)
+                    }
+                    TextButton(
+                        onClick = {
+                            if (newPasscodeField.isNotBlank()) {
+                                repo.prefManager.setPasscode(newPasscodeField)
+                                showPasscodeChangeDialog = false
+                            }
+                        }
+                    ) {
+                        Text("保存", color = currentAccentColor, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
         }
     }
 }

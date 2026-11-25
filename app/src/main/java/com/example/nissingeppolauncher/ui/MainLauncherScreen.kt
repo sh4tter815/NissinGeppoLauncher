@@ -1739,7 +1739,6 @@ fun MainLauncherScreen() {
                                 modifier = Modifier
                                     .offset(x = (editIconX - ((appDiscIconSize + 14f) / 2f)).dp, y = (editIconY - ((appDiscIconSize + 14f) / 2f)).dp)
                                     .size((appDiscIconSize + 14f).dp)
-                                    .background(Color(0xFF263238), CircleShape)
                                     .pressScale()
                                     .clickable { openFavReorder() },
                                 contentAlignment = Alignment.Center
@@ -2995,35 +2994,8 @@ fun MainLauncherScreen() {
         // --- システムの戻るキー対応 ---
         // お気に入りの並び替えダイアログ（右端のつまみをドラッグして入れ替え）
         if (showFavReorderDialog) {
-            Dialog(
-                onDismissRequest = { showFavReorderDialog = false },
-                properties = DialogProperties(usePlatformDefaultWidth = false)
-            ) {
-                val dialogView = LocalView.current
-                DisposableEffect(dialogView) {
-                    val window = (dialogView.parent as? DialogWindowProvider)?.window
-                    var blurApplied = false
-                    if (window != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                        blurApplied = runCatching {
-                            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
-                            window.attributes = window.attributes.apply { blurBehindRadius = 48 }
-                            true
-                        }.getOrDefault(false)
-                    }
-                    onDispose {
-                        if (blurApplied && window != null) {
-                            runCatching {
-                                window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
-                                window.attributes = window.attributes.apply { blurBehindRadius = 0 }
-                            }
-                        }
-                    }
-                }
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth(0.94f)
-                        .padding(horizontal = 20.dp, vertical = 18.dp)
-                ) {
+            BlurDialog(onDismissRequest = { showFavReorderDialog = false }) {
+
                     Text("お気に入りの並び替え", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(12.dp))
                     Column {
@@ -3111,7 +3083,6 @@ fun MainLauncherScreen() {
                     ) {
                         Text("閉じる", color = accentColor, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                     }
-                }
             }
         }
 
@@ -3138,12 +3109,11 @@ fun MainLauncherScreen() {
                 } catch (_: Exception) { emptyList() }
             }
             Dialog(onDismissRequest = { showWidgetPicker = false }) {
+                DialogBlurBehind()
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = 540.dp)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0xFF1C1C22))
                         .padding(18.dp)
                 ) {
                     Text(text = "ウィジェットを追加", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
@@ -3534,35 +3504,14 @@ fun MainLauncherScreen() {
         // 3. フォルダ削除確認ダイアログ
         // --- 新規フォルダ作成ダイアログ ---
         if (showCreateFolderDialog) {
-            AlertDialog(
-                onDismissRequest = { showCreateFolderDialog = false },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            val name = newFolderNameInput.ifBlank { "新規フォルダ" }
-                            val newId = System.currentTimeMillis().toString()
-                            repo.prefManager.saveFolder(newId, name, emptyList())
-                            if (createFolderParentId != null) repo.prefManager.setFolderParent(newId, createFolderParentId)
-                            refreshApps()
-                            newFolderNameInput = ""
-                            showCreateFolderDialog = false
-                        }
-                    ) {
-                        Text("作成", color = accentColor, fontWeight = FontWeight.Bold)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showCreateFolderDialog = false }) {
-                        Text("キャンセル", color = Color.Gray)
-                    }
-                },
-                title = { Text("新規フォルダ", fontSize = 18.sp) },
-                text = {
-                    BasicTextField(
+                        BlurDialog(onDismissRequest = { showCreateFolderDialog = false }) {
+                Text("新規フォルダ", color = Color.White, fontSize = 18.sp)
+                Spacer(modifier = Modifier.height(10.dp))
+                BasicTextField(
                         value = newFolderNameInput,
                         onValueChange = { newFolderNameInput = it },
                         singleLine = true,
-                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 16.sp),
+                        textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 16.sp),
                         cursorBrush = SolidColor(accentColor),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -3576,14 +3525,40 @@ fun MainLauncherScreen() {
                             innerTextField()
                         }
                     }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = { showCreateFolderDialog = false }) {
+                        Text("キャンセル", color = Color.Gray)
+                    }
+                    TextButton(
+                        onClick = {
+                            val name = newFolderNameInput.ifBlank { "新規フォルダ" }
+                            val newId = System.currentTimeMillis().toString()
+                            repo.prefManager.saveFolder(newId, name, emptyList())
+                            if (createFolderParentId != null) repo.prefManager.setFolderParent(newId, createFolderParentId)
+                            refreshApps()
+                            newFolderNameInput = ""
+                            showCreateFolderDialog = false
+                        }
+                    ) {
+                        Text("作成", color = accentColor, fontWeight = FontWeight.Bold)
+                    }
                 }
-            )
+            }
         }
 
         if (showDeleteFolderDialog && selectedFolderId != null && selectedFolderId != "__BACK") {
-            AlertDialog(
-                onDismissRequest = { showDeleteFolderDialog = false },
-                confirmButton = {
+                        BlurDialog(onDismissRequest = { showDeleteFolderDialog = false }) {
+                Text("フォルダの削除", color = Color.White, fontSize = 18.sp)
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                        text = "「$selectedFolderName」を削除してもよろしいですか？（フォルダ内のアプリ自体はアンインストールされません）",
+                        color = Color.LightGray,
+                        fontSize = 14.sp
+                    )
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = { showDeleteFolderDialog = false }) {
+                        Text("キャンセル", color = Color.Gray)
+                    }
                     TextButton(
                         onClick = {
                             val delId = selectedFolderId
@@ -3610,23 +3585,8 @@ fun MainLauncherScreen() {
                     ) {
                         Text("削除", color = Color(0xFFFF5252), fontWeight = FontWeight.Bold)
                     }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showDeleteFolderDialog = false }) {
-                        Text("キャンセル", color = Color.Gray)
-                    }
-                },
-                title = { Text("フォルダの削除", fontSize = 18.sp) },
-                text = {
-                    Text(
-                        text = "「$selectedFolderName」を削除してもよろしいですか？（フォルダ内のアプリ自体はアンインストールされません）",
-                        color = Color.LightGray,
-                        fontSize = 14.sp
-                    )
-                },
-                containerColor = Color(0xFF141C2E),
-                titleContentColor = Color.White
-            )
+                }
+            }
         }
 
         // 3. フォルダ内アプリ選択モーダル

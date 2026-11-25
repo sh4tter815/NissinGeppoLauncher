@@ -2931,16 +2931,24 @@ fun LyricTagSearchDialog(
     // この曲に付いている歌詞の指定（手動で適用した歌詞／歌詞なし）の状態。解除ボタンの表示に使う
     var hasOverride by remember { mutableStateOf(LyricsManager.hasLyricsOverride(context, currentTitle, currentArtist, currentAlbum)) }
     var instApplied by remember { mutableStateOf(LyricsManager.isInstrumentalOverride(context, currentTitle, currentArtist, currentAlbum)) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("タグを指定して検索") },
-        text = {
-            Column {
+        BlurDialog(onDismissRequest = onDismiss) {
+        Text("タグを指定して検索", color = Color.White)
+        Spacer(modifier = Modifier.height(10.dp))
+        Column {
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
                     label = { Text("曲名") },
                     singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = Color.White,
+                        unfocusedBorderColor = Color.Gray,
+                        focusedLabelColor = Color.White,
+                        unfocusedLabelColor = Color.LightGray,
+                        cursorColor = Color.White
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(8.dp))
@@ -2949,6 +2957,15 @@ fun LyricTagSearchDialog(
                     onValueChange = { artist = it },
                     label = { Text("アーティスト名") },
                     singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = Color.White,
+                        unfocusedBorderColor = Color.Gray,
+                        focusedLabelColor = Color.White,
+                        unfocusedLabelColor = Color.LightGray,
+                        cursorColor = Color.White
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(12.dp))
@@ -2985,7 +3002,7 @@ fun LyricTagSearchDialog(
                 }
                 if (searched && !searching && candidates.isEmpty()) {
                     Spacer(Modifier.height(8.dp))
-                    Text("候補が見つかりませんでした")
+                    Text("候補が見つかりませんでした", color = Color.White)
                 }
                 if (candidates.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
@@ -3031,6 +3048,7 @@ fun LyricTagSearchDialog(
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
                                         text = if (applyingIndex == idx) "取得中…" else cand.title.ifBlank { "(タイトルなし)" },
+                                        color = Color.White,
                                         fontWeight = FontWeight.Bold,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
@@ -3105,12 +3123,10 @@ fun LyricTagSearchDialog(
                     }
                 }
             }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("閉じる") }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onDismiss) { Text("閉じる", color = Color.White.copy(alpha = 0.65f)) }
         }
-    )
+    }
 }
 
 // ============================================================
@@ -3573,15 +3589,13 @@ fun LyricsBrowseOverlay(
     var publishPhase by remember { mutableStateOf(0) }
     var publishMessage by remember { mutableStateOf("") }
     if (showLyricEditor) {
-        AlertDialog(
-            onDismissRequest = { showLyricEditor = false },
-            containerColor = Color(0xFF141C2E),
-            title = { Text("歌詞を編集", color = Color.White, fontSize = 18.sp) },
-            text = {
-                Column {
+                BlurDialog(onDismissRequest = { showLyricEditor = false }) {
+            Text("歌詞を編集", color = Color.White, fontSize = 18.sp)
+            Spacer(modifier = Modifier.height(10.dp))
+            Column {
                     Text(
                         "1行ごとに [分:秒.ミリ秒]歌詞 の形です。誤字の修正のほか、時刻も直せます。保存するとキャッシュに残るので、次回からも直した歌詞が出ます（文字同期は外れます）。",
-                        color = Color.Gray,
+                        color = Color.White.copy(alpha = 0.65f),
                         fontSize = 11.5.sp
                     )
                     Spacer(Modifier.height(10.dp))
@@ -3624,8 +3638,8 @@ fun LyricsBrowseOverlay(
                         }
                     }
                 }
-            },
-            confirmButton = {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = { showLyricEditor = false }) { Text("キャンセル", color = Color.Gray) }
                 TextButton(onClick = {
                     val ok = editText.lines().any { Regex("^\\[\\d{1,2}:\\d{2}").containsMatchIn(it) }
                     if (!ok) {
@@ -3635,11 +3649,8 @@ fun LyricsBrowseOverlay(
                         showLyricEditor = false
                     }
                 }) { Text("保存", color = Color(0xFF88C0FF)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showLyricEditor = false }) { Text("キャンセル", color = Color.Gray) }
             }
-        )
+        }
     }
     // 自由スクロール: 位置は「行」単位の小数で持ち、指に追従させて離すと慣性で流れる
     val scrollAnim = remember { Animatable(startIndex.toFloat()) }

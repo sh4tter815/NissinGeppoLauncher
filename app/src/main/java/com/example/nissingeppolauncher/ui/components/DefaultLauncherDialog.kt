@@ -7,7 +7,10 @@ import android.os.Build
 import android.provider.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
 
@@ -20,36 +23,28 @@ fun DefaultLauncherDialog(
     val fontFamily = LocalLauncherFontFamily.current
     val fontWeight = LocalLauncherFontWeight.current
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    openDefaultHomeSettings(context)
-                    onDismiss()
-                }
-            ) {
-                Text("設定を開く", color = Color(0xFF88C0FF), fontSize = 16.sp, fontFamily = fontFamily, fontWeight = fontWeight)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("あとで", color = Color.Gray, fontFamily = fontFamily, fontWeight = fontWeight)
-            }
-        },
-        title = { Text("デフォルトアプリに設定", fontSize = 18.sp, fontFamily = fontFamily, fontWeight = fontWeight) },
-        text = {
-            Text(
-                text = "「日進月歩ランチャー」をデフォルトのホームアプリ（ホーム画面）として設定しますか？",
-                color = Color.LightGray,
-                fontSize = 14.sp,
-                fontFamily = fontFamily,
-                fontWeight = fontWeight
-            )
-        },
-        containerColor = Color(0xFF141C2E),
-        titleContentColor = Color.White
-    )
+    BlurDialog(onDismissRequest = onDismiss) {
+        BlurDialogTitle("デフォルトアプリに設定", fontFamily = fontFamily, fontWeight = fontWeight)
+        Spacer(modifier = Modifier.height(10.dp))
+        Text(
+            text = "「日進月歩ランチャー」をデフォルトのホームアプリ（ホーム画面）として設定しますか？",
+            color = Color.LightGray,
+            fontSize = 14.sp,
+            fontFamily = fontFamily,
+            fontWeight = fontWeight
+        )
+        BlurDialogButtonRow(
+            confirmText = "設定を開く",
+            onConfirm = {
+                openDefaultHomeSettings(context)
+                onDismiss()
+            },
+            dismissText = "あとで",
+            onDismiss = onDismiss,
+            fontFamily = fontFamily,
+            fontWeight = fontWeight
+        )
+    }
 }
 
 fun openDefaultHomeSettings(context: Context) {
