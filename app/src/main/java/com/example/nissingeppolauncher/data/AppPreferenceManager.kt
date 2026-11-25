@@ -480,7 +480,7 @@ class AppPreferenceManager(private val context: Context) {
     fun setDeckStyle(v: String) = prefs.edit().putString("deck_style", v).apply()
     fun isDiscDropOnPvEnabled(): Boolean = prefs.getBoolean("disc_drop_on_pv", true)
     fun setDiscDropOnPvEnabled(v: Boolean) = prefs.edit().putBoolean("disc_drop_on_pv", v).apply()
-    fun getWidgetLongPressAction(): String = prefs.getString("widget_long_press_action", "rack") ?: "rack"
+    fun getWidgetLongPressAction(): String = prefs.getString("widget_long_press_action", "grab") ?: "grab"
     fun setWidgetLongPressAction(v: String) = prefs.edit().putString("widget_long_press_action", v).apply()
     fun getWidgetTapAction(): String = prefs.getString("widget_tap_action", "toggle") ?: "toggle"
     fun setWidgetTapAction(v: String) = prefs.edit().putString("widget_tap_action", v).apply()
@@ -488,6 +488,8 @@ class AppPreferenceManager(private val context: Context) {
     fun setWidgetDoubleTapAction(v: String) = prefs.edit().putString("widget_double_tap_action", v).apply()
     fun getWidgetTripleTapAction(): String = prefs.getString("widget_triple_tap_action", "theme") ?: "theme"
     fun setWidgetTripleTapAction(v: String) = prefs.edit().putString("widget_triple_tap_action", v).apply()
+    fun getWidgetDoubleTapHoldAction(): String = prefs.getString("widget_double_tap_hold_action", "rack") ?: "rack"
+    fun setWidgetDoubleTapHoldAction(v: String) = prefs.edit().putString("widget_double_tap_hold_action", v).apply()
     fun requestSettingsPath(csv: String) = prefs.edit().putString("settings_deep_link", csv).apply()
     fun consumeSettingsPath(): List<String> {
         val csv = prefs.getString("settings_deep_link", null)
