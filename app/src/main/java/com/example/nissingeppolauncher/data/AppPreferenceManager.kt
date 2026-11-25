@@ -480,6 +480,8 @@ class AppPreferenceManager(private val context: Context) {
     fun setArtworkOutlineEnabled(v: Boolean) = prefs.edit().putBoolean("artwork_outline", v).apply()
     fun isCurvedTitleEnabled(): Boolean = prefs.getBoolean("curved_title", true)
     fun setCurvedTitleEnabled(v: Boolean) = prefs.edit().putBoolean("curved_title", v).apply()
+    fun isCaseCircleClipEnabled(): Boolean = prefs.getBoolean("case_circle_clip", false)
+    fun setCaseCircleClipEnabled(v: Boolean) = prefs.edit().putBoolean("case_circle_clip", v).apply()
     fun isTonearmEnabled(): Boolean = prefs.getBoolean("tonearm_enabled", false)
     fun setTonearmEnabled(v: Boolean) = prefs.edit().putBoolean("tonearm_enabled", v).apply()
     // テーマ: ディスクの見た目（digital / vinyl / cd）とターンテーブル（none / wood / silver / black）
