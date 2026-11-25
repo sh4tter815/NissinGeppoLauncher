@@ -135,6 +135,8 @@ fun MusicVinylWidget(
     var pendingTapJob by remember { mutableStateOf<Job?>(null) }
     var lastTapReleaseMs by remember { mutableLongStateOf(0L) }
     var tapCount by remember { mutableIntStateOf(0) }
+    var grabRotX by remember { mutableStateOf(0f) }
+    var grabRotY by remember { mutableStateOf(0f) }
     fun runRackSteps() {
         if (rackStepAnimRunning) return
         rackStepAnimRunning = true
@@ -465,6 +467,11 @@ fun MusicVinylWidget(
                     awaitPointerEventScope {
                         while (true) {
                             val down = awaitFirstDown(requireUnconsumed = false)
+                            val pressTapIndex = tapCount
+                            if (pendingTapJob != null) {
+                                pendingTapJob?.cancel()
+                                pendingTapJob = null
+                            }
                             val hasSession = sessionController != null
                             val startIdx = latestRackCurrentIndex
                             rackTargetOffset = 0
@@ -475,21 +482,35 @@ fun MusicVinylWidget(
                             val dirSign = if (prefManager.isRackReverseScroll()) -1 else 1
                             val downWall = System.currentTimeMillis()
                             var longPressFired = false
-                            val longPressJob = if (prefManager.getWidgetLongPressAction() != "rack") widgetScope.launch {
+                            var grabActive = false
+                            val longPressJob = widgetScope.launch {
                                 delay(500)
                                 if (!moved && maxDist < 14.dp.toPx()) {
-                                    longPressFired = true
-                                    rackOpen = false
-                                    pendingTapJob?.cancel()
-                                    pendingTapJob = null
-                                    lastTapReleaseMs = 0L
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    runWidgetAction(prefManager.getWidgetLongPressAction())
+                                    val holdAction = if (pressTapIndex > 0) prefManager.getWidgetDoubleTapHoldAction() else prefManager.getWidgetLongPressAction()
+                                    if (holdAction != "rack") {
+                                        longPressFired = true
+                                        rackOpen = false
+                                        pendingTapJob?.cancel()
+                                        pendingTapJob = null
+                                        lastTapReleaseMs = 0L
+                                        tapCount = 0
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        if (holdAction == "grab") {
+                                            grabActive = true
+                                        } else {
+                                            runWidgetAction(holdAction)
+                                        }
+                                    }
                                 }
-                            } else null
+                            }
                             drag(down.id) { change ->
                                 maxDist = maxOf(maxDist, (change.position - down.position).getDistance())
-                                if (hasSession && !longPressFired) {
+                                if (grabActive) {
+                                    val dx = change.position.x - change.previousPosition.x
+                                    val dy = change.position.y - change.previousPosition.y
+                                    grabRotY = (grabRotY + dx * 0.45f).coerceIn(-70f, 70f)
+                                    grabRotX = (grabRotX - dy * 0.45f).coerceIn(-70f, 70f)
+                                } else if (hasSession && !longPressFired) {
                                     var dy = change.position.y - stepBaseY
                                     while (dy <= -40f || dy >= 40f) {
                                         val dir = (if (dy <= -40f) 1 else -1) * dirSign
@@ -517,6 +538,17 @@ fun MusicVinylWidget(
                                 change.consume()
                             }
                             longPressJob?.cancel()
+                            if (grabActive) {
+                                grabActive = false
+                                val startRotX = grabRotX
+                                val startRotY = grabRotY
+                                widgetScope.launch {
+                                    Animatable(startRotX).animateTo(0f, spring(dampingRatio = 0.55f, stiffness = 260f)) { grabRotX = value }
+                                }
+                                widgetScope.launch {
+                                    Animatable(startRotY).animateTo(0f, spring(dampingRatio = 0.55f, stiffness = 260f)) { grabRotY = value }
+                                }
+                            }
                             val heldMs = System.currentTimeMillis() - downWall
                             val finalIndex = (startIdx + rackTargetOffset).coerceIn(0, (latestRackSize - 1).coerceAtLeast(0))
                             val shouldJump = hasSession && moved && finalIndex != startIdx
@@ -579,7 +611,12 @@ fun MusicVinylWidget(
                         }
                     }
                 }
-                .graphicsLayer { alpha = if (rackShow) 0f else 1f },
+                .graphicsLayer {
+                    alpha = if (rackShow) 0f else 1f
+                    rotationX = grabRotX
+                    rotationY = grabRotY
+                    cameraDistance = 9f * density
+                },
             contentAlignment = Alignment.Center
         ) {
             if (artworkOutline) {

@@ -1,5 +1,5 @@
 {
-  "version": 38,
+  "version": 39,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -954,6 +954,10 @@
           "label": "ラックを開く"
         },
         {
+          "v": "grab",
+          "label": "掴んで3D回転"
+        },
+        {
           "v": "app",
           "label": "再生中のアプリを開く"
         },
@@ -1128,6 +1132,43 @@
       "glyph": "text",
       "type": "toggle",
       "bind": "curvedTitle"
+    },
+    "widgetDoubleTapHold": {
+      "label": "左円盤のダブルタップ長押し",
+      "desc": "タップの直後にもう一度押して長押ししたときの動作です",
+      "glyph": "cursor",
+      "type": "choices",
+      "bind": "widgetDoubleTapHoldAction",
+      "choices": [
+        {
+          "v": "rack",
+          "label": "ラックを開く"
+        },
+        {
+          "v": "grab",
+          "label": "掴んで3D回転"
+        },
+        {
+          "v": "app",
+          "label": "再生中のアプリを開く"
+        },
+        {
+          "v": "toggle",
+          "label": "再生／停止"
+        },
+        {
+          "v": "next",
+          "label": "次の曲"
+        },
+        {
+          "v": "prev",
+          "label": "前の曲"
+        },
+        {
+          "v": "none",
+          "label": "なし"
+        }
+      ]
     }
   },
   "tree": [
@@ -1359,6 +1400,9 @@
                 },
                 {
                   "item": "widgetTripleTap"
+                },
+                {
+                  "item": "widgetDoubleTapHold"
                 },
                 {
                   "item": "widgetLongPress"
