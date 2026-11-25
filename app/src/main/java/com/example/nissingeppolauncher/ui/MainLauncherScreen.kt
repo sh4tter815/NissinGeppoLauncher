@@ -35,6 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -202,6 +203,7 @@ fun MainLauncherScreen() {
     var dateWareki by remember { mutableStateOf(repo.prefManager.isDateWareki()) }
     var pageTransitionSpeed by remember { mutableFloatStateOf(repo.prefManager.getPageTransitionSpeed()) }
     var dialVisibility by remember { mutableStateOf(repo.prefManager.getDialVisibility()) }
+    var dialLastTouchMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var powerSaveMode by remember { mutableStateOf(repo.prefManager.getPowerSaveMode()) }
     var systemPowerSave by remember { mutableStateOf(false) }
     DisposableEffect(Unit) {
@@ -1184,7 +1186,16 @@ fun MainLauncherScreen() {
         LocalLauncherFontFamily provides currentFontFamily
     ) {
         Box(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize().pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        if (event.changes.any { it.pressed && !it.previousPressed }) {
+                            dialLastTouchMs = System.currentTimeMillis()
+                        }
+                    }
+                }
+            }
         ) {
         // 歌詞ブラウズ中はホームの要素をそのまま残し、背面全体をぼかす（ブラウズ表示だけは外に出して鮮明に保つ）
         // ぼかしはポップアップのようにフェードで効かせる
@@ -2043,8 +2054,27 @@ fun MainLauncherScreen() {
             }
         }
 
+        // 下ダイヤル「自動」: 4秒触らないと引っ込み、下部エリアの長押しで呼び出す
+        var dialRetracted by remember { mutableStateOf(false) }
+        LaunchedEffect(currentLauncherPage) { dialLastTouchMs = System.currentTimeMillis() }
+        LaunchedEffect(vinylRackOpen) { dialLastTouchMs = System.currentTimeMillis() }
+        LaunchedEffect(dialVisibility) {
+            while (true) {
+                if (dialVisibility == "auto" && !dialRetracted && System.currentTimeMillis() - dialLastTouchMs > 4000) {
+                    dialRetracted = true
+                }
+                delay(500)
+            }
+        }
+        val dialOut = dialVisibility == "always" || !dialRetracted
+        val dialAnim by animateFloatAsState(
+            targetValue = if (dialOut) 1f else 0f,
+            animationSpec = tween(durationMillis = 250),
+            label = "dialAnim"
+        )
+
                 // --- 画面下部 ページ切り替え (ボタン式 / ダイヤル式を設定で切替) ---
-        if (!isLyricsBrowsing && !pvFullscreen && dialVisibility != "hidden" && (dialVisibility == "always" || !vinylRackOpen) && repo.prefManager.getPageSwitchStyle() == "dial") {
+        if (!isLyricsBrowsing && !pvFullscreen && dialVisibility != "hidden" && (dialVisibility == "always" || !vinylRackOpen) && (dialOut || dialAnim > 0.01f) && repo.prefManager.getPageSwitchStyle() == "dial") {
             PeekPageDial(
                 currentPage = currentLauncherPage,
                 onPageSelected = { targetPage ->
@@ -2057,6 +2087,8 @@ fun MainLauncherScreen() {
                     .padding(bottom = bottomPaddingDp + 4.dp)
                     .zIndex(250f)
                     .graphicsLayer {
+                        alpha = dialAnim
+                        translationY = (1f - dialAnim) * 30.dp.toPx()
                         if (disc3d) {
                             transformOrigin = TransformOrigin(0.5f, 0.5f)
                             rotationX = 27f + discTiltX.value
@@ -2065,7 +2097,7 @@ fun MainLauncherScreen() {
                         }
                     }
             )
-        } else if (!isLyricsBrowsing && !pvFullscreen && dialVisibility != "hidden" && (dialVisibility == "always" || !vinylRackOpen)) {
+        } else if (!isLyricsBrowsing && !pvFullscreen && dialVisibility != "hidden" && (dialVisibility == "always" || !vinylRackOpen) && (dialOut || dialAnim > 0.01f)) {
             BottomPageDial(
                 currentPage = currentLauncherPage,
                 onPageSelected = { targetPage ->
@@ -2078,12 +2110,31 @@ fun MainLauncherScreen() {
                     .padding(bottom = bottomPaddingDp + 4.dp)
                     .zIndex(250f)
                     .graphicsLayer {
+                        alpha = dialAnim
+                        translationY = (1f - dialAnim) * 30.dp.toPx()
                         if (disc3d) {
                             transformOrigin = TransformOrigin(0.5f, 0.5f)
                             rotationX = 27f + discTiltX.value
                             rotationY = discTiltY.value
                             cameraDistance = 6.5f * density
                         }
+                    }
+            )
+        }
+
+        // 引っ込んでいる間の呼び出しゾーン: ダイヤルがあるはずの場所を長押しで出す
+        if (!isLyricsBrowsing && !pvFullscreen && dialVisibility == "auto" && dialRetracted && !vinylRackOpen) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = bottomPaddingDp + 4.dp)
+                    .size(220.dp, 64.dp)
+                    .zIndex(249f)
+                    .pointerInput(Unit) {
+                        detectTapGestures(onLongPress = {
+                            dialRetracted = false
+                            dialLastTouchMs = System.currentTimeMillis()
+                        })
                     }
             )
         }
