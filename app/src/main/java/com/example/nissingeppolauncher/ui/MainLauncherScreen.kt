@@ -696,9 +696,18 @@ fun MainLauncherScreen() {
                             null
                         }
                     }
-                    if (loaded != null) {
+                    val effectiveLoaded = loaded ?: run {
+                        // セッションから取れなかったときは、メディア通知のジャケットで代用する
+                        val nArt = LauncherMediaListenerService.mediaArtBitmap
+                        val nTitle = LauncherMediaListenerService.mediaArtTitle
+                        val curTitle = metadata?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE) ?: ""
+                        if (nArt != null && LauncherMediaListenerService.mediaArtPackage == activeController?.packageName &&
+                            (nTitle.isNullOrBlank() || curTitle.isBlank() || nTitle == curTitle)
+                        ) nArt else null
+                    }
+                    if (effectiveLoaded != null) {
                         lastArtKey = artKey
-                        sessionAlbumArt = loaded
+                        sessionAlbumArt = effectiveLoaded
                         artMissKey = ""
                         artMissCount = 0
                     } else {
