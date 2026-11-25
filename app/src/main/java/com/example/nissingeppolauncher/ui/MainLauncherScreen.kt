@@ -839,6 +839,11 @@ fun MainLauncherScreen() {
     // --- フォルダ管理状態 (Page 2 用) ---
     var foldersMap by remember { mutableStateOf(repo.prefManager.getFoldersMap()) }
     var favoriteFolderIds by remember { mutableStateOf(repo.prefManager.getFavoriteFolderIds()) }
+    var showFavReorderDialog by remember { mutableStateOf(false) }
+    var favAppSortList by remember { mutableStateOf<List<AppInfo>>(emptyList()) }
+    var favFolderSortList by remember { mutableStateOf<List<FolderDiscEntry.Folder>>(emptyList()) }
+    var favDragKey by remember { mutableStateOf<String?>(null) }
+    var favDragOffset by remember { mutableFloatStateOf(0f) }
     var showFolderAppSelectDialog by remember { mutableStateOf(false) }
     var showDeleteFolderDialog by remember { mutableStateOf(false) }
 
@@ -1043,7 +1048,9 @@ fun MainLauncherScreen() {
         coroutineScope.launch {
             val installed = repo.getInstalledApps()
             allApps = installed
+            val favAppOrder = repo.prefManager.getFavoriteAppOrder()
             favoriteApps = installed.filter { it.isFavorite && !it.isHidden }
+                .sortedBy { val i = favAppOrder.indexOf(it.packageName); if (i >= 0) i else Int.MAX_VALUE }
             foldersMap = repo.prefManager.getFoldersMap()
             folderParents = repo.prefManager.getFolderParents()
         }
@@ -1456,6 +1463,25 @@ fun MainLauncherScreen() {
                         )
                     }
                 1 -> {
+                    // お気に入りの並び替え（鉛筆ボタン）
+                    if (!layoutEditMode && !pvFullscreen && !isLyricsBrowsing && favoriteApps.size + homeFavoriteFolders.size >= 2) {
+                        Box(
+                            modifier = Modifier
+                                .offset(x = (screenWidthDp - 54f).dp, y = topPaddingDp + 6.dp)
+                                .size(40.dp)
+                                .zIndex(40f)
+                                .background(Color(0xFF263238), CircleShape)
+                                .pressScale()
+                                .clickable {
+                                    favAppSortList = favoriteApps
+                                    favFolderSortList = homeFavoriteFolders
+                                    showFavReorderDialog = true
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            WhiteEditIcon(size = 20.dp, color = Color.White)
+                        }
+                    }
                     // --- 1: ホーム画面 ---
                         LayoutClockPart(
                             offsetX = clockOffsetX,
@@ -2905,6 +2931,146 @@ fun MainLauncherScreen() {
         }
 
         // --- システムの戻るキー対応 ---
+        // お気に入りの並び替えダイアログ（右端のつまみをドラッグして入れ替え）
+        if (showFavReorderDialog) {
+            AlertDialog(
+                onDismissRequest = { showFavReorderDialog = false },
+                confirmButton = {
+                    TextButton(onClick = { showFavReorderDialog = false }) {
+                        Text("閉じる", color = accentColor, fontWeight = FontWeight.Bold)
+                    }
+                },
+                title = { Text("お気に入りの並び替え") },
+                text = {
+                    Column {
+                        Text("アプリ", color = accentColor, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        if (favAppSortList.isEmpty()) {
+                            Text("お気に入りのアプリがありません。", color = Color.LightGray, fontSize = 13.sp)
+                        }
+                        favAppSortList.forEach { app ->
+                            val rowKey = "a:" + app.packageName
+                            key(rowKey) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(52.dp)
+                                        .zIndex(if (favDragKey == rowKey) 1f else 0f)
+                                        .graphicsLayer { translationY = if (favDragKey == rowKey) favDragOffset else 0f }
+                                        .background(if (favDragKey == rowKey) Color(0xFF37474F) else Color.Transparent)
+                                ) {
+                                    if (app.iconBitmap != null) {
+                                        Image(bitmap = app.iconBitmap, contentDescription = null, modifier = Modifier.size(32.dp).clip(RoundedCornerShape(8.dp)))
+                                    } else {
+                                        Box(modifier = Modifier.size(32.dp))
+                                    }
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(app.label, color = Color.White, fontSize = 15.sp, maxLines = 1, modifier = Modifier.weight(1f))
+                                    Box(
+                                        modifier = Modifier.size(44.dp).pointerInput(rowKey) {
+                                            detectDragGestures(
+                                                onDragStart = { favDragKey = rowKey; favDragOffset = 0f },
+                                                onDragEnd = { favDragKey = null; favDragOffset = 0f },
+                                                onDragCancel = { favDragKey = null; favDragOffset = 0f },
+                                                onDrag = { change, amount ->
+                                                    change.consume()
+                                                    favDragOffset += amount.y
+                                                    val rowPx = 52.dp.toPx()
+                                                    while (true) {
+                                                        val idx = favAppSortList.indexOfFirst { it.packageName == app.packageName }
+                                                        if (idx < 0) break
+                                                        if (favDragOffset > rowPx / 2f && idx < favAppSortList.lastIndex) {
+                                                            val next = favAppSortList.toMutableList()
+                                                            val tmp = next[idx]; next[idx] = next[idx + 1]; next[idx + 1] = tmp
+                                                            favAppSortList = next
+                                                            favoriteApps = next
+                                                            repo.prefManager.setFavoriteAppOrder(next.map { it.packageName })
+                                                            favDragOffset -= rowPx
+                                                        } else if (favDragOffset < -rowPx / 2f && idx > 0) {
+                                                            val next = favAppSortList.toMutableList()
+                                                            val tmp = next[idx]; next[idx] = next[idx - 1]; next[idx - 1] = tmp
+                                                            favAppSortList = next
+                                                            favoriteApps = next
+                                                            repo.prefManager.setFavoriteAppOrder(next.map { it.packageName })
+                                                            favDragOffset += rowPx
+                                                        } else break
+                                                    }
+                                                }
+                                            )
+                                        },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("≡", color = Color.LightGray, fontSize = 20.sp)
+                                    }
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Text("フォルダ", color = accentColor, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        if (favFolderSortList.isEmpty()) {
+                            Text("お気に入りのフォルダがありません。", color = Color.LightGray, fontSize = 13.sp)
+                        }
+                        favFolderSortList.forEach { folder ->
+                            val rowKey = "f:" + folder.folderId
+                            key(rowKey) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(52.dp)
+                                        .zIndex(if (favDragKey == rowKey) 1f else 0f)
+                                        .graphicsLayer { translationY = if (favDragKey == rowKey) favDragOffset else 0f }
+                                        .background(if (favDragKey == rowKey) Color(0xFF37474F) else Color.Transparent)
+                                ) {
+                                    Box(modifier = Modifier.size(32.dp), contentAlignment = Alignment.Center) {
+                                        Text("★", color = accentColor, fontSize = 16.sp)
+                                    }
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(folder.name, color = Color.White, fontSize = 15.sp, maxLines = 1, modifier = Modifier.weight(1f))
+                                    Box(
+                                        modifier = Modifier.size(44.dp).pointerInput(rowKey) {
+                                            detectDragGestures(
+                                                onDragStart = { favDragKey = rowKey; favDragOffset = 0f },
+                                                onDragEnd = { favDragKey = null; favDragOffset = 0f },
+                                                onDragCancel = { favDragKey = null; favDragOffset = 0f },
+                                                onDrag = { change, amount ->
+                                                    change.consume()
+                                                    favDragOffset += amount.y
+                                                    val rowPx = 52.dp.toPx()
+                                                    while (true) {
+                                                        val idx = favFolderSortList.indexOfFirst { it.folderId == folder.folderId }
+                                                        if (idx < 0) break
+                                                        if (favDragOffset > rowPx / 2f && idx < favFolderSortList.lastIndex) {
+                                                            val next = favFolderSortList.toMutableList()
+                                                            val tmp = next[idx]; next[idx] = next[idx + 1]; next[idx + 1] = tmp
+                                                            favFolderSortList = next
+                                                            favoriteFolderIds = next.map { it.folderId }
+                                                            repo.prefManager.setFavoriteFolderIds(next.map { it.folderId })
+                                                            favDragOffset -= rowPx
+                                                        } else if (favDragOffset < -rowPx / 2f && idx > 0) {
+                                                            val next = favFolderSortList.toMutableList()
+                                                            val tmp = next[idx]; next[idx] = next[idx - 1]; next[idx - 1] = tmp
+                                                            favFolderSortList = next
+                                                            favoriteFolderIds = next.map { it.folderId }
+                                                            repo.prefManager.setFavoriteFolderIds(next.map { it.folderId })
+                                                            favDragOffset += rowPx
+                                                        } else break
+                                                    }
+                                                }
+                                            )
+                                        },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("≡", color = Color.LightGray, fontSize = 20.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            )
+        }
+
         BackHandler(enabled = currentLauncherPage != 1 || isSearchActive || isEditingFolder || isLyricsBrowsing || pvFullscreen) {
             if (isLyricsBrowsing) {
                 isLyricsBrowsing = false
