@@ -909,6 +909,11 @@ fun MainLauncherScreen() {
     val badgeCounts by com.example.nissingeppolauncher.service.LauncherMediaListenerService.badgeCounts.collectAsState()
     val effBadges = if (notificationBadges) badgeCounts else emptyMap()
     val homeDiscItems = remember(favoriteApps, effBadges) { buildDiscItems(favoriteApps, false, effBadges) }
+    // ホーム右円にはお気に入りアプリの後ろにお気に入りフォルダも並べる
+    val homeFavoriteFolders = remember(favoriteFolderIds, folderList) {
+        favoriteFolderIds.mapNotNull { fid -> folderList.firstOrNull { it.first == fid }?.let { FolderDiscEntry.Folder(it.first, it.second) } }
+    }
+    val homeDiscCount = homeDiscItems.size + homeFavoriteFolders.size
     // よく使う順のときの★5段階（使用実績のあるアプリを使用量の五分位で分ける。実績なしは★）
     val usageTierOf: Map<String, Int> = remember(usageStatsMap, allApps) {
         val used = allApps.filter { (usageStatsMap[it.packageName] ?: 0L) > 0L }
@@ -1609,7 +1614,7 @@ fun MainLauncherScreen() {
 
                     if (!vinylRackOpen) {
                     DiscCarousel(
-                        itemCount = homeDiscItems.size,
+                        itemCount = homeDiscCount,
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer {
@@ -1636,8 +1641,45 @@ fun MainLauncherScreen() {
                                 layoutEditMode = true
                             }
                         } else null
-                    ) { index, rad, labelAlpha, _ ->
-                        val di = homeDiscItems.getOrNull(index)
+                    ) { index, rad, labelAlpha, isSelected ->
+                        val folderEntry = if (index >= homeDiscItems.size) homeFavoriteFolders.getOrNull(index - homeDiscItems.size) else null
+                        if (folderEntry != null) {
+                            DiscFolderItem(
+                                entry = folderEntry,
+                                discCenterXDp = animatedDisc2CenterX,
+                                discCenterYDp = disc2CenterY + lyricsDiscDrop,
+                                discRadiusDp = disc2RadiusDp,
+                                rad = rad,
+                                labelAlpha = labelAlpha,
+                                textSizeSp = appDiscTextSize,
+                                iconSizeDp = appDiscIconSize,
+                                iconCornerPercent = iconCornerPercent,
+                                letterSpacingSp = appDiscLetterSpacing,
+                                accentColor = accentColor,
+                                isFocused = isSelected,
+                                iconTilt3d = disc3d,
+                                onFolderClick = { fid ->
+                                    if (isSelected) {
+                                        val chain = mutableListOf<String>()
+                                        var parent = folderParents[fid]
+                                        while (parent != null) {
+                                            chain.add(0, parent)
+                                            parent = folderParents[parent]
+                                        }
+                                        pendingFocusFolderId = fid
+                                        folderPath = chain
+                                        changePageWithTransition(3)
+                                    } else {
+                                        homeDiscState.animateToIndex(index)
+                                    }
+                                },
+                                onAppClick = { },
+                                onAppLongClick = { },
+                                onNewFolderClick = { },
+                                isFavorite = true
+                            )
+                        }
+                        val di = if (folderEntry == null) homeDiscItems.getOrNull(index) else null
                         if (di != null) {
                             DiscAppItem(
                                 item = di,
@@ -1811,6 +1853,11 @@ fun MainLauncherScreen() {
                                     indexSelected = target
                                     try {
                                         indexDiscState.animateToIndex(target)
+                                        var waited = 0
+                                        while (indexDiscState.rotationAnim.isRunning && waited < 2000) {
+                                            delay(30)
+                                            waited += 30
+                                        }
                                     } finally {
                                         indexSyncFromRight = false
                                     }
