@@ -228,19 +228,39 @@ fun MusicVinylWidget(
         }
     }
 
-    // 再生中の自動回転アニメーション (5秒で360度回転)
-    val infiniteTransition = rememberInfiniteTransition(label = "VinylRotation")
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 5000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "Rotation"
-    )
+    // 再生中の自動回転（5秒で1回転）。一時停止では慣性でゆっくり止まり、再生では滑らかに加速する
+    var discAngle by remember { mutableStateOf(0f) }
+    var discVel by remember { mutableStateOf(0f) }
+    LaunchedEffect(isPlaying) {
+        var lastMs = System.currentTimeMillis()
+        if (isPlaying) {
+            while (true) {
+                if (!(context.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager).isInteractive) {
+                    delay(400)
+                    lastMs = System.currentTimeMillis()
+                    continue
+                }
+                delay(16)
+                val nowMs = System.currentTimeMillis()
+                val dt = ((nowMs - lastMs) / 1000f).coerceIn(0.001f, 0.05f)
+                lastMs = nowMs
+                discVel += (72f - discVel) * (dt * 1.6f).coerceAtMost(1f)
+                discAngle = (discAngle + discVel * dt) % 360f
+            }
+        } else {
+            while (discVel > 0.5f) {
+                delay(16)
+                val nowMs = System.currentTimeMillis()
+                val dt = ((nowMs - lastMs) / 1000f).coerceIn(0.001f, 0.05f)
+                lastMs = nowMs
+                discVel *= Math.pow(0.22, dt.toDouble()).toFloat()
+                discAngle = (discAngle + discVel * dt) % 360f
+            }
+            discVel = 0f
+        }
+    }
 
-    val currentRotation = if (isPlaying) rotation else 0f
+    val currentRotation = discAngle
     val spinRotation = currentRotation + userSpin
 
     // 曲が変わった瞬間、アートワークが縦軸でくるっと1回転する

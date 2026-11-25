@@ -378,6 +378,8 @@ fun DiscWheel(
         if (verticalRestLabel && side == DiscSide.LEFT && restP > 0.01f) {
             val focusEntry = entries.getOrNull(focusIdx)
             if (focusEntry != null) {
+                val labelText = restLabelText ?: focusEntry.label
+                val singleChar = labelText.length == 1
                 Box(
                     modifier = Modifier
                         .offset(x = (centerX + 165f - 60f - 100f).dp, y = (centerY - 22f).dp)
@@ -385,15 +387,15 @@ fun DiscWheel(
                         .height(44.dp)
                         .graphicsLayer {
                             alpha = restP
-                            rotationZ = -90f * restP
+                            rotationZ = if (singleChar) 0f else -90f * restP
                             translationX = (1f - restP) * 40.dp.toPx()
                         },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        restLabelText ?: focusEntry.label,
+                        labelText,
                         color = accentColor,
-                        fontSize = textSizeSp.sp,
+                        fontSize = if (singleChar) (textSizeSp * 2.2f).sp else textSizeSp.sp,
                         letterSpacing = letterSpacingSp.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,

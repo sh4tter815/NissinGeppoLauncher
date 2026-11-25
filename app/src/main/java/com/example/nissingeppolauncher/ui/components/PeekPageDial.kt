@@ -67,6 +67,7 @@ fun PeekPageDial(
     val context = LocalContext.current
     val prefManager = remember { com.example.nissingeppolauncher.data.AppPreferenceManager(context) }
     val isReverseScroll = prefManager.isReverseScroll()
+    val dialOutlineEnabled = prefManager.isDialOutlineEnabled()
 
     // 押している間はフォルダ選択の円盤（MechanicalDisc）と同じく1.30倍に拡大し、指で隠れないようにする
     var isPressed by remember { mutableStateOf(false) }
@@ -201,7 +202,7 @@ fun PeekPageDial(
                 }
         ) {
             // フォルダ円盤と同じ白い輪郭線の円（塗りなし）
-            Canvas(modifier = Modifier.fillMaxSize()) {
+            if (dialOutlineEnabled) Canvas(modifier = Modifier.fillMaxSize()) {
                 val center = Offset(discCenterXDp.dp.toPx(), discCenterYDp.dp.toPx())
                 drawCircle(
                     color = Color.White.copy(alpha = 0.85f),
