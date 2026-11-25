@@ -1,5 +1,5 @@
 {
-  "version": 49,
+  "version": 51,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -1473,22 +1473,36 @@
           "glyph": "clock",
           "children": [
             {
-              "item": "dateMode"
+              "id": "ui_clock_date",
+              "label": "日付",
+              "glyph": "calendar",
+              "children": [
+                {
+                  "item": "dateMode"
+                },
+                {
+                  "item": "dateWareki"
+                }
+              ]
             },
             {
-              "item": "clockSeconds"
-            },
-            {
-              "item": "clock12h"
-            },
-            {
-              "item": "clockHorizontal"
+              "id": "ui_clock_time",
+              "label": "時刻",
+              "glyph": "clock",
+              "children": [
+                {
+                  "item": "clockSeconds"
+                },
+                {
+                  "item": "clock12h"
+                },
+                {
+                  "item": "clockHorizontal"
+                }
+              ]
             },
             {
               "item": "clockBattery"
-            },
-            {
-              "item": "dateWareki"
             }
           ]
         },
@@ -1615,13 +1629,20 @@
               ]
             },
             {
-              "item": "displayMode"
-            },
-            {
-              "item": "statusBar"
-            },
-            {
-              "item": "statusBarWidth"
+              "id": "ly_status",
+              "label": "ステータスバー",
+              "glyph": "panel-top",
+              "children": [
+                {
+                  "item": "displayMode"
+                },
+                {
+                  "item": "statusBar"
+                },
+                {
+                  "item": "statusBarWidth"
+                }
+              ]
             }
           ]
         },
@@ -1639,19 +1660,33 @@
           "item": "updateApps"
         },
         {
-          "item": "appSort"
+          "id": "library_sort",
+          "label": "並び順と読み",
+          "glyph": "chevrons-up-down",
+          "children": [
+            {
+              "item": "appSort"
+            },
+            {
+              "item": "englishAppSort"
+            },
+            {
+              "item": "yomiUpdate"
+            }
+          ]
         },
         {
-          "item": "englishAppSort"
-        },
-        {
-          "item": "indexShowEnglish"
-        },
-        {
-          "item": "indexMode"
-        },
-        {
-          "item": "yomiUpdate"
+          "id": "library_index",
+          "label": "索引",
+          "glyph": "a-large-small",
+          "children": [
+            {
+              "item": "indexShowEnglish"
+            },
+            {
+              "item": "indexMode"
+            }
+          ]
         },
         {
           "item": "usageAccess"
@@ -1715,22 +1750,36 @@
       "cat": true,
       "children": [
         {
-          "item": "checkUpdate"
+          "id": "other_update",
+          "label": "更新",
+          "glyph": "update",
+          "children": [
+            {
+              "item": "checkUpdate"
+            },
+            {
+              "item": "fxUpdate"
+            },
+            {
+              "item": "treeUpdate"
+            }
+          ]
         },
         {
-          "item": "fxUpdate"
-        },
-        {
-          "item": "treeUpdate"
+          "id": "other_backup",
+          "label": "バックアップ",
+          "glyph": "database",
+          "children": [
+            {
+              "item": "settingsExport"
+            },
+            {
+              "item": "settingsImport"
+            }
+          ]
         },
         {
           "item": "guideReshow"
-        },
-        {
-          "item": "settingsExport"
-        },
-        {
-          "item": "settingsImport"
         },
         {
           "item": "cacheInfo"
