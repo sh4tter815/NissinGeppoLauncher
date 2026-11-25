@@ -699,6 +699,7 @@ fun SettingsScreen(
     var powerSaveNightStart by remember { mutableStateOf(repo.prefManager.getPowerSaveNightStart()) }
     var powerSaveNightEnd by remember { mutableStateOf(repo.prefManager.getPowerSaveNightEnd()) }
     var discOutline by remember { mutableStateOf(repo.prefManager.isDiscOutlineEnabled()) }
+    var appIconHidden by remember { mutableStateOf(repo.prefManager.isAppIconHidden()) }
     var dialOutline by remember { mutableStateOf(repo.prefManager.isDialOutlineEnabled()) }
     var discDropOnPv by remember { mutableStateOf(repo.prefManager.isDiscDropOnPvEnabled()) }
     var widgetLongPressAction by remember { mutableStateOf(repo.prefManager.getWidgetLongPressAction()) }
@@ -1062,6 +1063,7 @@ fun SettingsScreen(
         "powerSaveChargingExempt" to Pair({ powerSaveChargingExempt }, { v: Boolean -> powerSaveChargingExempt = v; repo.prefManager.setPowerSaveChargingExempt(v); onChanged() }),
         "powerSaveNight" to Pair({ powerSaveNight }, { v: Boolean -> powerSaveNight = v; repo.prefManager.setPowerSaveNightEnabled(v); onChanged() }),
         "discOutline" to Pair({ discOutline }, { v: Boolean -> discOutline = v; repo.prefManager.setDiscOutlineEnabled(v); onChanged() }),
+        "appIconHidden" to Pair({ appIconHidden }, { v: Boolean -> appIconHidden = v; repo.prefManager.setAppIconHidden(v); onChanged() }),
         "dialOutline" to Pair({ dialOutline }, { v: Boolean -> dialOutline = v; repo.prefManager.setDialOutlineEnabled(v); onChanged() }),
         "curvedTitle" to Pair({ curvedTitle }, { v: Boolean -> curvedTitle = v; repo.prefManager.setCurvedTitleEnabled(v); onChanged() }),
         "tonearmEnabled" to Pair({ tonearmEnabled }, { v: Boolean -> tonearmEnabled = v; repo.prefManager.setTonearmEnabled(v); onChanged() }),
