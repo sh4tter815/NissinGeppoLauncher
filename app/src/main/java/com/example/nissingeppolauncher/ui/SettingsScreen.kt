@@ -725,6 +725,7 @@ fun SettingsScreen(
     var artworkVisible by remember { mutableStateOf(repo.prefManager.isArtworkEnabled()) }
     var artworkOutline by remember { mutableStateOf(repo.prefManager.isArtworkOutlineEnabled()) }
     var curvedTitle by remember { mutableStateOf(repo.prefManager.isCurvedTitleEnabled()) }
+    var caseCircleClip by remember { mutableStateOf(repo.prefManager.isCaseCircleClipEnabled()) }
     var tonearmEnabled by remember { mutableStateOf(repo.prefManager.isTonearmEnabled()) }
     var tonearmStyle by remember { mutableStateOf(repo.prefManager.getTonearmStyle()) }
     var cassetteStyle by remember { mutableStateOf(repo.prefManager.getCassetteStyle()) }
@@ -1150,6 +1151,7 @@ fun SettingsScreen(
         "appIconHidden" to Pair({ appIconHidden }, { v: Boolean -> appIconHidden = v; repo.prefManager.setAppIconHidden(v); onChanged() }),
         "dialOutline" to Pair({ dialOutline }, { v: Boolean -> dialOutline = v; repo.prefManager.setDialOutlineEnabled(v); onChanged() }),
         "curvedTitle" to Pair({ curvedTitle }, { v: Boolean -> curvedTitle = v; repo.prefManager.setCurvedTitleEnabled(v); onChanged() }),
+        "caseCircleClip" to Pair({ caseCircleClip }, { v: Boolean -> caseCircleClip = v; repo.prefManager.setCaseCircleClipEnabled(v); onChanged() }),
         "tonearmEnabled" to Pair({ tonearmEnabled }, { v: Boolean -> tonearmEnabled = v; repo.prefManager.setTonearmEnabled(v); onChanged() }),
         "discDropOnPv" to Pair({ discDropOnPv }, { v: Boolean -> discDropOnPv = v; repo.prefManager.setDiscDropOnPvEnabled(v); onChanged() }),
         "notificationBadges" to Pair({ notificationBadges }, { v: Boolean -> notificationBadges = v; repo.prefManager.setNotificationBadgesEnabled(v); onChanged() }),
