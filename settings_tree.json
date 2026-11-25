@@ -1,5 +1,5 @@
 {
-  "version": 46,
+  "version": 48,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -631,10 +631,6 @@
         {
           "v": "always",
           "label": "常時表示"
-        },
-        {
-          "v": "hidden",
-          "label": "非表示"
         }
       ]
     },
@@ -1250,6 +1246,13 @@
       "glyph": "palette",
       "type": "action",
       "action": "iconPack"
+    },
+    "appIconHidden": {
+      "label": "アイコンなし（名前だけ）",
+      "desc": "アプリのアイコンを出さず、名前だけを表示します",
+      "glyph": "text",
+      "type": "toggle",
+      "bind": "appIconHidden"
     }
   },
   "tree": [
@@ -1350,12 +1353,6 @@
               "item": "discLayout"
             },
             {
-              "item": "iconSize"
-            },
-            {
-              "item": "iconCorner"
-            },
-            {
               "item": "stepAngle"
             },
             {
@@ -1383,13 +1380,32 @@
               "item": "dialVisibility"
             },
             {
-              "item": "notificationBadges"
-            },
-            {
               "item": "discOutline"
             },
             {
               "item": "dialOutline"
+            }
+          ]
+        },
+        {
+          "id": "ui_icons",
+          "label": "アプリアイコン",
+          "glyph": "image",
+          "children": [
+            {
+              "item": "iconSize"
+            },
+            {
+              "item": "iconCorner"
+            },
+            {
+              "item": "appIconHidden"
+            },
+            {
+              "item": "iconPack"
+            },
+            {
+              "item": "notificationBadges"
             }
           ]
         },
@@ -1597,9 +1613,6 @@
         },
         {
           "item": "usageAccess"
-        },
-        {
-          "item": "iconPack"
         }
       ]
     },
