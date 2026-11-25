@@ -463,6 +463,11 @@ class AppPreferenceManager(private val context: Context) {
     // アートワーク表示（左円とラックの画像そのもの）
     fun isArtworkEnabled(): Boolean = prefs.getBoolean("artwork_enabled", true)
     fun setArtworkEnabled(v: Boolean) = prefs.edit().putBoolean("artwork_enabled", v).apply()
+
+    fun isArtworkOutlineEnabled(): Boolean = prefs.getBoolean("artwork_outline", true)
+    fun setArtworkOutlineEnabled(v: Boolean) = prefs.edit().putBoolean("artwork_outline", v).apply()
+    fun isCurvedTitleEnabled(): Boolean = prefs.getBoolean("curved_title", true)
+    fun setCurvedTitleEnabled(v: Boolean) = prefs.edit().putBoolean("curved_title", v).apply()
     fun isTonearmEnabled(): Boolean = prefs.getBoolean("tonearm_enabled", false)
     fun setTonearmEnabled(v: Boolean) = prefs.edit().putBoolean("tonearm_enabled", v).apply()
     // テーマ: ディスクの見た目（digital / vinyl / cd）とターンテーブル（none / wood / silver / black）
