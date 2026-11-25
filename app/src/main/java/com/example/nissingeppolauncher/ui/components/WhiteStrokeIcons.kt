@@ -36,6 +36,8 @@ val LucideSparkles = LucideDraw(listOf("M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.
 val LucideMaximize = LucideDraw(listOf("M8 3H5a2 2 0 0 0-2 2v3", "M21 8V5a2 2 0 0 0-2-2h-3", "M3 16v3a2 2 0 0 0 2 2h3", "M16 21h3a2 2 0 0 0 2-2v-3"))
 val LucideMinimize = LucideDraw(listOf("M8 3v3a2 2 0 0 1-2 2H3", "M21 8h-3a2 2 0 0 1-2-2V3", "M3 16h3a2 2 0 0 1 2 2v3", "M16 21v-3a2 2 0 0 1 2-2h3"))
 val LucideListMusic = LucideDraw(listOf("M16 5H3", "M11 12H3", "M11 19H3", "M21 16V5"), listOf(Triple(18f, 16f, 3f)))
+val LucideClapperboard = LucideDraw(listOf("m12.296 3.464 3.02 3.956", "M20.2 6 3 11l-.9-2.4c-.3-1.1.3-2.2 1.3-2.5l13.5-4c1.1-.3 2.2.3 2.5 1.3z", "M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z", "m6.18 5.276 3.1 3.899"))
+val LucideCaptions = LucideDraw(listOf("M5 5h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z", "M7 15h4M15 15h2M7 11h2M13 11h4"))
 
 @Composable
 fun LucideIcon(icon: LucideDraw, size: Dp = 24.dp, color: Color = Color.White, modifier: Modifier = Modifier) {
