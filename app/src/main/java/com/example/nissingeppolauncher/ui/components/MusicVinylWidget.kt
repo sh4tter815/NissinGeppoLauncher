@@ -526,7 +526,6 @@ fun MusicVinylWidget(
                             val hasSession = sessionController != null
                             val startIdx = latestRackCurrentIndex
                             rackTargetOffset = 0
-                            if (hasSession) rackOpen = true
                             var moved = false
                             var maxDist = 0f
                             var stepBaseY = down.position.y
@@ -552,6 +551,8 @@ fun MusicVinylWidget(
                                         } else {
                                             runWidgetAction(holdAction)
                                         }
+                                    } else if (pressTapIndex > 0) {
+                                        rackOpen = true
                                     }
                                 }
                             }
@@ -563,7 +564,7 @@ fun MusicVinylWidget(
                                     val dy = change.position.y - change.previousPosition.y
                                     grabRotY = (grabRotY + dx * 0.45f).coerceIn(-70f, 70f)
                                     grabRotX = (grabRotX - dy * 0.45f).coerceIn(-70f, 70f)
-                                } else if (hasSession && !longPressFired) {
+                                } else if (hasSession && !longPressFired && rackOpen) {
                                     var dy = change.position.y - stepBaseY
                                     while (dy <= -40f || dy >= 40f) {
                                         val dir = (if (dy <= -40f) 1 else -1) * dirSign
