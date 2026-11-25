@@ -33,7 +33,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -270,6 +272,14 @@ fun MusicVinylWidget(
     val artworkEnabled = prefManager.isArtworkEnabled()
     val tonearmEnabled = prefManager.isTonearmEnabled()
     val tonearmScale = tonearmScaleOverride ?: prefManager.getTonearmScale()
+    val tonearmStylePref = prefManager.getTonearmStyle()
+    val tonearmStyle = if (tonearmStylePref != "auto") tonearmStylePref else when (prefManager.getDiscStyle()) {
+        "clear" -> "acrylic"
+        "glow" -> "glow"
+        "cd", "md" -> "laser"
+        "cassette" -> "head"
+        else -> "classic"
+    }
     val tonearmAngle by animateFloatAsState(
         targetValue = if (isPlaying) 97f else 63f,
         animationSpec = tween(durationMillis = 850, easing = FastOutSlowInEasing),
@@ -879,21 +889,67 @@ fun MusicVinylWidget(
                 val sinA = sin(rad).toFloat()
                 val tipX = px + armLen * cosA
                 val tipY = py + armLen * sinA
-                // カウンターウェイト（ピボットの反対側）
-                drawLine(color = Color(0xFF9E9E9E), start = Offset(px - cosA * (16f * tonearmScale).dp.toPx(), py - sinA * (16f * tonearmScale).dp.toPx()), end = Offset(px, py), strokeWidth = (10f * tonearmScale).dp.toPx(), cap = StrokeCap.Round)
-                // アーム本体（二重線で金属感）
-                drawLine(color = Color(0xFFC9C9C9), start = Offset(px, py), end = Offset(tipX, tipY), strokeWidth = (4.5f * tonearmScale).dp.toPx(), cap = StrokeCap.Round)
-                drawLine(color = Color(0xFFFFFFFF), start = Offset(px, py), end = Offset(tipX, tipY), strokeWidth = (1.6f * tonearmScale).dp.toPx(), cap = StrokeCap.Round)
-                // ヘッドシェル（先端を内側へ少し曲げた太い部分）
-                val shellRad = rad + Math.toRadians(18.0)
-                val shellLen = (17f * tonearmScale).dp.toPx()
-                drawLine(color = accentColor, start = Offset(tipX - (cos(shellRad) * shellLen).toFloat(), tipY - (sin(shellRad) * shellLen).toFloat()), end = Offset(tipX, tipY), strokeWidth = (7f * tonearmScale).dp.toPx(), cap = StrokeCap.Round)
-                // 針
-                drawLine(color = Color.White, start = Offset(tipX, tipY), end = Offset(tipX, tipY + (4f * tonearmScale).dp.toPx()), strokeWidth = (1.6f * tonearmScale).dp.toPx(), cap = StrokeCap.Round)
-                // ピボット（軸受け）
-                drawCircle(color = Color(0xFF424242), radius = (13f * tonearmScale).dp.toPx(), center = Offset(px, py))
-                drawCircle(color = accentColor, radius = (13f * tonearmScale).dp.toPx(), center = Offset(px, py), style = Stroke(width = (1.5f * tonearmScale).dp.toPx()))
-                drawCircle(color = Color(0xFFBDBDBD), radius = (4.5f * tonearmScale).dp.toPx(), center = Offset(px, py))
+                val sc = tonearmScale
+                when (tonearmStyle) {
+                    "laser" -> {
+                        // レーザーピックアップ: 四角い光学ユニットが先端位置を移動する
+                        drawLine(color = Color.White.copy(alpha = 0.35f), start = Offset(px, py), end = Offset(tipX, tipY), strokeWidth = (2f * sc).dp.toPx())
+                        val w = (36f * sc).dp.toPx()
+                        val h = (23f * sc).dp.toPx()
+                        drawRoundRect(color = Color(0xFF37474F), topLeft = Offset(tipX - w / 2f, tipY - h / 2f), size = Size(w, h), cornerRadius = CornerRadius((4f * sc).dp.toPx()))
+                        drawRoundRect(color = Color(0xFF14181B), topLeft = Offset(tipX - w * 0.32f, tipY - h * 0.28f), size = Size(w * 0.64f, h * 0.56f), cornerRadius = CornerRadius((3f * sc).dp.toPx()))
+                        drawCircle(color = Color(0xFF0D1B2E), radius = (4.5f * sc).dp.toPx(), center = Offset(tipX, tipY))
+                        drawCircle(color = Color(0xFFFF1744), radius = (1.8f * sc).dp.toPx(), center = Offset(tipX, tipY))
+                        drawCircle(color = Color(0xFF263238), radius = (6f * sc).dp.toPx(), center = Offset(px, py))
+                    }
+                    "head" -> {
+                        // 再生ヘッド: 太めのブラケットの先に金属ヘッド
+                        drawLine(color = Color(0xFF78909C), start = Offset(px, py), end = Offset(tipX, tipY), strokeWidth = (7f * sc).dp.toPx(), cap = StrokeCap.Round)
+                        val w = (27f * sc).dp.toPx()
+                        val h = (17f * sc).dp.toPx()
+                        drawRoundRect(color = Color(0xFFB0BEC5), topLeft = Offset(tipX - w / 2f, tipY - h / 2f), size = Size(w, h), cornerRadius = CornerRadius((3f * sc).dp.toPx()))
+                        drawLine(color = Color(0xFF37474F), start = Offset(tipX - w * 0.30f, tipY), end = Offset(tipX + w * 0.30f, tipY), strokeWidth = (2.5f * sc).dp.toPx())
+                        drawCircle(color = Color(0xFF546E7A), radius = (2.2f * sc).dp.toPx(), center = Offset(tipX - w * 0.62f, tipY))
+                        drawCircle(color = Color(0xFF546E7A), radius = (2.2f * sc).dp.toPx(), center = Offset(tipX + w * 0.62f, tipY))
+                        drawCircle(color = Color(0xFF455A64), radius = (9f * sc).dp.toPx(), center = Offset(px, py))
+                        drawCircle(color = Color(0xFFCFD8DC), radius = (3.5f * sc).dp.toPx(), center = Offset(px, py))
+                    }
+                    "minimal" -> {
+                        drawLine(color = Color.White.copy(alpha = 0.85f), start = Offset(px, py), end = Offset(tipX, tipY), strokeWidth = (2f * sc).dp.toPx(), cap = StrokeCap.Round)
+                        drawLine(color = Color.White, start = Offset(tipX, tipY), end = Offset(tipX, tipY + (4f * sc).dp.toPx()), strokeWidth = (1.6f * sc).dp.toPx())
+                        drawCircle(color = Color.White.copy(alpha = 0.9f), radius = (3.5f * sc).dp.toPx(), center = Offset(px, py))
+                    }
+                    else -> {
+                        // パレット: [0]カウンター [1]アーム [2]ハイライト [3]シェル [4]ピボット [5]ピボットリング [6]中心
+                        val pal = when (tonearmStyle) {
+                            "brass" -> listOf(Color(0xFF8C6D1F), Color(0xFFC9A227), Color(0xFFFFE082), Color(0xFF3E2723), Color(0xFF5D4037), Color(0xFFC9A227), Color(0xFFFFD54F))
+                            "acrylic" -> listOf(Color.White.copy(alpha = 0.30f), Color.White.copy(alpha = 0.38f), Color.White.copy(alpha = 0.80f), Color.White.copy(alpha = 0.50f), Color.White.copy(alpha = 0.22f), Color.White.copy(alpha = 0.65f), Color.White)
+                            "glow" -> listOf(Color(0xFF2E7D68), Color(0xFF4DEBB8), Color(0xFFE4FFF3), Color(0xFF4DEBB8), Color(0xFF0E3B2E), Color(0xFF4DEBB8), Color(0xFFE4FFF3))
+                            "mecha" -> listOf(Color(0xFF263238), Color(0xFF37474F), accentColor, Color(0xFF263238), Color(0xFF263238), Color(0xFF90A4AE), Color(0xFFCFD8DC))
+                            else -> listOf(Color(0xFF9E9E9E), Color(0xFFC9C9C9), Color(0xFFFFFFFF), accentColor, Color(0xFF424242), accentColor, Color(0xFFBDBDBD))
+                        }
+                        if (tonearmStyle == "glow") {
+                            drawLine(color = Color(0xFF4DEBB8).copy(alpha = 0.30f), start = Offset(px, py), end = Offset(tipX, tipY), strokeWidth = (13f * sc).dp.toPx(), cap = StrokeCap.Round)
+                        }
+                        val armW = if (tonearmStyle == "mecha") 9f else if (tonearmStyle == "acrylic") 6f else 4.5f
+                        drawLine(color = pal[0], start = Offset(px - cosA * (16f * sc).dp.toPx(), py - sinA * (16f * sc).dp.toPx()), end = Offset(px, py), strokeWidth = ((if (tonearmStyle == "mecha") 14f else 10f) * sc).dp.toPx(), cap = StrokeCap.Round)
+                        drawLine(color = pal[1], start = Offset(px, py), end = Offset(tipX, tipY), strokeWidth = (armW * sc).dp.toPx(), cap = StrokeCap.Round)
+                        drawLine(color = pal[2], start = Offset(px, py), end = Offset(tipX, tipY), strokeWidth = (1.6f * sc).dp.toPx(), cap = StrokeCap.Round)
+                        if (tonearmStyle == "mecha") {
+                            val mx = (px + tipX) / 2f
+                            val my = (py + tipY) / 2f
+                            drawCircle(color = Color(0xFF263238), radius = (6.5f * sc).dp.toPx(), center = Offset(mx, my))
+                            drawCircle(color = accentColor, radius = (6.5f * sc).dp.toPx(), center = Offset(mx, my), style = Stroke(width = (1.5f * sc).dp.toPx()))
+                        }
+                        val shellRad = rad + Math.toRadians(18.0)
+                        val shellLen = (17f * sc).dp.toPx()
+                        drawLine(color = pal[3], start = Offset(tipX - (cos(shellRad) * shellLen).toFloat(), tipY - (sin(shellRad) * shellLen).toFloat()), end = Offset(tipX, tipY), strokeWidth = ((if (tonearmStyle == "mecha") 10f else 7f) * sc).dp.toPx(), cap = StrokeCap.Round)
+                        drawLine(color = Color.White, start = Offset(tipX, tipY), end = Offset(tipX, tipY + (4f * sc).dp.toPx()), strokeWidth = (1.6f * sc).dp.toPx())
+                        drawCircle(color = pal[4], radius = ((if (tonearmStyle == "mecha") 15f else 13f) * sc).dp.toPx(), center = Offset(px, py))
+                        drawCircle(color = pal[5], radius = ((if (tonearmStyle == "mecha") 15f else 13f) * sc).dp.toPx(), center = Offset(px, py), style = Stroke(width = (1.5f * sc).dp.toPx()))
+                        drawCircle(color = pal[6], radius = (4.5f * sc).dp.toPx(), center = Offset(px, py))
+                    }
+                }
             }
         }
     }
@@ -1257,30 +1313,21 @@ private fun MdCase(boxSizeDp: Float, accentColor: Color, rotation: Float, bitmap
                     .width(2.dp)
                     .background(Color(0xFF7A7F86))
             )
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(start = 6.dp, end = 6.dp, bottom = 6.dp)
-                    .fillMaxWidth()
-                    .height((caseH * 0.13f).dp)
-                    .clip(RoundedCornerShape(3.dp))
-                    .background(Color.White.copy(alpha = 0.92f))
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(text = "74", color = Color(0xFF222222), fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                    if (lineArtImage != null) {
-                        Image(
-                            bitmap = lineArtImage,
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize().padding(start = 6.dp),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
-                }
+            if (lineArtImage != null) {
+                Image(
+                    bitmap = lineArtImage,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize().padding(start = 6.dp, end = 4.dp, top = 3.dp, bottom = 3.dp),
+                    contentScale = ContentScale.Fit
+                )
             }
+            Text(
+                text = "74",
+                color = Color(0xFF3A3F45),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.BottomStart).padding(start = 8.dp, bottom = 3.dp)
+            )
         }
     }
 }
