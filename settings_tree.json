@@ -1,5 +1,5 @@
 {
-  "version": 33,
+  "version": 34,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -1040,6 +1040,51 @@
           "label": "なし"
         }
       ]
+    },
+    "tonearmStyle": {
+      "label": "針のテーマ",
+      "desc": "レコード針の見た目です。「ディスクに連動」ではディスクのテーマに合わせて姿が変わります（クリア→アクリル、蓄光→蓄光、CD・MD→レーザー、カセット→再生ヘッド）",
+      "glyph": "wand-sparkles",
+      "type": "choices",
+      "bind": "tonearmStyle",
+      "choices": [
+        {
+          "v": "auto",
+          "label": "ディスクに連動"
+        },
+        {
+          "v": "classic",
+          "label": "クラシック"
+        },
+        {
+          "v": "brass",
+          "label": "真鍮"
+        },
+        {
+          "v": "acrylic",
+          "label": "アクリル"
+        },
+        {
+          "v": "glow",
+          "label": "蓄光"
+        },
+        {
+          "v": "mecha",
+          "label": "メカ"
+        },
+        {
+          "v": "minimal",
+          "label": "ミニマル"
+        },
+        {
+          "v": "laser",
+          "label": "レーザーピックアップ"
+        },
+        {
+          "v": "head",
+          "label": "再生ヘッド"
+        }
+      ]
     }
   },
   "tree": [
@@ -1246,6 +1291,9 @@
                 },
                 {
                   "item": "tonearm"
+                },
+                {
+                  "item": "tonearmStyle"
                 }
               ]
             },

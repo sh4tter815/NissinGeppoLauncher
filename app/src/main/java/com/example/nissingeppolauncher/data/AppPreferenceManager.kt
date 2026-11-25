@@ -526,6 +526,8 @@ class AppPreferenceManager(private val context: Context) {
     fun setPvHeight(v: Float) = prefs.edit().putFloat("pv_height", v).apply()
     fun getTonearmScale(): Float = prefs.getFloat("tonearm_scale", 1f)
     fun setTonearmScale(v: Float) = prefs.edit().putFloat("tonearm_scale", v).apply()
+    fun getTonearmStyle(): String = prefs.getString("tonearm_style", "auto") ?: "auto"
+    fun setTonearmStyle(v: String) = prefs.edit().putString("tonearm_style", v).apply()
     // 設定画面からレイアウト編集モードを開くための一時フラグ
     fun requestLayoutEdit() = prefs.edit().putBoolean("layout_edit_request", true).apply()
     fun isLayoutEditRequested(): Boolean = prefs.getBoolean("layout_edit_request", false)
