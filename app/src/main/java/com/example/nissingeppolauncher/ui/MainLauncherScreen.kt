@@ -794,6 +794,18 @@ fun MainLauncherScreen() {
     var isTransitioning by remember { mutableStateOf(false) }
 
     var customBackgroundPath by remember { mutableStateOf(repo.prefManager.getCustomBackgroundPath()) }
+    var nightWallpaperActive by remember { mutableStateOf(repo.prefManager.isNightWallpaperEnabled() && repo.prefManager.getNightWallpaperPath() != null && repo.prefManager.isNightTimeNow()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            nightWallpaperActive = repo.prefManager.isNightWallpaperEnabled() && repo.prefManager.getNightWallpaperPath() != null && repo.prefManager.isNightTimeNow()
+            delay(60000)
+        }
+    }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try { LyricsManager.enforceLyricsCacheLimit(context) } catch (_: Exception) { }
+        }
+    }
     var backgroundUpdateKey by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -1219,7 +1231,7 @@ fun MainLauncherScreen() {
                     liquidSpeed = liquidSpeed,
                     liquidAlphaMul = liquidAlpha,
                     wallpaperBlurDp = wallpaperBlur,
-                    customPath = repo.prefManager.getPageWallpaperPath(currentLauncherPage) ?: customBackgroundPath,
+                    customPath = if (nightWallpaperActive) repo.prefManager.getNightWallpaperPath() else (repo.prefManager.getPageWallpaperPath(currentLauncherPage) ?: customBackgroundPath),
                     updateKey = backgroundUpdateKey,
                     isHome = (currentLauncherPage == 1),
                     currentAlbumArt = if (matchArtwork || useArtworkBg) sessionAlbumArt else null,
