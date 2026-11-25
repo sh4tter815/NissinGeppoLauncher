@@ -25,7 +25,9 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalContext
 import com.example.nissingeppolauncher.data.AppInfo
+import com.example.nissingeppolauncher.data.AppPreferenceManager
 import kotlin.math.abs
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.background
@@ -1218,7 +1220,8 @@ fun DiscAppItem(
             val iconXDp = discCenterXDp + innerIconRadiusDp * cos(rad)
             val iconYDp = discCenterYDp + innerIconRadiusDp * sin(rad)
             val iconBitmap = app.iconBitmap
-            if (iconBitmap != null) {
+            val hideIcons = AppPreferenceManager(LocalContext.current).isAppIconHidden()
+            if (iconBitmap != null && !hideIcons) {
                 Box(
                     modifier = Modifier
                         .offset(x = (iconXDp - ((iconSizeDp + 14f) / 2f)).dp, y = (iconYDp - ((iconSizeDp + 14f) / 2f)).dp)
@@ -1278,7 +1281,7 @@ fun DiscAppItem(
             val textWeight = if (isChecked || isFocused) FontWeight.Bold else FontWeight.Medium
             if (showLabels) Box(
                 modifier = Modifier
-                    .offset(x = (appXDp - 240f).dp, y = (appYDp - 22f).dp)
+                    .offset(x = ((if (hideIcons) iconXDp else appXDp) - 240f).dp, y = ((if (hideIcons) iconYDp else appYDp) - 22f).dp)
                     .width(240.dp)
                     .height(44.dp),
                 contentAlignment = Alignment.CenterEnd
@@ -1379,7 +1382,8 @@ fun DiscFolderItem(
             FolderDiscEntry.NewFolder -> WhitePlusIcon(size = glyphSize, color = Color.White)
             is FolderDiscEntry.App -> {
                 val iconBitmap = entry.app.iconBitmap
-                if (iconBitmap != null) {
+                val hideIconsF = AppPreferenceManager(LocalContext.current).isAppIconHidden()
+                if (iconBitmap != null && !hideIconsF) {
                     if (iconTilt3d) {
                         Image(
                             bitmap = iconBitmap,
@@ -1402,7 +1406,7 @@ fun DiscFolderItem(
     }
     Box(
         modifier = Modifier
-            .offset(x = (appXDp - 240f).dp, y = (appYDp - 22f).dp)
+            .offset(x = ((if (entry is FolderDiscEntry.App && AppPreferenceManager(LocalContext.current).isAppIconHidden()) iconXDp else appXDp) - 240f).dp, y = ((if (entry is FolderDiscEntry.App && AppPreferenceManager(LocalContext.current).isAppIconHidden()) iconYDp else appYDp) - 22f).dp)
             .width(240.dp)
             .height(44.dp),
         contentAlignment = Alignment.CenterEnd
