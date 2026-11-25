@@ -215,7 +215,7 @@ fun MusicVinylWidget(
                 trackArtist = ""
                 trackAlbum = ""
             }
-            delay(1500)
+            delay(if (prefManager.isPowerSaveActive(context)) 4000L else 1500L)
         }
     }
 

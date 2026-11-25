@@ -17,6 +17,7 @@ import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
 import android.text.TextUtils
@@ -122,6 +123,7 @@ class LyricsOverlayService : Service() {
     private val pvLineState = mutableStateOf<LyricLine?>(null)
     private val pvInterludeState = mutableStateOf(false)
     private val pvPosState = mutableStateOf(0L)
+    private val pvFrozenState = mutableStateOf(false)
     private val pvColorWordsState = mutableStateOf<List<Pair<String, androidx.compose.ui.graphics.Color>>>(emptyList())
     private val pvFontState = mutableStateOf<FontFamily?>(null)
     private val pvEnFontState = mutableStateOf<FontFamily?>(null)
@@ -709,12 +711,27 @@ class LyricsOverlayService : Service() {
                     }
                 }
                 Box(modifier = Modifier.fillMaxSize()) {
-                    exitLine?.let { MiniPvLine(line = it, posMs = pvPosState.value, exitP = exitAnim.value) }
-                    val cl = curLine
-                    if (cl != null) {
-                        MiniPvLine(line = cl, posMs = pvPosState.value)
-                    } else if (exitLine == null && pvInterludeState.value) {
-                        MiniInterludeWave()
+                    if (pvFrozenState.value) {
+                        val cl = curLine
+                        if (cl != null) {
+                            Text(
+                                text = cl.text,
+                                color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.92f),
+                                fontSize = 13.sp,
+                                fontWeight = if (pvBoldState.value) FontWeight.Bold else FontWeight.Normal,
+                                fontFamily = pvFontState.value,
+                                maxLines = 1,
+                                style = TextStyle(shadow = Shadow(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.6f), Offset(0f, 1.5f), 4f))
+                            )
+                        }
+                    } else {
+                        exitLine?.let { MiniPvLine(line = it, posMs = pvPosState.value, exitP = exitAnim.value) }
+                        val cl = curLine
+                        if (cl != null) {
+                            MiniPvLine(line = cl, posMs = pvPosState.value)
+                        } else if (exitLine == null && pvInterludeState.value) {
+                            MiniInterludeWave()
+                        }
                     }
                 }
             }
@@ -883,7 +900,18 @@ class LyricsOverlayService : Service() {
                 } catch (e: Exception) {
                     // 読めないときは表示を維持する
                 }
-                delay(if (overlayMode == "pv") 80L else 250L)
+                val pmNow = getSystemService(Context.POWER_SERVICE) as PowerManager
+                val screenOff = !pmNow.isInteractive
+                val saving = screenOff || AppPreferenceManager(this@LyricsOverlayService).isPowerSaveActive(this@LyricsOverlayService)
+                pvFrozenState.value = saving && overlayMode == "pv"
+                delay(
+                    when {
+                        screenOff -> 1000L
+                        saving -> 500L
+                        overlayMode == "pv" -> 80L
+                        else -> 250L
+                    }
+                )
             }
         }
     }

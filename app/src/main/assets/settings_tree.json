@@ -1,5 +1,5 @@
 {
-  "version": 35,
+  "version": 36,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -1106,6 +1106,27 @@
           "label": "ブラック"
         }
       ]
+    },
+    "powerSaveMode": {
+      "label": "省電力モード",
+      "desc": "アニメーションや更新間隔を抑えて電池を節約します。「システムに連動」では端末の電池セーバーが入ったときだけ有効になります",
+      "glyph": "timer",
+      "type": "choices",
+      "bind": "powerSaveMode",
+      "choices": [
+        {
+          "v": "auto",
+          "label": "システムに連動"
+        },
+        {
+          "v": "on",
+          "label": "常にオン"
+        },
+        {
+          "v": "off",
+          "label": "オフ"
+        }
+      ]
     }
   },
   "tree": [
@@ -1470,6 +1491,9 @@
         },
         {
           "item": "startupPage"
+        },
+        {
+          "item": "powerSaveMode"
         }
       ]
     },

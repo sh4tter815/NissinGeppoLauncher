@@ -530,6 +530,18 @@ class AppPreferenceManager(private val context: Context) {
     fun setTonearmStyle(v: String) = prefs.edit().putString("tonearm_style", v).apply()
     fun getCassetteStyle(): String = prefs.getString("cassette_style", "clear") ?: "clear"
     fun setCassetteStyle(v: String) = prefs.edit().putString("cassette_style", v).apply()
+    fun getPowerSaveMode(): String = prefs.getString("power_save_mode", "auto") ?: "auto"
+    fun setPowerSaveMode(v: String) = prefs.edit().putString("power_save_mode", v).apply()
+    fun isPowerSaveActive(context: Context): Boolean {
+        return when (getPowerSaveMode()) {
+            "on" -> true
+            "auto" -> {
+                val pm = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+                pm?.isPowerSaveMode == true
+            }
+            else -> false
+        }
+    }
     // 設定画面からレイアウト編集モードを開くための一時フラグ
     fun requestLayoutEdit() = prefs.edit().putBoolean("layout_edit_request", true).apply()
     fun isLayoutEditRequested(): Boolean = prefs.getBoolean("layout_edit_request", false)

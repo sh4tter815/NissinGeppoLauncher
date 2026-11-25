@@ -200,6 +200,20 @@ fun MainLauncherScreen() {
     var dateWareki by remember { mutableStateOf(repo.prefManager.isDateWareki()) }
     var pageTransitionSpeed by remember { mutableFloatStateOf(repo.prefManager.getPageTransitionSpeed()) }
     var dialVisibility by remember { mutableStateOf(repo.prefManager.getDialVisibility()) }
+    var powerSaveMode by remember { mutableStateOf(repo.prefManager.getPowerSaveMode()) }
+    var systemPowerSave by remember { mutableStateOf(false) }
+    DisposableEffect(Unit) {
+        val pm = context.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
+        systemPowerSave = pm.isPowerSaveMode
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: android.content.Context?, intent: android.content.Intent?) {
+                systemPowerSave = pm.isPowerSaveMode
+            }
+        }
+        context.registerReceiver(receiver, android.content.IntentFilter(android.os.PowerManager.ACTION_POWER_SAVE_MODE_CHANGED))
+        onDispose { try { context.unregisterReceiver(receiver) } catch (e: Exception) {} }
+    }
+    val powerSaveActive = powerSaveMode == "on" || (powerSaveMode == "auto" && systemPowerSave)
     var keepScreenOn by remember { mutableStateOf(repo.prefManager.isKeepScreenOn()) }
     var pvFontScale by remember { mutableFloatStateOf(repo.prefManager.getPvFontScale()) }
     var notificationBadges by remember { mutableStateOf(repo.prefManager.isNotificationBadgesEnabled()) }
@@ -1168,7 +1182,8 @@ fun MainLauncherScreen() {
                     dynamicBackground = if (matchArtwork || useArtworkBg) artworkBackground else null,
                     artworkBackgroundStyle = if (bgMode == "artwork_blur") "blur" else "solid",
                     liquidEnabled = liquidBackground,
-                    liquidAccent = if (dopagakiMode) Color.hsv(Math.floorMod(pvLineIndex * 47, 360).toFloat(), 0.72f, 1f) else effectiveAccent
+                    liquidAccent = if (dopagakiMode) Color.hsv(Math.floorMod(pvLineIndex * 47, 360).toFloat(), 0.72f, 1f) else effectiveAccent,
+                    staticMode = powerSaveActive
                 )
 
             // 非表示モード中は背景だけを段階的に暗くする（円盤や文字などのUIは暗くしない）
@@ -1323,6 +1338,7 @@ fun MainLauncherScreen() {
                                 dateWareki = repo.prefManager.isDateWareki()
                                 pageTransitionSpeed = repo.prefManager.getPageTransitionSpeed()
                                 dialVisibility = repo.prefManager.getDialVisibility()
+                                powerSaveMode = repo.prefManager.getPowerSaveMode()
                                 keepScreenOn = repo.prefManager.isKeepScreenOn()
                                 notificationBadges = repo.prefManager.isNotificationBadgesEnabled()
                                 appSortMode = repo.prefManager.getAppSortMode()
@@ -1601,11 +1617,7 @@ fun MainLauncherScreen() {
                             textStartAngle = lyricsTextAngle,
                             artworkTilt3d = disc3d,
                             tonearmScaleOverride = tonearmScale,
-                            onRackVisibilityChanged = { vinylRackOpen = it },
-                            onThemeSettingsRequest = {
-                                repo.prefManager.requestSettingsPath("lyrics,music_art,music_theme")
-                                changePageWithTransition(0)
-                            }
+                            onRackVisibilityChanged = { vinylRackOpen = it }
                         )
                     }
                 }
