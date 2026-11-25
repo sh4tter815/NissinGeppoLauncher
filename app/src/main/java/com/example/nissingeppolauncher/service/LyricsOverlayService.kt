@@ -908,7 +908,7 @@ class LyricsOverlayService : Service() {
                     when {
                         screenOff -> 1000L
                         saving -> 500L
-                        overlayMode == "pv" -> 80L
+                        overlayMode == "pv" -> 120L
                         else -> 250L
                     }
                 )
