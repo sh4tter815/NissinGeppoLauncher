@@ -984,6 +984,7 @@ fun MainLauncherScreen() {
     val indexDiscState = key(indexItems.size) { rememberDiscCarouselState(initialIndex = 0, stepAngle = 360f / indexItems.size) }
     val indexEntries = remember(indexItems) { indexItems.map { DiscEntry(id = it, label = it, icon = {}) } }
     var indexSelected by remember { mutableIntStateOf(repo.prefManager.getAppListIndexChar()?.let { c -> indexItems.indexOf(c) }?.takeIf { it >= 0 } ?: 0) }
+    var indexSyncFromRight by remember { mutableStateOf(false) }
     fun snapDiscTo(state: DiscCarouselState, angle: Float) {
         state.rawRotation = angle
         coroutineScope.launch { state.rotationAnim.snapTo(angle) }
@@ -1756,7 +1757,7 @@ fun MainLauncherScreen() {
 
                     val appDiscItems = remember(displayedApps, effBadges, appSortMode, searchQuery, isHideMode, indexMode, indexShowEnglish, appSortDescending, usageTierOf, recentLabelOf) { buildDiscItems(displayedApps, appSortMode == "name" || appSortMode == "usage" || appSortMode == "recent" || searchQuery.isNotBlank() || isHideMode, effBadges, indexGroupOf) }
                     LaunchedEffect(selectedIndexChar) {
-                        if (!selectedIndexChar.isNullOrEmpty() && appDiscItems.isNotEmpty()) {
+                        if (!indexSyncFromRight && !selectedIndexChar.isNullOrEmpty() && appDiscItems.isNotEmpty()) {
                             val targetIndex = appDiscItems.indexOfFirst { item ->
                                 when (item) {
                                     is DiscItem.IndexEntry -> item.char.equals(selectedIndexChar, ignoreCase = true)
@@ -1784,6 +1785,37 @@ fun MainLauncherScreen() {
                             }
                         }.distinctUntilChanged().collect { pkg ->
                             if (pkg != null) repo.prefManager.saveAppListFocusPackage(pkg)
+                        }
+                    }
+                    // 右円をスクロールして表示中のセクションが変わったら、左の索引も連動させる
+                    LaunchedEffect(appDiscItems, isHideMode, searchQuery) {
+                        snapshotFlow {
+                            if (appDiscItems.isEmpty()) null else {
+                                val raw = Math.round(-appListDiscState.rawRotation / appDiscStepAngle)
+                                val idx = if (!isHideMode && searchQuery.isBlank()) {
+                                    ((raw % appDiscItems.size) + appDiscItems.size) % appDiscItems.size
+                                } else {
+                                    raw.coerceIn(0, appDiscItems.size - 1)
+                                }
+                                when (val item = appDiscItems.getOrNull(idx)) {
+                                    is DiscItem.IndexEntry -> item.char
+                                    is DiscItem.AppEntry -> indexGroupOf(item.app)
+                                    null -> null
+                                }
+                            }
+                        }.distinctUntilChanged().collect { ch ->
+                            if (ch != null) {
+                                val target = indexItems.indexOfFirst { it.equals(ch, ignoreCase = true) }
+                                if (target >= 0 && target != indexSelected) {
+                                    indexSyncFromRight = true
+                                    indexSelected = target
+                                    try {
+                                        indexDiscState.animateToIndex(target)
+                                    } finally {
+                                        indexSyncFromRight = false
+                                    }
+                                }
+                            }
                         }
                     }
                     var appFocusRestored by remember { mutableStateOf(false) }
