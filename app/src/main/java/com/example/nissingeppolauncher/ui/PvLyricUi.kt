@@ -3556,7 +3556,11 @@ fun LyricsBrowseOverlay(
     enFontFamily: FontFamily? = null,
     uiFontFamily: FontFamily? = null,
     dopagaki: Boolean = false,
-    onToggleDopagaki: () -> Unit = {}
+    onToggleDopagaki: () -> Unit = {},
+    pvEnabled: Boolean = true,
+    onTogglePv: () -> Unit = {},
+    homeLyricsEnabled: Boolean = true,
+    onToggleHomeLyrics: () -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
     val toastCtx = LocalContext.current
@@ -4102,6 +4106,30 @@ fun LyricsBrowseOverlay(
                 contentAlignment = Alignment.Center
             ) {
                 LucideIcon(LucideSparkles, size = 24.dp, color = Color.White)
+            }
+            // PV表示ON/OFF
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(if (pvEnabled) accentColor else Color(0xFF263238))
+                    .pressScale()
+                    .clickable { onTogglePv() },
+                contentAlignment = Alignment.Center
+            ) {
+                LucideIcon(LucideClapperboard, size = 24.dp, color = Color.White)
+            }
+            // ホーム画面の歌詞ON/OFF
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(if (homeLyricsEnabled) accentColor else Color(0xFF263238))
+                    .pressScale()
+                    .clickable { onToggleHomeLyrics() },
+                contentAlignment = Alignment.Center
+            ) {
+                LucideIcon(LucideCaptions, size = 24.dp, color = Color.White)
             }
         }
     }
