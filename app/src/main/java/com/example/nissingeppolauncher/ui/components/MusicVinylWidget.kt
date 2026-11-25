@@ -98,6 +98,11 @@ fun MusicVinylWidget(
     val prefManager = remember { AppPreferenceManager(context) }
     var isPlaying by remember { mutableStateOf(false) }
     var albumArtBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    // アートワークがURIでしか来ないプレイヤー向けの取得キャッシュ
+    var lastArtUriStr by remember { mutableStateOf<String?>(null) }
+    var lastUriArtBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var lastUriAttemptStr by remember { mutableStateOf<String?>(null) }
+    var lastUriFetchAttemptMs by remember { mutableStateOf(0L) }
     var trackTitle by remember { mutableStateOf("") }
     var trackArtist by remember { mutableStateOf("") }
     var trackAlbum by remember { mutableStateOf("") }
@@ -115,8 +120,9 @@ fun MusicVinylWidget(
             val bmp = withContext(Dispatchers.IO) {
                 runCatching {
                     val uri = android.net.Uri.parse(uriStr)
-                    val raw = when (uri.scheme) {
-                        "http", "https" -> java.net.URL(uriStr).openStream().use { android.graphics.BitmapFactory.decodeStream(it) }
+                    val raw = when {
+                        uriStr.startsWith("spotify:image:") -> java.net.URL("https://i.scdn.co/image/" + uriStr.removePrefix("spotify:image:")).openStream().use { android.graphics.BitmapFactory.decodeStream(it) }
+                        uri.scheme == "http" || uri.scheme == "https" -> java.net.URL(uriStr).openStream().use { android.graphics.BitmapFactory.decodeStream(it) }
                         else -> context.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it) }
                     }
                     raw?.let { if (it.width > 256) Bitmap.createScaledBitmap(it, 256, (it.height * 256f / it.width).toInt().coerceAtLeast(1), true) else it }
@@ -191,8 +197,37 @@ fun MusicVinylWidget(
                             try { sessionQueue = activeController.queue ?: emptyList() } catch (_: Exception) {}
                         }
                         val metadata = activeController.metadata
-                        val bitmap = metadata?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
+                        var bitmap = metadata?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
                             ?: metadata?.getBitmap(MediaMetadata.METADATA_KEY_ART)
+                            ?: metadata?.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
+                        if (bitmap == null) {
+                            // 画像そのものではなくURIだけ渡すプレイヤー（Spotify等）向けに、URIからも取得する
+                            val uriStr = metadata?.getString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI)
+                                ?: metadata?.getString(MediaMetadata.METADATA_KEY_ART_URI)
+                                ?: metadata?.getString(MediaMetadata.METADATA_KEY_DISPLAY_ICON_URI)
+                            if (uriStr != null) {
+                                if (uriStr == lastArtUriStr && lastUriArtBitmap != null) {
+                                    bitmap = lastUriArtBitmap
+                                } else if (uriStr != lastUriAttemptStr || System.currentTimeMillis() - lastUriFetchAttemptMs > 15000L) {
+                                    lastUriAttemptStr = uriStr
+                                    lastUriFetchAttemptMs = System.currentTimeMillis()
+                                    val fetched = withContext(Dispatchers.IO) {
+                                        try {
+                                            when {
+                                                uriStr.startsWith("spotify:image:") -> java.net.URL("https://i.scdn.co/image/" + uriStr.removePrefix("spotify:image:")).openStream().use { android.graphics.BitmapFactory.decodeStream(it) }
+                                                uriStr.startsWith("http://") || uriStr.startsWith("https://") -> java.net.URL(uriStr).openStream().use { android.graphics.BitmapFactory.decodeStream(it) }
+                                                else -> context.contentResolver.openInputStream(android.net.Uri.parse(uriStr))?.use { android.graphics.BitmapFactory.decodeStream(it) }
+                                            }
+                                        } catch (_: Exception) { null }
+                                    }
+                                    if (fetched != null) {
+                                        lastArtUriStr = uriStr
+                                        lastUriArtBitmap = fetched
+                                        bitmap = fetched
+                                    }
+                                }
+                            }
+                        }
                         albumArtBitmap = bitmap
                         trackTitle = metadata?.getString(MediaMetadata.METADATA_KEY_TITLE) ?: ""
                         trackArtist = metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST) ?: ""
