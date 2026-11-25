@@ -407,6 +407,44 @@ fun ChoiceIllustration(kind: String, accentColor: Color, selected: Boolean) {
                 triM.close()
                 drawPath(path = triM, color = ink.copy(alpha = 0.8f))
             }
+            "disc_reel" -> {
+                drawRoundRect(color = Color(0xFF23242A), topLeft = Offset(w * 0.10f, h * 0.12f), size = Size(w * 0.80f, h * 0.76f), cornerRadius = CornerRadius(w * 0.06f, w * 0.06f))
+                for (cx in listOf(0.32f, 0.68f)) {
+                    val c = Offset(w * cx, h * 0.42f)
+                    drawCircle(color = Color(0xFF4A3220), radius = w * 0.15f, center = c)
+                    drawCircle(color = Color(0xFFC9CED4), radius = w * 0.155f, center = c, style = Stroke(width = w * 0.035f))
+                    drawCircle(color = Color(0xFFD7DCE2), radius = w * 0.045f, center = c)
+                }
+                drawLine(color = Color(0xFF4A3220), start = Offset(w * 0.32f, h * 0.60f), end = Offset(w * 0.44f, h * 0.78f), strokeWidth = w * 0.03f)
+                drawLine(color = Color(0xFF4A3220), start = Offset(w * 0.44f, h * 0.78f), end = Offset(w * 0.56f, h * 0.78f), strokeWidth = w * 0.03f)
+                drawLine(color = Color(0xFF4A3220), start = Offset(w * 0.56f, h * 0.78f), end = Offset(w * 0.68f, h * 0.60f), strokeWidth = w * 0.03f)
+            }
+            "disc_floppy" -> {
+                drawRoundRect(color = accentColor.copy(alpha = 0.55f), topLeft = Offset(w * 0.14f, h * 0.13f), size = Size(w * 0.72f, h * 0.74f), cornerRadius = CornerRadius(w * 0.05f, w * 0.05f))
+                drawRoundRect(color = Color(0xFFD7DCE2), topLeft = Offset(w * 0.26f, h * 0.16f), size = Size(w * 0.44f, h * 0.24f), cornerRadius = CornerRadius(w * 0.02f, w * 0.02f))
+                drawRoundRect(color = Color(0xFF3A3F45), topLeft = Offset(w * 0.56f, h * 0.21f), size = Size(w * 0.09f, h * 0.14f), cornerRadius = CornerRadius(w * 0.01f, w * 0.01f))
+                drawRoundRect(color = Color(0xFFF2EDE3), topLeft = Offset(w * 0.19f, h * 0.50f), size = Size(w * 0.62f, h * 0.32f), cornerRadius = CornerRadius(w * 0.02f, w * 0.02f))
+                drawLine(color = accentColor, start = Offset(w * 0.19f, h * 0.53f), end = Offset(w * 0.81f, h * 0.53f), strokeWidth = w * 0.03f)
+                drawLine(color = Color(0xFFB9B2A4), start = Offset(w * 0.24f, h * 0.64f), end = Offset(w * 0.76f, h * 0.64f), strokeWidth = w * 0.02f)
+                drawLine(color = Color(0xFFB9B2A4), start = Offset(w * 0.24f, h * 0.73f), end = Offset(w * 0.76f, h * 0.73f), strokeWidth = w * 0.02f)
+            }
+            "disc_dat" -> {
+                drawRoundRect(color = Color(0xFF23242A), topLeft = Offset(w * 0.08f, h * 0.24f), size = Size(w * 0.84f, h * 0.52f), cornerRadius = CornerRadius(w * 0.04f, w * 0.04f))
+                drawLine(color = accentColor, start = Offset(w * 0.08f, h * 0.30f), end = Offset(w * 0.92f, h * 0.30f), strokeWidth = w * 0.03f)
+                drawRoundRect(color = Color(0xFF101014), topLeft = Offset(w * 0.24f, h * 0.52f), size = Size(w * 0.52f, h * 0.20f), cornerRadius = CornerRadius(w * 0.03f, w * 0.03f))
+                for (cx in listOf(0.40f, 0.60f)) {
+                    val c = Offset(w * cx, h * 0.62f)
+                    drawCircle(color = ink, radius = w * 0.055f, center = c)
+                    drawCircle(color = Color(0xFF37474F), radius = w * 0.018f, center = c)
+                }
+            }
+            "disc_eight" -> {
+                drawRoundRect(color = Color(0xFFEDEAE2), topLeft = Offset(w * 0.10f, h * 0.18f), size = Size(w * 0.80f, h * 0.64f), cornerRadius = CornerRadius(w * 0.05f, w * 0.05f))
+                drawRoundRect(color = Color(0xFFFBF8F1), topLeft = Offset(w * 0.16f, h * 0.24f), size = Size(w * 0.68f, h * 0.36f), cornerRadius = CornerRadius(w * 0.02f, w * 0.02f))
+                drawLine(color = accentColor, start = Offset(w * 0.16f, h * 0.28f), end = Offset(w * 0.84f, h * 0.28f), strokeWidth = w * 0.035f)
+                drawRoundRect(color = Color(0xFF26262B), topLeft = Offset(w * 0.20f, h * 0.66f), size = Size(w * 0.60f, h * 0.11f), cornerRadius = CornerRadius(w * 0.02f, w * 0.02f))
+                drawLine(color = Color(0xFF4A3220), start = Offset(w * 0.20f, h * 0.715f), end = Offset(w * 0.80f, h * 0.715f), strokeWidth = w * 0.03f)
+            }
             "cassette_color", "cassette_clear", "cassette_black" -> {
                 val shell = when (kind) {
                     "cassette_color" -> accentColor.copy(alpha = 0.50f)

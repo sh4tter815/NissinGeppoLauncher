@@ -1928,11 +1928,12 @@ fun MainLauncherScreen() {
                         val favs = favoriteFolderIds.mapNotNull { fid -> childFoldersOfSelected.firstOrNull { it.first == fid } }
                         favs + childFoldersOfSelected.filter { it.first !in favoriteFolderIds }
                     }
-                    val folderRightEntries = remember(sortedChildFolders, discApps, selectedFolderId, isEditingFolder) {
+                    val folderRightEntries = remember(sortedChildFolders, discApps, selectedFolderId, isEditingFolder, folderPath) {
                         if (isEditingFolder || selectedFolderId == null || selectedFolderId == "NEW_FOLDER" || selectedFolderId == "__BACK") emptyList()
                         else sortedChildFolders.map { FolderDiscEntry.Folder(it.first, it.second) } +
                             discApps.map { FolderDiscEntry.App(it) } +
-                            listOf(FolderDiscEntry.NewFolder)
+                            listOf(FolderDiscEntry.NewFolder) +
+                            (if (folderPath.isNotEmpty()) listOf(FolderDiscEntry.Back) else emptyList())
                     }
                     val rightItemCount = if (isEditingFolder) editDiscItems.size else folderRightEntries.size
                     LaunchedEffect(selectedIndexChar, isEditingFolder) {
@@ -2043,6 +2044,16 @@ fun MainLauncherScreen() {
                                     },
                                     onAppLongClick = { app -> selectedAppForOption = app },
                                     isFavorite = (fe as? FolderDiscEntry.Folder)?.folderId?.let { it in favoriteFolderIds } == true,
+                                    onBackClick = {
+                                        if (isSelected && folderPath.isNotEmpty()) {
+                                            navigateFolderAnimated {
+                                                pendingFocusFolderId = folderPath.lastOrNull()
+                                                folderPath = folderPath.dropLast(1)
+                                            }
+                                        } else {
+                                            folderAppDiscState.animateToIndex(index)
+                                        }
+                                    },
                                     onFolderLongClick = { fid ->
                                         val wasFav = fid in favoriteFolderIds
                                         favoriteFolderIds = repo.prefManager.toggleFavoriteFolder(fid)

@@ -1,5 +1,5 @@
 {
-  "version": 52,
+  "version": 53,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -937,6 +937,26 @@
           "v": "cassette_black",
           "label": "カセット（ブラック）",
           "illo": "cassette_black"
+        },
+        {
+          "v": "reel",
+          "label": "オープンリール",
+          "illo": "disc_reel"
+        },
+        {
+          "v": "floppy",
+          "label": "フロッピー",
+          "illo": "disc_floppy"
+        },
+        {
+          "v": "dat",
+          "label": "DATカセット",
+          "illo": "disc_dat"
+        },
+        {
+          "v": "eighttrack",
+          "label": "8トラック",
+          "illo": "disc_eight"
         }
       ]
     },
