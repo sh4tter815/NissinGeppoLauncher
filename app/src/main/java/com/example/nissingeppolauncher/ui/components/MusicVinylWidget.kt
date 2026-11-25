@@ -282,7 +282,6 @@ fun MusicVinylWidget(
     val artworkEnabled = prefManager.isArtworkEnabled()
     val artworkOutline = prefManager.isArtworkOutlineEnabled()
     val curvedTitle = prefManager.isCurvedTitleEnabled()
-    val tonearmEnabled = prefManager.isTonearmEnabled()
     val tonearmScale = tonearmScaleOverride ?: prefManager.getTonearmScale()
     val tonearmStylePref = prefManager.getTonearmStyle()
     val tonearmStyle = if (tonearmStylePref != "auto") tonearmStylePref else when (effectiveDiscStyle(prefManager)) {
@@ -970,7 +969,7 @@ fun MusicVinylWidget(
         }
         }
         // トーンアーム（レコード針）: 再生中は針が盤の右端に乗り、停止中は右へ離れる
-        if (tonearmEnabled) {
+        if (tonearmStyle != "none") {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val cx = discCenterXDp.dp.toPx()
                 val cy = discCenterYDp.dp.toPx()
