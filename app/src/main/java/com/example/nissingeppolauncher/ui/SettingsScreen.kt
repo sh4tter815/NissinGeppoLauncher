@@ -623,6 +623,7 @@ fun SettingsScreen(
     var widgetLongPressAction by remember { mutableStateOf(repo.prefManager.getWidgetLongPressAction()) }
     var widgetTapAction by remember { mutableStateOf(repo.prefManager.getWidgetTapAction()) }
     var widgetDoubleTapAction by remember { mutableStateOf(repo.prefManager.getWidgetDoubleTapAction()) }
+    var widgetDoubleTapHoldAction by remember { mutableStateOf(repo.prefManager.getWidgetDoubleTapHoldAction()) }
     var widgetTripleTapAction by remember { mutableStateOf(repo.prefManager.getWidgetTripleTapAction()) }
     var discStyle by remember { mutableStateOf(repo.prefManager.getDiscStyle()) }
     var deckStyle by remember { mutableStateOf(repo.prefManager.getDeckStyle()) }
@@ -989,6 +990,7 @@ fun SettingsScreen(
         "widgetLongPressAction" to Pair({ widgetLongPressAction }, { v: String -> widgetLongPressAction = v; repo.prefManager.setWidgetLongPressAction(v); onChanged() }),
         "widgetTapAction" to Pair({ widgetTapAction }, { v: String -> widgetTapAction = v; repo.prefManager.setWidgetTapAction(v); onChanged() }),
         "widgetDoubleTapAction" to Pair({ widgetDoubleTapAction }, { v: String -> widgetDoubleTapAction = v; repo.prefManager.setWidgetDoubleTapAction(v); onChanged() }),
+        "widgetDoubleTapHoldAction" to Pair({ widgetDoubleTapHoldAction }, { v: String -> widgetDoubleTapHoldAction = v; repo.prefManager.setWidgetDoubleTapHoldAction(v); onChanged() }),
         "widgetTripleTapAction" to Pair({ widgetTripleTapAction }, { v: String -> widgetTripleTapAction = v; repo.prefManager.setWidgetTripleTapAction(v); onChanged() }),
         "discStyle" to Pair({ discStyle }, { v: String -> discStyle = v; repo.prefManager.setDiscStyle(v); onChanged() }),
         "tonearmStyle" to Pair({ tonearmStyle }, { v: String -> tonearmStyle = v; repo.prefManager.setTonearmStyle(v); onChanged() }),
