@@ -1,5 +1,5 @@
 {
-  "version": 51,
+  "version": 52,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -1253,6 +1253,13 @@
       "glyph": "text",
       "type": "toggle",
       "bind": "appIconHidden"
+    },
+    "favoriteFolderSort": {
+      "label": "お気に入りフォルダの並び替え",
+      "desc": "フォルダページで先頭に来る順番を変えます",
+      "glyph": "chevrons-up-down",
+      "type": "action",
+      "action": "favoriteFolderSort"
     }
   },
   "tree": [
@@ -1690,6 +1697,9 @@
         },
         {
           "item": "usageAccess"
+        },
+        {
+          "item": "favoriteFolderSort"
         }
       ]
     },

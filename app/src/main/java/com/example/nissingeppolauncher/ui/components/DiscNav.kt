@@ -1346,7 +1346,9 @@ fun DiscFolderItem(
     onFolderClick: (String) -> Unit,
     onAppClick: (AppInfo) -> Unit,
     onAppLongClick: (AppInfo) -> Unit,
-    onNewFolderClick: () -> Unit
+    onNewFolderClick: () -> Unit,
+    isFavorite: Boolean = false,
+    onFolderLongClick: (String) -> Unit = {}
 ) {
     val outerAppRadiusDp = discRadiusDp + 8f
     val innerIconRadiusDp = discRadiusDp - 18f
@@ -1373,7 +1375,13 @@ fun DiscFolderItem(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = click,
-                onLongClick = { if (entry is FolderDiscEntry.App) onAppLongClick(entry.app) }
+                onLongClick = {
+                    when (entry) {
+                        is FolderDiscEntry.App -> onAppLongClick(entry.app)
+                        is FolderDiscEntry.Folder -> onFolderLongClick(entry.folderId)
+                        FolderDiscEntry.NewFolder -> {}
+                    }
+                }
             ),
         contentAlignment = Alignment.Center
     ) {
@@ -1420,10 +1428,25 @@ fun DiscFolderItem(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = click,
-                    onLongClick = { if (entry is FolderDiscEntry.App) onAppLongClick(entry.app) }
+                    onLongClick = {
+                    when (entry) {
+                        is FolderDiscEntry.App -> onAppLongClick(entry.app)
+                        is FolderDiscEntry.Folder -> onFolderLongClick(entry.folderId)
+                        FolderDiscEntry.NewFolder -> {}
+                    }
+                }
                 )
                 .padding(horizontal = 4.dp, vertical = 2.dp)
         ) {
+            if (isFavorite) {
+                Text(
+                    text = "★ ",
+                    color = accentColor.copy(alpha = labelAlpha),
+                    fontSize = textSizeSp.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = letterSpacingSp.sp
+                )
+            }
             Text(
                 text = label,
                 modifier = Modifier.widthIn(max = 140.dp),

@@ -502,6 +502,14 @@ class AppPreferenceManager(private val context: Context) {
     fun getAppListFocusPackage(): String? = prefs.getString("app_list_focus_package", null)
     fun saveAppListFocusPackage(v: String) = prefs.edit().putString("app_list_focus_package", v).apply()
     fun getFolderPath(): List<String> = prefs.getString("folder_path", null)?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+    fun getFavoriteFolderIds(): List<String> = prefs.getString("favorite_folder_ids", null)?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+    fun setFavoriteFolderIds(ids: List<String>) = prefs.edit().putString("favorite_folder_ids", ids.joinToString(",")).apply()
+    fun toggleFavoriteFolder(id: String): List<String> {
+        val cur = getFavoriteFolderIds()
+        val next = if (id in cur) cur - id else cur + id
+        setFavoriteFolderIds(next)
+        return next
+    }
     fun saveFolderPath(path: List<String>) = prefs.edit().putString("folder_path", path.joinToString(",")).apply()
     fun saveAppListIndexChar(v: String) = prefs.edit().putString("app_list_index_char", v).apply()
     fun consumeSettingsPath(): List<String> {
