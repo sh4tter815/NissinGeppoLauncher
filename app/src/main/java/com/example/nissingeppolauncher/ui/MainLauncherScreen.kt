@@ -826,6 +826,7 @@ fun MainLauncherScreen() {
 
     // --- フォルダ管理状態 (Page 2 用) ---
     var foldersMap by remember { mutableStateOf(repo.prefManager.getFoldersMap()) }
+    var favoriteFolderIds by remember { mutableStateOf(repo.prefManager.getFavoriteFolderIds()) }
     var showFolderAppSelectDialog by remember { mutableStateOf(false) }
     var showDeleteFolderDialog by remember { mutableStateOf(false) }
 
@@ -1923,9 +1924,13 @@ fun MainLauncherScreen() {
                             folderList.filter { folderParents[it.first] == selectedFolderId }
                         } else emptyList()
                     }
-                    val folderRightEntries = remember(childFoldersOfSelected, discApps, selectedFolderId, isEditingFolder) {
+                    val sortedChildFolders = remember(childFoldersOfSelected, favoriteFolderIds) {
+                        val favs = favoriteFolderIds.mapNotNull { fid -> childFoldersOfSelected.firstOrNull { it.first == fid } }
+                        favs + childFoldersOfSelected.filter { it.first !in favoriteFolderIds }
+                    }
+                    val folderRightEntries = remember(sortedChildFolders, discApps, selectedFolderId, isEditingFolder) {
                         if (isEditingFolder || selectedFolderId == null || selectedFolderId == "NEW_FOLDER" || selectedFolderId == "__BACK") emptyList()
-                        else childFoldersOfSelected.map { FolderDiscEntry.Folder(it.first, it.second) } +
+                        else sortedChildFolders.map { FolderDiscEntry.Folder(it.first, it.second) } +
                             discApps.map { FolderDiscEntry.App(it) } +
                             listOf(FolderDiscEntry.NewFolder)
                     }
@@ -2037,6 +2042,12 @@ fun MainLauncherScreen() {
                                         if (isSelected) onAppClick(app.packageName) else folderAppDiscState.animateToIndex(index)
                                     },
                                     onAppLongClick = { app -> selectedAppForOption = app },
+                                    isFavorite = (fe as? FolderDiscEntry.Folder)?.folderId?.let { it in favoriteFolderIds } == true,
+                                    onFolderLongClick = { fid ->
+                                        val wasFav = fid in favoriteFolderIds
+                                        favoriteFolderIds = repo.prefManager.toggleFavoriteFolder(fid)
+                                        android.widget.Toast.makeText(context, if (wasFav) "お気に入りから外しました" else "お気に入りに追加しました", android.widget.Toast.LENGTH_SHORT).show()
+                                    },
                                     onNewFolderClick = {
                                         if (isSelected) {
                                             createFolderParentId = selectedFolderId
@@ -2630,6 +2641,47 @@ fun MainLauncherScreen() {
                                         text = "編集",
                                         color = Color.White,
                                         fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            // 中央区切り線
+                            Box(
+                                modifier = Modifier
+                                    .width(1.dp)
+                                    .height(20.dp)
+                                    .background(Color.White.copy(alpha = 0.2f))
+                            )
+
+                            // お気に入りトグル（選択中フォルダが対象。一番上の階層のフォルダもここで登録できる）
+                            val selFav = selectedFolderId in favoriteFolderIds
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .pressScale(0.96f)
+                                    .clickable {
+                                        favoriteFolderIds = repo.prefManager.toggleFavoriteFolder(selectedFolderId)
+                                        android.widget.Toast.makeText(context, if (selFav) "お気に入りから外しました" else "お気に入りに追加しました", android.widget.Toast.LENGTH_SHORT).show()
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Text(
+                                        text = if (selFav) "★" else "☆",
+                                        color = if (selFav) accentColor else Color.Gray,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "お気に入り",
+                                        color = Color.White,
+                                        fontSize = 13.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }

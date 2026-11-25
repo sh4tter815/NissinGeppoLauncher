@@ -691,6 +691,8 @@ fun SettingsScreen(
     var cacheSizes by remember { mutableStateOf<Pair<Long, Long>?>(null) }
     var iconPackPkg by remember { mutableStateOf(repo.prefManager.getIconPackPackage()) }
     var showIconPackDialog by remember { mutableStateOf(false) }
+    var showFavSortDialog by remember { mutableStateOf(false) }
+    var favSortList by remember { mutableStateOf<List<String>>(emptyList()) }
     var iconPackList by remember { mutableStateOf<List<IconPackManager.PackInfo>>(emptyList()) }
     var showCacheDialog by remember { mutableStateOf(false) }
     var powerSaveChargingExempt by remember { mutableStateOf(repo.prefManager.isPowerSaveChargingExempt()) }
@@ -1235,6 +1237,16 @@ fun SettingsScreen(
                         iconPackList = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { IconPackManager.listPacks(context) }
                         showIconPackDialog = true
                     }
+                }
+            )
+        },
+        "favoriteFolderSort" to { def: SettingItemDef ->
+            SettingItem(
+                def.id, def.label, def.desc, def.glyph,
+                valueText = "",
+                onAction = {
+                    favSortList = repo.prefManager.getFavoriteFolderIds()
+                    showFavSortDialog = true
                 }
             )
         },
@@ -1881,6 +1893,61 @@ key("disc-choices-${currentItem.id}") {
                                     }
                                 }.padding(vertical = 8.dp)
                             )
+                        }
+                    }
+                }
+            )
+        }
+
+        if (showFavSortDialog) {
+            val foldersById = repo.prefManager.getFoldersMap()
+            AlertDialog(
+                onDismissRequest = { showFavSortDialog = false },
+                confirmButton = {
+                    TextButton(onClick = { showFavSortDialog = false }) {
+                        Text("閉じる", color = currentAccentColor, fontWeight = FontWeight.Bold)
+                    }
+                },
+                title = { Text("お気に入りフォルダの並び替え") },
+                text = {
+                    Column {
+                        if (favSortList.isEmpty()) {
+                            Text("お気に入りのフォルダがありません。フォルダページでフォルダを長押しすると追加できます。", color = Color.LightGray, fontSize = 13.sp)
+                        }
+                        favSortList.forEachIndexed { idx, fid ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = foldersById[fid]?.first ?: fid,
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                TextButton(
+                                    onClick = {
+                                        if (idx > 0) {
+                                            val next = favSortList.toMutableList()
+                                            val tmp = next[idx - 1]; next[idx - 1] = next[idx]; next[idx] = tmp
+                                            favSortList = next
+                                            repo.prefManager.setFavoriteFolderIds(next)
+                                        }
+                                    },
+                                    enabled = idx > 0
+                                ) { Text("↑", color = if (idx > 0) currentAccentColor else Color.Gray) }
+                                TextButton(
+                                    onClick = {
+                                        if (idx < favSortList.lastIndex) {
+                                            val next = favSortList.toMutableList()
+                                            val tmp = next[idx + 1]; next[idx + 1] = next[idx]; next[idx] = tmp
+                                            favSortList = next
+                                            repo.prefManager.setFavoriteFolderIds(next)
+                                        }
+                                    },
+                                    enabled = idx < favSortList.lastIndex
+                                ) { Text("↓", color = if (idx < favSortList.lastIndex) currentAccentColor else Color.Gray) }
+                            }
                         }
                     }
                 }
