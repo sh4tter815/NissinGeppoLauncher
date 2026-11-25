@@ -3708,7 +3708,7 @@ private fun LayoutEditHandles(
     }
 
     // レイアウト編集モード: レコード針の大きさハンドル（ホームのみ、針の軸の位置）
-    if (layoutEditMode && currentPage == 1 && repo.prefManager.isTonearmEnabled()) {
+    if (layoutEditMode && currentPage == 1 && repo.prefManager.getTonearmStyle() != "none") {
         val pivotX = animatedDisc1CenterX + disc1RadiusDp * 1.02f
         val pivotY = disc1CenterY + lyricsDiscDrop - disc1RadiusDp * 1.02f
         Box(modifier = Modifier.fillMaxSize().zIndex(195f)) {

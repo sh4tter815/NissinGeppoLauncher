@@ -1,5 +1,5 @@
 {
-  "version": 39,
+  "version": 40,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -890,13 +890,6 @@
       "type": "toggle",
       "bind": "clockHorizontal"
     },
-    "tonearm": {
-      "label": "レコード針（トーンアーム）",
-      "desc": "再生中だけレコード盤に針が乗るアニメーションを表示します",
-      "glyph": "disc",
-      "type": "toggle",
-      "bind": "tonearmEnabled"
-    },
     "discStyle": {
       "label": "ディスク",
       "desc": "左円盤の見た目です",
@@ -1054,12 +1047,16 @@
       ]
     },
     "tonearmStyle": {
-      "label": "針のテーマ",
+      "label": "針",
       "desc": "レコード針の見た目です。「ディスクに連動」ではディスクのテーマに合わせて姿が変わります（クリア→アクリル、蓄光→蓄光、CD・MD→レーザー、カセット→再生ヘッド）",
       "glyph": "wand-sparkles",
       "type": "choices",
       "bind": "tonearmStyle",
       "choices": [
+        {
+          "v": "none",
+          "label": "なし"
+        },
         {
           "v": "auto",
           "label": "ディスクに連動"
@@ -1378,9 +1375,6 @@
               "children": [
                 {
                   "item": "discStyle"
-                },
-                {
-                  "item": "tonearm"
                 },
                 {
                   "item": "tonearmStyle"
