@@ -395,6 +395,9 @@ class AppPreferenceManager(private val context: Context) {
     // 歌詞マスター（オフでPV・時計下・ステータスバーの歌詞を全部消す）
     fun isLyricsEnabled(): Boolean = prefs.getBoolean("lyrics_enabled", true)
     fun setLyricsEnabled(v: Boolean) = prefs.edit().putBoolean("lyrics_enabled", v).apply()
+
+    fun isPvEnabled(): Boolean = prefs.getBoolean("pv_enabled", true)
+    fun setPvEnabled(v: Boolean) = prefs.edit().putBoolean("pv_enabled", v).apply()
     // PV: 文字サイズ倍率 / 縦位置オフセット(dp) / 文字色 / ルビ / 間奏アート
     fun getPvFontScale(): Float = prefs.getFloat("pv_font_scale", 1.0f)
     fun setPvFontScale(v: Float) = prefs.edit().putFloat("pv_font_scale", v).apply()
