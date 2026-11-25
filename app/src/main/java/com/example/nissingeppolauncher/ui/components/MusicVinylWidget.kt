@@ -231,6 +231,8 @@ fun MusicVinylWidget(
     // 再生中の自動回転（5秒で1回転）。一時停止では慣性でゆっくり止まり、再生では滑らかに加速する
     var discAngle by remember { mutableStateOf(0f) }
     var discVel by remember { mutableStateOf(0f) }
+    // 回転角は graphicsLayer（描画フェーズ）でのみ読む専用状態にし、毎フレームの再コンポーズを避ける
+    val spinState = remember { mutableFloatStateOf(0f) }
     LaunchedEffect(isPlaying) {
         var lastMs = System.currentTimeMillis()
         if (isPlaying) {
@@ -240,28 +242,28 @@ fun MusicVinylWidget(
                     lastMs = System.currentTimeMillis()
                     continue
                 }
-                delay(16)
+                delay(33)
                 val nowMs = System.currentTimeMillis()
                 val dt = ((nowMs - lastMs) / 1000f).coerceIn(0.001f, 0.05f)
                 lastMs = nowMs
                 discVel += (72f - discVel) * (dt * 1.6f).coerceAtMost(1f)
                 discAngle = (discAngle + discVel * dt) % 360f
+                spinState.floatValue = discAngle + userSpin
             }
         } else {
             while (discVel > 0.5f) {
-                delay(16)
+                delay(33)
                 val nowMs = System.currentTimeMillis()
                 val dt = ((nowMs - lastMs) / 1000f).coerceIn(0.001f, 0.05f)
                 lastMs = nowMs
                 discVel *= Math.pow(0.22, dt.toDouble()).toFloat()
                 discAngle = (discAngle + discVel * dt) % 360f
+                spinState.floatValue = discAngle + userSpin
             }
             discVel = 0f
         }
     }
 
-    val currentRotation = discAngle
-    val spinRotation = currentRotation + userSpin
 
     // 曲が変わった瞬間、アートワークが縦軸でくるっと1回転する
     val flipAnim = remember { Animatable(1f) }
@@ -333,7 +335,9 @@ fun MusicVinylWidget(
     LaunchedEffect(sessionQueue, queueArtCache, albumArtBitmap) {
         withContext(Dispatchers.Default) {
             val arts = LinkedHashSet<Bitmap>()
+            val centerIdx = latestRackCurrentIndex
             for (i in sessionQueue.indices) {
+                if (kotlin.math.abs(i - centerIdx) > 8) continue
                 rackArtAt(i)?.let { arts.add(it) }
             }
             albumArtBitmap?.let { arts.add(it) }
@@ -602,11 +606,12 @@ fun MusicVinylWidget(
                                         var vel = (velX / radiusPx) * 57.3f * 1.1f
                                         var lastMs = System.currentTimeMillis()
                                         while (kotlin.math.abs(vel) > 5f) {
-                                            delay(16)
+                                            delay(33)
                                             val nowMs = System.currentTimeMillis()
                                             val dt = ((nowMs - lastMs) / 1000f).coerceIn(0.001f, 0.05f)
                                             lastMs = nowMs
                                             userSpin = (userSpin + vel * dt) % 360f
+                                            spinState.floatValue = discAngle + userSpin
                                             vel *= Math.pow(0.30, dt.toDouble()).toFloat()
                                         }
                                     }
@@ -730,12 +735,12 @@ fun MusicVinylWidget(
                     contentAlignment = Alignment.Center
                 ) {
                     when {
-                        discStyleNow == "md" -> MdCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotation = spinRotation, bitmapImage = caseBitmapImage, lineArtImage = lineArtImage, title = trackTitle)
-                        discStyleNow == "reel" -> ReelCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotation = spinRotation, title = trackTitle)
+                        discStyleNow == "md" -> MdCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotationState = spinState, bitmapImage = caseBitmapImage, lineArtImage = lineArtImage, title = trackTitle)
+                        discStyleNow == "reel" -> ReelCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotationState = spinState, title = trackTitle)
                         discStyleNow == "floppy" -> FloppyCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, title = trackTitle, lineArtImage = lineArtImage)
-                        discStyleNow == "dat" -> DatCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotation = spinRotation, title = trackTitle)
+                        discStyleNow == "dat" -> DatCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotationState = spinState, title = trackTitle)
                         discStyleNow == "eighttrack" -> EightTrackCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, title = trackTitle, lineArtImage = lineArtImage)
-                        else -> CassetteCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotation = spinRotation, title = trackTitle, artist = trackArtist, shellStyle = cassetteShellOf(discStyleNow), lineArtImage = lineArtImage)
+                        else -> CassetteCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotationState = spinState, title = trackTitle, artist = trackArtist, shellStyle = cassetteShellOf(discStyleNow), lineArtImage = lineArtImage)
                     }
                 }
             } else {
@@ -743,7 +748,7 @@ fun MusicVinylWidget(
                 modifier = Modifier
                     .size((discRadiusDp * 2f * 0.92f).dp)
                     .graphicsLayer {
-                        rotationZ = spinRotation
+                        rotationZ = spinState.floatValue
                         rotationY = (1f - flipAnim.value) * 360f
                         cameraDistance = 9f * density
                     }
@@ -1101,6 +1106,7 @@ private fun RackDiscLayer(
     titleAt: (Int) -> String,
     caseCircleClip: Boolean
 ) {
+    val stillSpinState = remember { mutableFloatStateOf(0f) }
     val rackFocusedIndex = if (rackSize == 0) 0 else (rackCurrentIndex + rackScrollAnim.value.roundToInt()).coerceIn(0, rackSize - 1)
     var rackLastHapticIndex by remember { mutableIntStateOf(-1) }
     LaunchedEffect(rackShow, rackFocusedIndex) {
@@ -1168,7 +1174,7 @@ private fun RackDiscLayer(
                 "md" -> MdCase(
                     boxSizeDp = discRadiusDp * 2f * 0.92f,
                     accentColor = itemAccent,
-                    rotation = 0f,
+                    rotationState = stillSpinState,
                     bitmapImage = null,
                     lineArtImage = itemLineArt,
                     title = ""
@@ -1176,7 +1182,7 @@ private fun RackDiscLayer(
                 "reel" -> ReelCase(
                     boxSizeDp = discRadiusDp * 2f * 0.92f,
                     accentColor = itemAccent,
-                    rotation = 0f,
+                    rotationState = stillSpinState,
                     title = titleAt(targetIdx)
                 )
                 "eighttrack" -> EightTrackCase(
@@ -1188,7 +1194,7 @@ private fun RackDiscLayer(
                 "dat" -> DatCase(
                     boxSizeDp = discRadiusDp * 2f * 0.92f,
                     accentColor = itemAccent,
-                    rotation = 0f,
+                    rotationState = stillSpinState,
                     title = titleAt(targetIdx)
                 )
                 "floppy" -> FloppyCase(
@@ -1200,7 +1206,7 @@ private fun RackDiscLayer(
                 "cassette_color", "cassette_clear", "cassette_black" -> CassetteCase(
                     boxSizeDp = discRadiusDp * 2f * 0.92f,
                     accentColor = itemAccent,
-                    rotation = 0f,
+                    rotationState = stillSpinState,
                     title = titleAt(targetIdx),
                     artist = "",
                     shellStyle = cassetteShellOf(discStyle),
@@ -1458,7 +1464,7 @@ private fun extractLineArtBitmap(src: Bitmap?): Bitmap? {
 }
 
 @Composable
-private fun MdCase(boxSizeDp: Float, accentColor: Color, rotation: Float, bitmapImage: ImageBitmap?, lineArtImage: ImageBitmap?, title: String) {
+private fun MdCase(boxSizeDp: Float, accentColor: Color, rotationState: State<Float>, bitmapImage: ImageBitmap?, lineArtImage: ImageBitmap?, title: String) {
     val caseW = boxSizeDp
     val caseH = boxSizeDp * 0.94f
     Box(
@@ -1473,7 +1479,7 @@ private fun MdCase(boxSizeDp: Float, accentColor: Color, rotation: Float, bitmap
                 .align(Alignment.Center)
                 .offset(x = (-caseW * 0.03f).dp, y = (caseH * 0.02f).dp)
                 .graphicsLayer {
-                    rotationZ = rotation
+                    rotationZ = rotationState.value
                     compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen
                 }
                 .clip(CircleShape)
@@ -1585,11 +1591,11 @@ private fun MdCase(boxSizeDp: Float, accentColor: Color, rotation: Float, bitmap
 }
 
 @Composable
-private fun CassetteReel(reelSizeDp: Float, rotation: Float) {
+private fun CassetteReel(reelSizeDp: Float, rotationState: State<Float>) {
     Box(
         modifier = Modifier
             .size(reelSizeDp.dp)
-            .graphicsLayer { rotationZ = rotation }
+            .graphicsLayer { rotationZ = rotationState.value }
     ) {
         Canvas(Modifier.fillMaxSize()) {
             val r = size.minDimension / 2f
@@ -1609,7 +1615,7 @@ private fun CassetteReel(reelSizeDp: Float, rotation: Float) {
 }
 
 @Composable
-private fun DatCase(boxSizeDp: Float, accentColor: Color, rotation: Float, title: String) {
+private fun DatCase(boxSizeDp: Float, accentColor: Color, rotationState: State<Float>, title: String) {
     val caseW = boxSizeDp
     val caseH = boxSizeDp * 0.72f
     Box(
@@ -1675,10 +1681,10 @@ private fun DatCase(boxSizeDp: Float, accentColor: Color, rotation: Float, title
                 drawCircle(Color(0xFF4A3220), radius = pr * 0.95f, center = Offset(rx, cy))
             }
             Box(modifier = Modifier.offset(x = (caseW * 0.62f * 0.28f - caseW * 0.085f).dp, y = (caseH * 0.44f * 0.52f - caseW * 0.085f).dp)) {
-                CassetteReel(reelSizeDp = caseW * 0.17f, rotation = rotation)
+                CassetteReel(reelSizeDp = caseW * 0.17f, rotationState = rotationState)
             }
             Box(modifier = Modifier.offset(x = (caseW * 0.62f * 0.72f - caseW * 0.085f).dp, y = (caseH * 0.44f * 0.52f - caseW * 0.085f).dp)) {
-                CassetteReel(reelSizeDp = caseW * 0.17f, rotation = rotation)
+                CassetteReel(reelSizeDp = caseW * 0.17f, rotationState = rotationState)
             }
         }
         // 下端の細かいリブ
@@ -1803,7 +1809,7 @@ private fun EightTrackCase(boxSizeDp: Float, accentColor: Color, title: String, 
 }
 
 @Composable
-private fun ReelCase(boxSizeDp: Float, accentColor: Color, rotation: Float, title: String) {
+private fun ReelCase(boxSizeDp: Float, accentColor: Color, rotationState: State<Float>, title: String) {
     val caseW = boxSizeDp
     val caseH = boxSizeDp * 0.92f
     Box(
@@ -1836,7 +1842,7 @@ private fun ReelCase(boxSizeDp: Float, accentColor: Color, rotation: Float, titl
                 modifier = Modifier
                     .offset(x = (caseW * (cxFrac - 0.205f)).dp, y = (caseH * 0.44f - caseW * 0.205f).dp)
                     .size((caseW * 0.41f).dp)
-                    .graphicsLayer { rotationZ = rotation }
+                    .graphicsLayer { rotationZ = rotationState.value }
             ) {
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val c = Offset(size.width / 2f, size.height / 2f)
@@ -1976,7 +1982,7 @@ private fun FloppyCase(boxSizeDp: Float, accentColor: Color, title: String, line
 }
 
 @Composable
-private fun CassetteCase(boxSizeDp: Float, accentColor: Color, rotation: Float, title: String, artist: String, shellStyle: String = "clear", lineArtImage: ImageBitmap? = null) {
+private fun CassetteCase(boxSizeDp: Float, accentColor: Color, rotationState: State<Float>, title: String, artist: String, shellStyle: String = "clear", lineArtImage: ImageBitmap? = null) {
     val caseW = boxSizeDp
     val caseH = boxSizeDp * 0.64f
     val packR = caseH * 0.30f
@@ -2033,7 +2039,7 @@ private fun CassetteCase(boxSizeDp: Float, accentColor: Color, rotation: Float, 
                 .padding(start = (caseW * 0.26f - caseH * 0.17f).dp)
                 .offset(y = (caseH * 0.02f).dp)
         ) {
-            CassetteReel(reelSizeDp = caseH * 0.34f, rotation = rotation)
+            CassetteReel(reelSizeDp = caseH * 0.34f, rotationState = rotationState)
         }
         Box(
             modifier = Modifier
@@ -2041,7 +2047,7 @@ private fun CassetteCase(boxSizeDp: Float, accentColor: Color, rotation: Float, 
                 .padding(end = (caseW * 0.26f - caseH * 0.17f).dp)
                 .offset(y = (caseH * 0.02f).dp)
         ) {
-            CassetteReel(reelSizeDp = caseH * 0.34f, rotation = rotation)
+            CassetteReel(reelSizeDp = caseH * 0.34f, rotationState = rotationState)
         }
         // ラベルシール（クリーム色の帯、曲名入り）
         Box(

@@ -27,6 +27,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
+import kotlinx.coroutines.delay
 import com.example.nissingeppolauncher.data.AppPreferenceManager
 import com.example.nissingeppolauncher.ui.parseHexColor
 import java.io.File
@@ -165,27 +166,27 @@ fun WallpaperBackground(
 @Composable
 fun LiquidGradientBackground(baseColor: Color, onBlack: Boolean = true, layerAlpha: Float = 1f, alphaBoost: Float = 1f, speedFactor: Float = 1f, alphaMul: Float = 1f, staticMode: Boolean = false) {
     val effBoost = alphaBoost * alphaMul
-    val transition = rememberInfiniteTransition(label = "liquid")
-    val t1 by transition.animateFloat(
-        initialValue = 0f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween((11000 / speedFactor).toInt().coerceAtLeast(500), easing = LinearEasing), RepeatMode.Reverse),
-        label = "liquid1"
-    )
-    val t2 by transition.animateFloat(
-        initialValue = 0f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween((14000 / speedFactor).toInt().coerceAtLeast(500), easing = LinearEasing), RepeatMode.Reverse),
-        label = "liquid2"
-    )
-    val t3 by transition.animateFloat(
-        initialValue = 0f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween((17000 / speedFactor).toInt().coerceAtLeast(500), easing = LinearEasing), RepeatMode.Reverse),
-        label = "liquid3"
-    )
-    val t4 by transition.animateFloat(
-        initialValue = 0f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween((9000 / speedFactor).toInt().coerceAtLeast(500), easing = LinearEasing), RepeatMode.Reverse),
-        label = "liquid4"
-    )
+    // 液体の位相は約30fpsの自前時計で進める（無限トランジションはリフレッシュレート
+    // 120Hzで全画面ぼかしを再描画し続けて重いため）。動きは従来どおり往復の直線補間。
+    val liquidContext = LocalContext.current
+    var liquidTickMs by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(staticMode, speedFactor) {
+        if (staticMode) return@LaunchedEffect
+        val pm = liquidContext.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
+        while (true) {
+            if (pm.isInteractive) liquidTickMs += 33L
+            delay(33)
+        }
+    }
+    fun liquidPingPong(periodMs: Long): Float {
+        val p = periodMs.coerceAtLeast(500L)
+        val m = liquidTickMs % (p * 2)
+        return if (m < p) m.toFloat() / p.toFloat() else 2f - m.toFloat() / p.toFloat()
+    }
+    val t1 = liquidPingPong((11000 / speedFactor).toLong())
+    val t2 = liquidPingPong((14000 / speedFactor).toLong())
+    val t3 = liquidPingPong((17000 / speedFactor).toLong())
+    val t4 = liquidPingPong((9000 / speedFactor).toLong())
     val e1 = if (staticMode) 0.42f else t1
     val e2 = if (staticMode) 0.58f else t2
     val e3 = if (staticMode) 0.47f else t3
