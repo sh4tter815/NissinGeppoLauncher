@@ -25,6 +25,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.foundation.border
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -918,7 +920,9 @@ fun MainLauncherScreen() {
     val homeFavoriteFolders = remember(favoriteFolderIds, folderList) {
         favoriteFolderIds.mapNotNull { fid -> folderList.firstOrNull { it.first == fid }?.let { FolderDiscEntry.Folder(it.first, it.second) } }
     }
-    val homeDiscCount = homeDiscItems.size + homeFavoriteFolders.size
+    // お気に入りが2件以上あるときは、ホーム右円の末尾に「並び替え」要素を1つ足す
+    val favEditItemCount = if (homeDiscItems.size + homeFavoriteFolders.size >= 2) 1 else 0
+    val homeDiscCount = homeDiscItems.size + homeFavoriteFolders.size + favEditItemCount
     // よく使う順のときの★5段階（使用実績のあるアプリを使用量の五分位で分ける。実績なしは★）
     val usageTierOf: Map<String, Int> = remember(usageStatsMap, allApps) {
         val used = allApps.filter { (usageStatsMap[it.packageName] ?: 0L) > 0L }
@@ -1464,25 +1468,6 @@ fun MainLauncherScreen() {
                         )
                     }
                 1 -> {
-                    // お気に入りの並び替え（鉛筆ボタン）
-                    if (!layoutEditMode && !pvFullscreen && !isLyricsBrowsing && favoriteApps.size + homeFavoriteFolders.size >= 2) {
-                        Box(
-                            modifier = Modifier
-                                .offset(x = (screenWidthDp - 54f).dp, y = topPaddingDp + 6.dp)
-                                .size(40.dp)
-                                .zIndex(40f)
-                                .background(Color(0xFF263238), CircleShape)
-                                .pressScale()
-                                .clickable {
-                                    favAppSortList = favoriteApps
-                                    favFolderSortList = homeFavoriteFolders
-                                    showFavReorderDialog = true
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            WhiteEditIcon(size = 20.dp, color = Color.White)
-                        }
-                    }
                     // --- 1: ホーム画面 ---
                         LayoutClockPart(
                             offsetX = clockOffsetX,
@@ -1716,6 +1701,62 @@ fun MainLauncherScreen() {
                                 onNewFolderClick = { },
                                 isFavorite = true
                             )
+                        }
+                        if (favEditItemCount == 1 && index == homeDiscItems.size + homeFavoriteFolders.size) {
+                            val editOuterR = disc2RadiusDp + 8f
+                            val editInnerR = disc2RadiusDp - 18f
+                            val editLabelX = animatedDisc2CenterX + editOuterR * cos(rad)
+                            val editLabelY = disc2CenterY + lyricsDiscDrop + editOuterR * sin(rad)
+                            val editIconX = animatedDisc2CenterX + editInnerR * cos(rad)
+                            val editIconY = disc2CenterY + lyricsDiscDrop + editInnerR * sin(rad)
+                            val openFavReorder = {
+                                if (isSelected) {
+                                    favAppSortList = favoriteApps
+                                    favFolderSortList = homeFavoriteFolders
+                                    showFavReorderDialog = true
+                                } else {
+                                    homeDiscState.animateToIndex(index)
+                                }
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .offset(x = (editIconX - ((appDiscIconSize + 14f) / 2f)).dp, y = (editIconY - ((appDiscIconSize + 14f) / 2f)).dp)
+                                    .size((appDiscIconSize + 14f).dp)
+                                    .background(Color(0xFF263238), CircleShape)
+                                    .pressScale()
+                                    .clickable { openFavReorder() },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                WhiteEditIcon(size = 20.dp, color = Color.White)
+                            }
+                            if (!isBigDiscLayout) {
+                                Box(
+                                    modifier = Modifier
+                                        .offset(x = (editLabelX - 240f).dp, y = (editLabelY - 22f).dp)
+                                        .width(240.dp)
+                                        .height(44.dp),
+                                    contentAlignment = Alignment.CenterEnd
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.End,
+                                        modifier = Modifier
+                                            .wrapContentSize()
+                                            .clickable { openFavReorder() }
+                                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = "並び替え",
+                                            color = if (isSelected) accentColor.copy(alpha = labelAlpha) else Color.White.copy(alpha = 0.9f * labelAlpha),
+                                            fontSize = appDiscTextSize.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            letterSpacing = appDiscLetterSpacing.sp,
+                                            textAlign = TextAlign.End,
+                                            maxLines = 1
+                                        )
+                                    }
+                                }
+                            }
                         }
                         val di = if (folderEntry == null) homeDiscItems.getOrNull(index) else null
                         if (di != null) {
@@ -2938,15 +2979,38 @@ fun MainLauncherScreen() {
         // --- システムの戻るキー対応 ---
         // お気に入りの並び替えダイアログ（右端のつまみをドラッグして入れ替え）
         if (showFavReorderDialog) {
-            AlertDialog(
+            Dialog(
                 onDismissRequest = { showFavReorderDialog = false },
-                confirmButton = {
-                    TextButton(onClick = { showFavReorderDialog = false }) {
-                        Text("閉じる", color = accentColor, fontWeight = FontWeight.Bold)
+                properties = DialogProperties(usePlatformDefaultWidth = false)
+            ) {
+                val dialogView = LocalView.current
+                DisposableEffect(dialogView) {
+                    val window = (dialogView.parent as? DialogWindowProvider)?.window
+                    var blurApplied = false
+                    if (window != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                        blurApplied = runCatching {
+                            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+                            window.attributes = window.attributes.apply { blurBehindRadius = 48 }
+                            true
+                        }.getOrDefault(false)
                     }
-                },
-                title = { Text("お気に入りの並び替え") },
-                text = {
+                    onDispose {
+                        if (blurApplied && window != null) {
+                            runCatching {
+                                window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
+                                window.attributes = window.attributes.apply { blurBehindRadius = 0 }
+                            }
+                        }
+                    }
+                }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth(0.94f)
+                        .background(Color(0xD91A1D23), RoundedCornerShape(24.dp))
+                        .padding(horizontal = 20.dp, vertical = 18.dp)
+                ) {
+                    Text("お気に入りの並び替え", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(12.dp))
                     Column {
                         Text("アプリ", color = accentColor, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         if (favAppSortList.isEmpty()) {
@@ -3072,8 +3136,18 @@ fun MainLauncherScreen() {
                             }
                         }
                     }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.End)
+                            .pressScale()
+                            .clickable { showFavReorderDialog = false }
+                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                    ) {
+                        Text("閉じる", color = accentColor, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
-            )
+            }
         }
 
         BackHandler(enabled = currentLauncherPage != 1 || isSearchActive || isEditingFolder || isLyricsBrowsing || pvFullscreen) {
