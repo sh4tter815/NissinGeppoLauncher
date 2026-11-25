@@ -106,6 +106,7 @@ import com.example.nissingeppolauncher.data.LyricLine
 import com.example.nissingeppolauncher.data.UpdateChecker
 import com.example.nissingeppolauncher.data.LyricsManager
 import com.example.nissingeppolauncher.data.WidgetPlacement
+import com.example.nissingeppolauncher.service.LauncherMediaListenerService
 import com.example.nissingeppolauncher.ui.components.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
