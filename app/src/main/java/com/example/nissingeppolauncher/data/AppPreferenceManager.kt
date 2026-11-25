@@ -425,7 +425,10 @@ class AppPreferenceManager(private val context: Context) {
     fun getStatusBarWidthFactor(): Float = prefs.getFloat("status_bar_width", 0.33f)
     fun setStatusBarWidthFactor(v: Float) = prefs.edit().putFloat("status_bar_width", v).apply()
     // 下ダイヤルの表示方法: "auto"（ラック中などは隠れる） / "always" / "hidden"
-    fun getDialVisibility(): String = prefs.getString("dial_visibility", "auto") ?: "auto"
+    fun getDialVisibility(): String {
+        val v = prefs.getString("dial_visibility", "auto") ?: "auto"
+        return if (v == "hidden") "auto" else v
+    }
     fun setDialVisibility(v: String) = prefs.edit().putString("dial_visibility", v).apply()
     // ページ切り替えアニメの速さ倍率
     fun getPageTransitionSpeed(): Float = prefs.getFloat("page_transition_speed", 1.0f)
@@ -567,6 +570,8 @@ class AppPreferenceManager(private val context: Context) {
         val scale = intent.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, -1)
         return if (level >= 0 && scale > 0) level * 100 / scale else 100
     }
+    fun isAppIconHidden(): Boolean = prefs.getBoolean("app_icon_hidden", false)
+    fun setAppIconHidden(v: Boolean) = prefs.edit().putBoolean("app_icon_hidden", v).apply()
     fun isDiscOutlineEnabled(): Boolean = prefs.getBoolean("disc_outline", true)
     fun setDiscOutlineEnabled(v: Boolean) = prefs.edit().putBoolean("disc_outline", v).apply()
     fun isDialOutlineEnabled(): Boolean = prefs.getBoolean("dial_outline", true)
