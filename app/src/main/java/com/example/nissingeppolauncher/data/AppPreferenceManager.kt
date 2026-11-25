@@ -512,6 +512,8 @@ class AppPreferenceManager(private val context: Context) {
     fun getFolderPath(): List<String> = prefs.getString("folder_path", null)?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
     fun getFavoriteFolderIds(): List<String> = prefs.getString("favorite_folder_ids", null)?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
     fun setFavoriteFolderIds(ids: List<String>) = prefs.edit().putString("favorite_folder_ids", ids.joinToString(",")).apply()
+    fun getFavoriteAppOrder(): List<String> = prefs.getString("favorite_app_order", null)?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+    fun setFavoriteAppOrder(pkgs: List<String>) = prefs.edit().putString("favorite_app_order", pkgs.joinToString(",")).apply()
     fun toggleFavoriteFolder(id: String): List<String> {
         val cur = getFavoriteFolderIds()
         val next = if (id in cur) cur - id else cur + id
