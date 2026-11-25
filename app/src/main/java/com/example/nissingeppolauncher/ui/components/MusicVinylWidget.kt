@@ -1016,9 +1016,13 @@ private fun RackDiscLayer(
                 .then(if (discStyle == "md" || discStyle == "cassette") Modifier else Modifier.clip(CircleShape)),
             contentAlignment = Alignment.Center
         ) {
+            val art = artAt(targetIdx)
+            val artImage = remember(art) { art?.asImageBitmap() }
+            val itemAccent = remember(art) { art?.let { rackAccentOf(it) } ?: effAccent }
+            val itemLineArt = remember(art) { art?.let { extractLineArtBitmap(it)?.asImageBitmap() } }
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val center = Offset(size.width / 2f, size.height / 2f)
-                val outlineColor = if (isFocused) effAccent else Color.White.copy(alpha = 0.5f)
+                val outlineColor = if (isFocused) itemAccent else Color.White.copy(alpha = 0.5f)
                 val outlineWidth = if (isFocused) 3f else 1.5f
                 if (discStyle == "md" || discStyle == "cassette") {
                     val caseW = size.width * 0.92f
@@ -1039,20 +1043,18 @@ private fun RackDiscLayer(
                     )
                 }
             }
-            val art = artAt(targetIdx)
-            val artImage = remember(art) { art?.asImageBitmap() }
             when (discStyle) {
                 "md" -> MdCase(
                     boxSizeDp = discRadiusDp * 2f * 0.92f,
-                    accentColor = effAccent,
+                    accentColor = itemAccent,
                     rotation = 0f,
                     bitmapImage = null,
-                    lineArtImage = null,
+                    lineArtImage = itemLineArt,
                     title = ""
                 )
                 "cassette" -> CassetteCase(
                     boxSizeDp = discRadiusDp * 2f * 0.92f,
-                    accentColor = effAccent,
+                    accentColor = itemAccent,
                     rotation = 0f,
                     title = titleAt(targetIdx),
                     artist = "",
@@ -1083,7 +1085,7 @@ private fun RackDiscLayer(
                         }
                         "clear" -> {
                             Canvas(Modifier.fillMaxSize()) {
-                                drawCircle(vividColorOf(effAccent).copy(alpha = 0.36f))
+                                drawCircle(vividColorOf(itemAccent).copy(alpha = 0.36f))
                                 drawCircle(Color.Black.copy(alpha = 0.10f))
                             }
                             if (artImage != null) {
@@ -1092,7 +1094,7 @@ private fun RackDiscLayer(
                         }
                         "glow" -> {
                             Canvas(Modifier.fillMaxSize()) {
-                                drawCircle(Color(0xFF8FFFD6))
+                                drawCircle(lightGlowOf(itemAccent))
                             }
                             if (artImage != null) {
                                 Image(bitmap = artImage, contentDescription = null, modifier = Modifier.fillMaxSize(0.44f).clip(CircleShape))
@@ -1131,7 +1133,7 @@ private fun RackDiscLayer(
                                 )
                             } else {
                                 Canvas(modifier = Modifier.fillMaxSize()) {
-                                    drawCircle(color = effAccent.copy(alpha = 0.5f))
+                                    drawCircle(color = itemAccent.copy(alpha = 0.5f))
                                 }
                             }
                         }
@@ -1176,6 +1178,79 @@ private fun vividColorOf(c: Color): Color {
         hsv
     )
     hsv[1] = 1f
+    hsv[2] = 1f
+    return Color(android.graphics.Color.HSVToColor(hsv))
+}
+
+private fun rackAccentOf(bitmap: Bitmap): Color {
+    val size = 48
+    val scaled = if (bitmap.width == size && bitmap.height == size) bitmap else Bitmap.createScaledBitmap(bitmap, size, size, true)
+    val bucketCount = 12
+    val counts = IntArray(bucketCount)
+    val satSums = FloatArray(bucketCount)
+    val rSums = LongArray(bucketCount)
+    val gSums = LongArray(bucketCount)
+    val bSums = LongArray(bucketCount)
+    val hsv = FloatArray(3)
+    var totalR = 0L; var totalG = 0L; var totalB = 0L
+    val totalPx = size * size
+    for (y in 0 until size) {
+        for (x in 0 until size) {
+            val px = scaled.getPixel(x, y)
+            val r = android.graphics.Color.red(px)
+            val g = android.graphics.Color.green(px)
+            val b = android.graphics.Color.blue(px)
+            totalR += r; totalG += g; totalB += b
+            android.graphics.Color.RGBToHSV(r, g, b, hsv)
+            if (hsv[1] > 0.15f && hsv[2] > 0.15f) {
+                val bucket = (hsv[0] / 30f).toInt().coerceIn(0, bucketCount - 1)
+                counts[bucket]++
+                satSums[bucket] += hsv[1]
+                rSums[bucket] += r; gSums[bucket] += g; bSums[bucket] += b
+            }
+        }
+    }
+    if (scaled !== bitmap) scaled.recycle()
+    var bestBucket = -1
+    var bestScore = -1f
+    for (i in 0 until bucketCount) {
+        if (counts[i] == 0) continue
+        val score = counts[i] * (satSums[i] / counts[i])
+        if (score > bestScore) { bestScore = score; bestBucket = i }
+    }
+    var accent = if (bestBucket >= 0) {
+        Color(
+            red = (rSums[bestBucket] / counts[bestBucket]).toInt(),
+            green = (gSums[bestBucket] / counts[bestBucket]).toInt(),
+            blue = (bSums[bestBucket] / counts[bestBucket]).toInt()
+        )
+    } else {
+        Color(
+            red = (totalR / totalPx).toInt(),
+            green = (totalG / totalPx).toInt(),
+            blue = (totalB / totalPx).toInt()
+        )
+    }
+    val accentLum = 0.299f * accent.red + 0.587f * accent.green + 0.114f * accent.blue
+    if (accentLum < 0.22f) {
+        accent = Color(
+            red = accent.red + (1f - accent.red) * 0.35f,
+            green = accent.green + (1f - accent.green) * 0.35f,
+            blue = accent.blue + (1f - accent.blue) * 0.35f
+        )
+    }
+    return accent
+}
+
+private fun lightGlowOf(c: Color): Color {
+    val hsv = FloatArray(3)
+    android.graphics.Color.RGBToHSV(
+        (c.red * 255).toInt().coerceIn(0, 255),
+        (c.green * 255).toInt().coerceIn(0, 255),
+        (c.blue * 255).toInt().coerceIn(0, 255),
+        hsv
+    )
+    hsv[1] = (hsv[1] * 0.45f).coerceIn(0f, 1f)
     hsv[2] = 1f
     return Color(android.graphics.Color.HSVToColor(hsv))
 }
