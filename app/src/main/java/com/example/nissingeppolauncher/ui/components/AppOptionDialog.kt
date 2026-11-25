@@ -57,27 +57,9 @@ fun AppOptionDialog(
     val textStyle = TextStyle(fontFamily = fontFamily, fontWeight = fontWeight)
 
     if (showYomiInputDialog) {
-        AlertDialog(
-            onDismissRequest = { showYomiInputDialog = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onSetYomi(app, yomiInputText)
-                        onSetYomiKana(app, yomiKanaInputText)
-                        showYomiInputDialog = false
-                        onDismiss()
-                    }
-                ) {
-                    Text("保存", color = Color(0xFF88C0FF), fontFamily = fontFamily, fontWeight = fontWeight)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showYomiInputDialog = false }) {
-                    Text("キャンセル", color = Color.Gray, fontFamily = fontFamily, fontWeight = fontWeight)
-                }
-            },
-            title = { Text("よみがな登録", fontSize = 18.sp, fontFamily = fontFamily, fontWeight = fontWeight) },
-            text = {
+        BlurDialog(onDismissRequest = { showYomiInputDialog = false }) {
+            BlurDialogTitle("よみがな登録", fontFamily = fontFamily, fontWeight = fontWeight)
+            Spacer(modifier = Modifier.height(10.dp))
                 Column {
                     Text(
                         text = "「${app.label}」の読みを登録します。漢字の読みが基本的に優先され、カタカナ読みはスペル順モードでは無効になります。",
@@ -131,32 +113,24 @@ fun AppOptionDialog(
                         )
                     )
                 }
-            },
-            containerColor = Color(0xFF141C2E),
-            titleContentColor = Color.White
-        )
+            BlurDialogButtonRow(
+                confirmText = "保存",
+                onConfirm = {
+                    onSetYomi(app, yomiInputText)
+                    onSetYomiKana(app, yomiKanaInputText)
+                    showYomiInputDialog = false
+                    onDismiss()
+                },
+                dismissText = "キャンセル",
+                onDismiss = { showYomiInputDialog = false },
+                fontFamily = fontFamily,
+                fontWeight = fontWeight
+            )
+        }
     } else if (showAliasDialog) {
-        AlertDialog(
-            onDismissRequest = { showAliasDialog = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        if (aliasInputText.isNotBlank()) {
-                            onAddAlias(app, aliasInputText)
-                            aliasInputText = ""
-                        }
-                    }
-                ) {
-                    Text("追加", color = Color(0xFF88C0FF), fontFamily = fontFamily, fontWeight = fontWeight)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAliasDialog = false; onDismiss() }) {
-                    Text("完了", color = Color.Gray, fontFamily = fontFamily, fontWeight = fontWeight)
-                }
-            },
-            title = { Text("検索可能な別名を追加する", fontSize = 18.sp, fontFamily = fontFamily, fontWeight = fontWeight) },
-            text = {
+        BlurDialog(onDismissRequest = { showAliasDialog = false }) {
+            BlurDialogTitle("検索可能な別名を追加する", fontFamily = fontFamily, fontWeight = fontWeight)
+            Spacer(modifier = Modifier.height(10.dp))
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
                         text = "「${app.label}」を検索する際に追加でヒットさせるキーワード（例: 計算機、電卓など）を何個でも追加登録できます。",
@@ -226,10 +200,20 @@ fun AppOptionDialog(
                         }
                     }
                 }
-            },
-            containerColor = Color(0xFF141C2E),
-            titleContentColor = Color.White
-        )
+            BlurDialogButtonRow(
+                confirmText = "追加",
+                onConfirm = {
+                    if (aliasInputText.isNotBlank()) {
+                        onAddAlias(app, aliasInputText)
+                        aliasInputText = ""
+                    }
+                },
+                dismissText = "完了",
+                onDismiss = { showAliasDialog = false; onDismiss() },
+                fontFamily = fontFamily,
+                fontWeight = fontWeight
+            )
+        }
     } else {
         val categories = listOf(
             OptionEntry(
@@ -311,26 +295,7 @@ fun AppOptionDialog(
             onDismissRequest = onDismiss,
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
-            val dialogView = LocalView.current
-            DisposableEffect(dialogView) {
-                val window = (dialogView.parent as? DialogWindowProvider)?.window
-                var blurApplied = false
-                if (window != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                    blurApplied = runCatching {
-                        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
-                        window.attributes = window.attributes.apply { blurBehindRadius = 48 }
-                        true
-                    }.getOrDefault(false)
-                }
-                onDispose {
-                    if (blurApplied && window != null) {
-                        runCatching {
-                            window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
-                            window.attributes = window.attributes.apply { blurBehindRadius = 0 }
-                        }
-                    }
-                }
-            }
+            DialogBlurBehind()
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.94f)
