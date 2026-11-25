@@ -1028,6 +1028,7 @@ fun MainLauncherScreen() {
             val idx = folderItemsWithNew.indexOfFirst { it.first == target }
             if (idx >= 0) {
                 folderSelectedIndex = idx
+                folderDiscState.itemCount = folderItemsWithNew.size
                 folderDiscState.animateToIndex(idx)
             }
             pendingFocusFolderId = null
@@ -1694,11 +1695,15 @@ fun MainLauncherScreen() {
                                         }
                                         pendingFocusFolderId = fid
                                         folderPath = chain
-                                        // folderPath が前回と同じ値だと復元側の LaunchedEffect が動かず
-                                        // 前回のフォルダが表示されてしまうため、ここでも直接フォーカスを合わせる
-                                        val targetIdx = folderItemsWithNew.indexOfFirst { it.first == fid }
+                                        // 移動先の階層の子フォルダ一覧から対象の位置を求める
+                                        // （この時点の folderItemsWithNew は移動前の階層のものなので使えない）
+                                        val newChildren = folderList.filter { folderParents[it.first] == chain.lastOrNull() }
+                                        val targetIdx = newChildren.indexOfFirst { it.first == fid }
                                         if (targetIdx >= 0) {
                                             folderSelectedIndex = targetIdx
+                                            // フォルダページ未表示の間は円盤の項目数が前回表示時のまま残り、
+                                            // animateToIndex の範囲クランプで別のフォルダに合ってしまうため先に同期する
+                                            folderDiscState.itemCount = newChildren.size + 1 + if (chain.isNotEmpty()) 1 else 0
                                             folderDiscState.animateToIndex(targetIdx)
                                         }
                                         changePageWithTransition(3)
