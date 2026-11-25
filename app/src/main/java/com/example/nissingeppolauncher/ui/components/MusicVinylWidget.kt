@@ -511,7 +511,7 @@ fun MusicVinylWidget(
             modifier = Modifier
                 .offset(x = (discCenterXDp - discRadiusDp).dp, y = (discCenterYDp - discRadiusDp).dp)
                 .size((discRadiusDp * 2f).dp)
-                .clip(CircleShape)
+                .then(if (prefManager.isCaseCircleClipEnabled() || !isCaseStyle(effectiveDiscStyle(prefManager))) Modifier.clip(CircleShape) else Modifier)
                 .pointerInput(sessionController != null) {
                     awaitPointerEventScope {
                         while (true) {
@@ -896,7 +896,8 @@ fun MusicVinylWidget(
             rackTiltXState = rackTiltXState,
             haptic = haptic,
             artAt = { rackArtAt(it) },
-            titleAt = { rackTitleAt(it) }
+            titleAt = { rackTitleAt(it) },
+            caseCircleClip = prefManager.isCaseCircleClipEnabled()
         )
     }
 
@@ -1096,7 +1097,8 @@ private fun RackDiscLayer(
     rackTiltXState: State<Float>,
     haptic: HapticFeedback,
     artAt: (Int) -> Bitmap?,
-    titleAt: (Int) -> String
+    titleAt: (Int) -> String,
+    caseCircleClip: Boolean
 ) {
     val rackFocusedIndex = if (rackSize == 0) 0 else (rackCurrentIndex + rackScrollAnim.value.roundToInt()).coerceIn(0, rackSize - 1)
     var rackLastHapticIndex by remember { mutableIntStateOf(-1) }
@@ -1131,7 +1133,7 @@ private fun RackDiscLayer(
                     cameraDistance = 12f * density
                     alpha = (1f - (abs(relPos) - 4.2f) / 2f).coerceIn(0f, 1f)
                 }
-                .then(if (discStyle == "md" || isCassetteStyle(discStyle)) Modifier else Modifier.clip(CircleShape)),
+                .then(if (discStyle == "md" || isCassetteStyle(discStyle) || (isCaseStyle(discStyle) && !caseCircleClip)) Modifier else Modifier.clip(CircleShape)),
             contentAlignment = Alignment.Center
         ) {
             val art = artAt(targetIdx)
@@ -1142,7 +1144,7 @@ private fun RackDiscLayer(
                 val center = Offset(size.width / 2f, size.height / 2f)
                 val outlineColor = if (isFocused) itemAccent else Color.White.copy(alpha = 0.5f)
                 val outlineWidth = if (isFocused) 3f else 1.5f
-                if (discStyle == "md" || isCassetteStyle(discStyle)) {
+                if (discStyle == "md" || isCassetteStyle(discStyle) || (isCaseStyle(discStyle) && !caseCircleClip)) {
                     val caseW = size.width * 0.92f
                     val caseH = caseW * (when (discStyle) { "md" -> 0.94f; "floppy" -> 0.96f; "reel" -> 0.92f; "dat" -> 0.72f; "eighttrack" -> 0.78f; else -> 0.64f })
                     drawRoundRect(
@@ -1336,6 +1338,8 @@ private fun effectiveDiscStyle(prefManager: AppPreferenceManager): String {
 }
 
 private fun isCassetteStyle(style: String): Boolean = style == "cassette" || style.startsWith("cassette_")
+
+private fun isCaseStyle(style: String): Boolean = style == "md" || isCassetteStyle(style) || style == "reel" || style == "floppy" || style == "dat" || style == "eighttrack"
 
 private fun cassetteShellOf(style: String): String = when (style) {
     "cassette_color" -> "color"
