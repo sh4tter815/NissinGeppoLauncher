@@ -106,6 +106,7 @@ fun MusicVinylWidget(
     var trackTitle by remember { mutableStateOf("") }
     var artDebugInfo by remember { mutableStateOf("") }
     var artFetchResult by remember { mutableStateOf("-") }
+    var lastToastDebug by remember { mutableStateOf("") }
     var trackArtist by remember { mutableStateOf("") }
     var trackAlbum by remember { mutableStateOf("") }
     var activePackageName by remember { mutableStateOf<String?>(null) }
@@ -116,8 +117,12 @@ fun MusicVinylWidget(
     var sessionQueue by remember { mutableStateOf<List<MediaSession.QueueItem>>(emptyList()) }
     // キュー項目のアートワークキャッシュ（iconUri → Bitmap）。Spotifyは iconBitmap を入れないため、iconUri を辿って取得する
     var queueArtCache by remember { mutableStateOf<Map<String, Bitmap>>(emptyMap()) }
+    var queueArtFailTimes by remember { mutableStateOf<Map<String, Long>>(emptyMap()) }
     LaunchedEffect(sessionQueue) {
-        val missing = sessionQueue.mapNotNull { it.description?.iconUri?.toString() }.distinct().filter { it !in queueArtCache }
+        val failNow = System.currentTimeMillis()
+        val missing = sessionQueue.mapNotNull { it.description?.iconUri?.toString() }.distinct()
+            .filter { it !in queueArtCache }
+            .filter { uriStr -> val ft = queueArtFailTimes[uriStr]; ft == null || failNow - ft > 60000L }
         for (uriStr in missing) {
             val bmp = withContext(Dispatchers.IO) {
                 runCatching {
@@ -130,7 +135,11 @@ fun MusicVinylWidget(
                     raw?.let { if (it.width > 256) Bitmap.createScaledBitmap(it, 256, (it.height * 256f / it.width).toInt().coerceAtLeast(1), true) else it }
                 }.getOrNull()
             }
-            if (bmp != null) queueArtCache = queueArtCache + (uriStr to bmp)
+            if (bmp != null) {
+                queueArtCache = queueArtCache + (uriStr to bmp)
+            } else {
+                queueArtFailTimes = queueArtFailTimes + (uriStr to System.currentTimeMillis())
+            }
         }
     }
     var rackOpen by remember { mutableStateOf(false) }
@@ -196,7 +205,15 @@ fun MusicVinylWidget(
                         activePackageName = if (controllerPkg != context.packageName) controllerPkg else null
                         sessionController = activeController
                         if (!rackOpen) {
-                            try { sessionQueue = activeController.queue ?: emptyList() } catch (_: Exception) {}
+                            try {
+                                val newQueue = activeController.queue ?: emptyList()
+                                val queueChanged = newQueue.size != sessionQueue.size ||
+                                    newQueue.indices.any { qi ->
+                                        newQueue[qi].queueId != sessionQueue[qi].queueId ||
+                                            newQueue[qi].description?.title != sessionQueue[qi].description?.title
+                                    }
+                                if (queueChanged) sessionQueue = newQueue
+                            } catch (_: Exception) {}
                         }
                         val metadata = activeController.metadata
                         var bitmap = metadata?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
@@ -256,6 +273,12 @@ fun MusicVinylWidget(
                                 "/" + (LauncherMediaListenerService.mediaArtPackage ?: "-") +
                                 "/" + (LauncherMediaListenerService.mediaArtTitle ?: "-") +
                                 " P:" + controllerPkg
+                        }
+                        if (artDebugInfo != lastToastDebug) {
+                            lastToastDebug = artDebugInfo
+                            try {
+                                android.widget.Toast.makeText(context, artDebugInfo, android.widget.Toast.LENGTH_LONG).show()
+                            } catch (_: Exception) {}
                         }
                         trackTitle = metadata?.getString(MediaMetadata.METADATA_KEY_TITLE) ?: ""
                         trackArtist = metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST) ?: ""
@@ -394,26 +417,7 @@ fun MusicVinylWidget(
     val latestRackCurrentIndex by rememberUpdatedState(rackCurrentIndex)
     val latestRackSize by rememberUpdatedState(rackSize)
     val latestQueueMode by rememberUpdatedState(queueMode)
-    // ラックの先読み: キューのアートワークが揃ったら、色と線画を裏で先に計算しておく
-    LaunchedEffect(sessionQueue, queueArtCache, albumArtBitmap) {
-        withContext(Dispatchers.Default) {
-            val arts = LinkedHashSet<Bitmap>()
-            val centerIdx = latestRackCurrentIndex
-            for (i in sessionQueue.indices) {
-                if (kotlin.math.abs(i - centerIdx) > 8) continue
-                rackArtAt(i)?.let { arts.add(it) }
-            }
-            albumArtBitmap?.let { arts.add(it) }
-            for (art in arts) {
-                synchronized(rackAccentCache) {
-                    if (art !in rackAccentCache) rackAccentCache[art] = rackAccentOf(art)
-                }
-                synchronized(rackLineArtCache) {
-                    if (art !in rackLineArtCache) rackLineArtCache[art] = extractLineArtBitmap(art)?.asImageBitmap()
-                }
-            }
-        }
-    }
+    // 先読みは廃止（ラック表示時に RackDiscLayer 側で都度計算してキャッシュする）
     val latestSessionQueue by rememberUpdatedState(sessionQueue)
     val rackTiltXState = animateFloatAsState(
         targetValue = if (rackShow) 55f else 0f,
@@ -775,18 +779,6 @@ fun MusicVinylWidget(
                     style = Stroke(width = 1.5f)
                 )
             }
-            }
-
-            if (artDebugInfo.isNotBlank()) {
-                Text(
-                    text = artDebugInfo,
-                    color = Color.White,
-                    fontSize = 9.sp,
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .background(Color.Black.copy(alpha = 0.55f))
-                        .padding(horizontal = 4.dp, vertical = 2.dp)
-                )
             }
 
             val discStyleNow = effectiveDiscStyle(prefManager)
