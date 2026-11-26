@@ -112,6 +112,7 @@ fun MusicVinylWidget(
 
     // ディスクラック用: セッションの再生キューと操作状態
     var sessionQueue by remember { mutableStateOf<List<MediaSession.QueueItem>>(emptyList()) }
+    var lastQueueKey by remember { mutableStateOf("") }
     // キュー項目のアートワークキャッシュ（iconUri → Bitmap）。Spotifyは iconBitmap を入れないため、iconUri を辿って取得する
     var queueArtCache by remember { mutableStateOf<Map<String, Bitmap>>(emptyMap()) }
     var queueArtFailTimes by remember { mutableStateOf<Map<String, Long>>(emptyMap()) }
@@ -202,15 +203,21 @@ fun MusicVinylWidget(
                         activePackageName = if (controllerPkg != context.packageName) controllerPkg else null
                         sessionController = activeController
                         if (!rackOpen) {
-                            try {
-                                val newQueue = activeController.queue ?: emptyList()
-                                val queueChanged = newQueue.size != sessionQueue.size ||
-                                    newQueue.indices.any { qi ->
-                                        newQueue[qi].queueId != sessionQueue[qi].queueId ||
-                                            newQueue[qi].description?.title != sessionQueue[qi].description?.title
-                                    }
-                                if (queueChanged) sessionQueue = newQueue
-                            } catch (_: Exception) {}
+                            // キューの読み出しは重いので、曲が変わったときだけ読み直す
+                            val qKey = (activeController.metadata?.getString(MediaMetadata.METADATA_KEY_TITLE) ?: "") + "|" +
+                                (activeController.metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST) ?: "")
+                            if (qKey != lastQueueKey) {
+                                lastQueueKey = qKey
+                                try {
+                                    val newQueue = activeController.queue ?: emptyList()
+                                    val queueChanged = newQueue.size != sessionQueue.size ||
+                                        newQueue.indices.any { qi ->
+                                            newQueue[qi].queueId != sessionQueue[qi].queueId ||
+                                                newQueue[qi].description?.title != sessionQueue[qi].description?.title
+                                        }
+                                    if (queueChanged) sessionQueue = newQueue
+                                } catch (_: Exception) {}
+                            }
                         }
                         val metadata = activeController.metadata
                         var bitmap = metadata?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
@@ -393,7 +400,37 @@ fun MusicVinylWidget(
     val latestRackCurrentIndex by rememberUpdatedState(rackCurrentIndex)
     val latestRackSize by rememberUpdatedState(rackSize)
     val latestQueueMode by rememberUpdatedState(queueMode)
-    // 先読みは廃止（ラック表示時に RackDiscLayer 側で都度計算してキャッシュする）
+    // 先読みは廃止（常時は計算しない）。ラックを開いた瞬間だけ、キューを取り直して
+    // 見える範囲の色と線画を裏で温めておく（開いた直後のカクつき防止）
+    LaunchedEffect(rackShow) {
+        if (rackShow) {
+            try {
+                val c = sessionController
+                if (c != null) {
+                    val nq = c.queue ?: emptyList()
+                    val changed = nq.size != sessionQueue.size ||
+                        nq.indices.any { qi ->
+                            nq[qi].queueId != sessionQueue[qi].queueId ||
+                                nq[qi].description?.title != sessionQueue[qi].description?.title
+                        }
+                    if (changed) sessionQueue = nq
+                }
+            } catch (_: Exception) {}
+            withContext(Dispatchers.Default) {
+                val centerIdx = latestRackCurrentIndex
+                for (i in sessionQueue.indices) {
+                    if (kotlin.math.abs(i - centerIdx) > 10) continue
+                    val art = rackArtAt(i) ?: continue
+                    synchronized(rackAccentCache) {
+                        if (art !in rackAccentCache) rackAccentCache[art] = rackAccentOf(art)
+                    }
+                    synchronized(rackLineArtCache) {
+                        if (art !in rackLineArtCache) rackLineArtCache[art] = extractLineArtBitmap(art)?.asImageBitmap()
+                    }
+                }
+            }
+        }
+    }
     val latestSessionQueue by rememberUpdatedState(sessionQueue)
     val rackTiltXState = animateFloatAsState(
         targetValue = if (rackShow) 55f else 0f,
