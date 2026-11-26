@@ -249,6 +249,8 @@ fun MusicVinylWidget(
                                 ?: metadata?.getString(MediaMetadata.METADATA_KEY_ART_URI)
                                 ?: metadata?.getString(MediaMetadata.METADATA_KEY_DISPLAY_ICON_URI)
                             artDebugInfo = "B:" + (if (bitmap != null) "Y" else "N") +
+                                " S:" + (bitmap?.let { "" + it.width + "x" + it.height } ?: "-") +
+                                " L:" + (bitmap?.let { if (extractLineArtBitmap(it) != null) "Y" else "N" } ?: "-") +
                                 " U:" + (dbgUri?.take(46) ?: "-") + "(" + artFetchResult + ")" +
                                 " N:" + (if (LauncherMediaListenerService.mediaArtBitmap != null) "Y" else "N") +
                                 "/" + (LauncherMediaListenerService.mediaArtPackage ?: "-") +
@@ -775,14 +777,13 @@ fun MusicVinylWidget(
             }
             }
 
-            if (albumArtBitmap == null && artDebugInfo.isNotBlank()) {
+            if (artDebugInfo.isNotBlank()) {
                 Text(
                     text = artDebugInfo,
                     color = Color.White,
                     fontSize = 9.sp,
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .offset(y = 26.dp)
+                        .align(Alignment.Center)
                         .background(Color.Black.copy(alpha = 0.55f))
                         .padding(horizontal = 4.dp, vertical = 2.dp)
                 )
