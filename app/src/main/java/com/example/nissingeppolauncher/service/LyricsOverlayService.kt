@@ -920,6 +920,8 @@ class LyricsOverlayService : Service() {
                     when {
                         screenOff -> 1000L
                         saving -> 500L
+                        // ランチャーが前面のあいだは帯が見えないので、細かく追う必要がない
+                        launcherInForeground -> 1000L
                         overlayMode == "pv" -> 120L
                         else -> 250L
                     }
