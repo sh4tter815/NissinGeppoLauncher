@@ -1285,7 +1285,7 @@ fun MainLauncherScreen() {
                     artworkBackgroundStyle = if (bgMode == "artwork_blur") "blur" else "solid",
                     liquidEnabled = liquidBackground,
                     liquidAccent = if (dopagakiMode) Color.hsv(Math.floorMod(pvLineIndex * 47, 360).toFloat(), 0.72f, 1f) else effectiveAccent,
-                    staticMode = powerSaveActive
+                    staticMode = powerSaveActive || isLyricsBrowsing || pvFullscreen
                 )
 
             // 非表示モード中は背景だけを段階的に暗くする（円盤や文字などのUIは暗くしない）
@@ -1831,6 +1831,7 @@ fun MainLauncherScreen() {
                             textStartAngle = lyricsTextAngle,
                             artworkTilt3d = disc3d,
                             tonearmScaleOverride = tonearmScale,
+                            spinFrozen = isLyricsBrowsing || pvFullscreen,
                             onRackVisibilityChanged = { vinylRackOpen = it },
                             onThemeSettingsRequest = {
                                 repo.prefManager.requestSettingsPath("lyrics,music_art,music_theme")

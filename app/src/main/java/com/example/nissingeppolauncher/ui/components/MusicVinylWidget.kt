@@ -91,7 +91,8 @@ fun MusicVinylWidget(
     onThemeSettingsRequest: () -> Unit = {},
     dopagaki: Boolean = false,
     rainbowGlow: Boolean = false,
-    tonearmScaleOverride: Float? = null
+    tonearmScaleOverride: Float? = null,
+    spinFrozen: Boolean = false
 ) {
     val context = LocalContext.current
     val effAccent = if (rainbowGlow) dopaRainbowColor(seed = 13) else accentColor
@@ -184,6 +185,7 @@ fun MusicVinylWidget(
 
     // 定期的に音楽再生状態とメタデータ（アルバムアート・曲情報）を取得
     LaunchedEffect(Unit) {
+        var idleStreak = 0
         while (true) {
             if (!(context.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager).isInteractive) {
                 delay(3000)
@@ -293,7 +295,9 @@ fun MusicVinylWidget(
                 trackArtist = ""
                 trackAlbum = ""
             }
-            delay(if (prefManager.isPowerSaveActive(context)) 4000L else 1500L)
+            // 再生セッションが無い状態が続いたら、確認間隔をゆっくりにする
+            if (sessionController != null) idleStreak = 0 else idleStreak++
+            delay(if (prefManager.isPowerSaveActive(context) || idleStreak >= 10) 4000L else 1500L)
         }
     }
 
@@ -302,12 +306,18 @@ fun MusicVinylWidget(
     var discVel by remember { mutableStateOf(0f) }
     // 回転角は graphicsLayer（描画フェーズ）でのみ読む専用状態にし、毎フレームの再コンポーズを避ける
     val spinState = remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(isPlaying) {
+    LaunchedEffect(isPlaying, spinFrozen) {
         var lastMs = System.currentTimeMillis()
         if (isPlaying) {
             while (true) {
                 if (!(context.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager).isInteractive) {
                     delay(400)
+                    lastMs = System.currentTimeMillis()
+                    continue
+                }
+                if (spinFrozen) {
+                    // PV全画面や歌詞ブラウズで隠れている間は回転を止める
+                    delay(300)
                     lastMs = System.currentTimeMillis()
                     continue
                 }
