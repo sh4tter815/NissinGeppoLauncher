@@ -104,9 +104,6 @@ fun MusicVinylWidget(
     var lastUriAttemptStr by remember { mutableStateOf<String?>(null) }
     var lastUriFetchAttemptMs by remember { mutableStateOf(0L) }
     var trackTitle by remember { mutableStateOf("") }
-    var artDebugInfo by remember { mutableStateOf("") }
-    var artFetchResult by remember { mutableStateOf("-") }
-    var lastToastDebug by remember { mutableStateOf("") }
     var trackArtist by remember { mutableStateOf("") }
     var trackAlbum by remember { mutableStateOf("") }
     var activePackageName by remember { mutableStateOf<String?>(null) }
@@ -230,7 +227,6 @@ fun MusicVinylWidget(
                                 } else if (uriStr != lastUriAttemptStr || System.currentTimeMillis() - lastUriFetchAttemptMs > 15000L) {
                                     lastUriAttemptStr = uriStr
                                     lastUriFetchAttemptMs = System.currentTimeMillis()
-                                    var fetchErrName = ""
                                     val fetched = withContext(Dispatchers.IO) {
                                         try {
                                             when {
@@ -238,9 +234,8 @@ fun MusicVinylWidget(
                                                 uriStr.startsWith("http://") || uriStr.startsWith("https://") -> java.net.URL(uriStr).openStream().use { android.graphics.BitmapFactory.decodeStream(it) }
                                                 else -> context.contentResolver.openInputStream(android.net.Uri.parse(uriStr))?.use { android.graphics.BitmapFactory.decodeStream(it) }
                                             }
-                                        } catch (e: Exception) { fetchErrName = e.javaClass.simpleName; null }
+                                        } catch (_: Exception) { null }
                                     }
-                                    artFetchResult = if (fetched != null) "ok" else if (fetchErrName.isNotEmpty()) fetchErrName else "null"
                                     if (fetched != null) {
                                         lastArtUriStr = uriStr
                                         lastUriArtBitmap = fetched
@@ -261,25 +256,6 @@ fun MusicVinylWidget(
                             }
                         }
                         albumArtBitmap = bitmap
-                        run {
-                            val dbgUri = metadata?.getString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI)
-                                ?: metadata?.getString(MediaMetadata.METADATA_KEY_ART_URI)
-                                ?: metadata?.getString(MediaMetadata.METADATA_KEY_DISPLAY_ICON_URI)
-                            artDebugInfo = "B:" + (if (bitmap != null) "Y" else "N") +
-                                " S:" + (bitmap?.let { "" + it.width + "x" + it.height } ?: "-") +
-                                " L:" + (bitmap?.let { if (extractLineArtBitmap(it) != null) "Y" else "N" } ?: "-") +
-                                " U:" + (dbgUri?.take(46) ?: "-") + "(" + artFetchResult + ")" +
-                                " N:" + (if (LauncherMediaListenerService.mediaArtBitmap != null) "Y" else "N") +
-                                "/" + (LauncherMediaListenerService.mediaArtPackage ?: "-") +
-                                "/" + (LauncherMediaListenerService.mediaArtTitle ?: "-") +
-                                " P:" + controllerPkg
-                        }
-                        if (artDebugInfo != lastToastDebug) {
-                            lastToastDebug = artDebugInfo
-                            try {
-                                android.widget.Toast.makeText(context, artDebugInfo, android.widget.Toast.LENGTH_LONG).show()
-                            } catch (_: Exception) {}
-                        }
                         trackTitle = metadata?.getString(MediaMetadata.METADATA_KEY_TITLE) ?: ""
                         trackArtist = metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST) ?: ""
                         trackAlbum = metadata?.getString(MediaMetadata.METADATA_KEY_ALBUM) ?: ""

@@ -174,8 +174,8 @@ fun LiquidGradientBackground(baseColor: Color, onBlack: Boolean = true, layerAlp
         if (staticMode) return@LaunchedEffect
         val pm = liquidContext.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
         while (true) {
-            if (pm.isInteractive) liquidTickMs += 33L
-            delay(33)
+            if (pm.isInteractive) liquidTickMs += 50L
+            delay(50)
         }
     }
     fun liquidPingPong(periodMs: Long): Float {
@@ -200,7 +200,20 @@ fun LiquidGradientBackground(baseColor: Color, onBlack: Boolean = true, layerAlp
             .then(if (onBlack) Modifier.background(Color.Black) else Modifier)
             .graphicsLayer { alpha = layerAlpha }
     ) {
-        Box(modifier = Modifier.fillMaxSize().blur(64.dp)) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val fullW = maxWidth
+            val fullH = maxHeight
+            // 全画面ぼかしが一番重いので、半分の解像度で描いてから引き伸ばす（見た目はほぼ同じ）
+            Box(
+                modifier = Modifier
+                    .size(fullW * 0.5f, fullH * 0.5f)
+                    .graphicsLayer {
+                        scaleX = 2f
+                        scaleY = 2f
+                        transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0f)
+                    }
+                    .blur(32.dp)
+            ) {
             BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                 val w = maxWidth
                 val h = maxHeight
@@ -222,6 +235,7 @@ fun LiquidGradientBackground(baseColor: Color, onBlack: Boolean = true, layerAlp
                         .size(w * 1.05f)
                         .background(Brush.radialGradient(listOf(c3.copy(alpha = (0.50f * effBoost).coerceAtMost(1f)), Color.Transparent)))
                 )
+            }
             }
         }
     }
