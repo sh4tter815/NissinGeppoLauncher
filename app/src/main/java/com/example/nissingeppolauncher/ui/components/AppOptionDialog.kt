@@ -43,7 +43,10 @@ fun AppOptionDialog(
     onSetYomiKana: (AppInfo, String) -> Unit,
     onAddAlias: (AppInfo, String) -> Unit,
     onRemoveAlias: (AppInfo, String) -> Unit,
-    onToggleHide: (AppInfo) -> Unit
+    onToggleHide: (AppInfo) -> Unit,
+    hasCustomIcon: Boolean = false,
+    onPickCustomIcon: (AppInfo, android.graphics.Bitmap) -> Unit = { _, _ -> },
+    onClearCustomIcon: (AppInfo) -> Unit = {}
 ) {
     val context = LocalContext.current
     var showYomiInputDialog by remember { mutableStateOf(false) }
@@ -51,6 +54,29 @@ fun AppOptionDialog(
     var yomiInputText by remember { mutableStateOf(app.customYomi) }
     var yomiKanaInputText by remember { mutableStateOf(app.customYomiKana) }
     var aliasInputText by remember { mutableStateOf("") }
+
+    // アイコン差し替え用の画像ピッカー（選んだ画像は中央を正方形に切り抜いて192px化する）
+    val iconPicker = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            try {
+                val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                context.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it, null, bounds) }
+                var sample = 1
+                while (bounds.outWidth / sample > 512 || bounds.outHeight / sample > 512) sample *= 2
+                val opts = android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }
+                val bmp = context.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it, null, opts) }
+                if (bmp != null) {
+                    val side = minOf(bmp.width, bmp.height)
+                    val cropped = android.graphics.Bitmap.createBitmap(bmp, (bmp.width - side) / 2, (bmp.height - side) / 2, side, side)
+                    val scaled = android.graphics.Bitmap.createScaledBitmap(cropped, 192, 192, true)
+                    onPickCustomIcon(app, scaled)
+                }
+            } catch (_: Exception) {}
+            onDismiss()
+        }
+    }
 
     val fontFamily = LocalLauncherFontFamily.current
     val fontWeight = LocalLauncherFontWeight.current
@@ -261,6 +287,17 @@ fun AppOptionDialog(
                         OptionAction("hide", "非表示にする", danger = true) { onToggleHide(app); onDismiss() }
                     }
                 )
+            ),
+            OptionEntry(
+                kind = "icon",
+                label = "アイコン",
+                valueText = if (hasCustomIcon) "カスタム" else null,
+                actions = buildList {
+                    add(OptionAction("image", "画像を選ぶ") { iconPicker.launch("image/*") })
+                    if (hasCustomIcon) {
+                        add(OptionAction("trash", "元に戻す", danger = true) { onClearCustomIcon(app); onDismiss() })
+                    }
+                }
             ),
             OptionEntry(
                 kind = "info",
@@ -525,6 +562,8 @@ private fun optionGlyph(kind: String): String = when (kind) {
     "hide" -> "eye-off"
     "info" -> "info"
     "close" -> "x"
+    "icon" -> "image"
+    "image" -> "image"
     "plus" -> "plus"
     "trash" -> "trash"
     "open" -> "external-link"
