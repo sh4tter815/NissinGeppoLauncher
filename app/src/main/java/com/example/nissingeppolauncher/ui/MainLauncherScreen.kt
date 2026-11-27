@@ -760,7 +760,7 @@ fun MainLauncherScreen() {
         if (extracted != null && bg != null && contrastRatio(extracted, bg) < 2.8f) {
             // コントラストが低い場合は白へ混ぜず、同じ色相・彩度のまま明度だけを段階的に上げる
             val bgNN: Color = bg
-            var adjusted = extracted
+            var adjusted: Color = extracted
             var guard = 0
             while (contrastRatio(adjusted, bgNN) < 3.0f && guard < 12) {
                 guard++
