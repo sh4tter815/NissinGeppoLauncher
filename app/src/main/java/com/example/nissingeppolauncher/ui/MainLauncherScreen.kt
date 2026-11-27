@@ -185,6 +185,7 @@ fun MainLauncherScreen() {
     var dateDisplayMode by remember { mutableStateOf(repo.prefManager.getDateDisplayMode()) }
     var sessionAlbumArt by remember { mutableStateOf<Bitmap?>(null) }
     var artworkAccent by remember { mutableStateOf<Color?>(null) }
+    var artworkSub by remember { mutableStateOf<Color?>(null) }
     var artworkBackground by remember { mutableStateOf<Color?>(null) }
 
     // ホームの時計下に出す同期歌詞（再生中セッションの曲情報に追随する）
@@ -743,11 +744,13 @@ fun MainLauncherScreen() {
     LaunchedEffect(sessionAlbumArt, matchArtwork, useArtworkBg) {
         val art = sessionAlbumArt
         if ((matchArtwork || useArtworkBg) && art != null) {
-            val (fg, bg) = withContext(Dispatchers.Default) { extractArtworkColors(art) }
+            val (fg, sub, bg) = withContext(Dispatchers.Default) { extractArtworkColors(art) }
             artworkAccent = fg
+            artworkSub = sub
             artworkBackground = bg
         } else {
             artworkAccent = null
+            artworkSub = null
             artworkBackground = null
         }
     }
@@ -755,32 +758,37 @@ fun MainLauncherScreen() {
         val extracted = artworkAccent
         val bg = artworkBackground
         if (extracted != null && bg != null && contrastRatio(extracted, bg) < 2.8f) {
-            // 音楽アプリと同じ調整: コントラストが低い場合は同じ色味のまま白へ寄せて明るくする
-            val fg: Color = extracted
+            // コントラストが低い場合は白へ混ぜず、同じ色相・彩度のまま明度だけを段階的に上げる
             val bgNN: Color = bg
-            var blended = fg
-            var t = 0f
-            while (contrastRatio(blended, bgNN) < 3.0f && t < 0.5f) {
-                t += 0.1f
-                blended = Color(
-                    red = fg.red + (1f - fg.red) * t,
-                    green = fg.green + (1f - fg.green) * t,
-                    blue = fg.blue + (1f - fg.blue) * t,
-                    alpha = fg.alpha
-                )
+            var adjusted = extracted
+            var guard = 0
+            while (contrastRatio(adjusted, bgNN) < 3.0f && guard < 12) {
+                guard++
+                val next = brightenStepKeepingHue(adjusted)
+                if (next == adjusted) break
+                adjusted = next
             }
-            blended
+            adjusted
         } else {
             extracted ?: manualAccentColor
         }
     } else {
         manualAccentColor
     }
+    // サブ色: アートワーク連動時は抽出した第2色、そうでなければ一次色の色相を55度回した色
+    val subColor = if (matchArtwork && artworkSub != null) artworkSub!! else rotateHueColor(accentColor, 55f)
+
     // 色の切り替わりはチカチカしないよう、800msかけてなめらかに寄せる
     val effectiveAccent by animateColorAsState(
         targetValue = pvFlashColor ?: accentColor,
         animationSpec = tween(durationMillis = 800),
         label = "accentFlash"
+    )
+
+    val effectiveSub by animateColorAsState(
+        targetValue = pvFlashColor?.let { rotateHueColor(it, 55f) } ?: subColor,
+        animationSpec = tween(durationMillis = 800),
+        label = "subColorAnim"
     )
 
     var showWelcomeTutorial by remember { mutableStateOf(false) }
@@ -1321,6 +1329,7 @@ fun MainLauncherScreen() {
                     artworkBackgroundStyle = if (bgMode == "artwork_blur") "blur" else "solid",
                     liquidEnabled = liquidBackground,
                     liquidAccent = if (dopagakiMode) Color.hsv(Math.floorMod(pvLineIndex * 47, 360).toFloat(), 0.72f, 1f) else effectiveAccent,
+                    liquidSub = if (dopagakiMode) Color.hsv(Math.floorMod(pvLineIndex * 47 + 120, 360).toFloat(), 0.72f, 1f) else effectiveSub,
                     staticMode = powerSaveActive || isLyricsBrowsing || pvFullscreen
                 )
 
@@ -1891,6 +1900,7 @@ fun MainLauncherScreen() {
                                 iconCornerPercent = iconCornerPercent,
                                 letterSpacingSp = appDiscLetterSpacing,
                                 accentColor = accentColor,
+                                subColor = subColor,
                                 selectedPackages = null,
                                 iconTilt3d = disc3d,
                                 rainbowGlow = dopagakiMode,
@@ -1921,6 +1931,7 @@ fun MainLauncherScreen() {
                             discCenterYDp = disc1CenterY + lyricsDiscDrop,
                             discRadiusDp = disc1RadiusDp,
                             accentColor = accentColor,
+                            subColor = subColor,
                             rainbowGlow = dopagakiMode,
                             textStartAngle = lyricsTextAngle,
                             artworkTilt3d = disc3d,
@@ -1939,7 +1950,7 @@ fun MainLauncherScreen() {
                     DiscWheel(
                         entries = indexEntries,
                         side = DiscSide.LEFT,
-                        accentColor = accentColor,
+                        accentColor = subColor,
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer {
@@ -2077,6 +2088,7 @@ fun MainLauncherScreen() {
                                 iconCornerPercent = iconCornerPercent,
                                 letterSpacingSp = appDiscLetterSpacing,
                                 accentColor = accentColor,
+                                subColor = subColor,
                                 selectedPackages = null,
                                 iconTilt3d = disc3d,
                                 rainbowGlow = dopagakiMode,
@@ -2095,7 +2107,7 @@ fun MainLauncherScreen() {
                         DiscWheel(
                             entries = indexEntries,
                             side = DiscSide.LEFT,
-                            accentColor = accentColor,
+                            accentColor = subColor,
                             modifier = Modifier.fillMaxSize()
                                 .graphicsLayer {
                                     if (disc3d) {
@@ -2249,6 +2261,7 @@ fun MainLauncherScreen() {
                                     iconCornerPercent = iconCornerPercent,
                                     letterSpacingSp = appDiscLetterSpacing,
                                     accentColor = accentColor,
+                                    subColor = subColor,
                                     selectedPackages = editingSelectedPackages,
                                     iconTilt3d = disc3d,
                                     rainbowGlow = dopagakiMode,
@@ -3734,7 +3747,83 @@ private fun contrastRatio(a: Color, b: Color): Float {
     return (max(l1, l2) + 0.05f) / (min(l1, l2) + 0.05f)
 }
 
-private fun extractArtworkColors(bitmap: Bitmap): Pair<Color, Color> {
+/** 色相だけを回した色を返す（サブ色のフォールバック生成用） */
+private fun rotateHueColor(color: Color, hueDelta: Float): Color {
+    val hsv = FloatArray(3)
+    android.graphics.Color.RGBToHSV(
+        (color.red * 255f).toInt().coerceIn(0, 255),
+        (color.green * 255f).toInt().coerceIn(0, 255),
+        (color.blue * 255f).toInt().coerceIn(0, 255),
+        hsv
+    )
+    hsv[0] = (hsv[0] + hueDelta + 360f) % 360f
+    val c = android.graphics.Color.HSVToColor(hsv)
+    return Color(
+        red = android.graphics.Color.red(c),
+        green = android.graphics.Color.green(c),
+        blue = android.graphics.Color.blue(c)
+    )
+}
+
+/** 同じ色相・彩度のまま、明度だけを下限まで上げる（白へ混ぜると彩度が落ちるため HSV で持ち上げる） */
+private fun raiseBrightnessKeepingHue(color: Color, minValue: Float): Color {
+    val hsv = FloatArray(3)
+    android.graphics.Color.RGBToHSV(
+        (color.red * 255f).toInt().coerceIn(0, 255),
+        (color.green * 255f).toInt().coerceIn(0, 255),
+        (color.blue * 255f).toInt().coerceIn(0, 255),
+        hsv
+    )
+    if (hsv[2] >= minValue) return color
+    hsv[2] = minValue
+    val c = android.graphics.Color.HSVToColor(hsv)
+    return Color(
+        red = android.graphics.Color.red(c),
+        green = android.graphics.Color.green(c),
+        blue = android.graphics.Color.blue(c)
+    )
+}
+
+/** 同じ色相・彩度のまま明度を少しだけ上げる（コントラスト調整のステップ用） */
+private fun brightenStepKeepingHue(color: Color): Color {
+    val hsv = FloatArray(3)
+    android.graphics.Color.RGBToHSV(
+        (color.red * 255f).toInt().coerceIn(0, 255),
+        (color.green * 255f).toInt().coerceIn(0, 255),
+        (color.blue * 255f).toInt().coerceIn(0, 255),
+        hsv
+    )
+    hsv[2] = (hsv[2] + 0.07f).coerceAtMost(1f)
+    val c = android.graphics.Color.HSVToColor(hsv)
+    return Color(
+        red = android.graphics.Color.red(c),
+        green = android.graphics.Color.green(c),
+        blue = android.graphics.Color.blue(c)
+    )
+}
+
+/** アクセント用に彩度と明度を保証する: 黒・白・灰に寄った色は色味のある範囲へ寄せる。
+ *  ほぼ無彩色（彩度0.08未満）の場合は色相が定まらないためそのまま返す */
+private fun vividAccentColor(color: Color): Color {
+    val hsv = FloatArray(3)
+    android.graphics.Color.RGBToHSV(
+        (color.red * 255f).toInt().coerceIn(0, 255),
+        (color.green * 255f).toInt().coerceIn(0, 255),
+        (color.blue * 255f).toInt().coerceIn(0, 255),
+        hsv
+    )
+    if (hsv[1] < 0.08f) return color
+    hsv[1] = maxOf(hsv[1], 0.38f)
+    hsv[2] = hsv[2].coerceIn(0.38f, 0.92f)
+    val c = android.graphics.Color.HSVToColor(hsv)
+    return Color(
+        red = android.graphics.Color.red(c),
+        green = android.graphics.Color.green(c),
+        blue = android.graphics.Color.blue(c)
+    )
+}
+
+private fun extractArtworkColors(bitmap: Bitmap): Triple<Color, Color, Color> {
     val size = 48
     val scaled = if (bitmap.width == size && bitmap.height == size) bitmap
         else Bitmap.createScaledBitmap(bitmap, size, size, true)
@@ -3757,7 +3846,7 @@ private fun extractArtworkColors(bitmap: Bitmap): Pair<Color, Color> {
             val b = android.graphics.Color.blue(px)
             totalR += r; totalG += g; totalB += b
             android.graphics.Color.RGBToHSV(r, g, b, hsv)
-            if (hsv[1] > 0.15f && hsv[2] > 0.15f) {
+            if (hsv[1] > 0.22f && hsv[2] > 0.22f) {
                 val bucket = (hsv[0] / 30f).toInt().coerceIn(0, bucketCount - 1)
                 counts[bucket]++
                 satSums[bucket] += hsv[1]
@@ -3795,15 +3884,43 @@ private fun extractArtworkColors(bitmap: Bitmap): Pair<Color, Color> {
             blue = (totalB / totalPx).toInt()
         )
     }
-    // 暗すぎるアクセントは白と混ぜて視認性を上げる
+    // 暗すぎるアクセントは、白へ混ぜずに同じ色相・彩度のまま明度だけを上げて視認性を確保する
     val accentLum = 0.299f * accent.red + 0.587f * accent.green + 0.114f * accent.blue
     if (accentLum < 0.22f) {
-        accent = Color(
-            red = accent.red + (1f - accent.red) * 0.35f,
-            green = accent.green + (1f - accent.green) * 0.35f,
-            blue = accent.blue + (1f - accent.blue) * 0.35f
-        )
+        accent = raiseBrightnessKeepingHue(accent, 0.55f)
     }
+
+    accent = vividAccentColor(accent)
+
+    // サブカラー: 一次色と色相が離れた（60度以上）バケットのうち最も強いもの。
+    // 候補が弱い・無い場合は一次色の色相を40度回して作る
+    var secondary = accent
+    if (bestBucket >= 0) {
+        var subBucket = -1
+        var subScore = -1f
+        for (i in 0 until bucketCount) {
+            if (counts[i] == 0) continue
+            val dist = kotlin.math.min(kotlin.math.abs(i - bestBucket), bucketCount - kotlin.math.abs(i - bestBucket))
+            if (dist < 2) continue
+            val score = counts[i] * (satSums[i] / counts[i])
+            if (score > subScore) { subScore = score; subBucket = i }
+        }
+        secondary = if (subBucket >= 0 && subScore > bestScore * 0.18f) {
+            Color(
+                red = (rSums[subBucket] / counts[subBucket]).toInt(),
+                green = (gSums[subBucket] / counts[subBucket]).toInt(),
+                blue = (bSums[subBucket] / counts[subBucket]).toInt()
+            )
+        } else {
+            rotateHueColor(accent, 40f)
+        }
+        val subLum = 0.299f * secondary.red + 0.587f * secondary.green + 0.114f * secondary.blue
+        if (subLum < 0.22f) {
+            secondary = raiseBrightnessKeepingHue(secondary, 0.55f)
+        }
+    }
+
+    secondary = vividAccentColor(secondary)
 
     var background = if (darkCount > 0) {
         Color(
@@ -3824,7 +3941,7 @@ private fun extractArtworkColors(bitmap: Bitmap): Pair<Color, Color> {
         val f = 0.16f / bgLum
         background = Color(red = background.red * f, green = background.green * f, blue = background.blue * f)
     }
-    return accent to background
+    return Triple(accent, secondary, background)
 }
 
 // 複数行モードの歌詞表示（VerifyError 回避のため MainLauncherScreen から切り出したトップレベル関数）

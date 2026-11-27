@@ -47,6 +47,7 @@ fun WallpaperBackground(
     liquidEnabled: Boolean = false,
     // 液体の基準色（アートワークから抽出した明るいアクセント色。音楽アプリと同じ見え方にする）
     liquidAccent: Color? = null,
+    liquidSub: Color? = null,
     // 追加設定: 液体の速さ・濃さ倍率 / 壁紙のぼかし
     liquidSpeed: Float = 1f,
     liquidAlphaMul: Float = 1f,
@@ -112,7 +113,7 @@ fun WallpaperBackground(
             )
             // 液体ONのときは、アートワーク背景の一番上に液体を薄く重ねる
             if (liquidEnabled) {
-                LiquidGradientBackground(baseColor = liquidAccent ?: dynamicBackground ?: accentBase, onBlack = false, layerAlpha = 1f, alphaBoost = 1.9f, speedFactor = liquidSpeed, alphaMul = liquidAlphaMul, staticMode = staticMode)
+                LiquidGradientBackground(baseColor = liquidAccent ?: dynamicBackground ?: accentBase, onBlack = false, layerAlpha = 1f, alphaBoost = 1.9f, speedFactor = liquidSpeed, alphaMul = liquidAlphaMul, staticMode = staticMode, subColor = liquidSub)
             }
         } else if (currentAlbumArt != null) {
             // アートワーク連動: 抽出した背景色で単色に塗る
@@ -122,7 +123,7 @@ fun WallpaperBackground(
                     .background(dynamicBackground ?: Color(0xFF0B101D))
             )
             if (liquidEnabled) {
-                LiquidGradientBackground(baseColor = liquidAccent ?: dynamicBackground ?: accentBase, onBlack = false, layerAlpha = 1f, alphaBoost = 1.9f, speedFactor = liquidSpeed, alphaMul = liquidAlphaMul, staticMode = staticMode)
+                LiquidGradientBackground(baseColor = liquidAccent ?: dynamicBackground ?: accentBase, onBlack = false, layerAlpha = 1f, alphaBoost = 1.9f, speedFactor = liquidSpeed, alphaMul = liquidAlphaMul, staticMode = staticMode, subColor = liquidSub)
             }
         } else if (backgroundBitmap != null) {
             Image(
@@ -139,11 +140,11 @@ fun WallpaperBackground(
             )
             // 壁紙画像を適用していても、液体ONなら画像の上に薄く液体を流す
             if (liquidEnabled) {
-                LiquidGradientBackground(baseColor = liquidAccent ?: accentBase, onBlack = false, layerAlpha = 0.85f, alphaBoost = 1.7f, speedFactor = liquidSpeed, alphaMul = liquidAlphaMul, staticMode = staticMode)
+                LiquidGradientBackground(baseColor = liquidAccent ?: accentBase, onBlack = false, layerAlpha = 0.85f, alphaBoost = 1.7f, speedFactor = liquidSpeed, alphaMul = liquidAlphaMul, staticMode = staticMode, subColor = liquidSub)
             }
         } else if (customPath.isNullOrBlank() && liquidEnabled) {
             // 壁紙未選択＋液体ON: 黒地に液体グラデーションを流す
-            LiquidGradientBackground(baseColor = liquidAccent ?: accentBase, alphaBoost = 1.6f, speedFactor = liquidSpeed, alphaMul = liquidAlphaMul, staticMode = staticMode)
+            LiquidGradientBackground(baseColor = liquidAccent ?: accentBase, alphaBoost = 1.6f, speedFactor = liquidSpeed, alphaMul = liquidAlphaMul, staticMode = staticMode, subColor = liquidSub)
         } else {
             // 壁紙未選択なら真っ暗な黒
             val bgColor = if (customPath.isNullOrBlank()) Color.Black
@@ -164,7 +165,7 @@ fun WallpaperBackground(
  * パレットは基準色から色相をずらして作る。
  */
 @Composable
-fun LiquidGradientBackground(baseColor: Color, onBlack: Boolean = true, layerAlpha: Float = 1f, alphaBoost: Float = 1f, speedFactor: Float = 1f, alphaMul: Float = 1f, staticMode: Boolean = false) {
+fun LiquidGradientBackground(baseColor: Color, onBlack: Boolean = true, layerAlpha: Float = 1f, alphaBoost: Float = 1f, speedFactor: Float = 1f, alphaMul: Float = 1f, staticMode: Boolean = false, subColor: Color? = null) {
     val effBoost = alphaBoost * alphaMul
     // 液体の位相は約30fpsの自前時計で進める（無限トランジションはリフレッシュレート
     // 120Hzで全画面ぼかしを再描画し続けて重いため）。動きは従来どおり往復の直線補間。
@@ -192,7 +193,7 @@ fun LiquidGradientBackground(baseColor: Color, onBlack: Boolean = true, layerAlp
     val e3 = if (staticMode) 0.47f else t3
     val e4 = if (staticMode) 0.63f else t4
     val c1 = remember(baseColor) { shiftHue(baseColor, 0f, 1.0f) }
-    val c2 = remember(baseColor) { shiftHue(baseColor, 55f, 1.15f) }
+    val c2 = remember(baseColor, subColor) { if (subColor != null) shiftHue(subColor, 0f, 1.15f) else shiftHue(baseColor, 55f, 1.15f) }
     val c3 = remember(baseColor) { shiftHue(baseColor, -45f, 0.55f) }
     Box(
         modifier = Modifier
