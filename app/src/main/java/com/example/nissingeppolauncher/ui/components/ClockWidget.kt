@@ -570,3 +570,76 @@ private fun BatteryLevelIcon(pct: Int, color: Color, modifier: Modifier = Modifi
         }
     }
 }
+
+/** 1行歌詞の単独表示（時計から分離し、レイアウト編集で別オブジェクトとして動かせる） */
+@Composable
+fun LyricsLineView(
+    lyricsLine: String,
+    translationText: String = "",
+    karaokeLine: LyricLine? = null,
+    karaokePositionMs: Long = 0L,
+    karaokeSungColor: Color = Color(0xFF7FD4F2),
+    lyricFontFamily: FontFamily? = null,
+    lyricEnFontFamily: FontFamily? = null,
+    glowColor: Color = Color(0xFF7FD4F2),
+    rainbowGlow: Boolean = false,
+    dopagaki: Boolean = false,
+    modifier: Modifier = Modifier
+) {
+    val effGlow = if (rainbowGlow) dopaRainbowColor(seed = 5) else glowColor
+    val lyricsStyle = LocalTextStyle.current.copy(
+        fontFamily = lyricFontFamily,
+        shadow = Shadow(
+            color = effGlow.copy(alpha = 0.9f),
+            offset = Offset(0f, 0f),
+            blurRadius = 16f
+        )
+    )
+    Column(modifier = modifier) {
+        Crossfade(
+            targetState = lyricsLine,
+            animationSpec = tween(durationMillis = 350),
+            label = "LyricsLineStandalone",
+            modifier = Modifier.widthIn(max = 250.dp)
+        ) { line ->
+            if (line.isNotBlank()) {
+                val kLine = karaokeLine
+                if (dopagaki) {
+                    DopaFlashText(text = line, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                } else if (kLine != null && kLine.text == line && kLine.words.isNotEmpty()) {
+                    KaraokeLyricText(
+                        line = kLine,
+                        positionMs = karaokePositionMs,
+                        sungColor = karaokeSungColor,
+                        baseColor = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        fontFamily = lyricFontFamily,
+                        enFontFamily = lyricEnFontFamily,
+                        shadow = Shadow(color = effGlow.copy(alpha = 0.9f), offset = Offset(0f, 0f), blurRadius = 16f)
+                    )
+                } else {
+                    Text(
+                        text = lyricMixedFontText(line, lyricEnFontFamily),
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = lyricsStyle
+                    )
+                }
+            }
+        }
+        if (translationText.isNotBlank()) {
+            Text(
+                text = translationText,
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 11.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 3.dp).widthIn(max = 250.dp)
+            )
+        }
+    }
+}
