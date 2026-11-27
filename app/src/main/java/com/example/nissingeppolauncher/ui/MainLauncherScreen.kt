@@ -3698,63 +3698,13 @@ fun MainLauncherScreen() {
 
         // 4. アプリ長押し設定ダイアログ
         selectedAppForOption?.let { app ->
-            AppOptionDialog(
+            AppOptionDialogHost(
                 app = app,
-                onDismiss = { selectedAppForOption = null },
-                onToggleFavorite = { targetApp ->
-                    repo.setFavorite(targetApp.packageName, !targetApp.isFavorite)
-                    refreshApps()
-                },
-                onSetYomi = { targetApp, yomi ->
-                    repo.setYomi(targetApp.packageName, yomi)
-                    refreshApps()
-                },
-                onSetYomiKana = { targetApp, yomi ->
-                    repo.setYomiKana(targetApp.packageName, yomi)
-                    refreshApps()
-                },
-                onAddAlias = { targetApp, alias ->
-                    repo.addSearchAlias(targetApp.packageName, alias)
-                    refreshApps()
-                },
-                onRemoveAlias = { targetApp, alias ->
-                    repo.removeSearchAlias(targetApp.packageName, alias)
-                    refreshApps()
-                },
-                onToggleHide = { targetApp ->
-                    val willHide = !targetApp.isHidden
-                    repo.setHidden(targetApp.packageName, willHide)
-                    refreshApps()
-                },
-                hasCustomIcon = repo.hasCustomIcon(app.packageName),
-                onPickCustomIcon = { targetApp, bmp ->
-                    coroutineScope.launch {
-                        repo.setCustomIcon(targetApp.packageName, bmp)
-                        refreshApps()
-                    }
-                },
-                onClearCustomIcon = { targetApp ->
-                    coroutineScope.launch {
-                        repo.clearCustomIcon(targetApp.packageName)
-                        refreshApps()
-                    }
-                },
-                folders = foldersMap.entries.map { (id, v) -> id to v.first },
-                containingFolderIds = foldersMap.filterValues { app.packageName in it.second }.keys,
-                onToggleFolder = { targetApp, fid ->
-                    val cur = foldersMap[fid]
-                    if (cur != null) {
-                        val pkgs = cur.second.toMutableList()
-                        if (targetApp.packageName in pkgs) pkgs.remove(targetApp.packageName) else pkgs.add(targetApp.packageName)
-                        repo.prefManager.saveFolder(fid, cur.first, pkgs)
-                        refreshApps()
-                    }
-                },
-                onCreateFolder = { targetApp, name ->
-                    val newId = System.currentTimeMillis().toString()
-                    repo.prefManager.saveFolder(newId, name, listOf(targetApp.packageName))
-                    refreshApps()
-                }
+                repo = repo,
+                foldersMap = foldersMap,
+                coroutineScope = coroutineScope,
+                onRefresh = { refreshApps() },
+                onDismiss = { selectedAppForOption = null }
             )
         }
     }
@@ -4497,4 +4447,78 @@ private sealed class HomeEntry {
 private fun homeEntryKey(entry: HomeEntry): String = when (entry) {
     is HomeEntry.App -> "a:" + entry.app.packageName
     is HomeEntry.Folder -> "f:" + entry.folder.folderId
+}
+
+
+/**
+ * アプリ長押しポップアップのホスト。
+ * MainLauncherScreen 本体が大きくなりすぎたため、ダイアログとコールバック一式を切り出した。
+ */
+@Composable
+private fun AppOptionDialogHost(
+    app: AppInfo,
+    repo: AppRepository,
+    foldersMap: Map<String, Pair<String, List<String>>>,
+    coroutineScope: kotlinx.coroutines.CoroutineScope,
+    onRefresh: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AppOptionDialog(
+        app = app,
+        onDismiss = onDismiss,
+        onToggleFavorite = { targetApp ->
+            repo.setFavorite(targetApp.packageName, !targetApp.isFavorite)
+            onRefresh()
+        },
+        onSetYomi = { targetApp, yomi ->
+            repo.setYomi(targetApp.packageName, yomi)
+            onRefresh()
+        },
+        onSetYomiKana = { targetApp, yomi ->
+            repo.setYomiKana(targetApp.packageName, yomi)
+            onRefresh()
+        },
+        onAddAlias = { targetApp, alias ->
+            repo.addSearchAlias(targetApp.packageName, alias)
+            onRefresh()
+        },
+        onRemoveAlias = { targetApp, alias ->
+            repo.removeSearchAlias(targetApp.packageName, alias)
+            onRefresh()
+        },
+        onToggleHide = { targetApp ->
+            val willHide = !targetApp.isHidden
+            repo.setHidden(targetApp.packageName, willHide)
+            onRefresh()
+        },
+        hasCustomIcon = repo.hasCustomIcon(app.packageName),
+        onPickCustomIcon = { targetApp, bmp ->
+            coroutineScope.launch {
+                repo.setCustomIcon(targetApp.packageName, bmp)
+                onRefresh()
+            }
+        },
+        onClearCustomIcon = { targetApp ->
+            coroutineScope.launch {
+                repo.clearCustomIcon(targetApp.packageName)
+                onRefresh()
+            }
+        },
+        folders = foldersMap.entries.map { (id, v) -> id to v.first },
+        containingFolderIds = foldersMap.filterValues { app.packageName in it.second }.keys,
+        onToggleFolder = { targetApp, fid ->
+            val cur = foldersMap[fid]
+            if (cur != null) {
+                val pkgs = cur.second.toMutableList()
+                if (targetApp.packageName in pkgs) pkgs.remove(targetApp.packageName) else pkgs.add(targetApp.packageName)
+                repo.prefManager.saveFolder(fid, cur.first, pkgs)
+                onRefresh()
+            }
+        },
+        onCreateFolder = { targetApp, name ->
+            val newId = System.currentTimeMillis().toString()
+            repo.prefManager.saveFolder(newId, name, listOf(targetApp.packageName))
+            onRefresh()
+        }
+    )
 }
