@@ -1,5 +1,5 @@
 {
-  "version": 57,
+  "version": 58,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -1206,6 +1206,13 @@
       "type": "toggle",
       "bind": "discOutline"
     },
+    "labelsWhilePlaying": {
+      "label": "再生中も項目名を表示",
+      "desc": "オフにすると、再生中で左の円が大きい間は右の円の項目名が消えます（アプリ・フォルダ共通）",
+      "glyph": "tag",
+      "type": "toggle",
+      "bind": "labelsWhilePlaying"
+    },
     "dialOutline": {
       "label": "ページダイヤルの輪郭",
       "desc": "下部のページダイヤルの輪郭線です",
@@ -1459,6 +1466,9 @@
                     },
                     {
                       "item": "discDropOnPv"
+                    },
+                    {
+                      "item": "labelsWhilePlaying"
                     }
                   ]
                 },
