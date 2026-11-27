@@ -46,7 +46,11 @@ fun AppOptionDialog(
     onToggleHide: (AppInfo) -> Unit,
     hasCustomIcon: Boolean = false,
     onPickCustomIcon: (AppInfo, android.graphics.Bitmap) -> Unit = { _, _ -> },
-    onClearCustomIcon: (AppInfo) -> Unit = {}
+    onClearCustomIcon: (AppInfo) -> Unit = {},
+    folders: List<Pair<String, String>> = emptyList(),
+    containingFolderIds: Set<String> = emptySet(),
+    onToggleFolder: (AppInfo, String) -> Unit = { _, _ -> },
+    onCreateFolder: (AppInfo, String) -> Unit = { _, _ -> }
 ) {
     val context = LocalContext.current
     var showYomiInputDialog by remember { mutableStateOf(false) }
@@ -54,6 +58,8 @@ fun AppOptionDialog(
     var yomiInputText by remember { mutableStateOf(app.customYomi) }
     var yomiKanaInputText by remember { mutableStateOf(app.customYomiKana) }
     var aliasInputText by remember { mutableStateOf("") }
+    var showNewFolderDialog by remember { mutableStateOf(false) }
+    var newFolderNameInput by remember { mutableStateOf("") }
 
     // アイコン差し替え用の画像ピッカー（選んだ画像は中央を正方形に切り抜いて192px化する）
     val iconPicker = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -240,6 +246,47 @@ fun AppOptionDialog(
                 fontWeight = fontWeight
             )
         }
+    } else if (showNewFolderDialog) {
+        BlurDialog(onDismissRequest = { showNewFolderDialog = false }) {
+            BlurDialogTitle("新規フォルダを作成", fontFamily = fontFamily, fontWeight = fontWeight)
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = "「${app.label}」を入れる新しいフォルダを作ります。",
+                color = Color.LightGray,
+                fontSize = 14.sp,
+                fontFamily = fontFamily,
+                fontWeight = fontWeight
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            OutlinedTextField(
+                value = newFolderNameInput,
+                onValueChange = { newFolderNameInput = it },
+                singleLine = true,
+                placeholder = { Text("フォルダ名", color = Color.Gray, fontFamily = fontFamily, fontWeight = fontWeight) },
+                textStyle = textStyle,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedBorderColor = Color.White,
+                    unfocusedBorderColor = Color.Gray
+                )
+            )
+            BlurDialogButtonRow(
+                confirmText = "作成",
+                onConfirm = {
+                    if (newFolderNameInput.isNotBlank()) {
+                        onCreateFolder(app, newFolderNameInput)
+                        newFolderNameInput = ""
+                    }
+                    showNewFolderDialog = false
+                    onDismiss()
+                },
+                dismissText = "キャンセル",
+                onDismiss = { showNewFolderDialog = false },
+                fontFamily = fontFamily,
+                fontWeight = fontWeight
+            )
+        }
     } else {
         val categories = listOf(
             OptionEntry(
@@ -253,6 +300,21 @@ fun AppOptionDialog(
                         OptionAction("favorite", "登録する") { onToggleFavorite(app); onDismiss() }
                     }
                 )
+            ),
+            OptionEntry(
+                kind = "folder",
+                label = "フォルダ",
+                valueText = if (containingFolderIds.isEmpty()) null else "${containingFolderIds.size}件に追加中",
+                actions = buildList {
+                    add(OptionAction("plus", "新規フォルダを作成") { showNewFolderDialog = true })
+                    folders.forEach { (fid, fname) ->
+                        val inside = fid in containingFolderIds
+                        add(OptionAction("folder", fname, valueText = if (inside) "追加中（タップで外す）" else null) {
+                            onToggleFolder(app, fid)
+                            onDismiss()
+                        })
+                    }
+                }
             ),
             OptionEntry(
                 kind = "yomi",
@@ -567,6 +629,7 @@ private fun optionGlyph(kind: String): String = when (kind) {
     "plus" -> "plus"
     "trash" -> "trash"
     "open" -> "external-link"
+    "folder" -> "folder"
     else -> "cursor"
 }
 
