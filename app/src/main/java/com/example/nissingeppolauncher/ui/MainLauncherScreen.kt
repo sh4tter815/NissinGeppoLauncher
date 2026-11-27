@@ -2465,6 +2465,12 @@ fun MainLauncherScreen() {
                                     newFolderNameInput = ""
                                 }
                             }
+                        },
+                        onItemLongPress = { idx ->
+                            val id = folderItemsWithNew.getOrNull(idx)?.first
+                            if (id != null && id != "NEW_FOLDER" && id != "__BACK") {
+                                folderOptionTargetId = id
+                            }
                         }
                     )
                 }
