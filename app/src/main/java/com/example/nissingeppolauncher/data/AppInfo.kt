@@ -204,7 +204,41 @@ class AppRepository(private val context: Context) {
         cachedApps = null
     }
 
+    // ---- ユーザーが画像を選んで差し替えたアイコン（最優先で使う） ----
+    private fun customIconFile(packageName: String): File =
+        File(File(context.filesDir, "custom_icons").apply { mkdirs() }, "$packageName.png")
+
+    fun hasCustomIcon(packageName: String): Boolean = customIconFile(packageName).exists()
+
+    suspend fun setCustomIcon(packageName: String, bitmap: Bitmap) = withContext(Dispatchers.IO) {
+        val scaled = if (bitmap.width != 192 || bitmap.height != 192) {
+            Bitmap.createScaledBitmap(bitmap, 192, 192, true)
+        } else bitmap
+        try {
+            customIconFile(packageName).outputStream().use { scaled.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        } catch (_: Exception) {}
+        saveIconToDisk(packageName, scaled)
+        iconCache.put(packageName, scaled)
+        cachedApps = null
+    }
+
+    suspend fun clearCustomIcon(packageName: String) = withContext(Dispatchers.IO) {
+        try { customIconFile(packageName).delete() } catch (_: Exception) {}
+        val bitmap = loadIconBitmapFromPackage(packageName)
+        if (bitmap != null) {
+            saveIconToDisk(packageName, bitmap)
+            iconCache.put(packageName, bitmap)
+        }
+        cachedApps = null
+    }
+
     private fun loadIconBitmapFromPackage(packageName: String): Bitmap? {
+        val customFile = customIconFile(packageName)
+        if (customFile.exists()) {
+            try {
+                android.graphics.BitmapFactory.decodeFile(customFile.absolutePath)?.let { return it }
+            } catch (_: Exception) {}
+        }
         val packPkg = prefManager.getIconPackPackage()
         if (packPkg != null) {
             IconPackManager.iconForPackage(context, packPkg, packageName)?.let { return it }
