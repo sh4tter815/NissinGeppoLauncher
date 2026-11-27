@@ -70,7 +70,9 @@ import androidx.compose.ui.text.withStyle
 import android.view.HapticFeedbackConstants
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
@@ -117,6 +119,7 @@ import java.io.File
 import java.io.FileOutputStream
 import kotlin.math.*
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MainLauncherScreen() {
     val context = LocalContext.current
@@ -3182,28 +3185,28 @@ fun MainLauncherScreen() {
                     .padding(top = topPaddingDp + 48.dp, end = 22.dp)
                     .size(44.dp)
                     .zIndex(95f)
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onTap = {
-                                if (syncedLyricLines.isEmpty()) {
-                                    // 歌詞が取得できていないときは、タグを指定して手動検索できるようにする
-                                    showLyricSearch = true
-                                    return@detectTapGestures
-                                }
+                    .combinedClickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {
+                            if (syncedLyricLines.isEmpty()) {
+                                // 歌詞が取得できていないときは、タグを指定して手動検索できるようにする
+                                showLyricSearch = true
+                            } else {
                                 lyricsBrowseStartIndex = syncedLyricLines.indexOfLast {
                                     it.timeMs <= sessionPositionMs + lyricOffsetMs
                                 }.coerceAtLeast(0)
                                 isLyricsBrowsing = true
-                            },
-                            onLongPress = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                LyricsManager.invalidateCache(context, sessionTrackTitle, sessionTrackArtist, sessionTrackAlbum)
-                                syncedLyricLines = emptyList()
-                                currentLyricLine = ""
-                                lyricsRefreshTick++
                             }
-                        )
-                    },
+                        },
+                        onLongClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            LyricsManager.invalidateCache(context, sessionTrackTitle, sessionTrackArtist, sessionTrackAlbum)
+                            syncedLyricLines = emptyList()
+                            currentLyricLine = ""
+                            lyricsRefreshTick++
+                        }
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 LucideIcon(
@@ -3771,7 +3774,6 @@ private fun LauncherMultiLineLyrics(
     val multiLines = lines
     // ドパガキ中もサイズは通常のまま。今の行にだけ虹色グローをかける
     val curBase = 30f
-    val curWidth = screenWidthDp - 80f
     val sideBase = 18f
     val curShadow = if (dopagaki) Shadow(color = dopaRainbowColor(seed = 17).copy(alpha = 0.9f), blurRadius = 26f) else Shadow(color = accentColor.copy(alpha = 0.8f), blurRadius = 16f)
     val mPos = positionMs + lyricOffsetMs
@@ -3793,11 +3795,11 @@ private fun LauncherMultiLineLyrics(
             val curText = multiLines.getOrNull(rawIdx)?.text
             val nextText = multiLines.getOrNull(rawIdx + 1)?.text
             if (prevText != null) {
-                Text(lyricMixedFontText(prevText, enFontFamily), color = Color.White.copy(alpha = 0.45f), fontSize = fitFontSizeSp(prevText, sideBase, screenWidthDp - 52f).sp, letterSpacing = 2.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = fontFamily), modifier = Modifier.padding(start = 0.dp))
+                Text(lyricMixedFontText(prevText, enFontFamily), color = Color.White.copy(alpha = 0.45f), fontSize = sideBase.sp, style = LocalTextStyle.current.copy(fontFamily = fontFamily), modifier = Modifier.padding(start = 0.dp))
                 if (translationEnabled) {
                     val trP = translations?.getOrNull(rawIdx - 1)
                     if (!trP.isNullOrBlank()) {
-                        Text(trP, color = Color.White.copy(alpha = 0.35f), fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = fontFamily))
+                        Text(trP, color = Color.White.copy(alpha = 0.35f), fontSize = 10.sp, style = LocalTextStyle.current.copy(fontFamily = fontFamily))
                     }
                 }
             } else {
@@ -3811,11 +3813,11 @@ private fun LauncherMultiLineLyrics(
                     positionMs = positionMs + lyricOffsetMs,
                     sungColor = accentColor,
                     baseColor = Color.White,
-                    fontSize = fitFontSizeSp(curLineObj.text, curBase, curWidth).sp,
+                    fontSize = curBase.sp,
                     fontWeight = lyricWeight,
                     fontFamily = fontFamily,
                     enFontFamily = enFontFamily,
-                    letterSpacing = 3.sp,
+                    maxLines = Int.MAX_VALUE,
                     shadow = curShadow,
                     modifier = Modifier.padding(start = 28.dp)
                 )
@@ -3823,11 +3825,8 @@ private fun LauncherMultiLineLyrics(
                 Text(
                     text = lyricMixedFontText(if (mInterlude) "♪" else (curText ?: ""), enFontFamily),
                     color = Color.White,
-                    fontSize = fitFontSizeSp(if (mInterlude) "♪" else (curText ?: ""), curBase, curWidth).sp,
+                    fontSize = curBase.sp,
                     fontWeight = lyricWeight,
-                    letterSpacing = 3.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
                     style = LocalTextStyle.current.copy(fontFamily = fontFamily, shadow = curShadow),
                     modifier = Modifier.padding(start = 28.dp)
                 )
@@ -3835,16 +3834,16 @@ private fun LauncherMultiLineLyrics(
             if (translationEnabled && !mInterlude) {
                 val trC = translations?.getOrNull(rawIdx)
                 if (!trC.isNullOrBlank()) {
-                    Text(trC, color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = fontFamily), modifier = Modifier.padding(start = 28.dp, top = 4.dp))
+                    Text(trC, color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp, style = LocalTextStyle.current.copy(fontFamily = fontFamily), modifier = Modifier.padding(start = 28.dp, top = 4.dp))
                 }
             }
             Spacer(Modifier.height(16.dp))
             if (nextText != null) {
-                Text(lyricMixedFontText(nextText, enFontFamily), color = Color.White.copy(alpha = 0.45f), fontSize = fitFontSizeSp(nextText, sideBase, screenWidthDp - 108f).sp, letterSpacing = 2.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = fontFamily), modifier = Modifier.padding(start = 56.dp))
+                Text(lyricMixedFontText(nextText, enFontFamily), color = Color.White.copy(alpha = 0.45f), fontSize = sideBase.sp, style = LocalTextStyle.current.copy(fontFamily = fontFamily), modifier = Modifier.padding(start = 56.dp))
                 if (translationEnabled) {
                     val trN = translations?.getOrNull(rawIdx + 1)
                     if (!trN.isNullOrBlank()) {
-                        Text(trN, color = Color.White.copy(alpha = 0.35f), fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, style = LocalTextStyle.current.copy(fontFamily = fontFamily), modifier = Modifier.padding(start = 56.dp))
+                        Text(trN, color = Color.White.copy(alpha = 0.35f), fontSize = 10.sp, style = LocalTextStyle.current.copy(fontFamily = fontFamily), modifier = Modifier.padding(start = 56.dp))
                     }
                 }
             }
