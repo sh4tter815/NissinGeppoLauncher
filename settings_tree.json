@@ -1,5 +1,5 @@
 {
-  "version": 58,
+  "version": 59,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -163,6 +163,13 @@
       "glyph": "pipette",
       "type": "toggle",
       "bind": "matchArtwork"
+    },
+    "matchWallpaper": {
+      "label": "壁紙に合わせる",
+      "desc": "音楽を再生していないとき、壁紙の色からアクセントとサブの色を自動で決めます",
+      "glyph": "image",
+      "type": "toggle",
+      "bind": "matchWallpaper"
     },
     "accentColor": {
       "label": "アクセントカラー",
@@ -1427,6 +1434,9 @@
             },
             {
               "item": "matchArtwork"
+            },
+            {
+              "item": "matchWallpaper"
             }
           ]
         },
