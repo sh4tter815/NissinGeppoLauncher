@@ -1349,6 +1349,7 @@ fun DiscFolderItem(
     onAppLongClick: (AppInfo) -> Unit,
     onNewFolderClick: () -> Unit,
     isFavorite: Boolean = false,
+    showLabels: Boolean = true,
     onFolderLongClick: (String) -> Unit = {},
     onBackClick: () -> Unit = {}
 ) {
@@ -1418,7 +1419,7 @@ fun DiscFolderItem(
             }
         }
     }
-    Box(
+    if (showLabels) Box(
         modifier = Modifier
             .offset(x = ((if (entry is FolderDiscEntry.App && AppPreferenceManager(LocalContext.current).isAppIconHidden()) iconXDp else appXDp) - 240f).dp, y = ((if (entry is FolderDiscEntry.App && AppPreferenceManager(LocalContext.current).isAppIconHidden()) iconYDp else appYDp) - 22f).dp)
             .width(240.dp)
@@ -1445,15 +1446,6 @@ fun DiscFolderItem(
                 )
                 .padding(horizontal = 4.dp, vertical = 2.dp)
         ) {
-            if (isFavorite) {
-                Text(
-                    text = "★ ",
-                    color = accentColor.copy(alpha = labelAlpha),
-                    fontSize = textSizeSp.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = letterSpacingSp.sp
-                )
-            }
             Text(
                 text = label,
                 modifier = Modifier.widthIn(max = 140.dp),

@@ -232,6 +232,7 @@ fun MainLauncherScreen() {
     var indexShowEnglish by remember { mutableStateOf(repo.prefManager.isIndexShowEnglish()) }
     var indexMode by remember { mutableStateOf(repo.prefManager.getIndexMode()) }
     var indexHideEmpty by remember { mutableStateOf(repo.prefManager.isIndexHideEmptyEnabled()) }
+    var labelsWhilePlaying by remember { mutableStateOf(repo.prefManager.isLabelsWhilePlayingEnabled()) }
     var usageStatsMap by remember { mutableStateOf<Map<String, Long>>(emptyMap()) }
     LaunchedEffect(appSortMode) {
         if (appSortMode == "usage" || appSortMode == "recent") {
@@ -1453,6 +1454,7 @@ fun MainLauncherScreen() {
                                 indexShowEnglish = repo.prefManager.isIndexShowEnglish()
                                 indexMode = repo.prefManager.getIndexMode()
                                 indexHideEmpty = repo.prefManager.isIndexHideEmptyEnabled()
+                                labelsWhilePlaying = repo.prefManager.isLabelsWhilePlayingEnabled()
                                 clockOffsetX = repo.prefManager.getClockOffsetXDp()
                                 clockOffsetY = repo.prefManager.getClockOffsetYDp()
                                 lyricsLineOffsetX = repo.prefManager.getLyricsLineOffsetXDp()
@@ -1805,6 +1807,7 @@ fun MainLauncherScreen() {
                                 onAppClick = { },
                                 onAppLongClick = { },
                                 onNewFolderClick = { },
+                                showLabels = labelsWhilePlaying || !isBigDiscLayout,
                                 isFavorite = true
                             )
                         }
@@ -1878,7 +1881,7 @@ fun MainLauncherScreen() {
                                 selectedPackages = null,
                                 iconTilt3d = disc3d,
                                 rainbowGlow = dopagakiMode,
-                                showLabels = !isBigDiscLayout,
+                                showLabels = labelsWhilePlaying || !isBigDiscLayout,
                                 onAppClick = { onAppClick(it.packageName) },
                                 onLongClick = { selectedAppForOption = it }
                             )
