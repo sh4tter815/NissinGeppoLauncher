@@ -240,6 +240,10 @@ class AppPreferenceManager(private val context: Context) {
     fun isMatchArtworkColor(): Boolean = prefs.getBoolean("match_artwork_color", false)
     fun setMatchArtworkColor(enabled: Boolean) = prefs.edit().putBoolean("match_artwork_color", enabled).apply()
 
+    fun isMatchWallpaperColor(): Boolean = prefs.getBoolean("match_wallpaper_color", false)
+
+    fun setMatchWallpaperColor(enabled: Boolean) = prefs.edit().putBoolean("match_wallpaper_color", enabled).apply()
+
     fun isBlurArtworkBackground(): Boolean = prefs.getBoolean("blur_artwork_background", false)
     fun setBlurArtworkBackground(enabled: Boolean) = prefs.edit().putBoolean("blur_artwork_background", enabled).apply()
 
