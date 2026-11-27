@@ -1080,7 +1080,7 @@ fun MainLauncherScreen() {
                         WhiteFolderIcon(size = 36.dp, color = Color.White)
                         if (kind.isNotBlank()) {
                             Box(modifier = Modifier.offset(y = 4.dp)) {
-                                DiscGlyph(kind, accentColor, sizeDp = 15f)
+                                DiscGlyph(kind, Color.White, sizeDp = 15f)
                             }
                         }
                     }

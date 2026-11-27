@@ -19,12 +19,16 @@ import androidx.compose.ui.unit.sp
 
 /** フォルダに入れるグリフの候補（DiscGlyph の kind 名） */
 val FOLDER_GLYPH_KINDS = listOf(
-    "music", "disc", "video", "clapperboard", "image", "palette",
-    "brush", "sparkles", "sparkle", "star", "tag", "apps",
-    "layout-grid", "box", "puzzle", "calendar", "clock", "timer",
-    "sun", "droplets", "droplet", "lock", "key-round", "fingerprint",
-    "eye", "text", "type", "languages", "database", "download",
-    "wallpaper", "guide", "folder"
+    "music", "disc", "video", "clapperboard", "image", "palette", "brush", "sparkles", "sparkle",
+    "star", "heart", "bookmark", "bell", "gift", "message", "mail", "send", "users",
+    "cart", "shopping-bag", "wallet", "briefcase", "tag", "apps", "layout-grid", "box", "puzzle",
+    "gamepad", "book", "camera", "map-pin", "globe", "zap", "coffee", "home", "smartphone",
+    "shirt", "dumbbell", "settings", "calendar", "clock", "timer", "sun", "droplets", "droplet",
+    "lock", "key-round", "fingerprint", "eye", "eye-off", "text", "type", "languages", "database",
+    "download", "wallpaper", "guide", "folder", "wand-sparkles", "pipette", "color", "font", "bold",
+    "a-large-small", "case-sensitive", "case-upper", "cursor", "scaling", "move-horizontal", "move-diagonal",
+    "panel-top", "chevrons-up-down", "arrow-left-right", "arrow-up-down", "swap", "toggle", "slider",
+    "plus", "trash", "update", "circle-help", "external-link"
 )
 
 /**
@@ -52,7 +56,7 @@ fun FolderOptionDialog(
                 WhiteFolderIcon(size = 72.dp, color = Color.White)
                 if (currentIconKind.isNotBlank()) {
                     Box(modifier = Modifier.offset(y = 7.dp)) {
-                        DiscGlyph(currentIconKind, accentColor, sizeDp = 30f)
+                        DiscGlyph(currentIconKind, Color.White, sizeDp = 30f)
                     }
                 }
             }
@@ -89,7 +93,7 @@ fun FolderOptionDialog(
         val kinds = listOf("") + FOLDER_GLYPH_KINDS
         LazyVerticalGrid(
             columns = GridCells.Fixed(6),
-            modifier = Modifier.fillMaxWidth().height(252.dp),
+            modifier = Modifier.fillMaxWidth().height(320.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
