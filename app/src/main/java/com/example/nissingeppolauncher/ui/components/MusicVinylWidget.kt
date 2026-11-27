@@ -85,6 +85,7 @@ fun MusicVinylWidget(
     discCenterYDp: Float,
     discRadiusDp: Float = 165f,
     accentColor: Color = Color(0xFFE53935),
+    subColor: Color = accentColor,
     textStartAngle: Float = -90f,
     artworkTilt3d: Boolean = false,
     onRackVisibilityChanged: (Boolean) -> Unit = {},
@@ -96,6 +97,7 @@ fun MusicVinylWidget(
 ) {
     val context = LocalContext.current
     val effAccent = if (rainbowGlow) dopaRainbowColor(seed = 13) else accentColor
+    val effSub = if (rainbowGlow) dopaRainbowColor(seed = 29) else subColor
     val prefManager = remember { AppPreferenceManager(context) }
     var isPlaying by remember { mutableStateOf(false) }
     var albumArtBitmap by remember { mutableStateOf<Bitmap?>(null) }
@@ -839,12 +841,12 @@ fun MusicVinylWidget(
                     contentAlignment = Alignment.Center
                 ) {
                     when {
-                        discStyleNow == "md" -> MdCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotationState = spinState, bitmapImage = caseBitmapImage, lineArtImage = lineArtImage, title = trackTitle)
+                        discStyleNow == "md" -> MdCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotationState = spinState, bitmapImage = caseBitmapImage, lineArtImage = lineArtImage, title = trackTitle, subColor = effSub)
                         discStyleNow == "reel" -> ReelCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotationState = spinState, title = trackTitle)
-                        discStyleNow == "floppy" -> FloppyCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, title = trackTitle, lineArtImage = lineArtImage)
-                        discStyleNow == "dat" -> DatCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotationState = spinState, title = trackTitle)
-                        discStyleNow == "eighttrack" -> EightTrackCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, title = trackTitle, lineArtImage = lineArtImage)
-                        else -> CassetteCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotationState = spinState, title = trackTitle, artist = trackArtist, shellStyle = cassetteShellOf(discStyleNow), lineArtImage = lineArtImage)
+                        discStyleNow == "floppy" -> FloppyCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, title = trackTitle, lineArtImage = lineArtImage, subColor = effSub)
+                        discStyleNow == "dat" -> DatCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotationState = spinState, title = trackTitle, subColor = effSub)
+                        discStyleNow == "eighttrack" -> EightTrackCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, title = trackTitle, lineArtImage = lineArtImage, subColor = effSub)
+                        else -> CassetteCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotationState = spinState, title = trackTitle, artist = trackArtist, shellStyle = cassetteShellOf(discStyleNow), lineArtImage = lineArtImage, subColor = effSub)
                     }
                 }
             } else {
@@ -888,7 +890,7 @@ fun MusicVinylWidget(
                         // クリアレコード: 半透明の盤面（アクセント色の色味）に溝、中央レーベルがアートワーク
                         Canvas(Modifier.fillMaxSize()) {
                             val rMax = size.minDimension / 2f
-                            drawCircle(vividColorOf(effAccent).copy(alpha = 0.36f))
+                            drawCircle(vividColorOf(effSub).copy(alpha = 0.36f))
                             drawCircle(Color.Black.copy(alpha = 0.10f))
                             for (i in 1..9) {
                                 drawCircle(
@@ -1466,6 +1468,64 @@ private val rackLineArtCache = object : LinkedHashMap<Bitmap, ImageBitmap?>(32, 
     override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Bitmap, ImageBitmap?>): Boolean = size > 64
 }
 
+
+/** 同じ色相・彩度のまま、明度だけを下限まで上げる（白へ混ぜると彩度が落ちるため HSV で持ち上げる） */
+private fun raiseBrightnessKeepingHue(color: Color, minValue: Float): Color {
+    val hsv = FloatArray(3)
+    android.graphics.Color.RGBToHSV(
+        (color.red * 255f).toInt().coerceIn(0, 255),
+        (color.green * 255f).toInt().coerceIn(0, 255),
+        (color.blue * 255f).toInt().coerceIn(0, 255),
+        hsv
+    )
+    if (hsv[2] >= minValue) return color
+    hsv[2] = minValue
+    val c = android.graphics.Color.HSVToColor(hsv)
+    return Color(
+        red = android.graphics.Color.red(c),
+        green = android.graphics.Color.green(c),
+        blue = android.graphics.Color.blue(c)
+    )
+}
+
+/** 同じ色相・彩度のまま明度を少しだけ上げる（コントラスト調整のステップ用） */
+private fun brightenStepKeepingHue(color: Color): Color {
+    val hsv = FloatArray(3)
+    android.graphics.Color.RGBToHSV(
+        (color.red * 255f).toInt().coerceIn(0, 255),
+        (color.green * 255f).toInt().coerceIn(0, 255),
+        (color.blue * 255f).toInt().coerceIn(0, 255),
+        hsv
+    )
+    hsv[2] = (hsv[2] + 0.07f).coerceAtMost(1f)
+    val c = android.graphics.Color.HSVToColor(hsv)
+    return Color(
+        red = android.graphics.Color.red(c),
+        green = android.graphics.Color.green(c),
+        blue = android.graphics.Color.blue(c)
+    )
+}
+
+/** アクセント用に彩度と明度を保証する（黒・白・灰寄りを避ける）。ほぼ無彩色ならそのまま */
+private fun vividAccentColor(color: Color): Color {
+    val hsv = FloatArray(3)
+    android.graphics.Color.RGBToHSV(
+        (color.red * 255f).toInt().coerceIn(0, 255),
+        (color.green * 255f).toInt().coerceIn(0, 255),
+        (color.blue * 255f).toInt().coerceIn(0, 255),
+        hsv
+    )
+    if (hsv[1] < 0.08f) return color
+    hsv[1] = maxOf(hsv[1], 0.38f)
+    hsv[2] = hsv[2].coerceIn(0.38f, 0.92f)
+    val c = android.graphics.Color.HSVToColor(hsv)
+    return Color(
+        red = android.graphics.Color.red(c),
+        green = android.graphics.Color.green(c),
+        blue = android.graphics.Color.blue(c)
+    )
+}
+
 private fun rackAccentOf(bitmap: Bitmap): Color {
     val size = 48
     val scaled = if (bitmap.width == size && bitmap.height == size) bitmap else Bitmap.createScaledBitmap(bitmap, size, size, true)
@@ -1486,7 +1546,7 @@ private fun rackAccentOf(bitmap: Bitmap): Color {
             val b = android.graphics.Color.blue(px)
             totalR += r; totalG += g; totalB += b
             android.graphics.Color.RGBToHSV(r, g, b, hsv)
-            if (hsv[1] > 0.15f && hsv[2] > 0.15f) {
+            if (hsv[1] > 0.22f && hsv[2] > 0.22f) {
                 val bucket = (hsv[0] / 30f).toInt().coerceIn(0, bucketCount - 1)
                 counts[bucket]++
                 satSums[bucket] += hsv[1]
@@ -1517,13 +1577,9 @@ private fun rackAccentOf(bitmap: Bitmap): Color {
     }
     val accentLum = 0.299f * accent.red + 0.587f * accent.green + 0.114f * accent.blue
     if (accentLum < 0.22f) {
-        accent = Color(
-            red = accent.red + (1f - accent.red) * 0.35f,
-            green = accent.green + (1f - accent.green) * 0.35f,
-            blue = accent.blue + (1f - accent.blue) * 0.35f
-        )
+        accent = raiseBrightnessKeepingHue(accent, 0.55f)
     }
-    return accent
+    return vividAccentColor(accent)
 }
 
 private fun lightGlowOf(c: Color): Color {
@@ -1568,7 +1624,7 @@ private fun extractLineArtBitmap(src: Bitmap?): Bitmap? {
 }
 
 @Composable
-private fun MdCase(boxSizeDp: Float, accentColor: Color, rotationState: State<Float>, bitmapImage: ImageBitmap?, lineArtImage: ImageBitmap?, title: String) {
+private fun MdCase(boxSizeDp: Float, accentColor: Color, subColor: Color = accentColor, rotationState: State<Float>, bitmapImage: ImageBitmap?, lineArtImage: ImageBitmap?, title: String) {
     val caseW = boxSizeDp
     val caseH = boxSizeDp * 0.94f
     Box(
@@ -1635,7 +1691,7 @@ private fun MdCase(boxSizeDp: Float, accentColor: Color, rotationState: State<Fl
                 .fillMaxSize()
                 .background(
                     Brush.linearGradient(
-                        listOf(accentColor.copy(alpha = 0.60f), accentColor.copy(alpha = 0.42f), accentColor.copy(alpha = 0.55f))
+                        listOf(accentColor.copy(alpha = 0.60f), subColor.copy(alpha = 0.42f), accentColor.copy(alpha = 0.55f))
                     )
                 )
                 .border(1.dp, accentColor.copy(alpha = 0.85f), RoundedCornerShape(10.dp))
@@ -1719,7 +1775,7 @@ private fun CassetteReel(reelSizeDp: Float, rotationState: State<Float>) {
 }
 
 @Composable
-private fun DatCase(boxSizeDp: Float, accentColor: Color, rotationState: State<Float>, title: String) {
+private fun DatCase(boxSizeDp: Float, accentColor: Color, subColor: Color = accentColor, rotationState: State<Float>, title: String) {
     val caseW = boxSizeDp
     val caseH = boxSizeDp * 0.72f
     Box(
@@ -1740,7 +1796,7 @@ private fun DatCase(boxSizeDp: Float, accentColor: Color, rotationState: State<F
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(3.dp)
-                    .background(accentColor.copy(alpha = 0.85f))
+                    .background(subColor.copy(alpha = 0.85f))
             )
             if (title.isNotBlank()) {
                 Text(
@@ -1804,7 +1860,7 @@ private fun DatCase(boxSizeDp: Float, accentColor: Color, rotationState: State<F
 }
 
 @Composable
-private fun EightTrackCase(boxSizeDp: Float, accentColor: Color, title: String, lineArtImage: ImageBitmap? = null) {
+private fun EightTrackCase(boxSizeDp: Float, accentColor: Color, subColor: Color = accentColor, title: String, lineArtImage: ImageBitmap? = null) {
     val caseW = boxSizeDp
     val caseH = boxSizeDp * 0.78f
     Box(
@@ -1835,7 +1891,7 @@ private fun EightTrackCase(boxSizeDp: Float, accentColor: Color, title: String, 
                 modifier = Modifier
                     .fillMaxWidth()
                     .height((caseH * 0.075f).dp)
-                    .background(accentColor)
+                    .background(subColor)
             )
             Row(
                 modifier = Modifier
@@ -1999,7 +2055,7 @@ private fun ReelCase(boxSizeDp: Float, accentColor: Color, rotationState: State<
 }
 
 @Composable
-private fun FloppyCase(boxSizeDp: Float, accentColor: Color, title: String, lineArtImage: ImageBitmap? = null) {
+private fun FloppyCase(boxSizeDp: Float, accentColor: Color, subColor: Color = accentColor, title: String, lineArtImage: ImageBitmap? = null) {
     val caseW = boxSizeDp
     val caseH = boxSizeDp * 0.96f
     Box(
@@ -2039,7 +2095,7 @@ private fun FloppyCase(boxSizeDp: Float, accentColor: Color, title: String, line
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(3.dp)
-                    .background(accentColor)
+                    .background(subColor)
             )
             Row(
                 modifier = Modifier
@@ -2086,7 +2142,7 @@ private fun FloppyCase(boxSizeDp: Float, accentColor: Color, title: String, line
 }
 
 @Composable
-private fun CassetteCase(boxSizeDp: Float, accentColor: Color, rotationState: State<Float>, title: String, artist: String, shellStyle: String = "clear", lineArtImage: ImageBitmap? = null) {
+private fun CassetteCase(boxSizeDp: Float, accentColor: Color, subColor: Color = accentColor, rotationState: State<Float>, title: String, artist: String, shellStyle: String = "clear", lineArtImage: ImageBitmap? = null) {
     val caseW = boxSizeDp
     val caseH = boxSizeDp * 0.64f
     val packR = caseH * 0.30f
@@ -2162,7 +2218,7 @@ private fun CassetteCase(boxSizeDp: Float, accentColor: Color, rotationState: St
                 .clip(RoundedCornerShape(4.dp))
                 .background(Color(0xFFF2EDE3))
         ) {
-            Box(modifier = Modifier.fillMaxWidth().height(4.dp).background(accentColor))
+            Box(modifier = Modifier.fillMaxWidth().height(4.dp).background(subColor))
             Column(
                 modifier = Modifier.align(Alignment.Center).padding(start = 10.dp, end = if (lineArtImage != null) (caseH * 0.30f).dp else 10.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
