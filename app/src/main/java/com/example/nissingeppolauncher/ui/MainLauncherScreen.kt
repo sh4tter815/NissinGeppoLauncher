@@ -261,6 +261,12 @@ fun MainLauncherScreen() {
     var datePartScale by remember { mutableFloatStateOf(repo.prefManager.getLayoutScale("date")) }
     var batteryPartScale by remember { mutableFloatStateOf(repo.prefManager.getLayoutScale("battery")) }
     var secondsPartScale by remember { mutableFloatStateOf(repo.prefManager.getLayoutScale("seconds")) }
+    var lyricsLineOffsetX by remember { mutableFloatStateOf(repo.prefManager.getLyricsLineOffsetXDp()) }
+    var lyricsLineOffsetY by remember { mutableFloatStateOf(repo.prefManager.getLyricsLineOffsetYDp()) }
+    var lyricsLinePartScale by remember { mutableFloatStateOf(repo.prefManager.getLayoutScale("lyrics_line")) }
+    var lyricsMultiOffsetX by remember { mutableFloatStateOf(repo.prefManager.getLyricsMultiOffsetXDp()) }
+    var lyricsMultiOffsetY by remember { mutableFloatStateOf(repo.prefManager.getLyricsMultiOffsetYDp()) }
+    var lyricsMultiPartScale by remember { mutableFloatStateOf(repo.prefManager.getLayoutScale("lyrics_multi")) }
     val headerTopDp = topPaddingDp + headerOffsetY.dp
     var clockOffsetY by remember { mutableFloatStateOf(repo.prefManager.getClockOffsetYDp()) }
     var pvOffsetX by remember { mutableFloatStateOf(repo.prefManager.getPvOffsetXDp()) }
@@ -1154,9 +1160,9 @@ fun MainLauncherScreen() {
 
     // 歌詞のPV／複数行モードでは、音楽アプリと同じように円を下へ逃がす
     val lyricsDiscDrop by animateFloatAsState(
-        targetValue = if (discDropOnPv && currentLauncherPage == 1 && syncedLyricLines.isNotEmpty()) {
+        targetValue = if (discDropOnPv && currentLauncherPage == 1 && lyricsEnabled && !isLyricsBrowsing && syncedLyricLines.isNotEmpty()) {
             when (lyricsDisplayMode) {
-                "video" -> 80f
+                "video" -> if (pvEnabled) 80f else 0f
                 "multi" -> 120f
                 else -> 0f
             }
@@ -1409,24 +1415,6 @@ fun MainLauncherScreen() {
                 layoutEditMode = layoutEditMode, onFinish = { layoutEditMode = false }, onAddWidget = { showWidgetPicker = true }
             )
 
-            // 複数行モード: 時計の下に前・今・次の3行を表示（今の行が大きめ）
-            if (lyricsEnabled && lyricsDisplayMode == "multi" && currentLauncherPage == 1 && !isLyricsBrowsing && syncedLyricLines.isNotEmpty()) {
-                LauncherMultiLineLyrics(
-                    lines = syncedLyricLines,
-                    positionMs = sessionPositionMs,
-                    lyricOffsetMs = lyricOffsetMs,
-                    translationEnabled = translationEnabled,
-                    translations = lyricTranslations,
-                    fontFamily = pvFontFamily,
-                    enFontFamily = lyricsEnFontArg,
-                    lyricWeight = lyricWeight,
-                    accentColor = accentColor,
-                    screenWidthDp = screenWidthDp,
-                    topPaddingDp = topPaddingDp,
-                    dopagaki = dopagakiMode
-                )
-            }
-
             // --- メインコンテンツ描画 (0: 設定, 1: ホーム, 2: アプリ一覧, 3: フォルダ) ---
             Box(
                 modifier = Modifier
@@ -1467,6 +1455,10 @@ fun MainLauncherScreen() {
                                 indexHideEmpty = repo.prefManager.isIndexHideEmptyEnabled()
                                 clockOffsetX = repo.prefManager.getClockOffsetXDp()
                                 clockOffsetY = repo.prefManager.getClockOffsetYDp()
+                                lyricsLineOffsetX = repo.prefManager.getLyricsLineOffsetXDp()
+                                lyricsLineOffsetY = repo.prefManager.getLyricsLineOffsetYDp()
+                                lyricsMultiOffsetX = repo.prefManager.getLyricsMultiOffsetXDp()
+                                lyricsMultiOffsetY = repo.prefManager.getLyricsMultiOffsetYDp()
                                 pvOffsetX = repo.prefManager.getPvOffsetXDp()
                                 pvTopOffset = repo.prefManager.getPvTopOffsetDp()
                                 if (repo.prefManager.isLayoutEditRequested()) {
@@ -1544,9 +1536,9 @@ fun MainLauncherScreen() {
                                         cameraDistance = 6.5f * density
                                     }
                                 },
-                                lyricsLine = if (lyricsEnabled && lyricsDisplayMode == "line") currentLyricLine else "",
-                                translationText = if (lyricsDisplayMode == "line" && translationEnabled) lyricTranslations?.getOrNull(syncedLyricLines.indexOfLast { it.timeMs <= sessionPositionMs + lyricOffsetMs }) ?: "" else "",
-                                karaokeLine = if (lyricsEnabled && lyricsDisplayMode == "line") syncedLyricLines.lastOrNull { it.timeMs <= sessionPositionMs + lyricOffsetMs } else null,
+                                lyricsLine = "",
+                                translationText = "",
+                                karaokeLine = null,
                                 karaokePositionMs = sessionPositionMs + lyricOffsetMs,
                                 karaokeSungColor = accentColor,
                                 lyricFontFamily = lyricsFontFamily,
@@ -1566,6 +1558,37 @@ fun MainLauncherScreen() {
                             }
                             }
                         }
+
+
+                    // 1行歌詞（時計から分離。レイアウト編集で個別に移動できる）
+                    if (lyricsEnabled && lyricsDisplayMode == "line" && (currentLyricLine.isNotBlank() || layoutEditMode)) {
+                        LayoutClockPart(
+                            offsetX = lyricsLineOffsetX,
+                            offsetY = lyricsLineOffsetY,
+                            onOffsetChange = { dx, dy -> lyricsLineOffsetX += dx; lyricsLineOffsetY += dy },
+                            onOffsetSave = { repo.prefManager.setLyricsLineOffset(lyricsLineOffsetX, lyricsLineOffsetY) },
+                            scale = lyricsLinePartScale,
+                            onScaleChange = { d -> lyricsLinePartScale = (lyricsLinePartScale + d).coerceIn(0.5f, 2.5f) },
+                            onScaleSave = { repo.prefManager.setLayoutScale("lyrics_line", lyricsLinePartScale) },
+                            layoutEditMode = layoutEditMode,
+                            onEnterLayoutEdit = { layoutEditMode = true },
+                            accentColor = accentColor,
+                            topPaddingDp = topPaddingDp
+                        ) {
+                            LyricsLineView(
+                                lyricsLine = if (currentLyricLine.isNotBlank()) currentLyricLine else "現在の行のサンプル",
+                                translationText = if (translationEnabled && currentLyricLine.isNotBlank()) lyricTranslations?.getOrNull(syncedLyricLines.indexOfLast { it.timeMs <= sessionPositionMs + lyricOffsetMs }) ?: "" else "",
+                                karaokeLine = if (currentLyricLine.isNotBlank()) syncedLyricLines.lastOrNull { it.timeMs <= sessionPositionMs + lyricOffsetMs } else null,
+                                karaokePositionMs = sessionPositionMs + lyricOffsetMs,
+                                karaokeSungColor = accentColor,
+                                lyricFontFamily = lyricsFontFamily,
+                                lyricEnFontFamily = lyricsEnFontArg,
+                                glowColor = accentColor,
+                                rainbowGlow = dopagakiMode,
+                                dopagaki = dopagakiMode
+                            )
+                        }
+                    }
 
                     // 日付（時計から分離。レイアウト編集で個別に移動できる）
                         LayoutClockPart(
@@ -1669,6 +1692,43 @@ fun MainLauncherScreen() {
                             )
                             }
                         }
+
+                    // 複数行歌詞（時計から分離。レイアウト編集で個別に移動できる）
+                    if (lyricsEnabled && lyricsDisplayMode == "multi" && !isLyricsBrowsing && (syncedLyricLines.isNotEmpty() || layoutEditMode)) {
+                        LayoutClockPart(
+                            offsetX = lyricsMultiOffsetX,
+                            offsetY = lyricsMultiOffsetY,
+                            onOffsetChange = { dx, dy -> lyricsMultiOffsetX += dx; lyricsMultiOffsetY += dy },
+                            onOffsetSave = { repo.prefManager.setLyricsMultiOffset(lyricsMultiOffsetX, lyricsMultiOffsetY) },
+                            scale = lyricsMultiPartScale,
+                            onScaleChange = { d -> lyricsMultiPartScale = (lyricsMultiPartScale + d).coerceIn(0.5f, 2.5f) },
+                            onScaleSave = { repo.prefManager.setLayoutScale("lyrics_multi", lyricsMultiPartScale) },
+                            layoutEditMode = layoutEditMode,
+                            onEnterLayoutEdit = { layoutEditMode = true },
+                            accentColor = accentColor,
+                            topPaddingDp = topPaddingDp
+                        ) {
+                            LauncherMultiLineLyrics(
+                                lines = if (syncedLyricLines.isNotEmpty()) syncedLyricLines else listOf(
+                                    LyricLine(timeMs = 0L, text = "前の行のサンプル"),
+                                    LyricLine(timeMs = 1000L, text = "今の行のサンプル"),
+                                    LyricLine(timeMs = 2000L, text = "次の行のサンプル")
+                                ),
+                                positionMs = if (syncedLyricLines.isNotEmpty()) sessionPositionMs else 1000L,
+                                lyricOffsetMs = lyricOffsetMs,
+                                translationEnabled = translationEnabled,
+                                translations = lyricTranslations,
+                                fontFamily = pvFontFamily,
+                                enFontFamily = lyricsEnFontArg,
+                                lyricWeight = lyricWeight,
+                                accentColor = accentColor,
+                                screenWidthDp = screenWidthDp,
+                                topPaddingDp = topPaddingDp,
+                                dopagaki = dopagakiMode,
+                                inLayoutPart = true
+                            )
+                        }
+                    }
 
                     if (!vinylRackOpen) {
                     DiscCarousel(
@@ -3769,7 +3829,8 @@ private fun LauncherMultiLineLyrics(
     accentColor: Color,
     screenWidthDp: Float,
     topPaddingDp: Dp,
-    dopagaki: Boolean = false
+    dopagaki: Boolean = false,
+    inLayoutPart: Boolean = false
 ) {
     val multiLines = lines
     // ドパガキ中もサイズは通常のまま。今の行にだけ虹色グローをかける
@@ -3789,7 +3850,7 @@ private fun LauncherMultiLineLyrics(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 28.dp, end = 24.dp, top = topPaddingDp + 165.dp)
+                .padding(start = if (inLayoutPart) 0.dp else 28.dp, end = 24.dp, top = if (inLayoutPart) 0.dp else topPaddingDp + 165.dp)
         ) {
             val prevText = multiLines.getOrNull(rawIdx - 1)?.text
             val curText = multiLines.getOrNull(rawIdx)?.text

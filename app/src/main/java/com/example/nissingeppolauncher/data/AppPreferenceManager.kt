@@ -452,8 +452,6 @@ class AppPreferenceManager(private val context: Context) {
     // インデックスに英語（A〜Z）を含めるか
     fun isIndexShowEnglish(): Boolean = prefs.getBoolean("index_show_english", false)
     fun setIndexShowEnglish(v: Boolean) = prefs.edit().putBoolean("index_show_english", v).apply()
-    fun isIndexHideEmptyEnabled(): Boolean = prefs.getBoolean("index_hide_empty", false)
-    fun setIndexHideEmptyEnabled(v: Boolean) = prefs.edit().putBoolean("index_hide_empty", v).apply()
     fun getIndexMode(): String = prefs.getString("index_mode", "row") ?: "row"
     fun setIndexMode(v: String) = prefs.edit().putString("index_mode", v).apply()
 
@@ -541,6 +539,14 @@ class AppPreferenceManager(private val context: Context) {
     fun getClockOffsetXDp(): Float = prefs.getFloat("clock_offset_x", -3.51f)
     fun getClockOffsetYDp(): Float = prefs.getFloat("clock_offset_y", -24.98f)
     fun setClockOffset(x: Float, y: Float) = prefs.edit().putFloat("clock_offset_x", x).putFloat("clock_offset_y", y).apply()
+    // 1行歌詞パーツの位置（未保存なら時計の位置＋70dp下を初期値にする）
+    fun getLyricsLineOffsetXDp(): Float = prefs.getFloat("lyrics_line_offset_x", Float.NaN).let { if (it.isNaN()) getClockOffsetXDp() else it }
+    fun getLyricsLineOffsetYDp(): Float = prefs.getFloat("lyrics_line_offset_y", Float.NaN).let { if (it.isNaN()) getClockOffsetYDp() + 70f else it }
+    fun setLyricsLineOffset(x: Float, y: Float) = prefs.edit().putFloat("lyrics_line_offset_x", x).putFloat("lyrics_line_offset_y", y).apply()
+    // 複数行歌詞パーツの位置（土台の基準点からのオフセット。初期値は従来の表示位置）
+    fun getLyricsMultiOffsetXDp(): Float = prefs.getFloat("lyrics_multi_offset_x", 0f)
+    fun getLyricsMultiOffsetYDp(): Float = prefs.getFloat("lyrics_multi_offset_y", 117f)
+    fun setLyricsMultiOffset(x: Float, y: Float) = prefs.edit().putFloat("lyrics_multi_offset_x", x).putFloat("lyrics_multi_offset_y", y).apply()
     fun getDiscOffsetX(): Float = prefs.getFloat("disc_offset_x", 0f)
     fun getDiscOffsetY(): Float = prefs.getFloat("disc_offset_y", 0f)
     fun setDiscOffset(x: Float, y: Float) = prefs.edit().putFloat("disc_offset_x", x).putFloat("disc_offset_y", y).apply()
