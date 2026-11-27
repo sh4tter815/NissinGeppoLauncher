@@ -146,6 +146,7 @@ fun MainLauncherScreen() {
     // アートワーク連動カラー: 設定でONのとき、再生中セッションのアートワークから
     // アクセント色（前景）と背景色を抽出してテーマカラーにする
     var matchArtwork by remember { mutableStateOf(repo.prefManager.isMatchArtworkColor()) }
+    var matchWallpaper by remember { mutableStateOf(repo.prefManager.isMatchWallpaperColor()) }
     var bgMode by remember { mutableStateOf(repo.prefManager.getBackgroundMode()) }
     // 背景にアートワークを使うモードか（壁紙モード以外）。単色/ぼかしは WallpaperBackground 側の style で切り替える
     val useArtworkBg = bgMode != "wallpaper"
@@ -754,10 +755,13 @@ fun MainLauncherScreen() {
             artworkBackground = null
         }
     }
-    val accentColor = if (matchArtwork) {
-        val extracted = artworkAccent
-        val bg = artworkBackground
-        if (extracted != null && bg != null && contrastRatio(extracted, bg) < 2.8f) {
+    // 配色の優先順位: 再生中はアートワーク、普段は壁紙（各設定がオンのとき）、どちらも無ければ手動のアクセントカラー
+    val paletteAccent = if (matchArtwork) artworkAccent else if (matchWallpaper) wallpaperAccent else null
+    val paletteBackground = if (matchArtwork) artworkBackground else if (matchWallpaper) wallpaperBackground else null
+    val accentColor = if (paletteAccent != null) {
+        val extracted = paletteAccent
+        val bg = paletteBackground
+        if (bg != null && contrastRatio(extracted, bg) < 2.8f) {
             // コントラストが低い場合は白へ混ぜず、同じ色相・彩度のまま明度だけを段階的に上げる
             val bgNN: Color = bg
             var adjusted: Color = extracted
@@ -770,13 +774,13 @@ fun MainLauncherScreen() {
             }
             adjusted
         } else {
-            extracted ?: manualAccentColor
+            extracted
         }
     } else {
         manualAccentColor
     }
     // サブ色: アートワーク連動時は抽出した第2色、そうでなければ一次色の色相を55度回した色
-    val subColor = if (matchArtwork && artworkSub != null) artworkSub!! else rotateHueColor(accentColor, 55f)
+    val subColor = if (matchArtwork && artworkSub != null) artworkSub!! else if (matchWallpaper && wallpaperSub != null) wallpaperSub!! else rotateHueColor(accentColor, 55f)
 
     // 色の切り替わりはチカチカしないよう、800msかけてなめらかに寄せる
     val effectiveAccent by animateColorAsState(
@@ -799,6 +803,7 @@ fun MainLauncherScreen() {
     LaunchedEffect(currentLauncherPage) {
         accentHex = repo.prefManager.getAccentColorHex()
         matchArtwork = repo.prefManager.isMatchArtworkColor()
+        matchWallpaper = repo.prefManager.isMatchWallpaperColor()
         bgMode = repo.prefManager.getBackgroundMode()
         homeDiscLayout = repo.prefManager.getHomeDiscLayout()
         disc3d = repo.prefManager.isDisc3dEnabled()
@@ -838,6 +843,35 @@ fun MainLauncherScreen() {
         }
     }
     var backgroundUpdateKey by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
+    // 壁紙に合わせる（音楽を再生していない普段の配色）: 現在表示中の壁紙から色を抽出する
+    var wallpaperAccent by remember { mutableStateOf<Color?>(null) }
+    var wallpaperSub by remember { mutableStateOf<Color?>(null) }
+    var wallpaperBackground by remember { mutableStateOf<Color?>(null) }
+    val currentWallpaperPath = if (nightWallpaperActive) repo.prefManager.getNightWallpaperPath() else (repo.prefManager.getPageWallpaperPath(currentLauncherPage) ?: customBackgroundPath)
+    LaunchedEffect(matchWallpaper, currentWallpaperPath, backgroundUpdateKey) {
+        if (matchWallpaper && currentWallpaperPath != null) {
+            val colors = withContext(Dispatchers.IO) {
+                try {
+                    val bmp = android.graphics.BitmapFactory.decodeFile(currentWallpaperPath)
+                    if (bmp != null) {
+                        val small = android.graphics.Bitmap.createScaledBitmap(bmp, 48, 48, true)
+                        val c = extractArtworkColors(small)
+                        if (small !== bmp) small.recycle()
+                        bmp.recycle()
+                        c
+                    } else null
+                } catch (e: Exception) { null }
+            }
+            wallpaperAccent = colors?.first
+            wallpaperSub = colors?.second
+            wallpaperBackground = colors?.third
+        } else {
+            wallpaperAccent = null
+            wallpaperSub = null
+            wallpaperBackground = null
+        }
+    }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -1325,7 +1359,7 @@ fun MainLauncherScreen() {
                     updateKey = backgroundUpdateKey,
                     isHome = (currentLauncherPage == 1),
                     currentAlbumArt = if (matchArtwork || useArtworkBg) sessionAlbumArt else null,
-                    dynamicBackground = if (matchArtwork || useArtworkBg) artworkBackground else null,
+                    dynamicBackground = if (matchArtwork || useArtworkBg) artworkBackground else if (matchWallpaper) wallpaperBackground else null,
                     artworkBackgroundStyle = if (bgMode == "artwork_blur") "blur" else "solid",
                     liquidEnabled = liquidBackground,
                     liquidAccent = if (dopagakiMode) Color.hsv(Math.floorMod(pvLineIndex * 47, 360).toFloat(), 0.72f, 1f) else effectiveAccent,

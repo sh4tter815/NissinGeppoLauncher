@@ -677,6 +677,7 @@ fun SettingsScreen(
     val context = LocalContext.current
     var accentHex by remember { mutableStateOf(repo.prefManager.getAccentColorHex()) }
     var matchArtwork by remember { mutableStateOf(repo.prefManager.isMatchArtworkColor()) }
+    var matchWallpaper by remember { mutableStateOf(repo.prefManager.isMatchWallpaperColor()) }
     var bgMode by remember { mutableStateOf(repo.prefManager.getBackgroundMode()) }
     var liquidBackground by remember { mutableStateOf(repo.prefManager.isLiquidBackgroundEnabled()) }
     var homeDiscLayout by remember { mutableStateOf(repo.prefManager.getHomeDiscLayout()) }
@@ -1129,6 +1130,7 @@ fun SettingsScreen(
         "disc3dTilt" to Pair({ disc3dTilt }, { v: Boolean -> disc3dTilt = v; repo.prefManager.setDisc3dTiltEnabled(v); onChanged() }),
         "liquidBackground" to Pair({ liquidBackground }, { v: Boolean -> liquidBackground = v; repo.prefManager.setLiquidBackgroundEnabled(v); onChanged() }),
         "matchArtwork" to Pair({ matchArtwork }, { v: Boolean -> matchArtwork = v; repo.prefManager.setMatchArtworkColor(v); onChanged() }),
+        "matchWallpaper" to Pair({ matchWallpaper }, { v: Boolean -> matchWallpaper = v; repo.prefManager.setMatchWallpaperColor(v); onChanged() }),
         "lyricsBold" to Pair({ lyricsBold }, { v: Boolean -> lyricsBold = v; repo.prefManager.setLyricsBold(v); onChanged() }),
         "pvPartsEntry" to Pair({ pvPartsEntry }, { v: Boolean -> pvPartsEntry = v; repo.prefManager.setPvPartsEntryEnabled(v); onChanged() }),
         "dopagaki" to Pair({ dopagakiMode }, { v: Boolean -> dopagakiMode = v; repo.prefManager.setDopagakiEnabled(v); onChanged() }),
