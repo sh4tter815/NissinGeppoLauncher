@@ -606,6 +606,8 @@ class AppPreferenceManager(private val context: Context) {
     fun setAppIconHidden(v: Boolean) = prefs.edit().putBoolean("app_icon_hidden", v).apply()
     fun isDiscOutlineEnabled(): Boolean = prefs.getBoolean("disc_outline", true)
     fun setDiscOutlineEnabled(v: Boolean) = prefs.edit().putBoolean("disc_outline", v).apply()
+    fun isLabelsWhilePlayingEnabled(): Boolean = prefs.getBoolean("labels_while_playing", false)
+    fun setLabelsWhilePlayingEnabled(v: Boolean) = prefs.edit().putBoolean("labels_while_playing", v).apply()
     fun isDialOutlineEnabled(): Boolean = prefs.getBoolean("dial_outline", true)
     fun setDialOutlineEnabled(v: Boolean) = prefs.edit().putBoolean("dial_outline", v).apply()
     fun isPowerSaveNightEnabled(): Boolean = prefs.getBoolean("power_save_night", false)
