@@ -1395,6 +1395,7 @@ fun DiscAppItem(
     iconCornerPercent: Int = 30,
     letterSpacingSp: Float,
     accentColor: Color,
+    subColor: Color = accentColor,
     selectedPackages: Set<String>?,
     iconTilt3d: Boolean,
     rainbowGlow: Boolean = false,
@@ -1404,6 +1405,7 @@ fun DiscAppItem(
     onLongClick: (AppInfo) -> Unit
 ) {
     val effAccent = if (rainbowGlow) dopaRainbowColor(seed = 9) else accentColor
+    val effSub = if (rainbowGlow) dopaRainbowColor(seed = 23) else subColor
     val outerAppRadiusDp = discRadiusDp + 8f
     val innerIconRadiusDp = discRadiusDp - 18f
     when (item) {
@@ -1419,7 +1421,7 @@ fun DiscAppItem(
             ) {
                 Text(
                     text = item.char,
-                    color = effAccent.copy(alpha = labelAlpha),
+                    color = effSub.copy(alpha = labelAlpha),
                     fontSize = textSizeSp.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = letterSpacingSp.sp,
