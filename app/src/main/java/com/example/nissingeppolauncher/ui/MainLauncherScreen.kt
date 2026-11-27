@@ -228,6 +228,7 @@ fun MainLauncherScreen() {
     var appSortDescending by remember { mutableStateOf(repo.prefManager.isAppSortDescending()) }
     var indexShowEnglish by remember { mutableStateOf(repo.prefManager.isIndexShowEnglish()) }
     var indexMode by remember { mutableStateOf(repo.prefManager.getIndexMode()) }
+    var indexHideEmpty by remember { mutableStateOf(repo.prefManager.isIndexHideEmptyEnabled()) }
     var usageStatsMap by remember { mutableStateOf<Map<String, Long>>(emptyMap()) }
     LaunchedEffect(appSortMode) {
         if (appSortMode == "usage" || appSortMode == "recent") {
@@ -1004,8 +1005,22 @@ fun MainLauncherScreen() {
             val present = recentIndexOrder.filter { label -> allApps.any { !it.isHidden && (recentLabelOf[it.packageName] ?: "未使用") == label } }
             if (appSortDescending) present else present.reversed()
         }
-        indexShowEnglish -> indexBaseItems
-        else -> indexBaseItems.filter { it[0].code > 128 }
+        else -> {
+            val base = if (indexShowEnglish) indexBaseItems else indexBaseItems.filter { it[0].code > 128 }
+            if (!indexHideEmpty) base else base.filter { c ->
+                allApps.any { app ->
+                    if (app.isHidden) false else {
+                        val g = app.discGroup
+                        val eff = when {
+                            g.length == 1 && g[0] in 'A'..'Z' -> if (indexShowEnglish) g else "＃"
+                            indexMode == "kana" -> app.discKana
+                            else -> g
+                        }
+                        eff.equals(c, ignoreCase = true)
+                    }
+                }
+            }.ifEmpty { base }
+        }
     }
     // 索引グループの実効値: 英語オフなら英語グループ（A〜Z）は＃へ寄せ、あいうえおモードなら文字単位のグループを使う。
     // 右円（アプリ円盤）の見出しとジャンプ先はこの実効値で揃える
@@ -1447,6 +1462,7 @@ fun MainLauncherScreen() {
                                 appSortDescending = repo.prefManager.isAppSortDescending()
                                 indexShowEnglish = repo.prefManager.isIndexShowEnglish()
                                 indexMode = repo.prefManager.getIndexMode()
+                                indexHideEmpty = repo.prefManager.isIndexHideEmptyEnabled()
                                 clockOffsetX = repo.prefManager.getClockOffsetXDp()
                                 clockOffsetY = repo.prefManager.getClockOffsetYDp()
                                 pvOffsetX = repo.prefManager.getPvOffsetXDp()
@@ -3643,6 +3659,19 @@ fun MainLauncherScreen() {
                     val willHide = !targetApp.isHidden
                     repo.setHidden(targetApp.packageName, willHide)
                     refreshApps()
+                },
+                hasCustomIcon = repo.hasCustomIcon(app.packageName),
+                onPickCustomIcon = { targetApp, bmp ->
+                    coroutineScope.launch {
+                        repo.setCustomIcon(targetApp.packageName, bmp)
+                        refreshApps()
+                    }
+                },
+                onClearCustomIcon = { targetApp ->
+                    coroutineScope.launch {
+                        repo.clearCustomIcon(targetApp.packageName)
+                        refreshApps()
+                    }
                 }
             )
         }

@@ -758,6 +758,7 @@ fun SettingsScreen(
     var appSortMode by remember { mutableStateOf(repo.prefManager.getAppSortMode()) }
     var englishAppSort by remember { mutableStateOf(repo.prefManager.getEnglishAppSort()) }
     var indexShowEnglish by remember { mutableStateOf(repo.prefManager.isIndexShowEnglish()) }
+    var indexHideEmpty by remember { mutableStateOf(repo.prefManager.isIndexHideEmptyEnabled()) }
     var indexMode by remember { mutableStateOf(repo.prefManager.getIndexMode()) }
     var rackReverse by remember { mutableStateOf(repo.prefManager.isRackReverseScroll()) }
     var backgroundPath by remember { mutableStateOf(repo.prefManager.getCustomBackgroundPath()) }
@@ -1157,6 +1158,7 @@ fun SettingsScreen(
         "discDropOnPv" to Pair({ discDropOnPv }, { v: Boolean -> discDropOnPv = v; repo.prefManager.setDiscDropOnPvEnabled(v); onChanged() }),
         "notificationBadges" to Pair({ notificationBadges }, { v: Boolean -> notificationBadges = v; repo.prefManager.setNotificationBadgesEnabled(v); onChanged() }),
         "indexShowEnglish" to Pair({ indexShowEnglish }, { v: Boolean -> indexShowEnglish = v; repo.prefManager.setIndexShowEnglish(v); onChanged() }),
+        "indexHideEmpty" to Pair({ indexHideEmpty }, { v: Boolean -> indexHideEmpty = v; repo.prefManager.setIndexHideEmptyEnabled(v); onChanged() }),
         "rackReverse" to Pair({ rackReverse }, { v: Boolean -> rackReverse = v; repo.prefManager.setRackReverseScroll(v); onChanged() })
     )
 
