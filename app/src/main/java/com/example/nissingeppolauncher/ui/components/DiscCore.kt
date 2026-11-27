@@ -467,11 +467,14 @@ fun DiscTouchHalf(
     onHoldingChanged: ((Boolean) -> Unit)? = null,
     discCenterXPx: Float = 0f,
     discCenterYPx: Float = 0f,
-    onItemTap: ((Int) -> Unit)? = null
+    onItemTap: ((Int) -> Unit)? = null,
+    onItemLongPress: ((Int) -> Unit)? = null
 ) {
     val scope = rememberCoroutineScope()
     val view = LocalView.current
     val tapCb by rememberUpdatedState(onItemTap)
+    val longCb by rememberUpdatedState(onItemLongPress)
+    val prefManager = remember { AppPreferenceManager(view.context) }
     val holdCb by rememberUpdatedState(onHoldingChanged)
     Box(
         modifier = modifier.pointerInput(state, isRight) {
@@ -522,7 +525,7 @@ fun DiscTouchHalf(
                                             animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
                                         )
                                     }
-                                    if (AppPreferenceManager(view.context).isHapticsEnabled()) view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                    if (prefManager.isHapticsEnabled()) view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                                 }
                             }
                             while (accumulatedDy <= -stepThreshold) {
@@ -538,7 +541,7 @@ fun DiscTouchHalf(
                                             animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
                                         )
                                     }
-                                    if (AppPreferenceManager(view.context).isHapticsEnabled()) view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                    if (prefManager.isHapticsEnabled()) view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                                 }
                             }
                         }
@@ -546,7 +549,7 @@ fun DiscTouchHalf(
                     }
                     holdCb?.invoke(false)
                     val tapSlopPx = radiusPx * (18f / 165f)
-                    if (tapCb != null && upChange != null && maxDist <= tapSlopPx && stepCount == initialStepCount) {
+                    if ((tapCb != null || longCb != null) && upChange != null && maxDist <= tapSlopPx && stepCount == initialStepCount) {
                         val dx = down.position.x - discCenterXPx
                         val dyv = down.position.y - discCenterYPx
                         val dist = sqrt(dx * dx + dyv * dyv)
@@ -570,7 +573,12 @@ fun DiscTouchHalf(
                             if (best >= 0) {
                                 upChange?.consume()
                                 st.pulseTap(best)
-                                tapCb?.invoke(best)
+                                val heldMs = upChange.uptimeMillis - down.uptimeMillis
+                                if (heldMs >= 500L && longCb != null) {
+                                    longCb?.invoke(best)
+                                } else {
+                                    tapCb?.invoke(best)
+                                }
                             }
                         }
                     }

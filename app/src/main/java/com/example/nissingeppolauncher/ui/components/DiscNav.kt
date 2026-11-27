@@ -1393,6 +1393,7 @@ fun DiscFolderItem(
         FolderDiscEntry.Back -> ({ onBackClick() })
     }
     val glyphSize = (iconSizeDp * 1.0f).dp
+    val hideIconsF = AppPreferenceManager(LocalContext.current).isAppIconHidden()
     Box(
         modifier = Modifier
             .offset(x = (iconXDp - ((iconSizeDp + 14f) / 2f)).dp, y = (iconYDp - ((iconSizeDp + 14f) / 2f)).dp)
@@ -1427,7 +1428,6 @@ fun DiscFolderItem(
             FolderDiscEntry.Back -> DiscGlyph("back", accentColor)
             is FolderDiscEntry.App -> {
                 val iconBitmap = entry.app.iconBitmap
-                val hideIconsF = AppPreferenceManager(LocalContext.current).isAppIconHidden()
                 if (iconBitmap != null && !hideIconsF) {
                     if (iconTilt3d) {
                         Image(
@@ -1451,7 +1451,7 @@ fun DiscFolderItem(
     }
     if (showLabels) Box(
         modifier = Modifier
-            .offset(x = ((if (entry is FolderDiscEntry.App && AppPreferenceManager(LocalContext.current).isAppIconHidden()) iconXDp else appXDp) - 240f).dp, y = ((if (entry is FolderDiscEntry.App && AppPreferenceManager(LocalContext.current).isAppIconHidden()) iconYDp else appYDp) - 22f).dp)
+            .offset(x = ((if (entry is FolderDiscEntry.App && hideIconsF) iconXDp else appXDp) - 240f).dp, y = ((if (entry is FolderDiscEntry.App && hideIconsF) iconYDp else appYDp) - 22f).dp)
             .width(240.dp)
             .height(44.dp),
         contentAlignment = Alignment.CenterEnd
