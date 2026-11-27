@@ -862,6 +862,8 @@ fun MainLauncherScreen() {
     // --- フォルダ管理状態 (Page 2 用) ---
     var foldersMap by remember { mutableStateOf(repo.prefManager.getFoldersMap()) }
     var favoriteFolderIds by remember { mutableStateOf(repo.prefManager.getFavoriteFolderIds()) }
+    var folderIcons by remember { mutableStateOf(repo.prefManager.getFolderIcons()) }
+    var folderOptionTargetId by remember { mutableStateOf<String?>(null) }
     var showFavReorderDialog by remember { mutableStateOf(false) }
     var favSortList by remember { mutableStateOf<List<HomeEntry>>(emptyList()) }
     var favoriteOrder by remember { mutableStateOf(repo.prefManager.getFavoriteOrder()) }
@@ -938,8 +940,8 @@ fun MainLauncherScreen() {
     val effBadges = if (notificationBadges) badgeCounts else emptyMap()
     val homeDiscItems = remember(favoriteApps, effBadges) { buildDiscItems(favoriteApps, false, effBadges) }
     // ホーム右円にはお気に入りアプリの後ろにお気に入りフォルダも並べる
-    val homeFavoriteFolders = remember(favoriteFolderIds, folderList) {
-        favoriteFolderIds.mapNotNull { fid -> folderList.firstOrNull { it.first == fid }?.let { FolderDiscEntry.Folder(it.first, it.second) } }
+    val homeFavoriteFolders = remember(favoriteFolderIds, folderList, folderIcons) {
+        favoriteFolderIds.mapNotNull { fid -> folderList.firstOrNull { it.first == fid }?.let { FolderDiscEntry.Folder(it.first, it.second, folderIcons[it.first] ?: "") } }
     }
     // アプリとフォルダを共通の順序（favoriteOrder）で混ぜて並べる。順序に無いものは末尾へ
     val homeEntries = remember(homeDiscItems, homeFavoriteFolders, favoriteOrder) {
@@ -1067,12 +1069,22 @@ fun MainLauncherScreen() {
             (if (folderPath.isNotEmpty()) listOf(Pair("__BACK", "戻る")) else emptyList())
     }
     // フォルダの左円も共通部品 DiscWheel で描く（設定・索引と仕様を統一）
-    val folderEntries = remember(folderItemsWithNew) {
+    val folderEntries = remember(folderItemsWithNew, folderIcons) {
         folderItemsWithNew.map { (fid, fname) ->
             when (fid) {
                 "NEW_FOLDER" -> DiscEntry(id = fid, label = fname, icon = { WhitePlusIcon(size = 36.dp, color = Color.White) })
                 "__BACK" -> DiscEntry(id = fid, label = fname, immediate = true, icon = { DiscGlyph("back", accentColor) })
-                else -> DiscEntry(id = fid, label = fname, icon = { WhiteFolderIcon(size = 36.dp, color = Color.White) })
+                else -> DiscEntry(id = fid, label = fname, icon = {
+                    val kind = folderIcons[fid] ?: ""
+                    Box(contentAlignment = Alignment.Center) {
+                        WhiteFolderIcon(size = 36.dp, color = Color.White)
+                        if (kind.isNotBlank()) {
+                            Box(modifier = Modifier.offset(y = 4.dp)) {
+                                DiscGlyph(kind, accentColor, sizeDp = 15f)
+                            }
+                        }
+                    }
+                })
             }
         }
     }
@@ -1807,6 +1819,7 @@ fun MainLauncherScreen() {
                                 onAppClick = { },
                                 onAppLongClick = { },
                                 onNewFolderClick = { },
+                                onFolderLongClick = { fid -> folderOptionTargetId = fid },
                                 showLabels = labelsWhilePlaying || !isBigDiscLayout,
                                 isFavorite = true
                             )
@@ -2139,7 +2152,13 @@ fun MainLauncherScreen() {
                             stepAngle = appDiscStepAngle,
                             discCenterXDp = animatedDisc1CenterX,
                             discCenterYDp = disc1CenterY,
-                            onFocusChange = { folderSelectedIndex = it }
+                            onFocusChange = { folderSelectedIndex = it },
+                            onEntryLongClick = { idx ->
+                                val e = folderEntries.getOrNull(idx)
+                                if (e != null && e.id != "NEW_FOLDER" && e.id != "__BACK") {
+                                    folderOptionTargetId = e.id
+                                }
+                            }
                         )
                     }
 
@@ -2169,9 +2188,9 @@ fun MainLauncherScreen() {
                         val favs = favoriteFolderIds.mapNotNull { fid -> childFoldersOfSelected.firstOrNull { it.first == fid } }
                         favs + childFoldersOfSelected.filter { it.first !in favoriteFolderIds }
                     }
-                    val folderRightEntries = remember(sortedChildFolders, discApps, selectedFolderId, isEditingFolder, folderPath) {
+                    val folderRightEntries = remember(sortedChildFolders, discApps, selectedFolderId, isEditingFolder, folderPath, folderIcons) {
                         if (isEditingFolder || selectedFolderId == null || selectedFolderId == "NEW_FOLDER" || selectedFolderId == "__BACK") emptyList()
-                        else sortedChildFolders.map { FolderDiscEntry.Folder(it.first, it.second) } +
+                        else sortedChildFolders.map { FolderDiscEntry.Folder(it.first, it.second, folderIcons[it.first] ?: "") } +
                             discApps.map { FolderDiscEntry.App(it) } +
                             listOf(FolderDiscEntry.NewFolder) +
                             (if (folderPath.isNotEmpty()) listOf(FolderDiscEntry.Back) else emptyList())
@@ -2296,9 +2315,7 @@ fun MainLauncherScreen() {
                                         }
                                     },
                                     onFolderLongClick = { fid ->
-                                        val wasFav = fid in favoriteFolderIds
-                                        favoriteFolderIds = repo.prefManager.toggleFavoriteFolder(fid)
-                                        android.widget.Toast.makeText(context, if (wasFav) "お気に入りから外しました" else "お気に入りに追加しました", android.widget.Toast.LENGTH_SHORT).show()
+                                        folderOptionTargetId = fid
                                     },
                                     onNewFolderClick = {
                                         if (isSelected) {
@@ -3633,6 +3650,8 @@ fun MainLauncherScreen() {
                                     repo.prefManager.saveFolder(delParent, foldersMap[delParent]?.first ?: "", merged)
                                 }
                                 repo.prefManager.deleteFolder(delId)
+                                repo.prefManager.setFolderIcon(delId, null)
+                                folderIcons = repo.prefManager.getFolderIcons()
                                 repo.prefManager.setFolderParent(delId, null)
                             }
                             refreshApps()
@@ -3643,6 +3662,24 @@ fun MainLauncherScreen() {
                     }
                 }
             }
+        }
+
+        // フォルダの長押しポップアップ（お気に入り切替・アイコン変更）
+        folderOptionTargetId?.let { fid ->
+            FolderOptionDialog(
+                folderName = foldersMap[fid]?.first ?: "",
+                isFavorite = fid in favoriteFolderIds,
+                currentIconKind = folderIcons[fid] ?: "",
+                accentColor = accentColor,
+                onToggleFavorite = {
+                    favoriteFolderIds = repo.prefManager.toggleFavoriteFolder(fid)
+                },
+                onPickIcon = { kind ->
+                    repo.prefManager.setFolderIcon(fid, kind)
+                    folderIcons = repo.prefManager.getFolderIcons()
+                },
+                onDismiss = { folderOptionTargetId = null }
+            )
         }
 
         // 3. フォルダ内アプリ選択モーダル

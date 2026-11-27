@@ -511,6 +511,32 @@ class AppPreferenceManager(private val context: Context) {
     fun setIconPackPackage(v: String?) = prefs.edit().putString("icon_pack_package", v).apply()
     fun getAppListFocusPackage(): String? = prefs.getString("app_list_focus_package", null)
     fun saveAppListFocusPackage(v: String) = prefs.edit().putString("app_list_focus_package", v).apply()
+    fun getFolderIcons(): Map<String, String> {
+        val jsonStr = prefs.getString("folder_icons_json", "{}") ?: "{}"
+        return try {
+            val obj = org.json.JSONObject(jsonStr)
+            val map = mutableMapOf<String, String>()
+            val keys = obj.keys()
+            while (keys.hasNext()) {
+                val k = keys.next()
+                map[k] = obj.optString(k)
+            }
+            map
+        } catch (e: Exception) {
+            emptyMap()
+        }
+    }
+
+    fun getFolderIcon(folderId: String): String = getFolderIcons()[folderId] ?: ""
+
+    fun setFolderIcon(folderId: String, kind: String?) {
+        val map = getFolderIcons().toMutableMap()
+        if (kind.isNullOrBlank()) map.remove(folderId) else map[folderId] = kind
+        val obj = org.json.JSONObject()
+        for ((k, v) in map) obj.put(k, v)
+        prefs.edit().putString("folder_icons_json", obj.toString()).apply()
+    }
+
     fun getFolderPath(): List<String> = prefs.getString("folder_path", null)?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
     fun getFavoriteFolderIds(): List<String> = prefs.getString("favorite_folder_ids", null)?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
     fun setFavoriteFolderIds(ids: List<String>) = prefs.edit().putString("favorite_folder_ids", ids.joinToString(",")).apply()
