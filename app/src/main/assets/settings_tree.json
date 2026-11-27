@@ -1,5 +1,5 @@
 {
- "version": 55,
+ "version": 56,
  "items": {
   "reverse": {
    "label": "スクロール方向の反転",
@@ -1319,6 +1319,13 @@
    "glyph": "disc",
    "type": "toggle",
    "bind": "caseCircleClip"
+  },
+  "indexHideEmpty": {
+   "label": "存在しない文字を隠す",
+   "desc": "アプリが1つも無い行・文字を、アプリ一覧の索引から取り除きます",
+   "glyph": "a-large-small",
+   "type": "toggle",
+   "bind": "indexHideEmpty"
   }
  },
  "tree": [
@@ -1763,6 +1770,9 @@
       },
       {
        "item": "indexMode"
+      },
+      {
+       "item": "indexHideEmpty"
       }
      ]
     },
