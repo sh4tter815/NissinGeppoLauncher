@@ -3738,6 +3738,22 @@ fun MainLauncherScreen() {
                         repo.clearCustomIcon(targetApp.packageName)
                         refreshApps()
                     }
+                },
+                folders = foldersMap.entries.map { (id, v) -> id to v.first },
+                containingFolderIds = foldersMap.filterValues { app.packageName in it.second }.keys,
+                onToggleFolder = { targetApp, fid ->
+                    val cur = foldersMap[fid]
+                    if (cur != null) {
+                        val pkgs = cur.second.toMutableList()
+                        if (targetApp.packageName in pkgs) pkgs.remove(targetApp.packageName) else pkgs.add(targetApp.packageName)
+                        repo.prefManager.saveFolder(fid, cur.first, pkgs)
+                        refreshApps()
+                    }
+                },
+                onCreateFolder = { targetApp, name ->
+                    val newId = System.currentTimeMillis().toString()
+                    repo.prefManager.saveFolder(newId, name, listOf(targetApp.packageName))
+                    refreshApps()
                 }
             )
         }
