@@ -200,6 +200,7 @@ fun DiscWheel(
     initialFocus: Int = 0,
     onFocusChange: (Int) -> Unit = {},
     onEntryClick: (Int) -> Unit = {},
+    onEntryLongClick: (Int) -> Unit = {},
     centerContent: (@Composable BoxScope.() -> Unit)? = null,
     state: DiscCarouselState,
     gesturesEnabled: Boolean = true,
@@ -307,14 +308,17 @@ fun DiscWheel(
                 modifier = Modifier
                     .offset(x = (iconX - iconSize / 2f).dp, y = (iconY - iconSize / 2f).dp)
                     .size(iconSize.dp)
-                    .clickable {
+                    .combinedClickable(
+                        onClick = {
                         carouselState.pulseTap(index)
                         when {
                                 isSelected || entry.immediate -> onEntryClick(index)
                                 tapToApply -> { carouselState.animateToIndex(index); onEntryClick(index) }
                                 else -> carouselState.animateToIndex(index)
                             }
-                    },
+                        },
+                        onLongClick = { onEntryLongClick(index) }
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Box(modifier = Modifier.graphicsLayer { val sc = (if (isSelected) 1.12f else 1f) * (iconSizeDp / 36f) * 1.0f * (if (index == carouselState.tapPulseIndex) carouselState.tapPulseAnim.value else 1f); scaleX = sc; scaleY = sc }) {
@@ -333,14 +337,17 @@ fun DiscWheel(
                 contentAlignment = if (side == DiscSide.LEFT) Alignment.CenterStart else Alignment.CenterEnd
             ) {
                 Row(
-                    modifier = Modifier.clickable {
+                    modifier = Modifier.combinedClickable(
+                        onClick = {
                         carouselState.pulseTap(index)
                         when {
                                 isSelected || entry.immediate -> onEntryClick(index)
                                 tapToApply -> { carouselState.animateToIndex(index); onEntryClick(index) }
                                 else -> carouselState.animateToIndex(index)
                             }
-                    },
+                        },
+                        onLongClick = { onEntryLongClick(index) }
+                    ),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = if (side == DiscSide.LEFT) Arrangement.Start else Arrangement.End
                 ) {
@@ -627,13 +634,27 @@ fun lucidePath(d: String, scale: Float): Path {
 }
 
 @Composable
-fun DiscGlyph(kind: String, accentColor: Color) {
-    Canvas(modifier = Modifier.size(36.dp)) {
+fun DiscGlyph(kind: String, accentColor: Color, sizeDp: Float = 36f) {
+    Canvas(modifier = Modifier.size(sizeDp.dp)) {
         val w = size.width
         val h = size.height
         val ink = Color.White.copy(alpha = 0.9f)
         val thin = Stroke(width = w * 0.055f)
         when (kind) {
+            "folder" -> {
+                // Lucide "folder"
+                val ls = Stroke(width = w * (2f / 24f), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                val sc = w / 24f
+                val path = Path()
+                path.moveTo(3f * sc, 6f * sc)
+                path.lineTo(9f * sc, 6f * sc)
+                path.lineTo(11f * sc, 8.5f * sc)
+                path.lineTo(21f * sc, 8.5f * sc)
+                path.lineTo(21f * sc, 19f * sc)
+                path.lineTo(3f * sc, 19f * sc)
+                path.close()
+                drawPath(path, color = ink, style = ls)
+            }
             "toggle" -> {
                 // Lucide "toggle-left"
                 val ls = Stroke(width = w * (2f / 24f), cap = StrokeCap.Round, join = StrokeJoin.Round)
@@ -1321,7 +1342,7 @@ fun DiscAppItem(
 
 /** フォルダページ右円の項目モデル（子フォルダ・アプリ・新規作成が混ざる） */
 sealed class FolderDiscEntry {
-    data class Folder(val folderId: String, val name: String) : FolderDiscEntry()
+    data class Folder(val folderId: String, val name: String, val iconKind: String = "") : FolderDiscEntry()
     data class App(val app: AppInfo) : FolderDiscEntry()
     object NewFolder : FolderDiscEntry()
     object Back : FolderDiscEntry()
@@ -1392,7 +1413,16 @@ fun DiscFolderItem(
         contentAlignment = Alignment.Center
     ) {
         when (entry) {
-            is FolderDiscEntry.Folder -> WhiteFolderIcon(size = glyphSize, color = Color.White)
+            is FolderDiscEntry.Folder -> {
+                Box(contentAlignment = Alignment.Center) {
+                    WhiteFolderIcon(size = glyphSize, color = Color.White)
+                    if (entry.iconKind.isNotBlank()) {
+                        Box(modifier = Modifier.offset(y = (iconSizeDp * 0.10f).dp)) {
+                            DiscGlyph(entry.iconKind, accentColor, sizeDp = iconSizeDp * 0.42f)
+                        }
+                    }
+                }
+            }
             FolderDiscEntry.NewFolder -> WhitePlusIcon(size = glyphSize, color = Color.White)
             FolderDiscEntry.Back -> DiscGlyph("back", accentColor)
             is FolderDiscEntry.App -> {
