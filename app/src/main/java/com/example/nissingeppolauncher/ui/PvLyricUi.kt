@@ -686,6 +686,7 @@ fun KaraokeLyricText(
     fontFamily: FontFamily? = null,
     enFontFamily: FontFamily? = null,
     letterSpacing: androidx.compose.ui.unit.TextUnit = androidx.compose.ui.unit.TextUnit.Unspecified,
+    maxLines: Int = 1,
     textAlign: TextAlign = TextAlign.Start,
     shadow: Shadow? = null,
     modifier: Modifier = Modifier
@@ -698,8 +699,8 @@ fun KaraokeLyricText(
             fontWeight = fontWeight,
             letterSpacing = letterSpacing,
             textAlign = textAlign,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            maxLines = maxLines,
+            overflow = if (maxLines == 1) TextOverflow.Ellipsis else TextOverflow.Clip,
             style = LocalTextStyle.current.copy(fontFamily = fontFamily, shadow = shadow),
             modifier = modifier
         )
@@ -742,8 +743,8 @@ fun KaraokeLyricText(
         fontWeight = fontWeight,
         letterSpacing = letterSpacing,
         textAlign = textAlign,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
+        maxLines = maxLines,
+        overflow = if (maxLines == 1) TextOverflow.Ellipsis else TextOverflow.Clip,
         style = LocalTextStyle.current.copy(fontFamily = fontFamily, shadow = shadow),
         modifier = modifier
     )
