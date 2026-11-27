@@ -188,6 +188,9 @@ fun MainLauncherScreen() {
     var artworkAccent by remember { mutableStateOf<Color?>(null) }
     var artworkSub by remember { mutableStateOf<Color?>(null) }
     var artworkBackground by remember { mutableStateOf<Color?>(null) }
+    var wallpaperAccent by remember { mutableStateOf<Color?>(null) }
+    var wallpaperSub by remember { mutableStateOf<Color?>(null) }
+    var wallpaperBackground by remember { mutableStateOf<Color?>(null) }
 
     // ホームの時計下に出す同期歌詞（再生中セッションの曲情報に追随する）
     var sessionTrackTitle by remember { mutableStateOf("") }
@@ -845,9 +848,6 @@ fun MainLauncherScreen() {
     var backgroundUpdateKey by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
     // 壁紙に合わせる（音楽を再生していない普段の配色）: 現在表示中の壁紙から色を抽出する
-    var wallpaperAccent by remember { mutableStateOf<Color?>(null) }
-    var wallpaperSub by remember { mutableStateOf<Color?>(null) }
-    var wallpaperBackground by remember { mutableStateOf<Color?>(null) }
     val currentWallpaperPath = if (nightWallpaperActive) repo.prefManager.getNightWallpaperPath() else (repo.prefManager.getPageWallpaperPath(currentLauncherPage) ?: customBackgroundPath)
     LaunchedEffect(matchWallpaper, currentWallpaperPath, backgroundUpdateKey) {
         if (matchWallpaper && currentWallpaperPath != null) {
