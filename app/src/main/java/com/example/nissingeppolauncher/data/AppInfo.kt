@@ -12,7 +12,10 @@ import android.util.LruCache
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -192,6 +195,17 @@ class AppRepository(private val context: Context) {
         }
     }
 
+    private val iconRefreshScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** アイコン再生成を設定画面の寿命に左右されない専用スコープで実行し、完了後に Main で onDone を呼ぶ。
+     *  設定画面のコルーチンで回すと、ページを離れた瞬間にキャンセルされて更新が途中で止まるため */
+    fun refreshIconsThen(onDone: () -> Unit) {
+        iconRefreshScope.launch {
+            try { refreshAllIcons() } catch (_: Exception) {}
+            withContext(Dispatchers.Main) { onDone() }
+        }
+    }
+
     /** アイコンパック変更時などに、全アプリのアイコンを取り直して保存し直す */
     suspend fun refreshAllIcons() = withContext(Dispatchers.IO) {
         val records = cachedRecords ?: loadRecordsFromDisk() ?: fullScan()
@@ -257,7 +271,7 @@ class AppRepository(private val context: Context) {
     }
 
     /** 単色レイヤーが無いアプリ用: 通常アイコンから背景色を取り除いて、柄だけの単色アイコンを作る。
-     *  背景は四隅の平均色とし、背景からの色の距離を柄の濃さにする。透過アイコンはアルファを柄にする。
+     *  透過が主体のアイコンはアルファを柄にし、ベタ塗りに近いアイコンは形の内側の色を背景として距離で柄を抜く。
      *  柄がほとんど無い／全面が柄になる場合は失敗として null（通常アイコンのまま） */
     private fun loadForcedMonochromeIcon(packageName: String): Bitmap? {
         return try {
@@ -267,21 +281,32 @@ class AppRepository(private val context: Context) {
             val src = if (raw.width != size || raw.height != size) Bitmap.createScaledBitmap(raw, size, size, true) else raw
             val px = IntArray(size * size)
             src.getPixels(px, 0, size, 0, 0, size, size)
-            val corners = listOf(
-                src.getPixel(2, 2), src.getPixel(size - 3, 2),
-                src.getPixel(2, size - 3), src.getPixel(size - 3, size - 3)
-            )
-            val cornerAlpha = corners.map { android.graphics.Color.alpha(it) }.average()
-            if (cornerAlpha < 40) {
-                // 透過アイコン: アルファそのものを柄として白で塗る
+            // 不透明な画素の割合で分岐する。角が透明でも中身がベタ塗りのアイコン（角丸の定型アイコン等）を
+            // 透過アイコンと誤判定すると、形そのものが柄になって全面ベタ塗りになってしまうため
+            var opaqueCount = 0
+            for (p in px) if (android.graphics.Color.alpha(p) > 40) opaqueCount++
+            val coverage = opaqueCount.toDouble() / px.size
+            if (coverage < 0.65) {
+                // 透過が主体のアイコン: アルファそのものを柄として白で塗る
                 for (i in px.indices) {
                     val a = android.graphics.Color.alpha(px[i])
                     px[i] = android.graphics.Color.argb(a, 255, 255, 255)
                 }
             } else {
-                val br = corners.map { android.graphics.Color.red(it) }.average()
-                val bg = corners.map { android.graphics.Color.green(it) }.average()
-                val bb = corners.map { android.graphics.Color.blue(it) }.average()
+                // ベタ塗りに近いアイコン: 形の内側（四辺から10%内側）の色を背景として柄を抜く
+                val inset = size / 10
+                val samples = mutableListOf<Int>()
+                for (f in listOf(0.25f, 0.5f, 0.75f)) {
+                    val p = (size * f).toInt()
+                    listOf(
+                        src.getPixel(p, inset), src.getPixel(p, size - 1 - inset),
+                        src.getPixel(inset, p), src.getPixel(size - 1 - inset, p)
+                    ).forEach { c -> if (android.graphics.Color.alpha(c) > 40) samples.add(c) }
+                }
+                if (samples.isEmpty()) return null
+                val br = samples.map { android.graphics.Color.red(it) }.average()
+                val bg = samples.map { android.graphics.Color.green(it) }.average()
+                val bb = samples.map { android.graphics.Color.blue(it) }.average()
                 var glyphCount = 0
                 for (i in px.indices) {
                     val p = px[i]
