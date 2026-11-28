@@ -1994,7 +1994,10 @@ fun MainLauncherScreen() {
                                 iconTilt3d = disc3d,
                                 rainbowGlow = dopagakiMode,
                                 showLabels = labelsWhilePlaying || !isBigDiscLayout,
-                                onAppClick = { onAppClick(it.packageName) },
+                                isFocused = isSelected,
+                                onAppClick = { app ->
+                                    if (isSelected) onAppClick(app.packageName) else homeDiscState.animateToIndex(index)
+                                },
                                 onLongClick = { selectedAppForOption = it }
                             )
                         }
