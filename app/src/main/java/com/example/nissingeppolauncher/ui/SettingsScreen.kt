@@ -678,6 +678,7 @@ fun SettingsScreen(
     var accentHex by remember { mutableStateOf(repo.prefManager.getAccentColorHex()) }
     var subHex by remember { mutableStateOf(repo.prefManager.getSubColorHex()) }
     var iconStyle by remember { mutableStateOf(repo.prefManager.getIconStyle()) }
+    var thirdHex by remember { mutableStateOf(repo.prefManager.getThirdColorHex()) }
     var matchArtwork by remember { mutableStateOf(repo.prefManager.isMatchArtworkColor()) }
     var matchWallpaper by remember { mutableStateOf(repo.prefManager.isMatchWallpaperColor()) }
     var bgMode by remember { mutableStateOf(repo.prefManager.getBackgroundMode()) }
@@ -1175,6 +1176,7 @@ fun SettingsScreen(
         "bgMode" to Pair({ bgMode }, { v: String -> bgMode = v; repo.prefManager.setBackgroundMode(v); onChanged() }),
         "accentHex" to Pair({ accentHex }, { v: String -> accentHex = v; repo.prefManager.setAccentColorHex(v); onChanged() }),
         "subHex" to Pair({ subHex }, { v: String -> subHex = v; repo.prefManager.setSubColorHex(v); onChanged() }),
+        "thirdHex" to Pair({ thirdHex }, { v: String -> thirdHex = v; repo.prefManager.setThirdColorHex(v); onChanged() }),
         "iconStyle" to Pair({ iconStyle }, { v: String ->
             iconStyle = v
             repo.prefManager.setIconStyle(v)
