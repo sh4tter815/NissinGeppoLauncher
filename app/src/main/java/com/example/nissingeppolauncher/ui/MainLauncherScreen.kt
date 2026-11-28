@@ -141,7 +141,10 @@ fun MainLauncherScreen() {
     var currentLauncherPage by remember { mutableIntStateOf(if (repo.prefManager.getStartupPage() == "last") repo.prefManager.getLastPage() else 1) }
 
     var accentHex by remember { mutableStateOf(repo.prefManager.getAccentColorHex()) }
+    var subHex by remember { mutableStateOf(repo.prefManager.getSubColorHex()) }
     val manualAccentColor = remember(accentHex) { parseHexColor(accentHex) }
+    // サブ色の手動指定（空 = 自動なので null）
+    val manualSubColor = remember(subHex) { if (subHex.isNotBlank()) parseHexColor(subHex) else null }
 
     // アートワーク連動カラー: 設定でONのとき、再生中セッションのアートワークから
     // アクセント色（前景）と背景色を抽出してテーマカラーにする
@@ -783,7 +786,7 @@ fun MainLauncherScreen() {
         manualAccentColor
     }
     // サブ色: アートワーク連動時は抽出した第2色、そうでなければ一次色の色相を55度回した色
-    val subColor = if (matchArtwork && artworkSub != null) artworkSub!! else if (matchWallpaper && wallpaperSub != null) wallpaperSub!! else rotateHueColor(accentColor, 55f)
+    val subColor = manualSubColor ?: if (matchArtwork && artworkSub != null) artworkSub!! else if (matchWallpaper && wallpaperSub != null) wallpaperSub!! else ensureSubDistinct(accentColor, rotateHueColor(accentColor, 55f))
 
     // 色の切り替わりはチカチカしないよう、800msかけてなめらかに寄せる
     val effectiveAccent by animateColorAsState(
@@ -805,6 +808,7 @@ fun MainLauncherScreen() {
     // ページが切り替わるたびにアクセントカラー等を自動再読込
     LaunchedEffect(currentLauncherPage) {
         accentHex = repo.prefManager.getAccentColorHex()
+        subHex = repo.prefManager.getSubColorHex()
         matchArtwork = repo.prefManager.isMatchArtworkColor()
         matchWallpaper = repo.prefManager.isMatchWallpaperColor()
         bgMode = repo.prefManager.getBackgroundMode()
@@ -1487,6 +1491,7 @@ fun MainLauncherScreen() {
                             },
                             onChanged = {
                                 accentHex = repo.prefManager.getAccentColorHex()
+        subHex = repo.prefManager.getSubColorHex()
                                 customBackgroundPath = repo.prefManager.getCustomBackgroundPath()
                                 backgroundUpdateKey = System.currentTimeMillis()
                                 customFontPath = repo.prefManager.getCustomFontPath()
@@ -3781,6 +3786,54 @@ private fun contrastRatio(a: Color, b: Color): Float {
     return (max(l1, l2) + 0.05f) / (min(l1, l2) + 0.05f)
 }
 
+/** 無彩色画像用: 元の色味を保ったまま、明度だけを指定値にしたグレー階調を作る */
+private fun grayToneOf(color: Color, value: Float): Color {
+    val hsv = FloatArray(3)
+    android.graphics.Color.RGBToHSV(
+        (color.red * 255f).toInt().coerceIn(0, 255),
+        (color.green * 255f).toInt().coerceIn(0, 255),
+        (color.blue * 255f).toInt().coerceIn(0, 255),
+        hsv
+    )
+    hsv[2] = value
+    val c = android.graphics.Color.HSVToColor(hsv)
+    return Color(
+        red = android.graphics.Color.red(c),
+        green = android.graphics.Color.green(c),
+        blue = android.graphics.Color.blue(c)
+    )
+}
+
+/** サブ色が一次色と似すぎている場合に、色相を補色寄り（+150度）へ逃がして区別できる色にする。
+ *  無彩色同士は色相が意味を持たないため対象外（明度差で区別する） */
+private fun ensureSubDistinct(accent: Color, sub: Color): Color {
+    val a = FloatArray(3)
+    val s = FloatArray(3)
+    android.graphics.Color.RGBToHSV(
+        (accent.red * 255f).toInt().coerceIn(0, 255),
+        (accent.green * 255f).toInt().coerceIn(0, 255),
+        (accent.blue * 255f).toInt().coerceIn(0, 255),
+        a
+    )
+    android.graphics.Color.RGBToHSV(
+        (sub.red * 255f).toInt().coerceIn(0, 255),
+        (sub.green * 255f).toInt().coerceIn(0, 255),
+        (sub.blue * 255f).toInt().coerceIn(0, 255),
+        s
+    )
+    if (a[1] < 0.08f || s[1] < 0.08f) return sub
+    val hueDist = kotlin.math.min(kotlin.math.abs(a[0] - s[0]), 360f - kotlin.math.abs(a[0] - s[0]))
+    val tooSimilar = hueDist < 50f || (hueDist < 90f && kotlin.math.abs(a[1] - s[1]) < 0.15f && kotlin.math.abs(a[2] - s[2]) < 0.15f)
+    if (!tooSimilar) return sub
+    s[0] = (a[0] + 150f) % 360f
+    val c = android.graphics.Color.HSVToColor(s)
+    return Color(
+        red = android.graphics.Color.red(c),
+        green = android.graphics.Color.green(c),
+        blue = android.graphics.Color.blue(c)
+    )
+}
+
 /** 色相だけを回した色を返す（サブ色のフォールバック生成用） */
 private fun rotateHueColor(color: Color, hueDelta: Float): Color {
     val hsv = FloatArray(3)
@@ -3955,6 +4008,7 @@ private fun extractArtworkColors(bitmap: Bitmap): Triple<Color, Color, Color> {
     }
 
     secondary = vividAccentColor(secondary)
+    secondary = ensureSubDistinct(accent, secondary)
 
     var background = if (darkCount > 0) {
         Color(
@@ -3974,6 +4028,13 @@ private fun extractArtworkColors(bitmap: Bitmap): Triple<Color, Color, Color> {
     if (bgLum > 0.16f) {
         val f = 0.16f / bgLum
         background = Color(red = background.red * f, green = background.green * f, blue = background.blue * f)
+    }
+    if (bestBucket < 0) {
+        // 無彩色（グレー系）の画像: 色味が取れないため、明るさの階調でパレットを作る。
+        // 明るいグレーはアクセントとして使えるので、一次色は明るく、サブは一段暗くする
+        val base = accent
+        accent = grayToneOf(base, 0.85f)
+        secondary = grayToneOf(base, 0.60f)
     }
     return Triple(accent, secondary, background)
 }

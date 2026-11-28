@@ -676,6 +676,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     var accentHex by remember { mutableStateOf(repo.prefManager.getAccentColorHex()) }
+    var subHex by remember { mutableStateOf(repo.prefManager.getSubColorHex()) }
     var matchArtwork by remember { mutableStateOf(repo.prefManager.isMatchArtworkColor()) }
     var matchWallpaper by remember { mutableStateOf(repo.prefManager.isMatchWallpaperColor()) }
     var bgMode by remember { mutableStateOf(repo.prefManager.getBackgroundMode()) }
@@ -1172,6 +1173,7 @@ fun SettingsScreen(
         "dateDisplayMode" to Pair({ dateDisplayMode }, { v: String -> dateDisplayMode = v; repo.prefManager.setDateDisplayMode(v); onChanged() }),
         "bgMode" to Pair({ bgMode }, { v: String -> bgMode = v; repo.prefManager.setBackgroundMode(v); onChanged() }),
         "accentHex" to Pair({ accentHex }, { v: String -> accentHex = v; repo.prefManager.setAccentColorHex(v); onChanged() }),
+        "subHex" to Pair({ subHex }, { v: String -> subHex = v; repo.prefManager.setSubColorHex(v); onChanged() }),
         "fontChoice" to Pair({ currentFontChoice }, { v: String -> currentFontChoice = v; repo.prefManager.setFontChoice(v); useCustomFont = v == "custom"; repo.prefManager.setUseCustomFont(v == "custom"); onChanged() }),
         "lyricsDisplayMode" to Pair({ lyricsDisplayMode }, { v: String -> lyricsDisplayMode = v; repo.prefManager.setLyricsDisplayMode(v); onChanged() }),
         "lyricsPvFont" to Pair({ lyricsPvFont }, { v: String -> lyricsPvFont = v; repo.prefManager.setLyricsPvFont(v); onChanged() }),
