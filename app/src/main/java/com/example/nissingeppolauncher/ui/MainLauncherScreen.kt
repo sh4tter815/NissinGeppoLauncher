@@ -145,6 +145,8 @@ fun MainLauncherScreen() {
     val manualAccentColor = remember(accentHex) { parseHexColor(accentHex) }
     // サブ色の手動指定（空 = 自動なので null）
     val manualSubColor = remember(subHex) { if (subHex.isNotBlank()) parseHexColor(subHex) else null }
+    var thirdHex by remember { mutableStateOf(repo.prefManager.getThirdColorHex()) }
+    val manualThirdColor = remember(thirdHex) { if (thirdHex.isNotBlank()) parseHexColor(thirdHex) else null }
 
     // アートワーク連動カラー: 設定でONのとき、再生中セッションのアートワークから
     // アクセント色（前景）と背景色を抽出してテーマカラーにする
@@ -190,9 +192,11 @@ fun MainLauncherScreen() {
     var sessionAlbumArt by remember { mutableStateOf<Bitmap?>(null) }
     var artworkAccent by remember { mutableStateOf<Color?>(null) }
     var artworkSub by remember { mutableStateOf<Color?>(null) }
+    var artworkThird by remember { mutableStateOf<Color?>(null) }
     var artworkBackground by remember { mutableStateOf<Color?>(null) }
     var wallpaperAccent by remember { mutableStateOf<Color?>(null) }
     var wallpaperSub by remember { mutableStateOf<Color?>(null) }
+    var wallpaperThird by remember { mutableStateOf<Color?>(null) }
     var wallpaperBackground by remember { mutableStateOf<Color?>(null) }
 
     // ホームの時計下に出す同期歌詞（再生中セッションの曲情報に追随する）
@@ -751,13 +755,15 @@ fun MainLauncherScreen() {
     LaunchedEffect(sessionAlbumArt, matchArtwork, useArtworkBg) {
         val art = sessionAlbumArt
         if ((matchArtwork || useArtworkBg) && art != null) {
-            val (fg, sub, bg) = withContext(Dispatchers.Default) { extractArtworkColors(art) }
+            val (fg, sub, third, bg) = withContext(Dispatchers.Default) { extractArtworkColors(art) }
             artworkAccent = fg
             artworkSub = sub
+            artworkThird = third
             artworkBackground = bg
         } else {
             artworkAccent = null
             artworkSub = null
+            artworkThird = null
             artworkBackground = null
         }
     }
@@ -799,6 +805,12 @@ fun MainLauncherScreen() {
     }
     // サブ色: アートワーク連動時は抽出した第2色、そうでなければ一次色の色相を55度回した色
     val subColor = manualSubColor ?: if (matchArtwork && artworkSub != null) artworkSub!! else if (matchWallpaper && wallpaperSub != null) wallpaperSub!! else ensureSubDistinct(accentColor, rotateHueColor(accentColor, 55f))
+    // 第3色（装飾専用）: 手動指定が最優先。自動では抽出の第3色、無ければトライアド（120度/240度）のうちサブから遠い方
+    val thirdColor = manualThirdColor ?: if (matchArtwork && artworkThird != null) artworkThird!! else if (matchWallpaper && wallpaperThird != null) wallpaperThird!! else {
+        val t120 = rotateHueColor(accentColor, 120f)
+        val t240 = rotateHueColor(accentColor, 240f)
+        if (hueDistanceOf(t120, subColor) >= hueDistanceOf(t240, subColor)) t120 else t240
+    }
 
     // 色の切り替わりはチカチカしないよう、800msかけてなめらかに寄せる
     val effectiveAccent by animateColorAsState(
@@ -813,6 +825,12 @@ fun MainLauncherScreen() {
         label = "subColorAnim"
     )
 
+    val effectiveThird by animateColorAsState(
+        targetValue = thirdColor,
+        animationSpec = tween(durationMillis = 800),
+        label = "thirdColorAnim"
+    )
+
     var showWelcomeTutorial by remember { mutableStateOf(false) }
     var showIndexTutorial by remember { mutableStateOf(false) }
     var showHideTutorial by remember { mutableStateOf(false) }
@@ -821,6 +839,7 @@ fun MainLauncherScreen() {
     LaunchedEffect(currentLauncherPage) {
         accentHex = repo.prefManager.getAccentColorHex()
         subHex = repo.prefManager.getSubColorHex()
+        thirdHex = repo.prefManager.getThirdColorHex()
         matchArtwork = repo.prefManager.isMatchArtworkColor()
         matchWallpaper = repo.prefManager.isMatchWallpaperColor()
         bgMode = repo.prefManager.getBackgroundMode()
@@ -879,12 +898,14 @@ fun MainLauncherScreen() {
                     } else null
                 } catch (e: Exception) { null }
             }
-            wallpaperAccent = colors?.first
-            wallpaperSub = colors?.second
-            wallpaperBackground = colors?.third
+            wallpaperAccent = colors?.primary
+            wallpaperSub = colors?.secondary
+            wallpaperThird = colors?.third
+            wallpaperBackground = colors?.background
         } else {
             wallpaperAccent = null
             wallpaperSub = null
+            wallpaperThird = null
             wallpaperBackground = null
         }
     }
@@ -1380,6 +1401,7 @@ fun MainLauncherScreen() {
                     liquidEnabled = liquidBackground,
                     liquidAccent = if (dopagakiMode) Color.hsv(Math.floorMod(pvLineIndex * 47, 360).toFloat(), 0.72f, 1f) else effectiveAccent,
                     liquidSub = if (dopagakiMode) Color.hsv(Math.floorMod(pvLineIndex * 47 + 120, 360).toFloat(), 0.72f, 1f) else effectiveSub,
+                    liquidThird = if (dopagakiMode) Color.hsv(Math.floorMod(pvLineIndex * 47 + 240, 360).toFloat(), 0.72f, 1f) else effectiveThird,
                     staticMode = powerSaveActive || isLyricsBrowsing || pvFullscreen
                 )
 
@@ -1504,6 +1526,7 @@ fun MainLauncherScreen() {
                             onChanged = {
                                 accentHex = repo.prefManager.getAccentColorHex()
         subHex = repo.prefManager.getSubColorHex()
+        thirdHex = repo.prefManager.getThirdColorHex()
                                 customBackgroundPath = repo.prefManager.getCustomBackgroundPath()
                                 backgroundUpdateKey = System.currentTimeMillis()
                                 customFontPath = repo.prefManager.getCustomFontPath()
@@ -1983,6 +2006,7 @@ fun MainLauncherScreen() {
                             discRadiusDp = disc1RadiusDp,
                             accentColor = accentColor,
                             subColor = subColor,
+                            thirdColor = thirdColor,
                             rainbowGlow = dopagakiMode,
                             textStartAngle = lyricsTextAngle,
                             artworkTilt3d = disc3d,
@@ -3913,7 +3937,7 @@ private fun vividAccentColor(color: Color): Color {
     )
     if (hsv[1] < 0.08f) return color
     hsv[1] = maxOf(hsv[1], 0.38f)
-    hsv[2] = hsv[2].coerceIn(0.38f, 0.92f)
+    hsv[2] = hsv[2].coerceIn(0.62f, 0.95f)
     val c = android.graphics.Color.HSVToColor(hsv)
     return Color(
         red = android.graphics.Color.red(c),
@@ -3922,7 +3946,20 @@ private fun vividAccentColor(color: Color): Color {
     )
 }
 
-private fun extractArtworkColors(bitmap: Bitmap): Triple<Color, Color, Color> {
+/** アートワーク／壁紙から抽出したパレット（一次色・サブ・第3色・背景） */
+private data class ArtworkPalette(val primary: Color, val secondary: Color, val third: Color, val background: Color)
+
+/** 2色の色相距離（0〜180度） */
+private fun hueDistanceOf(a: Color, b: Color): Float {
+    val ha = FloatArray(3)
+    val hb = FloatArray(3)
+    android.graphics.Color.RGBToHSV((a.red * 255f).toInt().coerceIn(0, 255), (a.green * 255f).toInt().coerceIn(0, 255), (a.blue * 255f).toInt().coerceIn(0, 255), ha)
+    android.graphics.Color.RGBToHSV((b.red * 255f).toInt().coerceIn(0, 255), (b.green * 255f).toInt().coerceIn(0, 255), (b.blue * 255f).toInt().coerceIn(0, 255), hb)
+    val d = kotlin.math.abs(ha[0] - hb[0])
+    return kotlin.math.min(d, 360f - d)
+}
+
+private fun extractArtworkColors(bitmap: Bitmap): ArtworkPalette {
     val size = 48
     val scaled = if (bitmap.width == size && bitmap.height == size) bitmap
         else Bitmap.createScaledBitmap(bitmap, size, size, true)
@@ -3986,7 +4023,7 @@ private fun extractArtworkColors(bitmap: Bitmap): Triple<Color, Color, Color> {
     // 暗すぎるアクセントは、白へ混ぜずに同じ色相・彩度のまま明度だけを上げて視認性を確保する
     val accentLum = 0.299f * accent.red + 0.587f * accent.green + 0.114f * accent.blue
     if (accentLum < 0.22f) {
-        accent = raiseBrightnessKeepingHue(accent, 0.55f)
+        accent = raiseBrightnessKeepingHue(accent, 0.65f)
     }
 
     accent = vividAccentColor(accent)
@@ -3994,8 +4031,9 @@ private fun extractArtworkColors(bitmap: Bitmap): Triple<Color, Color, Color> {
     // サブカラー: 一次色と色相が離れた（60度以上）バケットのうち最も強いもの。
     // 候補が弱い・無い場合は一次色の色相を40度回して作る
     var secondary = accent
+    var third = accent
+    var subBucket = -1
     if (bestBucket >= 0) {
-        var subBucket = -1
         var subScore = -1f
         for (i in 0 until bucketCount) {
             if (counts[i] == 0) continue
@@ -4015,12 +4053,44 @@ private fun extractArtworkColors(bitmap: Bitmap): Triple<Color, Color, Color> {
         }
         val subLum = 0.299f * secondary.red + 0.587f * secondary.green + 0.114f * secondary.blue
         if (subLum < 0.22f) {
-            secondary = raiseBrightnessKeepingHue(secondary, 0.55f)
+            secondary = raiseBrightnessKeepingHue(secondary, 0.65f)
+        }
+        // 第3色（装飾専用）: 一次色・サブの両方から色相が離れたバケットのうち最も強いもの。
+        // 無ければトライアド（120度/240度）のうちサブから遠い方で作る
+        var thirdBucket = -1
+        var thirdScore = -1f
+        for (i in 0 until bucketCount) {
+            if (counts[i] == 0) continue
+            val dAcc = kotlin.math.min(kotlin.math.abs(i - bestBucket), bucketCount - kotlin.math.abs(i - bestBucket))
+            if (dAcc < 2) continue
+            if (subBucket >= 0) {
+                val dSub = kotlin.math.min(kotlin.math.abs(i - subBucket), bucketCount - kotlin.math.abs(i - subBucket))
+                if (dSub < 2) continue
+            }
+            val score = counts[i] * (satSums[i] / counts[i])
+            if (score > thirdScore) { thirdScore = score; thirdBucket = i }
+        }
+        third = if (thirdBucket >= 0 && thirdScore > bestScore * 0.12f) {
+            val rawThird = Color(
+                red = (rSums[thirdBucket] / counts[thirdBucket]).toInt(),
+                green = (gSums[thirdBucket] / counts[thirdBucket]).toInt(),
+                blue = (bSums[thirdBucket] / counts[thirdBucket]).toInt()
+            )
+            val thirdLum = 0.299f * rawThird.red + 0.587f * rawThird.green + 0.114f * rawThird.blue
+            if (thirdLum < 0.22f) raiseBrightnessKeepingHue(rawThird, 0.65f) else rawThird
+        } else {
+            val t120 = rotateHueColor(accent, 120f)
+            val t240 = rotateHueColor(accent, 240f)
+            if (hueDistanceOf(t120, secondary) >= hueDistanceOf(t240, secondary)) t120 else t240
         }
     }
 
     secondary = vividAccentColor(secondary)
     secondary = ensureSubDistinct(accent, secondary)
+    third = vividAccentColor(third)
+    if (hueDistanceOf(third, secondary) < 50f && hueDistanceOf(third, accent) >= 50f) {
+        third = rotateHueColor(third, 90f)
+    }
 
     var background = if (darkCount > 0) {
         Color(
@@ -4047,8 +4117,9 @@ private fun extractArtworkColors(bitmap: Bitmap): Triple<Color, Color, Color> {
         val base = accent
         accent = grayToneOf(base, 0.85f)
         secondary = grayToneOf(base, 0.60f)
+        third = grayToneOf(base, 0.45f)
     }
-    return Triple(accent, secondary, background)
+    return ArtworkPalette(accent, secondary, third, background)
 }
 
 // 複数行モードの歌詞表示（VerifyError 回避のため MainLauncherScreen から切り出したトップレベル関数）

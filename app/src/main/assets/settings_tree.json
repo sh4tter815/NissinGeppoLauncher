@@ -1,5 +1,5 @@
 {
-  "version": 62,
+  "version": 63,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -266,6 +266,54 @@
                       "colorHex": "#FF4081"
                 }
           ]
+    },
+    "thirdColor": {
+      "label": "第3カラー",
+      "desc": "液体の3色目とケースの差し色に使う、装飾専用の色です。「自動」ではアートワークや壁紙から決まります",
+      "glyph": "palette",
+      "type": "choices",
+      "bind": "thirdHex",
+      "choices": [
+        {
+          "v": "",
+          "label": "自動"
+        },
+        {
+          "v": "#E53935",
+          "label": "赤",
+          "colorHex": "#E53935"
+        },
+        {
+          "v": "#88C0FF",
+          "label": "青",
+          "colorHex": "#88C0FF"
+        },
+        {
+          "v": "#4CAF50",
+          "label": "緑",
+          "colorHex": "#4CAF50"
+        },
+        {
+          "v": "#AB47BC",
+          "label": "紫",
+          "colorHex": "#AB47BC"
+        },
+        {
+          "v": "#FF9800",
+          "label": "オレンジ",
+          "colorHex": "#FF9800"
+        },
+        {
+          "v": "#00E5FF",
+          "label": "シアン",
+          "colorHex": "#00E5FF"
+        },
+        {
+          "v": "#FF4081",
+          "label": "ピンク",
+          "colorHex": "#FF4081"
+        }
+      ]
     },
     "uiFont": {
       "label": "UIフォント",
@@ -1503,6 +1551,9 @@
             },
             {
               "item": "subColor"
+            },
+            {
+              "item": "thirdColor"
             },
             {
               "item": "matchArtwork"

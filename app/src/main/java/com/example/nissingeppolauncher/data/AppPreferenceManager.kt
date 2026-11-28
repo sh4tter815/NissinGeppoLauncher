@@ -247,6 +247,8 @@ class AppPreferenceManager(private val context: Context) {
 
     /** サブ色の手動指定（空文字 = 自動） */
     fun getSubColorHex(): String = prefs.getString("sub_color_hex", "") ?: ""
+    fun getThirdColorHex(): String = prefs.getString("third_color_hex", "") ?: ""
+    fun setThirdColorHex(hex: String) = prefs.edit().putString("third_color_hex", hex).apply()
 
     fun setSubColorHex(hex: String) = prefs.edit().putString("sub_color_hex", hex).apply()
 
