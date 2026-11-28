@@ -1450,7 +1450,7 @@ fun DiscAppItem(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (iconTilt3d) {
+                    if (iconTilt3d && !app.iconIsMono) {
                         Image(
                             bitmap = iconBitmap,
                             contentDescription = null,
@@ -1471,7 +1471,7 @@ fun DiscAppItem(
                             Image(
                                 bitmap = iconBitmap,
                                 contentDescription = null,
-                                modifier = Modifier.size((iconSizeDp * 1.125f).coerceAtLeast(12f).dp),
+                                modifier = Modifier.size((iconSizeDp * 0.86f).coerceAtLeast(9f).dp),
                                 colorFilter = ColorFilter.tint(effAccent)
                             )
                         }
@@ -1640,7 +1640,7 @@ fun DiscFolderItem(
             is FolderDiscEntry.App -> {
                 val iconBitmap = entry.app.iconBitmap
                 if (iconBitmap != null && !hideIconsF) {
-                    if (iconTilt3d) {
+                    if (iconTilt3d && !entry.app.iconIsMono) {
                         Image(
                             bitmap = iconBitmap,
                             contentDescription = null,
@@ -1661,7 +1661,7 @@ fun DiscFolderItem(
                             Image(
                                 bitmap = iconBitmap,
                                 contentDescription = null,
-                                modifier = Modifier.size((iconSizeDp * 1.125f).coerceAtLeast(12f).dp),
+                                modifier = Modifier.size((iconSizeDp * 0.86f).coerceAtLeast(9f).dp),
                                 colorFilter = ColorFilter.tint(accentColor)
                             )
                         }
