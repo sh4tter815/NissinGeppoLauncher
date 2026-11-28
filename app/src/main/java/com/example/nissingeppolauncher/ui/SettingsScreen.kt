@@ -1162,10 +1162,10 @@ fun SettingsScreen(
         "themedForceMono" to Pair({ themedForceMono }, { v: Boolean ->
             themedForceMono = v
             repo.prefManager.setForcedMonoEnabled(v)
-            settingsScope.launch {
-                repo.refreshAllIcons()
+            repo.refreshIconsThen {
                 onAppsUpdated()
                 onChanged()
+                android.widget.Toast.makeText(context, "アイコンを更新しました", android.widget.Toast.LENGTH_SHORT).show()
             }
         }),
         "dialOutline" to Pair({ dialOutline }, { v: Boolean -> dialOutline = v; repo.prefManager.setDialOutlineEnabled(v); onChanged() }),
@@ -1190,8 +1190,7 @@ fun SettingsScreen(
         "iconStyle" to Pair({ iconStyle }, { v: String ->
             iconStyle = v
             repo.prefManager.setIconStyle(v)
-            settingsScope.launch {
-                repo.refreshAllIcons()
+            repo.refreshIconsThen {
                 onAppsUpdated()
                 onChanged()
                 android.widget.Toast.makeText(context, "アイコンを更新しました", android.widget.Toast.LENGTH_SHORT).show()
@@ -2015,8 +2014,7 @@ key("disc-choices-${currentItem.id}") {
                                     iconPackPkg = pkg
                                     repo.prefManager.setIconPackPackage(pkg)
                                     showIconPackDialog = false
-                                    settingsScope.launch {
-                                        repo.refreshAllIcons()
+                                    repo.refreshIconsThen {
                                         onAppsUpdated()
                                         android.widget.Toast.makeText(context, "アイコンを更新しました", android.widget.Toast.LENGTH_SHORT).show()
                                     }
