@@ -1506,6 +1506,24 @@ private fun brightenStepKeepingHue(color: Color): Color {
     )
 }
 
+/** 無彩色画像用: 元の色味を保ったまま、明度だけを指定値にしたグレー階調を作る */
+private fun grayToneOf(color: Color, value: Float): Color {
+    val hsv = FloatArray(3)
+    android.graphics.Color.RGBToHSV(
+        (color.red * 255f).toInt().coerceIn(0, 255),
+        (color.green * 255f).toInt().coerceIn(0, 255),
+        (color.blue * 255f).toInt().coerceIn(0, 255),
+        hsv
+    )
+    hsv[2] = value
+    val c = android.graphics.Color.HSVToColor(hsv)
+    return Color(
+        red = android.graphics.Color.red(c),
+        green = android.graphics.Color.green(c),
+        blue = android.graphics.Color.blue(c)
+    )
+}
+
 /** アクセント用に彩度と明度を保証する（黒・白・灰寄りを避ける）。ほぼ無彩色ならそのまま */
 private fun vividAccentColor(color: Color): Color {
     val hsv = FloatArray(3)
@@ -1578,6 +1596,10 @@ private fun rackAccentOf(bitmap: Bitmap): Color {
     val accentLum = 0.299f * accent.red + 0.587f * accent.green + 0.114f * accent.blue
     if (accentLum < 0.22f) {
         accent = raiseBrightnessKeepingHue(accent, 0.55f)
+    }
+    if (bestBucket < 0) {
+        // 無彩色（グレー系）なら明るいグレーにする
+        return grayToneOf(accent, 0.85f)
     }
     return vividAccentColor(accent)
 }
