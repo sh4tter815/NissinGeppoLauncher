@@ -665,6 +665,10 @@ fun MusicVinylWidget(
                                         }
                                     } else if (pressTapIndex > 0) {
                                         rackOpen = true
+                                        // タップ列はここで消費する。これをしないと tapCount が残り続け、
+                                        // 次回以降の長押しが全部「タップ後の長押し」と誤判定されてラックが開いてしまう
+                                        tapCount = 0
+                                        lastTapReleaseMs = 0L
                                     }
                                 }
                             }
@@ -1709,16 +1713,29 @@ private fun MdCase(boxSizeDp: Float, accentColor: Color, subColor: Color = accen
                     .width((boxSizeDp * 0.50f).dp)
             )
         }
-        // 半透明の色つきケース（アクセント色）
+        // 半透明の色つきケース（アクセント色）。色味が分かるよう、ケース側だけ少し深い色にして濃く重ねる
+        // （中のディスクの透け感・虹色はそのまま）
+        val caseColors = listOf(accentColor, subColor, thirdColor).map { c ->
+            val hsv = FloatArray(3)
+            android.graphics.Color.RGBToHSV(
+                (c.red * 255).toInt().coerceIn(0, 255),
+                (c.green * 255).toInt().coerceIn(0, 255),
+                (c.blue * 255).toInt().coerceIn(0, 255),
+                hsv
+            )
+            if (hsv[1] >= 0.08f) hsv[1] = hsv[1].coerceAtLeast(0.50f)
+            hsv[2] = hsv[2].coerceIn(0.40f, 0.78f)
+            Color(android.graphics.Color.HSVToColor(hsv))
+        }
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.linearGradient(
-                        listOf(accentColor.copy(alpha = 0.60f), subColor.copy(alpha = 0.42f), thirdColor.copy(alpha = 0.55f))
+                        listOf(caseColors[0].copy(alpha = 0.74f), caseColors[1].copy(alpha = 0.60f), caseColors[2].copy(alpha = 0.70f))
                     )
                 )
-                .border(1.dp, accentColor.copy(alpha = 0.85f), RoundedCornerShape(10.dp))
+                .border(1.5.dp, caseColors[0].copy(alpha = 0.95f), RoundedCornerShape(10.dp))
         )
         Canvas(
             modifier = Modifier
