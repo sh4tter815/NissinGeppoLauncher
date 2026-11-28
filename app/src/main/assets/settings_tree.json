@@ -1,5 +1,5 @@
 {
-  "version": 60,
+  "version": 61,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -1322,6 +1322,23 @@
       "steps": 23,
       "format": "hour"
     },
+    "iconStyle": {
+      "label": "アイコンのスタイル",
+      "desc": "テーマ（単色）では、各アプリの単色アイコンをアクセントカラーで描きます。対応していないアプリとカスタムアイコンは通常のままです",
+      "glyph": "palette",
+      "type": "choices",
+      "bind": "iconStyle",
+      "choices": [
+        {
+          "v": "standard",
+          "label": "標準"
+        },
+        {
+          "v": "themed",
+          "label": "テーマ（単色）"
+        }
+      ]
+    },
     "iconPack": {
       "label": "アイコンパック",
       "desc": "インストール済みアイコンパックのアイコンでアプリを表示します",
@@ -1595,6 +1612,9 @@
             },
             {
               "item": "appIconHidden"
+            },
+            {
+              "item": "iconStyle"
             },
             {
               "item": "iconPack"
