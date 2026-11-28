@@ -293,20 +293,31 @@ class AppRepository(private val context: Context) {
                     px[i] = android.graphics.Color.argb(a, 255, 255, 255)
                 }
             } else {
-                // ベタ塗りに近いアイコン: 形の内側（四辺から10%内側）の色を背景として柄を抜く
-                val inset = size / 10
-                val samples = mutableListOf<Int>()
-                for (f in listOf(0.25f, 0.5f, 0.75f)) {
-                    val p = (size * f).toInt()
-                    listOf(
-                        src.getPixel(p, inset), src.getPixel(p, size - 1 - inset),
-                        src.getPixel(inset, p), src.getPixel(size - 1 - inset, p)
-                    ).forEach { c -> if (android.graphics.Color.alpha(c) > 40) samples.add(c) }
+                // ベタ塗りに近いアイコン: 外周リングの最頻色を背景として柄を抜く。
+                // 単純平均だと背景が2色ある場合や柄の混入で背景色が濁り、背景まで柄と誤判定して失敗するため
+                val frame = size * 12 / 100
+                val buckets = HashMap<Int, IntArray>()
+                for (y in 0 until size) {
+                    for (x in 0 until size) {
+                        if (x >= frame && x < size - frame && y >= frame && y < size - frame) continue
+                        val p = px[y * size + x]
+                        if (android.graphics.Color.alpha(p) <= 40) continue
+                        val r = android.graphics.Color.red(p)
+                        val g = android.graphics.Color.green(p)
+                        val b = android.graphics.Color.blue(p)
+                        val key = ((r shr 4) shl 8) or ((g shr 4) shl 4) or (b shr 4)
+                        val acc = buckets.getOrPut(key) { intArrayOf(0, 0, 0, 0) }
+                        acc[0]++
+                        acc[1] += r
+                        acc[2] += g
+                        acc[3] += b
+                    }
                 }
-                if (samples.isEmpty()) return null
-                val br = samples.map { android.graphics.Color.red(it) }.average()
-                val bg = samples.map { android.graphics.Color.green(it) }.average()
-                val bb = samples.map { android.graphics.Color.blue(it) }.average()
+                val bestBucket = buckets.values.maxByOrNull { it[0] } ?: return null
+                if (bestBucket[0] == 0) return null
+                val br = bestBucket[1].toDouble() / bestBucket[0]
+                val bg = bestBucket[2].toDouble() / bestBucket[0]
+                val bb = bestBucket[3].toDouble() / bestBucket[0]
                 var glyphCount = 0
                 for (i in px.indices) {
                     val p = px[i]

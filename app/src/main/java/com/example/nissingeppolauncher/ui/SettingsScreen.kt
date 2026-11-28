@@ -679,6 +679,7 @@ fun SettingsScreen(
     var subHex by remember { mutableStateOf(repo.prefManager.getSubColorHex()) }
     var iconStyle by remember { mutableStateOf(repo.prefManager.getIconStyle()) }
     var themedForceMono by remember { mutableStateOf(repo.prefManager.isForcedMonoEnabled()) }
+    var iconRefreshing by remember { mutableStateOf(false) }
     var thirdHex by remember { mutableStateOf(repo.prefManager.getThirdColorHex()) }
     var matchArtwork by remember { mutableStateOf(repo.prefManager.isMatchArtworkColor()) }
     var matchWallpaper by remember { mutableStateOf(repo.prefManager.isMatchWallpaperColor()) }
@@ -1162,7 +1163,9 @@ fun SettingsScreen(
         "themedForceMono" to Pair({ themedForceMono }, { v: Boolean ->
             themedForceMono = v
             repo.prefManager.setForcedMonoEnabled(v)
+            iconRefreshing = true
             repo.refreshIconsThen {
+                iconRefreshing = false
                 onAppsUpdated()
                 onChanged()
                 android.widget.Toast.makeText(context, "アイコンを更新しました", android.widget.Toast.LENGTH_SHORT).show()
@@ -1190,7 +1193,9 @@ fun SettingsScreen(
         "iconStyle" to Pair({ iconStyle }, { v: String ->
             iconStyle = v
             repo.prefManager.setIconStyle(v)
+            iconRefreshing = true
             repo.refreshIconsThen {
+                iconRefreshing = false
                 onAppsUpdated()
                 onChanged()
                 android.widget.Toast.makeText(context, "アイコンを更新しました", android.widget.Toast.LENGTH_SHORT).show()
@@ -1992,6 +1997,14 @@ key("disc-choices-${currentItem.id}") {
             }
         }
 
+        if (iconRefreshing) {
+            BlurDialog(onDismissRequest = { }) {
+                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(36.dp).align(androidx.compose.ui.Alignment.CenterHorizontally))
+                Spacer(modifier = Modifier.height(12.dp))
+                Text("アイコンを更新しています…", color = Color.White, fontSize = 14.sp, modifier = Modifier.align(androidx.compose.ui.Alignment.CenterHorizontally))
+            }
+        }
+
         if (showIconPackDialog) {
                         BlurDialog(onDismissRequest = { showIconPackDialog = false }) {
                 Text("アイコンパック", color = Color.White)
@@ -2014,7 +2027,9 @@ key("disc-choices-${currentItem.id}") {
                                     iconPackPkg = pkg
                                     repo.prefManager.setIconPackPackage(pkg)
                                     showIconPackDialog = false
+                                    iconRefreshing = true
                                     repo.refreshIconsThen {
+                                        iconRefreshing = false
                                         onAppsUpdated()
                                         android.widget.Toast.makeText(context, "アイコンを更新しました", android.widget.Toast.LENGTH_SHORT).show()
                                     }
