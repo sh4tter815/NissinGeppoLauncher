@@ -233,7 +233,16 @@ class AppPreferenceManager(private val context: Context) {
     fun setAppDiscStepAngle(angle: Float) = prefs.edit().putFloat("app_disc_step_angle", angle).apply()
 
     // アクセントカラー (デフォルト: 赤 #E53935)
-    fun getAccentColorHex(): String = prefs.getString("accent_color_hex", "#E53935") ?: "#E53935"
+    fun getAccentColorHex(): String {
+        // アクセントカラーに「自動」が増えたことへの移行: 合わせる系を使っていた人は自動（空文字）に寄せる
+        if (!prefs.getBoolean("accent_auto_migrated", false)) {
+            if (isMatchArtworkColor() || isMatchWallpaperColor()) {
+                prefs.edit().putString("accent_color_hex", "").apply()
+            }
+            prefs.edit().putBoolean("accent_auto_migrated", true).apply()
+        }
+        return prefs.getString("accent_color_hex", "#E53935") ?: "#E53935"
+    }
     fun setAccentColorHex(hex: String) = prefs.edit().putString("accent_color_hex", hex).apply()
 
     /** サブ色の手動指定（空文字 = 自動） */

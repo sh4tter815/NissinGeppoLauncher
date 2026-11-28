@@ -1,5 +1,5 @@
 {
-  "version": 61,
+  "version": 62,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -173,11 +173,15 @@
     },
     "accentColor": {
       "label": "アクセントカラー",
-      "desc": "UIの差し色です（アートワーク連動がオンのときは自動の色が優先されます）",
+      "desc": "UIの差し色です。「自動」では再生中はアートワーク、普段は壁紙の色になります。固定色では常にその色です",
       "glyph": "palette",
       "type": "choices",
       "bind": "accentHex",
       "choices": [
+        {
+          "v": "",
+          "label": "自動"
+        },
         {
           "v": "#E53935",
           "label": "赤",
