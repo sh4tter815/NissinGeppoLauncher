@@ -36,7 +36,8 @@ data class AppInfo(
     val searchAliases: List<String> = emptyList(), // 検索可能な別名（複数保存可能）
     val isFavorite: Boolean = false,
     val isHidden: Boolean = false,
-    val iconIsMono: Boolean = false // テーマ（単色）アイコンとして読み込まれた印
+    val iconIsMono: Boolean = false, // テーマ（単色）アイコンとして読み込まれた印
+    val iconDominantColor: Int = 0 // 元アイコンから抽出した主要色（ARGB、0=なし）。単色表示の「アイコンの色」用
 )
 
 class AppRepository(private val context: Context) {
@@ -249,6 +250,76 @@ class AppRepository(private val context: Context) {
 
     private fun monoMarkerFile(packageName: String): File = File(iconDir(), "$packageName.mono")
 
+    private fun monoColorFile(packageName: String): File = File(iconDir(), "$packageName.color")
+
+    /** 元アイコンから主要色（ブランド色）を抽出する。色相バケットを彩度で重み付けし、最も強い色相の平均色を返す */
+    private fun extractDominantColor(bitmap: Bitmap): Int {
+        val size = 48
+        val small = if (bitmap.width != size || bitmap.height != size) Bitmap.createScaledBitmap(bitmap, size, size, true) else bitmap
+        val px = IntArray(size * size)
+        small.getPixels(px, 0, size, 0, 0, size, size)
+        val buckets = Array(12) { floatArrayOf(0f, 0f, 0f, 0f, 0f) } // score, r, g, b, count
+        var totalR = 0
+        var totalG = 0
+        var totalB = 0
+        var totalN = 0
+        val hsv = FloatArray(3)
+        for (p in px) {
+            if (android.graphics.Color.alpha(p) <= 40) continue
+            val r = android.graphics.Color.red(p)
+            val g = android.graphics.Color.green(p)
+            val b = android.graphics.Color.blue(p)
+            totalR += r
+            totalG += g
+            totalB += b
+            totalN++
+            android.graphics.Color.RGBToHSV(r, g, b, hsv)
+            if (hsv[1] < 0.20f || hsv[2] < 0.12f) continue
+            val idx = (hsv[0] / 30f).toInt().coerceIn(0, 11)
+            val bk = buckets[idx]
+            bk[0] += hsv[1]
+            bk[1] += r
+            bk[2] += g
+            bk[3] += b
+            bk[4] += 1f
+        }
+        if (totalN == 0) return 0
+        var best = -1
+        var bestScore = 0f
+        for (i in buckets.indices) {
+            if (buckets[i][0] > bestScore) {
+                bestScore = buckets[i][0]
+                best = i
+            }
+        }
+        val base = if (best >= 0 && buckets[best][4] > 0f) {
+            val bk = buckets[best]
+            intArrayOf((bk[1] / bk[4]).toInt(), (bk[2] / bk[4]).toInt(), (bk[3] / bk[4]).toInt())
+        } else {
+            intArrayOf(totalR / totalN, totalG / totalN, totalB / totalN)
+        }
+        android.graphics.Color.RGBToHSV(base[0], base[1], base[2], hsv)
+        hsv[2] = hsv[2].coerceIn(0.35f, 0.88f)
+        if (hsv[1] >= 0.08f) hsv[1] = hsv[1].coerceAtLeast(0.35f)
+        return android.graphics.Color.HSVToColor(255, hsv)
+    }
+
+    /** 単色アイコンとして読み込んだ際に、元アイコンの主要色を抽出して保存する */
+    private fun saveMonoDominantColor(packageName: String) {
+        try {
+            val drawable = context.packageManager.getApplicationIcon(packageName)
+            val raw = drawable.toBitmap()
+            val bmp = if (raw.width > 192 || raw.height > 192) Bitmap.createScaledBitmap(raw, 192, 192, true) else raw
+            val color = extractDominantColor(bmp)
+            if (color != 0) {
+                monoColorFile(packageName).writeText(color.toString())
+            } else {
+                monoColorFile(packageName).delete()
+            }
+        } catch (_: Exception) {
+        }
+    }
+
     /** テーマ（単色）用: アダプティブアイコンの単色レイヤーを白いグリフとして描く（Android 13+） */
     private fun loadMonochromeIcon(packageName: String): Bitmap? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
@@ -354,11 +425,13 @@ class AppRepository(private val context: Context) {
         if (prefManager.isThemedIconsEnabled()) {
             loadMonochromeIcon(packageName)?.let { bmp ->
                 try { monoMarkerFile(packageName).createNewFile() } catch (_: Exception) {}
+                saveMonoDominantColor(packageName)
                 return bmp
             }
             if (prefManager.isForcedMonoEnabled()) {
                 loadForcedMonochromeIcon(packageName)?.let { bmp ->
                     try { monoMarkerFile(packageName).createNewFile() } catch (_: Exception) {}
+                    saveMonoDominantColor(packageName)
                     return bmp
                 }
             }
@@ -431,7 +504,13 @@ class AppRepository(private val context: Context) {
                 searchAliases = searchAliases,
                 isFavorite = isFavorite,
                 isHidden = isHidden,
-                iconIsMono = iconBitmapRaw != null && prefManager.isThemedIconsEnabled() && monoMarkerFile(rec.packageName).exists()
+                iconIsMono = iconBitmapRaw != null && prefManager.isThemedIconsEnabled() && monoMarkerFile(rec.packageName).exists(),
+                iconDominantColor = try {
+                    val f = monoColorFile(rec.packageName)
+                    if (f.exists()) f.readText().trim().toIntOrNull() ?: 0 else 0
+                } catch (_: Exception) {
+                    0
+                }
             )
         }
 

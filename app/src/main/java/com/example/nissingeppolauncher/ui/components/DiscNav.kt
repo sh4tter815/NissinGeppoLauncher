@@ -1469,17 +1469,19 @@ fun DiscAppItem(
                         )
                     }
                     if (app.iconIsMono) {
+                        val bgHere = if (monoBgMode == "icon" && app.iconDominantColor != 0) Color(app.iconDominantColor) else monoBg
+                        val fgHere = if (monoFgMode == "icon" && app.iconDominantColor != 0) Color(app.iconDominantColor) else monoFg
                         Box(
                             modifier = Modifier
                                 .size((iconSizeDp * 1.125f).coerceAtLeast(12f).dp)
-                                .background(monoBg.copy(alpha = 0.30f), RoundedCornerShape(iconCornerPercent)),
+                                .background(bgHere.copy(alpha = 0.30f), RoundedCornerShape(iconCornerPercent)),
                             contentAlignment = Alignment.Center
                         ) {
                             Image(
                                 bitmap = iconBitmap,
                                 contentDescription = null,
                                 modifier = Modifier.size((iconSizeDp * 0.86f).coerceAtLeast(9f).dp),
-                                colorFilter = ColorFilter.tint(monoFg)
+                                colorFilter = ColorFilter.tint(fgHere)
                             )
                         }
                     } else {
@@ -1640,10 +1642,12 @@ fun DiscFolderItem(
         when (entry) {
             is FolderDiscEntry.Folder -> {
                 Box(contentAlignment = Alignment.Center) {
-                    WhiteFolderIcon(size = glyphSize, color = Color.White)
+                    // フォルダの形の背景（背景色・半透明）＋前景色の枠とグリフ
+                    FilledFolderIcon(size = glyphSize, color = monoBg.copy(alpha = 0.30f))
+                    WhiteFolderIcon(size = glyphSize, color = monoFg)
                     if (entry.iconKind.isNotBlank()) {
                         Box(modifier = Modifier.offset(y = (iconSizeDp * 0.10f).dp)) {
-                            DiscGlyph(entry.iconKind, Color.White, sizeDp = iconSizeDp * 0.42f)
+                            DiscGlyph(entry.iconKind, monoFg, sizeDp = iconSizeDp * 0.42f)
                         }
                     }
                 }
@@ -1665,17 +1669,19 @@ fun DiscFolderItem(
                         )
                     }
                     if (entry.app.iconIsMono) {
+                        val bgHere = if (monoBgMode == "icon" && entry.app.iconDominantColor != 0) Color(entry.app.iconDominantColor) else monoBg
+                        val fgHere = if (monoFgMode == "icon" && entry.app.iconDominantColor != 0) Color(entry.app.iconDominantColor) else monoFg
                         Box(
                             modifier = Modifier
                                 .size((iconSizeDp * 1.125f).coerceAtLeast(12f).dp)
-                                .background(monoBg.copy(alpha = 0.30f), RoundedCornerShape(iconCornerPercent)),
+                                .background(bgHere.copy(alpha = 0.30f), RoundedCornerShape(iconCornerPercent)),
                             contentAlignment = Alignment.Center
                         ) {
                             Image(
                                 bitmap = iconBitmap,
                                 contentDescription = null,
                                 modifier = Modifier.size((iconSizeDp * 0.86f).coerceAtLeast(9f).dp),
-                                colorFilter = ColorFilter.tint(monoFg)
+                                colorFilter = ColorFilter.tint(fgHere)
                             )
                         }
                     } else {

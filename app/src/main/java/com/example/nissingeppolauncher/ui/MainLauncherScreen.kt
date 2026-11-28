@@ -1152,7 +1152,9 @@ fun MainLauncherScreen() {
             (if (folderPath.isNotEmpty()) listOf(Pair("__BACK", "戻る")) else emptyList())
     }
     // フォルダの左円も共通部品 DiscWheel で描く（設定・索引と仕様を統一）
-    val folderEntries = remember(folderItemsWithNew, folderIcons) {
+    val monoBgResolved = when (monoBgMode) { "primary" -> accentColor; "sub" -> subColor; "third" -> thirdColor; "white" -> Color.White; "black" -> Color.Black; else -> parseHexColor(monoBgMode, accentColor) }
+    val monoFgResolved = when (monoFgMode) { "primary" -> accentColor; "sub" -> subColor; "third" -> thirdColor; "white" -> Color.White; "black" -> Color.Black; else -> parseHexColor(monoFgMode, Color.White) }
+    val folderEntries = remember(folderItemsWithNew, folderIcons, monoBgResolved, monoFgResolved) {
         folderItemsWithNew.map { (fid, fname) ->
             when (fid) {
                 "NEW_FOLDER" -> DiscEntry(id = fid, label = fname, icon = { WhitePlusIcon(size = 36.dp, color = Color.White) })
@@ -1160,10 +1162,11 @@ fun MainLauncherScreen() {
                 else -> DiscEntry(id = fid, label = fname, icon = {
                     val kind = folderIcons[fid] ?: ""
                     Box(contentAlignment = Alignment.Center) {
-                        WhiteFolderIcon(size = 36.dp, color = Color.White)
+                        FilledFolderIcon(size = 36.dp, color = monoBgResolved.copy(alpha = 0.30f))
+                        WhiteFolderIcon(size = 36.dp, color = monoFgResolved)
                         if (kind.isNotBlank()) {
                             Box(modifier = Modifier.offset(y = 4.dp)) {
-                                DiscGlyph(kind, Color.White, sizeDp = 15f)
+                                DiscGlyph(kind, monoFgResolved, sizeDp = 15f)
                             }
                         }
                     }
