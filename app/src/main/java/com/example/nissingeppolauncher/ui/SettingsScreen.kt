@@ -1181,8 +1181,9 @@ fun SettingsScreen(
             settingsScope.launch {
                 repo.refreshAllIcons()
                 onAppsUpdated()
+                onChanged()
+                android.widget.Toast.makeText(context, "アイコンを更新しました", android.widget.Toast.LENGTH_SHORT).show()
             }
-            onChanged()
         }),
         "fontChoice" to Pair({ currentFontChoice }, { v: String -> currentFontChoice = v; repo.prefManager.setFontChoice(v); useCustomFont = v == "custom"; repo.prefManager.setUseCustomFont(v == "custom"); onChanged() }),
         "lyricsDisplayMode" to Pair({ lyricsDisplayMode }, { v: String -> lyricsDisplayMode = v; repo.prefManager.setLyricsDisplayMode(v); onChanged() }),
