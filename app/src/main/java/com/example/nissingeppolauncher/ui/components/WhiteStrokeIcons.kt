@@ -11,6 +11,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -74,6 +75,15 @@ fun WhiteHamburgerIcon(size: Dp = 22.dp, color: Color = Color.White) {
 @Composable
 fun WhiteFolderIcon(size: Dp = 22.dp, color: Color = Color.White) {
     LucideIcon(LucideFolder, size, color)
+}
+
+/** フォルダの形そのものを塗りつぶす版（単色アイコンの背景色でフォルダの形の背景を作る用） */
+@Composable
+fun FilledFolderIcon(size: Dp = 22.dp, color: Color = Color.White) {
+    Canvas(modifier = Modifier.size(size)) {
+        val sc = this.size.minDimension / 24f
+        for (d in LucideFolder.paths) drawPath(lucidePath(d, sc), color = color, style = Fill)
+    }
 }
 
 @Composable
