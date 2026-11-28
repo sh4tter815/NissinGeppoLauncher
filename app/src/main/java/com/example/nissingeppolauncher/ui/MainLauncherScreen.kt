@@ -146,7 +146,8 @@ fun MainLauncherScreen() {
     // サブ色の手動指定（空 = 自動なので null）
     val manualSubColor = remember(subHex) { if (subHex.isNotBlank()) parseHexColor(subHex) else null }
     var thirdHex by remember { mutableStateOf(repo.prefManager.getThirdColorHex()) }
-    var monoColorMode by remember { mutableStateOf(repo.prefManager.getMonoColorMode()) }
+    var monoBgMode by remember { mutableStateOf(repo.prefManager.getMonoBgMode()) }
+    var monoFgMode by remember { mutableStateOf(repo.prefManager.getMonoFgMode()) }
     val manualThirdColor = remember(thirdHex) { if (thirdHex.isNotBlank()) parseHexColor(thirdHex) else null }
 
     // アートワーク連動カラー: 設定でONのとき、再生中セッションのアートワークから
@@ -841,7 +842,8 @@ fun MainLauncherScreen() {
         accentHex = repo.prefManager.getAccentColorHex()
         subHex = repo.prefManager.getSubColorHex()
         thirdHex = repo.prefManager.getThirdColorHex()
-        monoColorMode = repo.prefManager.getMonoColorMode()
+        monoBgMode = repo.prefManager.getMonoBgMode()
+        monoFgMode = repo.prefManager.getMonoFgMode()
         matchArtwork = repo.prefManager.isMatchArtworkColor()
         matchWallpaper = repo.prefManager.isMatchWallpaperColor()
         bgMode = repo.prefManager.getBackgroundMode()
@@ -1529,7 +1531,8 @@ fun MainLauncherScreen() {
                                 accentHex = repo.prefManager.getAccentColorHex()
         subHex = repo.prefManager.getSubColorHex()
         thirdHex = repo.prefManager.getThirdColorHex()
-        monoColorMode = repo.prefManager.getMonoColorMode()
+        monoBgMode = repo.prefManager.getMonoBgMode()
+        monoFgMode = repo.prefManager.getMonoFgMode()
                                 customBackgroundPath = repo.prefManager.getCustomBackgroundPath()
                                 backgroundUpdateKey = System.currentTimeMillis()
                                 customFontPath = repo.prefManager.getCustomFontPath()
@@ -1875,7 +1878,9 @@ fun MainLauncherScreen() {
                                 letterSpacingSp = appDiscLetterSpacing,
                                 accentColor = accentColor,
                                 subColor = subColor,
-                                monoColorMode = monoColorMode,
+                                thirdColor = thirdColor,
+                                monoBgMode = monoBgMode,
+                                monoFgMode = monoFgMode,
                                 isFocused = isSelected,
                                 iconTilt3d = disc3d,
                                 onFolderClick = { fid ->
@@ -1980,7 +1985,9 @@ fun MainLauncherScreen() {
                                 letterSpacingSp = appDiscLetterSpacing,
                                 accentColor = accentColor,
                                 subColor = subColor,
-                                monoColorMode = monoColorMode,
+                                thirdColor = thirdColor,
+                                monoBgMode = monoBgMode,
+                                monoFgMode = monoFgMode,
                                 selectedPackages = null,
                                 iconTilt3d = disc3d,
                                 rainbowGlow = dopagakiMode,
@@ -2170,7 +2177,9 @@ fun MainLauncherScreen() {
                                 letterSpacingSp = appDiscLetterSpacing,
                                 accentColor = accentColor,
                                 subColor = subColor,
-                                monoColorMode = monoColorMode,
+                                thirdColor = thirdColor,
+                                monoBgMode = monoBgMode,
+                                monoFgMode = monoFgMode,
                                 selectedPackages = null,
                                 iconTilt3d = disc3d,
                                 rainbowGlow = dopagakiMode,
@@ -2344,7 +2353,9 @@ fun MainLauncherScreen() {
                                     letterSpacingSp = appDiscLetterSpacing,
                                     accentColor = accentColor,
                                     subColor = subColor,
-                                    monoColorMode = monoColorMode,
+                                    thirdColor = thirdColor,
+                                    monoBgMode = monoBgMode,
+                                    monoFgMode = monoFgMode,
                                     selectedPackages = editingSelectedPackages,
                                     iconTilt3d = disc3d,
                                     rainbowGlow = dopagakiMode,
@@ -2381,7 +2392,9 @@ fun MainLauncherScreen() {
                                     letterSpacingSp = appDiscLetterSpacing,
                                     accentColor = accentColor,
                                     subColor = subColor,
-                                    monoColorMode = monoColorMode,
+                                    thirdColor = thirdColor,
+                                    monoBgMode = monoBgMode,
+                                    monoFgMode = monoFgMode,
                                     isFocused = isSelected,
                                     iconTilt3d = disc3d,
                                     onFolderClick = { fid ->

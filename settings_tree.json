@@ -1,5 +1,5 @@
 {
-  "version": 65,
+  "version": 66,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -172,7 +172,7 @@
       "bind": "matchWallpaper"
     },
     "accentColor": {
-      "label": "アクセントカラー",
+      "label": "第1カラー",
       "desc": "UIの差し色です。「自動」では再生中はアートワーク、普段は壁紙の色になります。固定色では常にその色です",
       "glyph": "palette",
       "type": "choices",
@@ -220,7 +220,7 @@
       ]
     },
     "subColor": {
-          "label": "サブカラー",
+          "label": "第2カラー",
           "desc": "索引・グループ文字・ケースの差し色などに使う2色目です。「自動」ではアートワークや壁紙から決まります",
           "glyph": "palette",
           "type": "choices",
@@ -1391,24 +1391,131 @@
         }
       ]
     },
-    "monoColor": {
-      "label": "単色アイコンの色",
-      "desc": "テーマ（単色）アイコンの色を選びます",
+    "monoBgColor": {
+      "label": "単色アイコンの背景色",
+      "desc": "単色アイコンの後ろの色です。どれを選んでも半透明で表示されます",
       "glyph": "palette",
       "type": "choices",
-      "bind": "monoColorMode",
+      "bind": "monoBgMode",
       "choices": [
         {
           "v": "primary",
-          "label": "一次色"
+          "label": "第1カラー"
         },
         {
           "v": "sub",
-          "label": "サブ色"
+          "label": "第2カラー"
+        },
+        {
+          "v": "third",
+          "label": "第3カラー"
         },
         {
           "v": "white",
           "label": "白"
+        },
+        {
+          "v": "black",
+          "label": "黒"
+        },
+        {
+          "v": "#E53935",
+          "label": "赤",
+          "colorHex": "#E53935"
+        },
+        {
+          "v": "#88C0FF",
+          "label": "青",
+          "colorHex": "#88C0FF"
+        },
+        {
+          "v": "#4CAF50",
+          "label": "緑",
+          "colorHex": "#4CAF50"
+        },
+        {
+          "v": "#AB47BC",
+          "label": "紫",
+          "colorHex": "#AB47BC"
+        },
+        {
+          "v": "#FF9800",
+          "label": "オレンジ",
+          "colorHex": "#FF9800"
+        },
+        {
+          "v": "#00E5FF",
+          "label": "水色",
+          "colorHex": "#00E5FF"
+        },
+        {
+          "v": "#FF4081",
+          "label": "ピンク",
+          "colorHex": "#FF4081"
+        }
+      ]
+    },
+    "monoFgColor": {
+      "label": "単色アイコンの前景色",
+      "desc": "単色アイコンの柄の色です",
+      "glyph": "palette",
+      "type": "choices",
+      "bind": "monoFgMode",
+      "choices": [
+        {
+          "v": "primary",
+          "label": "第1カラー"
+        },
+        {
+          "v": "sub",
+          "label": "第2カラー"
+        },
+        {
+          "v": "third",
+          "label": "第3カラー"
+        },
+        {
+          "v": "white",
+          "label": "白"
+        },
+        {
+          "v": "black",
+          "label": "黒"
+        },
+        {
+          "v": "#E53935",
+          "label": "赤",
+          "colorHex": "#E53935"
+        },
+        {
+          "v": "#88C0FF",
+          "label": "青",
+          "colorHex": "#88C0FF"
+        },
+        {
+          "v": "#4CAF50",
+          "label": "緑",
+          "colorHex": "#4CAF50"
+        },
+        {
+          "v": "#AB47BC",
+          "label": "紫",
+          "colorHex": "#AB47BC"
+        },
+        {
+          "v": "#FF9800",
+          "label": "オレンジ",
+          "colorHex": "#FF9800"
+        },
+        {
+          "v": "#00E5FF",
+          "label": "水色",
+          "colorHex": "#00E5FF"
+        },
+        {
+          "v": "#FF4081",
+          "label": "ピンク",
+          "colorHex": "#FF4081"
         }
       ]
     },
@@ -1703,7 +1810,10 @@
               "item": "themedForceMono"
             },
             {
-              "item": "monoColor"
+              "item": "monoBgColor"
+            },
+            {
+              "item": "monoFgColor"
             },
             {
               "item": "iconPack"

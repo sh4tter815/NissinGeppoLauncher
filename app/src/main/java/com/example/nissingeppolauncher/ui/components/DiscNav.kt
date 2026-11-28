@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalContext
 import com.example.nissingeppolauncher.data.AppInfo
 import com.example.nissingeppolauncher.data.AppPreferenceManager
+import com.example.nissingeppolauncher.ui.parseHexColor
 import kotlin.math.abs
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.background
@@ -1396,7 +1397,9 @@ fun DiscAppItem(
     letterSpacingSp: Float,
     accentColor: Color,
     subColor: Color = accentColor,
-    monoColorMode: String = "primary",
+    thirdColor: Color = accentColor,
+    monoBgMode: String = "primary",
+    monoFgMode: String = "white",
     selectedPackages: Set<String>?,
     iconTilt3d: Boolean,
     rainbowGlow: Boolean = false,
@@ -1407,7 +1410,9 @@ fun DiscAppItem(
 ) {
     val effAccent = if (rainbowGlow) dopaRainbowColor(seed = 9) else accentColor
     val effSub = if (rainbowGlow) dopaRainbowColor(seed = 23) else subColor
-    val monoColor = when (monoColorMode) { "sub" -> effSub; "white" -> Color.White; else -> effAccent }
+    val effThird = if (rainbowGlow) dopaRainbowColor(seed = 47) else thirdColor
+    val monoBg = when (monoBgMode) { "primary" -> effAccent; "sub" -> effSub; "third" -> effThird; "white" -> Color.White; "black" -> Color.Black; else -> parseHexColor(monoBgMode, effAccent) }
+    val monoFg = when (monoFgMode) { "primary" -> effAccent; "sub" -> effSub; "third" -> effThird; "white" -> Color.White; "black" -> Color.Black; else -> parseHexColor(monoFgMode, Color.White) }
     val outerAppRadiusDp = discRadiusDp + 8f
     val innerIconRadiusDp = discRadiusDp - 18f
     when (item) {
@@ -1467,14 +1472,14 @@ fun DiscAppItem(
                         Box(
                             modifier = Modifier
                                 .size((iconSizeDp * 1.125f).coerceAtLeast(12f).dp)
-                                .background(monoColor.copy(alpha = 0.30f), RoundedCornerShape(iconCornerPercent)),
+                                .background(monoBg.copy(alpha = 0.30f), RoundedCornerShape(iconCornerPercent)),
                             contentAlignment = Alignment.Center
                         ) {
                             Image(
                                 bitmap = iconBitmap,
                                 contentDescription = null,
                                 modifier = Modifier.size((iconSizeDp * 0.86f).coerceAtLeast(9f).dp),
-                                colorFilter = ColorFilter.tint(monoColor)
+                                colorFilter = ColorFilter.tint(monoFg)
                             )
                         }
                     } else {
@@ -1577,7 +1582,9 @@ fun DiscFolderItem(
     letterSpacingSp: Float,
     accentColor: Color,
     subColor: Color = accentColor,
-    monoColorMode: String = "primary",
+    thirdColor: Color = accentColor,
+    monoBgMode: String = "primary",
+    monoFgMode: String = "white",
     isFocused: Boolean,
     iconTilt3d: Boolean,
     onFolderClick: (String) -> Unit,
@@ -1589,7 +1596,8 @@ fun DiscFolderItem(
     onFolderLongClick: (String) -> Unit = {},
     onBackClick: () -> Unit = {}
 ) {
-    val monoColor = when (monoColorMode) { "sub" -> subColor; "white" -> Color.White; else -> accentColor }
+    val monoBg = when (monoBgMode) { "primary" -> accentColor; "sub" -> subColor; "third" -> thirdColor; "white" -> Color.White; "black" -> Color.Black; else -> parseHexColor(monoBgMode, accentColor) }
+    val monoFg = when (monoFgMode) { "primary" -> accentColor; "sub" -> subColor; "third" -> thirdColor; "white" -> Color.White; "black" -> Color.Black; else -> parseHexColor(monoFgMode, Color.White) }
     val outerAppRadiusDp = discRadiusDp + 8f
     val innerIconRadiusDp = discRadiusDp - 18f
     val appXDp = discCenterXDp + outerAppRadiusDp * cos(rad)
@@ -1660,14 +1668,14 @@ fun DiscFolderItem(
                         Box(
                             modifier = Modifier
                                 .size((iconSizeDp * 1.125f).coerceAtLeast(12f).dp)
-                                .background(monoColor.copy(alpha = 0.30f), RoundedCornerShape(iconCornerPercent)),
+                                .background(monoBg.copy(alpha = 0.30f), RoundedCornerShape(iconCornerPercent)),
                             contentAlignment = Alignment.Center
                         ) {
                             Image(
                                 bitmap = iconBitmap,
                                 contentDescription = null,
                                 modifier = Modifier.size((iconSizeDp * 0.86f).coerceAtLeast(9f).dp),
-                                colorFilter = ColorFilter.tint(monoColor)
+                                colorFilter = ColorFilter.tint(monoFg)
                             )
                         }
                     } else {

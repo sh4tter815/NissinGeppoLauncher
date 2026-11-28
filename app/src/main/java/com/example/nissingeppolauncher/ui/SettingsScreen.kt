@@ -680,7 +680,8 @@ fun SettingsScreen(
     var iconStyle by remember { mutableStateOf(repo.prefManager.getIconStyle()) }
     var themedForceMono by remember { mutableStateOf(repo.prefManager.isForcedMonoEnabled()) }
     var iconRefreshing by remember { mutableStateOf(false) }
-    var monoColorMode by remember { mutableStateOf(repo.prefManager.getMonoColorMode()) }
+    var monoBgMode by remember { mutableStateOf(repo.prefManager.getMonoBgMode()) }
+    var monoFgMode by remember { mutableStateOf(repo.prefManager.getMonoFgMode()) }
     var thirdHex by remember { mutableStateOf(repo.prefManager.getThirdColorHex()) }
     var matchArtwork by remember { mutableStateOf(repo.prefManager.isMatchArtworkColor()) }
     var matchWallpaper by remember { mutableStateOf(repo.prefManager.isMatchWallpaperColor()) }
@@ -1204,7 +1205,8 @@ fun SettingsScreen(
                 android.widget.Toast.makeText(context, "アイコンを更新しました", android.widget.Toast.LENGTH_SHORT).show()
             }
         }),
-        "monoColorMode" to Pair({ monoColorMode }, { v: String -> monoColorMode = v; repo.prefManager.setMonoColorMode(v); onChanged() }),
+        "monoBgMode" to Pair({ monoBgMode }, { v: String -> monoBgMode = v; repo.prefManager.setMonoBgMode(v); onChanged() }),
+        "monoFgMode" to Pair({ monoFgMode }, { v: String -> monoFgMode = v; repo.prefManager.setMonoFgMode(v); onChanged() }),
         "fontChoice" to Pair({ currentFontChoice }, { v: String -> currentFontChoice = v; repo.prefManager.setFontChoice(v); useCustomFont = v == "custom"; repo.prefManager.setUseCustomFont(v == "custom"); onChanged() }),
         "lyricsDisplayMode" to Pair({ lyricsDisplayMode }, { v: String -> lyricsDisplayMode = v; repo.prefManager.setLyricsDisplayMode(v); onChanged() }),
         "lyricsPvFont" to Pair({ lyricsPvFont }, { v: String -> lyricsPvFont = v; repo.prefManager.setLyricsPvFont(v); onChanged() }),
