@@ -1461,11 +1461,27 @@ fun DiscAppItem(
                             colorFilter = ColorFilter.tint(Color.Black.copy(alpha = 0.38f), BlendMode.SrcIn)
                         )
                     }
-                    Image(
-                        bitmap = iconBitmap,
-                        contentDescription = null,
-                        modifier = Modifier.size((iconSizeDp * 1.125f).coerceAtLeast(12f).dp).clip(RoundedCornerShape(iconCornerPercent))
-                    )
+                    if (app.iconIsMono) {
+                        Box(
+                            modifier = Modifier
+                                .size((iconSizeDp * 1.125f).coerceAtLeast(12f).dp)
+                                .background(effAccent.copy(alpha = 0.30f), RoundedCornerShape(iconCornerPercent)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                bitmap = iconBitmap,
+                                contentDescription = null,
+                                modifier = Modifier.size((iconSizeDp * 1.125f).coerceAtLeast(12f).dp),
+                                colorFilter = ColorFilter.tint(effAccent)
+                            )
+                        }
+                    } else {
+                        Image(
+                            bitmap = iconBitmap,
+                            contentDescription = null,
+                            modifier = Modifier.size((iconSizeDp * 1.125f).coerceAtLeast(12f).dp).clip(RoundedCornerShape(iconCornerPercent))
+                        )
+                    }
                     // 通知バッジ（アイコン右上）
                     if (item.badge > 0) {
                         Box(
@@ -1635,11 +1651,27 @@ fun DiscFolderItem(
                             colorFilter = ColorFilter.tint(Color.Black.copy(alpha = 0.38f), BlendMode.SrcIn)
                         )
                     }
-                    Image(
-                        bitmap = iconBitmap,
-                        contentDescription = null,
-                        modifier = Modifier.size((iconSizeDp * 1.125f).coerceAtLeast(12f).dp).clip(RoundedCornerShape(iconCornerPercent))
-                    )
+                    if (entry.app.iconIsMono) {
+                        Box(
+                            modifier = Modifier
+                                .size((iconSizeDp * 1.125f).coerceAtLeast(12f).dp)
+                                .background(accentColor.copy(alpha = 0.30f), RoundedCornerShape(iconCornerPercent)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                bitmap = iconBitmap,
+                                contentDescription = null,
+                                modifier = Modifier.size((iconSizeDp * 1.125f).coerceAtLeast(12f).dp),
+                                colorFilter = ColorFilter.tint(accentColor)
+                            )
+                        }
+                    } else {
+                        Image(
+                            bitmap = iconBitmap,
+                            contentDescription = null,
+                            modifier = Modifier.size((iconSizeDp * 1.125f).coerceAtLeast(12f).dp).clip(RoundedCornerShape(iconCornerPercent))
+                        )
+                    }
                 }
             }
         }
