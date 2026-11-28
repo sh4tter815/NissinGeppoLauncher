@@ -517,6 +517,10 @@ class AppPreferenceManager(private val context: Context) {
     fun saveSettingsNavPath(path: List<String>) = prefs.edit().putString("settings_nav_path", path.joinToString(",")).apply()
     fun getAppListIndexChar(): String? = prefs.getString("app_list_index_char", null)
     fun getIconPackPackage(): String? = prefs.getString("icon_pack_package", null)
+
+    fun getIconStyle(): String = prefs.getString("icon_style", "standard") ?: "standard"
+    fun setIconStyle(v: String) = prefs.edit().putString("icon_style", v).apply()
+    fun isThemedIconsEnabled(): Boolean = getIconStyle() == "themed"
     fun setIconPackPackage(v: String?) = prefs.edit().putString("icon_pack_package", v).apply()
     fun getAppListFocusPackage(): String? = prefs.getString("app_list_focus_package", null)
     fun saveAppListFocusPackage(v: String) = prefs.edit().putString("app_list_focus_package", v).apply()
