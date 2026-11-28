@@ -32,7 +32,8 @@ data class AppInfo(
     val discKana: String = "＃", // 索引の文字単位グループ（あいうえおモード用。濁点・小文字は基本文字に寄せる）
     val searchAliases: List<String> = emptyList(), // 検索可能な別名（複数保存可能）
     val isFavorite: Boolean = false,
-    val isHidden: Boolean = false
+    val isHidden: Boolean = false,
+    val iconIsMono: Boolean = false // テーマ（単色）アイコンとして読み込まれた印
 )
 
 class AppRepository(private val context: Context) {
@@ -232,12 +233,43 @@ class AppRepository(private val context: Context) {
         cachedApps = null
     }
 
+    private fun monoMarkerFile(packageName: String): File = File(iconDir(), "$packageName.mono")
+
+    /** テーマ（単色）用: アダプティブアイコンの単色レイヤーを白いグリフとして描く（Android 13+） */
+    private fun loadMonochromeIcon(packageName: String): Bitmap? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return null
+        return try {
+            val drawable = context.packageManager.getApplicationIcon(packageName)
+            if (drawable !is android.graphics.drawable.AdaptiveIconDrawable) return null
+            val mono = drawable.monochrome ?: return null
+            val size = 192
+            val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+            val canvas = android.graphics.Canvas(bmp)
+            mono.setTint(android.graphics.Color.WHITE)
+            // 前景レイヤーは表示領域より一回り大きく設計されているため、広げて描いて切り抜き範囲を通常アイコンに揃える
+            val over = size / 4
+            mono.setBounds(-over, -over, size + over, size + over)
+            mono.draw(canvas)
+            bmp
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     private fun loadIconBitmapFromPackage(packageName: String): Bitmap? {
+        // 単色アイコンの印は読み直すたびに付け直す
+        try { monoMarkerFile(packageName).delete() } catch (_: Exception) {}
         val customFile = customIconFile(packageName)
         if (customFile.exists()) {
             try {
                 android.graphics.BitmapFactory.decodeFile(customFile.absolutePath)?.let { return it }
             } catch (_: Exception) {}
+        }
+        if (prefManager.isThemedIconsEnabled()) {
+            loadMonochromeIcon(packageName)?.let { bmp ->
+                try { monoMarkerFile(packageName).createNewFile() } catch (_: Exception) {}
+                return bmp
+            }
         }
         val packPkg = prefManager.getIconPackPackage()
         if (packPkg != null) {
@@ -306,7 +338,8 @@ class AppRepository(private val context: Context) {
                 discKana = japaneseKana,
                 searchAliases = searchAliases,
                 isFavorite = isFavorite,
-                isHidden = isHidden
+                isHidden = isHidden,
+                iconIsMono = iconBitmapRaw != null && prefManager.isThemedIconsEnabled() && monoMarkerFile(rec.packageName).exists()
             )
         }
 
