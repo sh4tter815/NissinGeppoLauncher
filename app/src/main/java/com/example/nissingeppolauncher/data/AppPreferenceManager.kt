@@ -536,6 +536,12 @@ class AppPreferenceManager(private val context: Context) {
     fun setForcedMonoEnabled(v: Boolean) = prefs.edit().putBoolean("themed_force_mono", v).apply()
     fun getMonoColorMode(): String = prefs.getString("mono_color_mode", "primary") ?: "primary"
     fun setMonoColorMode(v: String) = prefs.edit().putString("mono_color_mode", v).apply()
+    // 単色アイコンの背景色: 未設定なら旧「単色アイコンの色」を引き継ぐ（既定は第1カラー）
+    fun getMonoBgMode(): String = prefs.getString("mono_bg_mode", null) ?: getMonoColorMode()
+    fun setMonoBgMode(v: String) = prefs.edit().putString("mono_bg_mode", v).apply()
+    // 単色アイコンの前景色: 既定は白（背景と同色だと柄が見えなくなるため）
+    fun getMonoFgMode(): String = prefs.getString("mono_fg_mode", null) ?: "white"
+    fun setMonoFgMode(v: String) = prefs.edit().putString("mono_fg_mode", v).apply()
     fun setIconPackPackage(v: String?) = prefs.edit().putString("icon_pack_package", v).apply()
     fun getAppListFocusPackage(): String? = prefs.getString("app_list_focus_package", null)
     fun saveAppListFocusPackage(v: String) = prefs.edit().putString("app_list_focus_package", v).apply()
