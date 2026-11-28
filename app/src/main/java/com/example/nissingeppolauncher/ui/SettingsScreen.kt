@@ -680,6 +680,7 @@ fun SettingsScreen(
     var iconStyle by remember { mutableStateOf(repo.prefManager.getIconStyle()) }
     var themedForceMono by remember { mutableStateOf(repo.prefManager.isForcedMonoEnabled()) }
     var iconRefreshing by remember { mutableStateOf(false) }
+    var monoColorMode by remember { mutableStateOf(repo.prefManager.getMonoColorMode()) }
     var thirdHex by remember { mutableStateOf(repo.prefManager.getThirdColorHex()) }
     var matchArtwork by remember { mutableStateOf(repo.prefManager.isMatchArtworkColor()) }
     var matchWallpaper by remember { mutableStateOf(repo.prefManager.isMatchWallpaperColor()) }
@@ -739,10 +740,12 @@ fun SettingsScreen(
     var powerSaveMode by remember { mutableStateOf(repo.prefManager.getPowerSaveMode()) }
     var cacheSizes by remember { mutableStateOf<Pair<Long, Long>?>(null) }
     var iconPackPkg by remember { mutableStateOf(repo.prefManager.getIconPackPackage()) }
-    var showIconPackDialog by remember { mutableStateOf(false) }
     var showFavSortDialog by remember { mutableStateOf(false) }
     var favSortList by remember { mutableStateOf<List<String>>(emptyList()) }
     var iconPackList by remember { mutableStateOf<List<IconPackManager.PackInfo>>(emptyList()) }
+    LaunchedEffect(Unit) {
+        iconPackList = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { IconPackManager.listPacks(context) }
+    }
     var showCacheDialog by remember { mutableStateOf(false) }
     var powerSaveChargingExempt by remember { mutableStateOf(repo.prefManager.isPowerSaveChargingExempt()) }
     var powerSaveBatteryThreshold by remember { mutableStateOf(repo.prefManager.getPowerSaveBatteryThreshold() / 100f) }
@@ -1201,6 +1204,7 @@ fun SettingsScreen(
                 android.widget.Toast.makeText(context, "アイコンを更新しました", android.widget.Toast.LENGTH_SHORT).show()
             }
         }),
+        "monoColorMode" to Pair({ monoColorMode }, { v: String -> monoColorMode = v; repo.prefManager.setMonoColorMode(v); onChanged() }),
         "fontChoice" to Pair({ currentFontChoice }, { v: String -> currentFontChoice = v; repo.prefManager.setFontChoice(v); useCustomFont = v == "custom"; repo.prefManager.setUseCustomFont(v == "custom"); onChanged() }),
         "lyricsDisplayMode" to Pair({ lyricsDisplayMode }, { v: String -> lyricsDisplayMode = v; repo.prefManager.setLyricsDisplayMode(v); onChanged() }),
         "lyricsPvFont" to Pair({ lyricsPvFont }, { v: String -> lyricsPvFont = v; repo.prefManager.setLyricsPvFont(v); onChanged() }),
@@ -1368,14 +1372,23 @@ fun SettingsScreen(
             )
         },
         "iconPack" to { def: SettingItemDef ->
+            val selectPack: (String?) -> Unit = { pkg ->
+                iconPackPkg = pkg
+                repo.prefManager.setIconPackPackage(pkg)
+                iconRefreshing = true
+                repo.refreshIconsThen {
+                    iconRefreshing = false
+                    onAppsUpdated()
+                    android.widget.Toast.makeText(context, "アイコンを更新しました", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
             SettingItem(
                 def.id, def.label, def.desc, def.glyph,
                 valueText = iconPackPkg?.let { pkg -> iconPackList.firstOrNull { it.packageName == pkg }?.label ?: pkg } ?: "なし",
-                onAction = {
-                    settingsScope.launch {
-                        iconPackList = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { IconPackManager.listPacks(context) }
-                        showIconPackDialog = true
-                    }
+                choices = listOf(
+                    SettingChoice(id = "", label = "なし", checked = iconPackPkg == null) { selectPack(null) }
+                ) + iconPackList.map { pack ->
+                    SettingChoice(id = pack.packageName, label = pack.label, checked = iconPackPkg == pack.packageName) { selectPack(pack.packageName) }
                 }
             )
         },
@@ -2002,46 +2015,6 @@ key("disc-choices-${currentItem.id}") {
                 CircularProgressIndicator(color = Color.White, modifier = Modifier.size(36.dp).align(androidx.compose.ui.Alignment.CenterHorizontally))
                 Spacer(modifier = Modifier.height(12.dp))
                 Text("アイコンを更新しています…", color = Color.White, fontSize = 14.sp, modifier = Modifier.align(androidx.compose.ui.Alignment.CenterHorizontally))
-            }
-        }
-
-        if (showIconPackDialog) {
-                        BlurDialog(onDismissRequest = { showIconPackDialog = false }) {
-                Text("アイコンパック", color = Color.White)
-                Spacer(modifier = Modifier.height(10.dp))
-                Column {
-                        Text("「なし」は通常のアイコンです。パックに無いアプリは通常のアイコンのままになります。", color = Color.LightGray, fontSize = 13.sp)
-                        Spacer(modifier = Modifier.height(10.dp))
-                        val options = listOf<Pair<String?, String>>(null to "なし") + iconPackList.map { it.packageName as String? to it.label }
-                        if (iconPackList.isEmpty()) {
-                            Text("対応するアイコンパックが見つかりませんでした", color = Color(0xFFEF5350), fontSize = 13.sp)
-                            Spacer(modifier = Modifier.height(6.dp))
-                        }
-                        options.forEach { (pkg, label) ->
-                            val selected = iconPackPkg == pkg
-                            Text(
-                                text = (if (selected) "● " else "○ ") + label,
-                                color = if (selected) currentAccentColor else Color.White,
-                                fontSize = 15.sp,
-                                modifier = Modifier.fillMaxWidth().clickable {
-                                    iconPackPkg = pkg
-                                    repo.prefManager.setIconPackPackage(pkg)
-                                    showIconPackDialog = false
-                                    iconRefreshing = true
-                                    repo.refreshIconsThen {
-                                        iconRefreshing = false
-                                        onAppsUpdated()
-                                        android.widget.Toast.makeText(context, "アイコンを更新しました", android.widget.Toast.LENGTH_SHORT).show()
-                                    }
-                                }.padding(vertical = 8.dp)
-                            )
-                        }
-                    }
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { showIconPackDialog = false }) {
-                        Text("閉じる", color = currentAccentColor, fontWeight = FontWeight.Bold)
-                    }
-                }
             }
         }
 
