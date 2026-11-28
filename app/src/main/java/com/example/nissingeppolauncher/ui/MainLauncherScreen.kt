@@ -761,10 +761,22 @@ fun MainLauncherScreen() {
             artworkBackground = null
         }
     }
-    // 配色の優先順位: 再生中はアートワーク、普段は壁紙（各設定がオンのとき）、どちらも無ければ手動のアクセントカラー
-    val paletteAccent = if (matchArtwork) artworkAccent else if (matchWallpaper) wallpaperAccent else null
-    val paletteBackground = if (matchArtwork) artworkBackground else if (matchWallpaper) wallpaperBackground else null
-    val accentColor = if (paletteAccent != null) {
+    // 配色の優先順位: アクセントカラーが「自動」のときは、再生中はアートワーク、普段は壁紙（各設定がオンのとき）。
+    // 固定色のときは常にその色。アートワークの色が無いときは壁紙へフォールバックする
+    val paletteAccent = when {
+        matchArtwork && artworkAccent != null -> artworkAccent
+        matchWallpaper && wallpaperAccent != null -> wallpaperAccent
+        else -> null
+    }
+    val paletteBackground = when {
+        matchArtwork && artworkAccent != null -> artworkBackground
+        matchWallpaper && wallpaperAccent != null -> wallpaperBackground
+        else -> null
+    }
+    val autoAccent = accentHex.isEmpty()
+    val accentColor = if (!autoAccent) {
+        manualAccentColor
+    } else if (paletteAccent != null) {
         val extracted = paletteAccent
         val bg = paletteBackground
         if (bg != null && contrastRatio(extracted, bg) < 2.8f) {
@@ -783,7 +795,7 @@ fun MainLauncherScreen() {
             extracted
         }
     } else {
-        manualAccentColor
+        Color(0xFFE53935)
     }
     // サブ色: アートワーク連動時は抽出した第2色、そうでなければ一次色の色相を55度回した色
     val subColor = manualSubColor ?: if (matchArtwork && artworkSub != null) artworkSub!! else if (matchWallpaper && wallpaperSub != null) wallpaperSub!! else ensureSubDistinct(accentColor, rotateHueColor(accentColor, 55f))
@@ -1363,7 +1375,7 @@ fun MainLauncherScreen() {
                     updateKey = backgroundUpdateKey,
                     isHome = (currentLauncherPage == 1),
                     currentAlbumArt = if (matchArtwork || useArtworkBg) sessionAlbumArt else null,
-                    dynamicBackground = if (matchArtwork || useArtworkBg) artworkBackground else if (matchWallpaper) wallpaperBackground else null,
+                    dynamicBackground = if (useArtworkBg) artworkBackground else if (autoAccent && matchArtwork) artworkBackground else if (autoAccent && matchWallpaper) wallpaperBackground else null,
                     artworkBackgroundStyle = if (bgMode == "artwork_blur") "blur" else "solid",
                     liquidEnabled = liquidBackground,
                     liquidAccent = if (dopagakiMode) Color.hsv(Math.floorMod(pvLineIndex * 47, 360).toFloat(), 0.72f, 1f) else effectiveAccent,

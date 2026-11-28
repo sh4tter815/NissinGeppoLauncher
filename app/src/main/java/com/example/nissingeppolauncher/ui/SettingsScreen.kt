@@ -688,7 +688,7 @@ fun SettingsScreen(
     var dateDisplayMode by remember { mutableStateOf(repo.prefManager.getDateDisplayMode()) }
     // 配色をアートワークに合わせるONのときは、画面側で算出されたアートワーク由来の
     // アクセント色（accentColor引数）を設定UIの色にも使う。OFFのときは手動色
-    val currentAccentColor = if (matchArtwork) accentColor else parseHexColor(accentHex)
+    val currentAccentColor = if (accentHex.isNotEmpty()) parseHexColor(accentHex) else accentColor
 
     var iconSize by remember { mutableFloatStateOf(repo.prefManager.getAppDiscIconSizeDp()) }
     var textSize by remember { mutableFloatStateOf(repo.prefManager.getAppDiscTextSizeSp()) }
