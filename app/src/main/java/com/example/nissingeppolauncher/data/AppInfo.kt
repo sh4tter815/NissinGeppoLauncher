@@ -256,6 +256,56 @@ class AppRepository(private val context: Context) {
         }
     }
 
+    /** 単色レイヤーが無いアプリ用: 通常アイコンから背景色を取り除いて、柄だけの単色アイコンを作る。
+     *  背景は四隅の平均色とし、背景からの色の距離を柄の濃さにする。透過アイコンはアルファを柄にする。
+     *  柄がほとんど無い／全面が柄になる場合は失敗として null（通常アイコンのまま） */
+    private fun loadForcedMonochromeIcon(packageName: String): Bitmap? {
+        return try {
+            val drawable = context.packageManager.getApplicationIcon(packageName)
+            val raw = drawable.toBitmap()
+            val size = 192
+            val src = if (raw.width != size || raw.height != size) Bitmap.createScaledBitmap(raw, size, size, true) else raw
+            val px = IntArray(size * size)
+            src.getPixels(px, 0, size, 0, 0, size, size)
+            val corners = listOf(
+                src.getPixel(2, 2), src.getPixel(size - 3, 2),
+                src.getPixel(2, size - 3), src.getPixel(size - 3, size - 3)
+            )
+            val cornerAlpha = corners.map { android.graphics.Color.alpha(it) }.average()
+            if (cornerAlpha < 40) {
+                // 透過アイコン: アルファそのものを柄として白で塗る
+                for (i in px.indices) {
+                    val a = android.graphics.Color.alpha(px[i])
+                    px[i] = android.graphics.Color.argb(a, 255, 255, 255)
+                }
+            } else {
+                val br = corners.map { android.graphics.Color.red(it) }.average()
+                val bg = corners.map { android.graphics.Color.green(it) }.average()
+                val bb = corners.map { android.graphics.Color.blue(it) }.average()
+                var glyphCount = 0
+                for (i in px.indices) {
+                    val p = px[i]
+                    val a0 = android.graphics.Color.alpha(p)
+                    val dr = android.graphics.Color.red(p) - br
+                    val dg = android.graphics.Color.green(p) - bg
+                    val db = android.graphics.Color.blue(p) - bb
+                    val dist = kotlin.math.sqrt(dr * dr + dg * dg + db * db)
+                    val t = ((dist - 24.0) / 72.0).coerceIn(0.0, 1.0)
+                    val a = (t * 255.0 * (a0 / 255.0)).toInt()
+                    if (a > 8) glyphCount++
+                    px[i] = android.graphics.Color.argb(a, 255, 255, 255)
+                }
+                // 柄がほとんど無い（単色ベタ等）／全面が柄（背景推定の失敗）なら諦める
+                if (glyphCount < size * size * 0.02 || glyphCount > size * size * 0.92) return null
+            }
+            val out = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+            out.setPixels(px, 0, size, 0, 0, size, size)
+            out
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     private fun loadIconBitmapFromPackage(packageName: String): Bitmap? {
         // 単色アイコンの印は読み直すたびに付け直す
         try { monoMarkerFile(packageName).delete() } catch (_: Exception) {}
@@ -269,6 +319,12 @@ class AppRepository(private val context: Context) {
             loadMonochromeIcon(packageName)?.let { bmp ->
                 try { monoMarkerFile(packageName).createNewFile() } catch (_: Exception) {}
                 return bmp
+            }
+            if (prefManager.isForcedMonoEnabled()) {
+                loadForcedMonochromeIcon(packageName)?.let { bmp ->
+                    try { monoMarkerFile(packageName).createNewFile() } catch (_: Exception) {}
+                    return bmp
+                }
             }
         }
         val packPkg = prefManager.getIconPackPackage()
