@@ -678,6 +678,7 @@ fun SettingsScreen(
     var accentHex by remember { mutableStateOf(repo.prefManager.getAccentColorHex()) }
     var subHex by remember { mutableStateOf(repo.prefManager.getSubColorHex()) }
     var iconStyle by remember { mutableStateOf(repo.prefManager.getIconStyle()) }
+    var themedForceMono by remember { mutableStateOf(repo.prefManager.isForcedMonoEnabled()) }
     var thirdHex by remember { mutableStateOf(repo.prefManager.getThirdColorHex()) }
     var matchArtwork by remember { mutableStateOf(repo.prefManager.isMatchArtworkColor()) }
     var matchWallpaper by remember { mutableStateOf(repo.prefManager.isMatchWallpaperColor()) }
@@ -1158,6 +1159,15 @@ fun SettingsScreen(
         "discOutline" to Pair({ discOutline }, { v: Boolean -> discOutline = v; repo.prefManager.setDiscOutlineEnabled(v); onChanged() }),
         "labelsWhilePlaying" to Pair({ labelsWhilePlaying }, { v: Boolean -> labelsWhilePlaying = v; repo.prefManager.setLabelsWhilePlayingEnabled(v); onChanged() }),
         "appIconHidden" to Pair({ appIconHidden }, { v: Boolean -> appIconHidden = v; repo.prefManager.setAppIconHidden(v); onChanged() }),
+        "themedForceMono" to Pair({ themedForceMono }, { v: Boolean ->
+            themedForceMono = v
+            repo.prefManager.setForcedMonoEnabled(v)
+            settingsScope.launch {
+                repo.refreshAllIcons()
+                onAppsUpdated()
+                onChanged()
+            }
+        }),
         "dialOutline" to Pair({ dialOutline }, { v: Boolean -> dialOutline = v; repo.prefManager.setDialOutlineEnabled(v); onChanged() }),
         "curvedTitle" to Pair({ curvedTitle }, { v: Boolean -> curvedTitle = v; repo.prefManager.setCurvedTitleEnabled(v); onChanged() }),
         "caseCircleClip" to Pair({ caseCircleClip }, { v: Boolean -> caseCircleClip = v; repo.prefManager.setCaseCircleClipEnabled(v); onChanged() }),

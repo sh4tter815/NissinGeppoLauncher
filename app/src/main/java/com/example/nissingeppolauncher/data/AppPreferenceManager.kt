@@ -532,6 +532,8 @@ class AppPreferenceManager(private val context: Context) {
     fun getIconStyle(): String = prefs.getString("icon_style", "standard") ?: "standard"
     fun setIconStyle(v: String) = prefs.edit().putString("icon_style", v).apply()
     fun isThemedIconsEnabled(): Boolean = getIconStyle() == "themed"
+    fun isForcedMonoEnabled(): Boolean = prefs.getBoolean("themed_force_mono", false)
+    fun setForcedMonoEnabled(v: Boolean) = prefs.edit().putBoolean("themed_force_mono", v).apply()
     fun setIconPackPackage(v: String?) = prefs.edit().putString("icon_pack_package", v).apply()
     fun getAppListFocusPackage(): String? = prefs.getString("app_list_focus_package", null)
     fun saveAppListFocusPackage(v: String) = prefs.edit().putString("app_list_focus_package", v).apply()

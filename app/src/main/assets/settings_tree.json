@@ -1,5 +1,5 @@
 {
-  "version": 63,
+  "version": 64,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -1391,6 +1391,13 @@
         }
       ]
     },
+    "themedForceMono": {
+      "label": "未対応アプリも単色化する",
+      "desc": "単色アイコンが無いアプリも、通常アイコンから背景を取り除いて単色化します。アイコンによっては柄が欠けることがあります",
+      "glyph": "image",
+      "type": "toggle",
+      "bind": "themedForceMono"
+    },
     "iconPack": {
       "label": "アイコンパック",
       "desc": "インストール済みアイコンパックのアイコンでアプリを表示します",
@@ -1670,6 +1677,9 @@
             },
             {
               "item": "iconStyle"
+            },
+            {
+              "item": "themedForceMono"
             },
             {
               "item": "iconPack"
