@@ -236,6 +236,11 @@ class AppPreferenceManager(private val context: Context) {
     fun getAccentColorHex(): String = prefs.getString("accent_color_hex", "#E53935") ?: "#E53935"
     fun setAccentColorHex(hex: String) = prefs.edit().putString("accent_color_hex", hex).apply()
 
+    /** サブ色の手動指定（空文字 = 自動） */
+    fun getSubColorHex(): String = prefs.getString("sub_color_hex", "") ?: ""
+
+    fun setSubColorHex(hex: String) = prefs.edit().putString("sub_color_hex", hex).apply()
+
     // アートワーク連動カラー（再生中の曲のアートワークから配色を決める）
     fun isMatchArtworkColor(): Boolean = prefs.getBoolean("match_artwork_color", false)
     fun setMatchArtworkColor(enabled: Boolean) = prefs.edit().putBoolean("match_artwork_color", enabled).apply()
