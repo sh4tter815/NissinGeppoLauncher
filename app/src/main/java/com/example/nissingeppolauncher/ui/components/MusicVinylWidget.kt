@@ -847,12 +847,12 @@ fun MusicVinylWidget(
                     contentAlignment = Alignment.Center
                 ) {
                     when {
-                        discStyleNow == "md" -> MdCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotationState = spinState, bitmapImage = caseBitmapImage, lineArtImage = lineArtImage, title = trackTitle, subColor = effSub, thirdColor = effThird)
+                        discStyleNow == "md" -> MdCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotationState = spinState, bitmapImage = caseBitmapImage, lineArtImage = lineArtImage, title = trackTitle, subColor = effSub, thirdColor = effThird, grabRotX = grabRotX, grabRotY = grabRotY)
                         discStyleNow == "reel" -> ReelCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotationState = spinState, title = trackTitle)
                         discStyleNow == "floppy" -> FloppyCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, title = trackTitle, lineArtImage = lineArtImage, subColor = effSub, thirdColor = effThird)
                         discStyleNow == "dat" -> DatCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotationState = spinState, title = trackTitle, subColor = effSub, thirdColor = effThird)
                         discStyleNow == "eighttrack" -> EightTrackCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, title = trackTitle, lineArtImage = lineArtImage, subColor = effSub, thirdColor = effThird)
-                        else -> CassetteCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotationState = spinState, title = trackTitle, artist = trackArtist, shellStyle = cassetteShellOf(discStyleNow), lineArtImage = lineArtImage, subColor = effSub, thirdColor = effThird)
+                        else -> CassetteCase(boxSizeDp = discRadiusDp * 2f * 0.92f, accentColor = effAccent, rotationState = spinState, title = trackTitle, artist = trackArtist, shellStyle = cassetteShellOf(discStyleNow), lineArtImage = lineArtImage, subColor = effSub, thirdColor = effThird, grabRotX = grabRotX, grabRotY = grabRotY)
                     }
                 }
             } else {
@@ -1652,9 +1652,30 @@ private fun extractLineArtBitmap(src: Bitmap?): Bitmap? {
 }
 
 @Composable
-private fun MdCase(boxSizeDp: Float, accentColor: Color, subColor: Color = accentColor, thirdColor: Color = accentColor, rotationState: State<Float>, bitmapImage: ImageBitmap?, lineArtImage: ImageBitmap?, title: String) {
+private fun MdCase(boxSizeDp: Float, accentColor: Color, subColor: Color = accentColor, thirdColor: Color = accentColor, rotationState: State<Float>, bitmapImage: ImageBitmap?, lineArtImage: ImageBitmap?, title: String, grabRotX: Float = 0f, grabRotY: Float = 0f) {
     val caseW = boxSizeDp
     val caseH = boxSizeDp * 0.94f
+    // ケースの色は少し深めにする（色味が分かるように）。ケース自体は単色でしっかり塗り、中のディスクはグラデーションのまま
+    val caseColors = listOf(accentColor, subColor, thirdColor).map { c ->
+        val hsv = FloatArray(3)
+        android.graphics.Color.RGBToHSV(
+            (c.red * 255).toInt().coerceIn(0, 255),
+            (c.green * 255).toInt().coerceIn(0, 255),
+            (c.blue * 255).toInt().coerceIn(0, 255),
+            hsv
+        )
+        if (hsv[1] >= 0.08f) hsv[1] = hsv[1].coerceAtLeast(0.50f)
+        hsv[2] = hsv[2].coerceIn(0.40f, 0.78f)
+        Color(android.graphics.Color.HSVToColor(hsv))
+    }
+    val caseSolid = caseColors[0]
+    val caseEdge = Color(caseSolid.red * 0.55f, caseSolid.green * 0.55f, caseSolid.blue * 0.55f)
+    // 厚み: 傾きに応じて奥側へ同形の層をずらして重ね、ペラペラに見えないようにする
+    val thickDx = (-kotlin.math.sin(Math.toRadians(grabRotY.toDouble())) * 7.0).toFloat()
+    val thickDy = (kotlin.math.sin(Math.toRadians(grabRotX.toDouble())) * 7.0 + 2.2).toFloat().coerceIn(-4f, 10f)
+    Box(modifier = Modifier.size(caseW.dp, caseH.dp)) {
+        Box(modifier = Modifier.size(caseW.dp, caseH.dp).offset(x = (thickDx * 0.55f).dp, y = (thickDy * 0.55f).dp).background(caseEdge, RoundedCornerShape(10.dp)))
+        Box(modifier = Modifier.size(caseW.dp, caseH.dp).offset(x = thickDx.dp, y = thickDy.dp).background(caseEdge, RoundedCornerShape(10.dp)))
     Box(
         modifier = Modifier
             .size(caseW.dp, caseH.dp)
@@ -1713,29 +1734,12 @@ private fun MdCase(boxSizeDp: Float, accentColor: Color, subColor: Color = accen
                     .width((boxSizeDp * 0.50f).dp)
             )
         }
-        // 半透明の色つきケース（アクセント色）。色味が分かるよう、ケース側だけ少し深い色にして濃く重ねる
-        // （中のディスクの透け感・虹色はそのまま）
-        val caseColors = listOf(accentColor, subColor, thirdColor).map { c ->
-            val hsv = FloatArray(3)
-            android.graphics.Color.RGBToHSV(
-                (c.red * 255).toInt().coerceIn(0, 255),
-                (c.green * 255).toInt().coerceIn(0, 255),
-                (c.blue * 255).toInt().coerceIn(0, 255),
-                hsv
-            )
-            if (hsv[1] >= 0.08f) hsv[1] = hsv[1].coerceAtLeast(0.50f)
-            hsv[2] = hsv[2].coerceIn(0.40f, 0.78f)
-            Color(android.graphics.Color.HSVToColor(hsv))
-        }
+        // 色つきケース（アクセント色の単色）。透けると背面の色で色味が変わって見えるため、ほぼ不透明に塗る
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.linearGradient(
-                        listOf(caseColors[0].copy(alpha = 0.74f), caseColors[1].copy(alpha = 0.60f), caseColors[2].copy(alpha = 0.70f))
-                    )
-                )
-                .border(1.5.dp, caseColors[0].copy(alpha = 0.95f), RoundedCornerShape(10.dp))
+                .background(caseSolid.copy(alpha = 0.92f))
+                .border(1.5.dp, caseSolid, RoundedCornerShape(10.dp))
         )
         Canvas(
             modifier = Modifier
@@ -1788,6 +1792,7 @@ private fun MdCase(boxSizeDp: Float, accentColor: Color, subColor: Color = accen
                 modifier = Modifier.align(Alignment.BottomStart).padding(start = 8.dp, bottom = 3.dp)
             )
         }
+    }
     }
 }
 
@@ -2177,7 +2182,7 @@ private fun FloppyCase(boxSizeDp: Float, accentColor: Color, subColor: Color = a
 }
 
 @Composable
-private fun CassetteCase(boxSizeDp: Float, accentColor: Color, subColor: Color = accentColor, thirdColor: Color = accentColor, rotationState: State<Float>, title: String, artist: String, shellStyle: String = "clear", lineArtImage: ImageBitmap? = null) {
+private fun CassetteCase(boxSizeDp: Float, accentColor: Color, subColor: Color = accentColor, thirdColor: Color = accentColor, rotationState: State<Float>, title: String, artist: String, shellStyle: String = "clear", lineArtImage: ImageBitmap? = null, grabRotX: Float = 0f, grabRotY: Float = 0f) {
     val caseW = boxSizeDp
     val caseH = boxSizeDp * 0.64f
     val packR = caseH * 0.30f
@@ -2193,6 +2198,17 @@ private fun CassetteCase(boxSizeDp: Float, accentColor: Color, subColor: Color =
     }
     val tapeColor = if (shellStyle == "black") Color(0xFF4A3421) else Color(0xFF241A12)
     val tapeRing = if (shellStyle == "black") Color(0xFF6B4E2E) else Color(0xFF3A2A1A)
+    // 厚み: 傾きに応じて奥側へ同形の層をずらして重ね、ペラペラに見えないようにする
+    val shellEdge = when (shellStyle) {
+        "color" -> Color(accentColor.red * 0.45f, accentColor.green * 0.45f, accentColor.blue * 0.45f)
+        "black" -> Color(0xFF08080B)
+        else -> Color(0xFF6E747C)
+    }
+    val thickDx = (-kotlin.math.sin(Math.toRadians(grabRotY.toDouble())) * 6.0).toFloat()
+    val thickDy = (kotlin.math.sin(Math.toRadians(grabRotX.toDouble())) * 6.0 + 2.0).toFloat().coerceIn(-4f, 9f)
+    Box(modifier = Modifier.size(caseW.dp, caseH.dp)) {
+        Box(modifier = Modifier.size(caseW.dp, caseH.dp).offset(x = (thickDx * 0.55f).dp, y = (thickDy * 0.55f).dp).background(shellEdge, RoundedCornerShape(12.dp)))
+        Box(modifier = Modifier.size(caseW.dp, caseH.dp).offset(x = thickDx.dp, y = thickDy.dp).background(shellEdge, RoundedCornerShape(12.dp)))
     Box(
         modifier = Modifier
             .size(caseW.dp, caseH.dp)
@@ -2318,5 +2334,6 @@ private fun CassetteCase(boxSizeDp: Float, accentColor: Color, subColor: Color =
         Box(modifier = Modifier.align(Alignment.TopEnd).padding(5.dp).size(7.dp).clip(CircleShape).background(Color(0xFF6E747C)))
         Box(modifier = Modifier.align(Alignment.BottomStart).padding(5.dp).size(7.dp).clip(CircleShape).background(Color(0xFF6E747C)))
         Box(modifier = Modifier.align(Alignment.BottomEnd).padding(5.dp).size(7.dp).clip(CircleShape).background(Color(0xFF6E747C)))
+    }
     }
 }
