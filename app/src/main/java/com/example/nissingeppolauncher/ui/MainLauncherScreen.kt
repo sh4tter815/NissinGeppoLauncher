@@ -146,6 +146,7 @@ fun MainLauncherScreen() {
     // サブ色の手動指定（空 = 自動なので null）
     val manualSubColor = remember(subHex) { if (subHex.isNotBlank()) parseHexColor(subHex) else null }
     var thirdHex by remember { mutableStateOf(repo.prefManager.getThirdColorHex()) }
+    var monoColorMode by remember { mutableStateOf(repo.prefManager.getMonoColorMode()) }
     val manualThirdColor = remember(thirdHex) { if (thirdHex.isNotBlank()) parseHexColor(thirdHex) else null }
 
     // アートワーク連動カラー: 設定でONのとき、再生中セッションのアートワークから
@@ -840,6 +841,7 @@ fun MainLauncherScreen() {
         accentHex = repo.prefManager.getAccentColorHex()
         subHex = repo.prefManager.getSubColorHex()
         thirdHex = repo.prefManager.getThirdColorHex()
+        monoColorMode = repo.prefManager.getMonoColorMode()
         matchArtwork = repo.prefManager.isMatchArtworkColor()
         matchWallpaper = repo.prefManager.isMatchWallpaperColor()
         bgMode = repo.prefManager.getBackgroundMode()
@@ -1527,6 +1529,7 @@ fun MainLauncherScreen() {
                                 accentHex = repo.prefManager.getAccentColorHex()
         subHex = repo.prefManager.getSubColorHex()
         thirdHex = repo.prefManager.getThirdColorHex()
+        monoColorMode = repo.prefManager.getMonoColorMode()
                                 customBackgroundPath = repo.prefManager.getCustomBackgroundPath()
                                 backgroundUpdateKey = System.currentTimeMillis()
                                 customFontPath = repo.prefManager.getCustomFontPath()
@@ -1871,6 +1874,8 @@ fun MainLauncherScreen() {
                                 iconCornerPercent = iconCornerPercent,
                                 letterSpacingSp = appDiscLetterSpacing,
                                 accentColor = accentColor,
+                                subColor = subColor,
+                                monoColorMode = monoColorMode,
                                 isFocused = isSelected,
                                 iconTilt3d = disc3d,
                                 onFolderClick = { fid ->
@@ -1975,6 +1980,7 @@ fun MainLauncherScreen() {
                                 letterSpacingSp = appDiscLetterSpacing,
                                 accentColor = accentColor,
                                 subColor = subColor,
+                                monoColorMode = monoColorMode,
                                 selectedPackages = null,
                                 iconTilt3d = disc3d,
                                 rainbowGlow = dopagakiMode,
@@ -2164,6 +2170,7 @@ fun MainLauncherScreen() {
                                 letterSpacingSp = appDiscLetterSpacing,
                                 accentColor = accentColor,
                                 subColor = subColor,
+                                monoColorMode = monoColorMode,
                                 selectedPackages = null,
                                 iconTilt3d = disc3d,
                                 rainbowGlow = dopagakiMode,
@@ -2337,6 +2344,7 @@ fun MainLauncherScreen() {
                                     letterSpacingSp = appDiscLetterSpacing,
                                     accentColor = accentColor,
                                     subColor = subColor,
+                                    monoColorMode = monoColorMode,
                                     selectedPackages = editingSelectedPackages,
                                     iconTilt3d = disc3d,
                                     rainbowGlow = dopagakiMode,
@@ -2372,6 +2380,8 @@ fun MainLauncherScreen() {
                                     iconCornerPercent = iconCornerPercent,
                                     letterSpacingSp = appDiscLetterSpacing,
                                     accentColor = accentColor,
+                                    subColor = subColor,
+                                    monoColorMode = monoColorMode,
                                     isFocused = isSelected,
                                     iconTilt3d = disc3d,
                                     onFolderClick = { fid ->

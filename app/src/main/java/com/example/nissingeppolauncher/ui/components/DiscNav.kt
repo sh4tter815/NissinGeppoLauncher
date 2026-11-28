@@ -1396,6 +1396,7 @@ fun DiscAppItem(
     letterSpacingSp: Float,
     accentColor: Color,
     subColor: Color = accentColor,
+    monoColorMode: String = "primary",
     selectedPackages: Set<String>?,
     iconTilt3d: Boolean,
     rainbowGlow: Boolean = false,
@@ -1406,6 +1407,7 @@ fun DiscAppItem(
 ) {
     val effAccent = if (rainbowGlow) dopaRainbowColor(seed = 9) else accentColor
     val effSub = if (rainbowGlow) dopaRainbowColor(seed = 23) else subColor
+    val monoColor = when (monoColorMode) { "sub" -> effSub; "white" -> Color.White; else -> effAccent }
     val outerAppRadiusDp = discRadiusDp + 8f
     val innerIconRadiusDp = discRadiusDp - 18f
     when (item) {
@@ -1465,14 +1467,14 @@ fun DiscAppItem(
                         Box(
                             modifier = Modifier
                                 .size((iconSizeDp * 1.125f).coerceAtLeast(12f).dp)
-                                .background(effAccent.copy(alpha = 0.30f), RoundedCornerShape(iconCornerPercent)),
+                                .background(monoColor.copy(alpha = 0.30f), RoundedCornerShape(iconCornerPercent)),
                             contentAlignment = Alignment.Center
                         ) {
                             Image(
                                 bitmap = iconBitmap,
                                 contentDescription = null,
                                 modifier = Modifier.size((iconSizeDp * 0.86f).coerceAtLeast(9f).dp),
-                                colorFilter = ColorFilter.tint(effAccent)
+                                colorFilter = ColorFilter.tint(monoColor)
                             )
                         }
                     } else {
@@ -1574,6 +1576,8 @@ fun DiscFolderItem(
     iconCornerPercent: Int = 30,
     letterSpacingSp: Float,
     accentColor: Color,
+    subColor: Color = accentColor,
+    monoColorMode: String = "primary",
     isFocused: Boolean,
     iconTilt3d: Boolean,
     onFolderClick: (String) -> Unit,
@@ -1585,6 +1589,7 @@ fun DiscFolderItem(
     onFolderLongClick: (String) -> Unit = {},
     onBackClick: () -> Unit = {}
 ) {
+    val monoColor = when (monoColorMode) { "sub" -> subColor; "white" -> Color.White; else -> accentColor }
     val outerAppRadiusDp = discRadiusDp + 8f
     val innerIconRadiusDp = discRadiusDp - 18f
     val appXDp = discCenterXDp + outerAppRadiusDp * cos(rad)
@@ -1655,14 +1660,14 @@ fun DiscFolderItem(
                         Box(
                             modifier = Modifier
                                 .size((iconSizeDp * 1.125f).coerceAtLeast(12f).dp)
-                                .background(accentColor.copy(alpha = 0.30f), RoundedCornerShape(iconCornerPercent)),
+                                .background(monoColor.copy(alpha = 0.30f), RoundedCornerShape(iconCornerPercent)),
                             contentAlignment = Alignment.Center
                         ) {
                             Image(
                                 bitmap = iconBitmap,
                                 contentDescription = null,
                                 modifier = Modifier.size((iconSizeDp * 0.86f).coerceAtLeast(9f).dp),
-                                colorFilter = ColorFilter.tint(accentColor)
+                                colorFilter = ColorFilter.tint(monoColor)
                             )
                         }
                     } else {
