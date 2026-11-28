@@ -1642,9 +1642,8 @@ fun DiscFolderItem(
         when (entry) {
             is FolderDiscEntry.Folder -> {
                 Box(contentAlignment = Alignment.Center) {
-                    // フォルダの形の背景（背景色・半透明）＋前景色の枠とグリフ
+                    // フォルダの形の背景色塗りつぶし＋前景色のグリフ（外枠の線はなし）
                     FilledFolderIcon(size = glyphSize, color = monoBg.copy(alpha = 0.30f))
-                    WhiteFolderIcon(size = glyphSize, color = monoFg)
                     if (entry.iconKind.isNotBlank()) {
                         Box(modifier = Modifier.offset(y = (iconSizeDp * 0.10f).dp)) {
                             DiscGlyph(entry.iconKind, monoFg, sizeDp = iconSizeDp * 0.42f)
