@@ -1,5 +1,5 @@
 {
-  "version": 64,
+  "version": 65,
   "items": {
     "reverse": {
       "label": "スクロール方向の反転",
@@ -1391,6 +1391,27 @@
         }
       ]
     },
+    "monoColor": {
+      "label": "単色アイコンの色",
+      "desc": "テーマ（単色）アイコンの色を選びます",
+      "glyph": "palette",
+      "type": "choices",
+      "bind": "monoColorMode",
+      "choices": [
+        {
+          "v": "primary",
+          "label": "一次色"
+        },
+        {
+          "v": "sub",
+          "label": "サブ色"
+        },
+        {
+          "v": "white",
+          "label": "白"
+        }
+      ]
+    },
     "themedForceMono": {
       "label": "未対応アプリも単色化する",
       "desc": "単色アイコンが無いアプリも、通常アイコンから背景を取り除いて単色化します。アイコンによっては柄が欠けることがあります",
@@ -1680,6 +1701,9 @@
             },
             {
               "item": "themedForceMono"
+            },
+            {
+              "item": "monoColor"
             },
             {
               "item": "iconPack"
