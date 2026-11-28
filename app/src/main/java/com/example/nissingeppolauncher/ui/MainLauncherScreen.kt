@@ -1163,7 +1163,6 @@ fun MainLauncherScreen() {
                     val kind = folderIcons[fid] ?: ""
                     Box(contentAlignment = Alignment.Center) {
                         FilledFolderIcon(size = 36.dp, color = monoBgResolved.copy(alpha = 0.30f))
-                        WhiteFolderIcon(size = 36.dp, color = monoFgResolved)
                         if (kind.isNotBlank()) {
                             Box(modifier = Modifier.offset(y = 4.dp)) {
                                 DiscGlyph(kind, monoFgResolved, sizeDp = 15f)
